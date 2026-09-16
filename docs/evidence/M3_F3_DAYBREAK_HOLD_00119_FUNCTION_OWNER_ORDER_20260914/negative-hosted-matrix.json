@@ -1,0 +1,300 @@
+{
+  "artifact": "negative-hosted-matrix",
+  "functional_sha": "104a5b514c35b5a3bee6526578f7bccc3575dfb3",
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "cli": "2.117.0",
+  "tip_modules": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs"
+  ],
+  "real_apis_exercised": [
+    "assertPrefixCompleteSinglePendingStaging",
+    "runPrefixCompleteSinglePendingOrchestration",
+    "syncIsolatedMigrationsThrough",
+    "runRepairSafetyThenMaybeRepair",
+    "evaluateObjectProbe",
+    "evaluatePoisonAbsent",
+    "evaluateCleanupProven",
+    "fingerprintCompleteAndExact",
+    "getFrozenExpectedFingerprint"
+  ],
+  "isolated_staging": {
+    "staged118": [
+      "20260913173000_f3_bounded_financial_epoch_foundation.sql"
+    ],
+    "stagedNames": [
+      "20260913173000_f3_bounded_financial_epoch_foundation.sql"
+    ]
+  },
+  "cases": [
+    {
+      "id": "N1",
+      "title": "Missing applied-prefix file",
+      "kind": "staging_preflight",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "ok": false,
+      "hold": "HOLD: prefix-complete single-pending staging preflight failed; db push not spawned; repair not spawned",
+      "preflight_code": "applied_remote_missing_locally",
+      "preflight_reason": "applied remote version 20260913173000 missing from local workdir",
+      "modules": {
+        "assertPrefixCompleteSinglePendingStaging": true,
+        "syncIsolatedMigrationsThrough": true,
+        "runPrefixCompleteSinglePendingOrchestration": true,
+        "tip_sha": "104a5b514c35b5a3bee6526578f7bccc3575dfb3"
+      }
+    },
+    {
+      "id": "N2",
+      "title": "Altered applied-prefix digest",
+      "kind": "staging_preflight",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "ok": false,
+      "hold": "HOLD: prefix-complete single-pending staging preflight failed; db push not spawned; repair not spawned",
+      "preflight_code": "applied_local_digest",
+      "preflight_reason": "applied local file wrong digest for 00118_f3_bounded_financial_epoch_foundation.sql",
+      "modules": {
+        "assertPrefixCompleteSinglePendingStaging": true,
+        "syncIsolatedMigrationsThrough": true,
+        "runPrefixCompleteSinglePendingOrchestration": true,
+        "tip_sha": "104a5b514c35b5a3bee6526578f7bccc3575dfb3"
+      }
+    },
+    {
+      "id": "N3",
+      "title": "Multiple pending migrations",
+      "kind": "staging_preflight",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "ok": false,
+      "hold": "HOLD: prefix-complete single-pending staging preflight failed; db push not spawned; repair not spawned",
+      "preflight_code": "later_migration_staged",
+      "preflight_reason": "later F3 migration staged: 20260913173001_f3_01_core_ledger_foundation.sql",
+      "modules": {
+        "assertPrefixCompleteSinglePendingStaging": true,
+        "syncIsolatedMigrationsThrough": true,
+        "runPrefixCompleteSinglePendingOrchestration": true,
+        "tip_sha": "104a5b514c35b5a3bee6526578f7bccc3575dfb3"
+      }
+    },
+    {
+      "id": "N4",
+      "title": "Later migration staged",
+      "kind": "staging_preflight",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "ok": false,
+      "hold": "HOLD: prefix-complete single-pending staging preflight failed; db push not spawned; repair not spawned",
+      "preflight_code": "later_migration_staged",
+      "preflight_reason": "later F3 migration staged: 20260913173001_f3_01_core_ledger_foundation.sql",
+      "modules": {
+        "assertPrefixCompleteSinglePendingStaging": true,
+        "syncIsolatedMigrationsThrough": true,
+        "runPrefixCompleteSinglePendingOrchestration": true,
+        "tip_sha": "104a5b514c35b5a3bee6526578f7bccc3575dfb3"
+      }
+    },
+    {
+      "id": "N5",
+      "title": "Remote/local prefix mismatch",
+      "kind": "staging_preflight",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "ok": false,
+      "hold": "HOLD: prefix-complete single-pending staging preflight failed; db push not spawned; repair not spawned",
+      "preflight_code": "remote_unexpected_name",
+      "preflight_reason": "remote history unexpected name unexpected_name for 20260913173000",
+      "modules": {
+        "assertPrefixCompleteSinglePendingStaging": true,
+        "syncIsolatedMigrationsThrough": true,
+        "runPrefixCompleteSinglePendingOrchestration": true,
+        "tip_sha": "104a5b514c35b5a3bee6526578f7bccc3575dfb3"
+      }
+    },
+    {
+      "id": "N6",
+      "title": "Malformed/nonzero history response",
+      "kind": "staging_preflight",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "ok": false,
+      "hold": "HOLD: prefix-complete single-pending staging preflight failed; db push not spawned; repair not spawned",
+      "preflight_code": "history_nonzero",
+      "preflight_reason": "history query exits nonzero: status=1",
+      "modules": {
+        "assertPrefixCompleteSinglePendingStaging": true,
+        "syncIsolatedMigrationsThrough": true,
+        "runPrefixCompleteSinglePendingOrchestration": true,
+        "tip_sha": "104a5b514c35b5a3bee6526578f7bccc3575dfb3"
+      }
+    },
+    {
+      "id": "N7",
+      "title": "Malformed object probe",
+      "kind": "repair_safety",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [
+        "expected_objects",
+        "security_postconditions"
+      ],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "objectProbe": {
+        "present": false,
+        "reason": "non-JSON"
+      },
+      "cleanupStatus": 0,
+      "poisonAbsent": false,
+      "teardownRecorded": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "evaluateObjectProbe": true,
+        "syncIsolatedMigrationsThrough": true,
+        "getFrozenExpectedFingerprint": true,
+        "tip_sha": "104a5b514c35b5a3bee6526578f7bccc3575dfb3"
+      },
+      "evaluateObjectProbe": {
+        "present": false,
+        "reason": "non-JSON"
+      }
+    },
+    {
+      "id": "N8",
+      "title": "Fingerprint mismatch",
+      "kind": "repair_safety",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [
+        "fingerprint_exact"
+      ],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "objectProbe": {
+        "present": true,
+        "schema": "array_rows",
+        "row": {
+          "p0": "financial_private",
+          "p1": "public.financial_ledger_epochs"
+        }
+      },
+      "cleanupStatus": 0,
+      "poisonAbsent": false,
+      "teardownRecorded": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "evaluateObjectProbe": true,
+        "syncIsolatedMigrationsThrough": true,
+        "getFrozenExpectedFingerprint": true,
+        "tip_sha": "104a5b514c35b5a3bee6526578f7bccc3575dfb3"
+      },
+      "fingerprintEval": {
+        "ok": false,
+        "reason": "fingerprint expected and observed are not canonically equal"
+      }
+    },
+    {
+      "id": "N9",
+      "title": "Cleanup failure",
+      "kind": "repair_safety",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [],
+      "hold": null,
+      "objectProbe": {
+        "present": true,
+        "schema": "array_rows",
+        "row": {
+          "p0": "financial_private",
+          "p1": "public.financial_ledger_epochs"
+        }
+      },
+      "cleanupStatus": 1,
+      "poisonAbsent": false,
+      "teardownRecorded": true,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "evaluateObjectProbe": true,
+        "syncIsolatedMigrationsThrough": true,
+        "getFrozenExpectedFingerprint": true,
+        "tip_sha": "104a5b514c35b5a3bee6526578f7bccc3575dfb3"
+      },
+      "poison_install": {
+        "status": 0
+      },
+      "cleanupProof": {
+        "ok": false,
+        "reason": "cleanup status 1"
+      }
+    },
+    {
+      "id": "N10",
+      "title": "Poison-remains verification failure",
+      "kind": "repair_safety",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [],
+      "hold": null,
+      "objectProbe": {
+        "present": true,
+        "schema": "array_rows",
+        "row": {
+          "p0": "financial_private",
+          "p1": "public.financial_ledger_epochs"
+        }
+      },
+      "cleanupStatus": 0,
+      "poisonAbsent": false,
+      "teardownRecorded": true,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "evaluateObjectProbe": true,
+        "syncIsolatedMigrationsThrough": true,
+        "getFrozenExpectedFingerprint": true,
+        "tip_sha": "104a5b514c35b5a3bee6526578f7bccc3575dfb3"
+      },
+      "poison_install": {
+        "status": 0
+      },
+      "realPoisonEval": {
+        "ok": false,
+        "absent": false,
+        "reason": "poison trigger remains present"
+      }
+    }
+  ],
+  "all_staging_dbPushCalls_zero": true,
+  "all_repairCalls_zero": true,
+  "teardowns": [
+    {
+      "case": "N9",
+      "status": 0
+    },
+    {
+      "case": "N10",
+      "status": 0
+    }
+  ],
+  "final_poison_absent": {
+    "ok": true,
+    "absent": true,
+    "row": {
+      "function_present": false,
+      "trigger_present": false
+    }
+  },
+  "holds": {
+    "staging": "HOLD: prefix-complete single-pending staging preflight failed; db push not spawned; repair not spawned",
+    "repair_safety": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation"
+  }
+}

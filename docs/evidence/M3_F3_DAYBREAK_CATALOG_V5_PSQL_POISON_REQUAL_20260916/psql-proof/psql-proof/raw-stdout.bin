@@ -1,0 +1,1 @@
+{"schema_version" : "f3-poison-envelope-v1", "poisonPresent" : false, "current_database" : "f3_reference_oracle_20260915", "current_user" : "f3_ref_oracle", "probe_marker" : "f3_poison_absent_probe"}

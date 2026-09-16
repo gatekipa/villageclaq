@@ -1,0 +1,98 @@
+psql:/workspace/f3-strict-poison-remediate-20260916/phase-b/reset/qualification-reset.sql:6: NOTICE:  drop cascades to 71 other objects
+DETAIL:  drop cascades to function financial_core.currency_scale(text)
+drop cascades to constraint financial_accounts_currency_supported on table financial_accounts
+drop cascades to constraint financial_events_currency_supported on table financial_events
+drop cascades to constraint financial_postings_amount_precision on table financial_postings
+drop cascades to function financial_core.guard_financial_account()
+drop cascades to trigger financial_accounts_guard on table financial_accounts
+drop cascades to function financial_core.guard_financial_fund()
+drop cascades to trigger financial_funds_guard on table financial_funds
+drop cascades to function financial_core.guard_financial_category()
+drop cascades to trigger financial_categories_guard on table financial_categories
+drop cascades to function financial_core.guard_financial_event_epoch()
+drop cascades to trigger financial_events_epoch_guard on table financial_events
+drop cascades to function financial_core.guard_financial_event_history()
+drop cascades to trigger financial_events_history_guard on table financial_events
+drop cascades to function financial_core.guard_financial_posting_history()
+drop cascades to trigger financial_postings_history_guard on table financial_postings
+drop cascades to function financial_core.assert_financial_event_balanced(uuid)
+drop cascades to function financial_core.check_event_balance_from_event()
+drop cascades to trigger financial_events_balance_guard on table financial_events
+drop cascades to function financial_core.check_event_balance_from_posting()
+drop cascades to trigger financial_postings_balance_guard on table financial_postings
+drop cascades to function financial_core.can_manage_finances(uuid)
+drop cascades to policy financial_accounts_manager_select on table financial_accounts
+drop cascades to policy financial_accounts_manager_insert on table financial_accounts
+drop cascades to policy financial_accounts_manager_update on table financial_accounts
+drop cascades to policy financial_funds_manager_select on table financial_funds
+drop cascades to policy financial_funds_manager_insert on table financial_funds
+drop cascades to policy financial_funds_manager_update on table financial_funds
+drop cascades to policy financial_categories_manager_select on table financial_categories
+drop cascades to policy financial_categories_manager_insert on table financial_categories
+drop cascades to policy financial_categories_manager_update on table financial_categories
+drop cascades to function financial_core.can_view_finances(uuid)
+drop cascades to policy financial_events_finance_reader on table financial_events
+drop cascades to policy financial_postings_finance_reader on table financial_postings
+drop cascades to function financial_core.assert_finances_manage(uuid)
+drop cascades to function financial_core.lock_financial_occurrence(uuid,text,text,text,uuid)
+drop cascades to function financial_core.f3_uuid(jsonb,boolean)
+drop cascades to function financial_core.f3_currency(jsonb)
+drop cascades to function financial_core.f3_amount(jsonb,text)
+drop cascades to function financial_core.f3_timestamp(jsonb)
+drop cascades to function financial_core.f3_trim(text)
+drop cascades to function financial_core.f3_canonical(jsonb)
+drop cascades to function financial_core.f3_fingerprint(jsonb)
+drop cascades to table financial_core.posting_command_payloads
+drop cascades to function financial_core.guard_f3_payload()
+drop cascades to function financial_core.guard_f3_posting_closure()
+drop cascades to trigger financial_postings_f3_closure on table financial_postings
+drop cascades to function financial_core.check_f3_posting_closure()
+drop cascades to function financial_core.lock_f3_identity(uuid,uuid,text,text,text)
+drop cascades to function financial_core.post_f3_command(jsonb,jsonb)
+drop cascades to function financial_core.format_projection_amount(numeric,text)
+drop cascades to function financial_core.projection_cashbook_rows(uuid,boolean)
+drop cascades to table financial_core.correction_command_payloads
+drop cascades to function financial_core.guard_f3_correction_payload()
+drop cascades to function financial_core.f3_correction_canonical(jsonb)
+drop cascades to function financial_core.f3_correction_fingerprint(jsonb)
+drop cascades to function financial_core.f3_correction_timestamp(timestamp with time zone)
+drop cascades to function financial_core.f3_correction_signed_amount(numeric,text)
+drop cascades to function financial_core.f3_correction_reason(jsonb)
+drop cascades to function financial_core.f3_correction_child_id(uuid,uuid,text)
+drop cascades to function financial_core.f3_correction_posting_json(uuid,uuid,uuid,uuid,text,timestamp with time zone,numeric,financial_control_class,uuid,uuid,uuid,financial_category_class,uuid,uuid)
+drop cascades to function financial_core.resolve_f3_correction_replacement(jsonb,jsonb,boolean)
+drop cascades to function financial_core.assert_f3_correction_postings(uuid,jsonb)
+drop cascades to function financial_core.guard_f3_correction_lineage()
+drop cascades to trigger financial_events_f3_correction_lineage on table financial_events
+drop cascades to function financial_core.check_f3_correction_closure()
+drop cascades to function financial_core.correct_f3_command(jsonb)
+drop cascades to table financial_core.opening_provenances
+drop cascades to function financial_core.guard_f3_opening_provenance()
+drop cascades to function financial_core.f3_opening_safe_text(text,integer,boolean)
+drop cascades to function financial_core.post_f3_opening_cash(jsonb)
+psql:/workspace/f3-strict-poison-remediate-20260916/phase-b/reset/qualification-reset.sql:7: NOTICE:  drop cascades to 4 other objects
+DETAIL:  drop cascades to table financial_private.epoch_transitions
+drop cascades to table financial_private.internal_financial_tenants
+drop cascades to function financial_private.guard_ledger_epoch()
+drop cascades to trigger financial_ledger_epoch_guard on table financial_ledger_epochs
+psql:/workspace/f3-strict-poison-remediate-20260916/phase-b/reset/qualification-reset.sql:12: NOTICE:  drop cascades to constraint financial_postings_account_scope on table financial_postings
+psql:/workspace/f3-strict-poison-remediate-20260916/phase-b/reset/qualification-reset.sql:13: NOTICE:  drop cascades to constraint financial_postings_category_scope on table financial_postings
+psql:/workspace/f3-strict-poison-remediate-20260916/phase-b/reset/qualification-reset.sql:14: NOTICE:  drop cascades to constraint financial_postings_event_scope on table financial_postings
+psql:/workspace/f3-strict-poison-remediate-20260916/phase-b/reset/qualification-reset.sql:15: NOTICE:  drop cascades to constraint financial_postings_fund_scope on table financial_postings
+psql:/workspace/f3-strict-poison-remediate-20260916/phase-b/reset/qualification-reset.sql:19: NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to constraint position_assignments_position_id_fkey on table position_assignments
+drop cascades to constraint position_permissions_position_id_fkey on table position_permissions
+psql:/workspace/f3-strict-poison-remediate-20260916/phase-b/reset/qualification-reset.sql:21: NOTICE:  drop cascades to 4 other objects
+DETAIL:  drop cascades to constraint memberships_group_id_fkey on table memberships
+drop cascades to constraint projects_group_id_fkey on table projects
+drop cascades to constraint notification_policies_group_id_fkey on table notification_policies
+drop cascades to constraint notification_policy_occurrences_group_id_fkey on table notification_policy_occurrences
+psql:/workspace/f3-strict-poison-remediate-20260916/phase-b/reset/qualification-reset.sql:29: NOTICE:  drop cascades to constraint position_assignments_membership_id_fkey on table position_assignments
+psql:/workspace/f3-strict-poison-remediate-20260916/phase-b/reset/qualification-reset.sql:30: NOTICE:  drop cascades to 5 other objects
+DETAIL:  drop cascades to constraint notification_policy_triggers_policy_id_fkey on table notification_policy_triggers
+drop cascades to policy m2_npt_select on table notification_policy_triggers
+drop cascades to policy m2_npt_insert on table notification_policy_triggers
+drop cascades to policy m2_npt_update on table notification_policy_triggers
+drop cascades to policy m2_npt_delete on table notification_policy_triggers
+psql:/workspace/f3-strict-poison-remediate-20260916/phase-b/reset/qualification-reset.sql:75: NOTICE:  table "__f3_acl_platform_canary_20260915" does not exist, skipping
+psql:/workspace/f3-strict-poison-remediate-20260916/phase-b/reset/qualification-reset.sql:76: NOTICE:  sequence "__f3_acl_platform_canary_20260915_id_seq" does not exist, skipping

@@ -1,0 +1,13 @@
+{
+  "name": "test-storage-buckets",
+  "command": "npm run test:storage-buckets",
+  "startedAt": "2026-09-14T21:33:09Z",
+  "endedAt": "2026-09-14T21:33:10Z",
+  "exit": 0,
+  "pass": 11,
+  "fail": 0,
+  "skip": 0,
+  "log": "<redacted-path>",
+  "sha256": "29ebc359c545ddaac74dcc91c3ee54e3de0e0c9c592b4d85706ca2dbe8321e91",
+  "bytes": 2585
+}

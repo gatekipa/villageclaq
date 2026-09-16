@@ -1,0 +1,24 @@
+{
+  "functional_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315",
+  "tip_modules": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/lib/f3-db-push-pins.mjs",
+    "scripts/lib/f3-db-push-cli.mjs",
+    "scripts/lib/f3-db-push-target-guard.mjs",
+    "scripts/lib/f3-db-push-version-map.mjs",
+    "scripts/lib/f3-db-push-history-inject.mjs",
+    "scripts/lib/f3-db-push-floor.mjs",
+    "scripts/lib/f3-db-push-stub-live-pin-floor.mjs",
+    "scripts/lib/f3-db-push-inventory.mjs",
+    "scripts/lib/f3-db-push-identity.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs"
+  ],
+  "cli_pin": "2.117.0",
+  "cli_bin": "<redacted-path>",
+  "tree": "<redacted-path>",
+  "creds_sources": [
+    "<redacted-path>",
+    "<redacted-path>"
+  ],
+  "isolated_HOME": "<redacted-path>"
+}

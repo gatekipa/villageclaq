@@ -1,0 +1,11 @@
+{
+  "suite": "test-f3-oracles",
+  "exit_code": 0,
+  "classification": "PASS",
+  "tests": 577,
+  "pass": 577,
+  "fail": 0,
+  "skipped": 0,
+  "sha256": "5349b37e42f61383ea259d0835403b790f4c721a6783c02bd3ed4b3eca22ac2c",
+  "bytes": 87521
+}

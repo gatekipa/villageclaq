@@ -1,0 +1,1404 @@
+
+> villageclaq@0.1.0 test:f3-db-push
+> node --test scripts/test-f3-db-push-harness.mjs scripts/test-f3-stub-live-pin-floor.mjs scripts/test-f3-acl-portability.mjs scripts/test-f3-00030-transform-wipe.mjs scripts/test-f3-00057-transform.mjs
+
+TAP version 13
+# Subtest: repo 00030 is pinned and has exactly 14 unnest calls
+ok 1 - repo 00030 is pinned and has exactly 14 unnest calls
+  ---
+  duration_ms: 1.842299
+  type: 'test'
+  ...
+# Subtest: transform replaces those 14 calls only and pins the transformed digest
+ok 2 - transform replaces those 14 calls only and pins the transformed digest
+  ---
+  duration_ms: 0.572348
+  type: 'test'
+  ...
+# Subtest: wrong unnest count HOLDs
+ok 3 - wrong unnest count HOLDs
+  ---
+  duration_ms: 0.439727
+  type: 'test'
+  ...
+# Subtest: ephemeral workdir copy is deleted and repo file is untouched
+ok 4 - ephemeral workdir copy is deleted and repo file is untouched
+  ---
+  duration_ms: 1.949548
+  type: 'test'
+  ...
+# Subtest: hosted bootstrap has no unnest shim; local bootstrap still may
+ok 5 - hosted bootstrap has no unnest shim; local bootstrap still may
+  ---
+  duration_ms: 0.144219
+  type: 'test'
+  ...
+# Subtest: wipe HOLDs on extra public tables and production ref never appears
+ok 6 - wipe HOLDs on extra public tables and production ref never appears
+  ---
+  duration_ms: 0.642208
+  type: 'test'
+  ...
+# Subtest: empty leftover schema_migrations is clean baseline
+ok 7 - empty leftover schema_migrations is clean baseline
+  ---
+  duration_ms: 0.190788
+  type: 'test'
+  ...
+# Subtest: 00118-00123 bytes and repo 00030 stay frozen after these modules load
+ok 8 - 00118-00123 bytes and repo 00030 stay frozen after these modules load
+  ---
+  duration_ms: 0.321429
+  type: 'test'
+  ...
+# Subtest: deterministic scan: executable unnest is only 00030=14 and 00057=1
+ok 9 - deterministic scan: executable unnest is only 00030=14 and 00057=1
+  ---
+  duration_ms: 18.292928
+  type: 'test'
+  ...
+# Subtest: repo 00057 is pinned and has exactly 1 unnest call
+ok 10 - repo 00057 is pinned and has exactly 1 unnest call
+  ---
+  duration_ms: 0.975782
+  type: 'test'
+  ...
+# Subtest: 00057 transform is exactly one replacement and pins the digest
+ok 11 - 00057 transform is exactly one replacement and pins the digest
+  ---
+  duration_ms: 0.677642
+  type: 'test'
+  ...
+# Subtest: wrong 00057 unnest count HOLDs
+ok 12 - wrong 00057 unnest count HOLDs
+  ---
+  duration_ms: 0.649867
+  type: 'test'
+  ...
+# Subtest: ephemeral 00057 workdir copy is deleted and repo file is untouched
+ok 13 - ephemeral 00057 workdir copy is deleted and repo file is untouched
+  ---
+  duration_ms: 1.851523
+  type: 'test'
+  ...
+# Subtest: 00030 exact-14 transform remains pinned alongside 00057
+ok 14 - 00030 exact-14 transform remains pinned alongside 00057
+  ---
+  duration_ms: 0.388019
+  type: 'test'
+  ...
+# Subtest: 00118-00123 and repo 00057 stay frozen after these modules load
+ok 15 - 00118-00123 and repo 00057 stay frozen after these modules load
+  ---
+  duration_ms: 0.319874
+  type: 'test'
+  ...
+# Subtest: founder-authorized digests supersede the pre-portability pins
+ok 16 - founder-authorized digests supersede the pre-portability pins
+  ---
+  duration_ms: 1.756784
+  type: 'test'
+  ...
+# Subtest: exactly 24 ubuntu REVOKEs are optional; no ubuntu role is created
+ok 17 - exactly 24 ubuntu REVOKEs are optional; no ubuntu role is created
+  ---
+  duration_ms: 3.219251
+  type: 'test'
+  ...
+# Subtest: semantic diff is only optional-ubuntu handling inside $f3_owner_acl$
+ok 18 - semantic diff is only optional-ubuntu handling inside $f3_owner_acl$
+  ---
+  duration_ms: 1.949833
+  type: 'test'
+  ...
+# Subtest: optional-role REVOKE is a no-op when absent and revokes when present
+ok 19 - optional-role REVOKE is a no-op when absent and revokes when present # SKIP local PostgreSQL 17 unavailable: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "ubuntu"\\n
+  ---
+  duration_ms: 42.650657
+  type: 'test'
+  ...
+# {
+#   "publishedNegativeMatrix": [
+#     {
+#       "caseId": "N1",
+#       "exactMutation": "multi-argument ACL identity remains complete",
+#       "classification": "accepted",
+#       "failedGate": "",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-accepted",
+#       "poisonVerification": "n/a-accepted",
+#       "continuation": false,
+#       "result": "accepted"
+#     },
+#     {
+#       "caseId": "N2",
+#       "exactMutation": "overloads remain distinct; order-only",
+#       "classification": "accepted",
+#       "failedGate": "",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-accepted",
+#       "poisonVerification": "n/a-accepted",
+#       "continuation": false,
+#       "result": "accepted"
+#     },
+#     {
+#       "caseId": "N3",
+#       "exactMutation": "record-order-only ACL difference accepted",
+#       "classification": "accepted",
+#       "failedGate": "",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-accepted",
+#       "poisonVerification": "n/a-accepted",
+#       "continuation": false,
+#       "result": "accepted"
+#     },
+#     {
+#       "caseId": "N4",
+#       "exactMutation": "truncated identity after first comma",
+#       "classification": "fingerprint_exact",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "ran",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "N5",
+#       "exactMutation": "same ACL count different object pairing",
+#       "classification": "fingerprint_exact",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "ran",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "N6",
+#       "exactMutation": "wrong grantee/grantor/privilege/grantability",
+#       "classification": "fingerprint_exact",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "ran",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "N7",
+#       "exactMutation": "missing/extra/duplicate ACL",
+#       "classification": "fingerprint_exact",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "ran",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "N8",
+#       "exactMutation": "malformed/nonzero probe",
+#       "classification": "expected_objects",
+#       "failedGate": "no_unrelated_sql_error,expected_objects,security_postconditions",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "ran",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "N9",
+#       "exactMutation": "fingerprint mismatch (relations emptied)",
+#       "classification": "fingerprint expected and observed are not canonically equal",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "none",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "N10",
+#       "exactMutation": "cleanup status 1",
+#       "classification": "cleanup",
+#       "failedGate": "cleanup",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "failed",
+#       "poisonVerification": "not-reached-or-ignored",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "N11",
+#       "exactMutation": "poison trigger remains",
+#       "classification": "poison",
+#       "failedGate": "poison_absent",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "failed",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "N12",
+#       "exactMutation": "staging-prefix mismatch: applied remote missing locally",
+#       "classification": "applied_remote_missing_locally",
+#       "failedGate": "staging",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-pre-runner",
+#       "poisonVerification": "n/a-pre-runner",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "N13",
+#       "exactMutation": "timestamptz lookup resolves to frozen canonical timestamp with time zone identity",
+#       "classification": "accepted",
+#       "failedGate": "",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-accepted",
+#       "poisonVerification": "n/a-accepted",
+#       "continuation": false,
+#       "result": "accepted"
+#     },
+#     {
+#       "caseId": "N14",
+#       "exactMutation": "multi-arg retained; overloads remain distinct",
+#       "classification": "accepted",
+#       "failedGate": "",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-accepted",
+#       "poisonVerification": "n/a-accepted",
+#       "continuation": false,
+#       "result": "accepted"
+#     },
+#     {
+#       "caseId": "N15",
+#       "exactMutation": "argument order changes",
+#       "classification": "expected_objects",
+#       "failedGate": "expected_objects,security_postconditions",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "ran",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "N16",
+#       "exactMutation": "missing argument",
+#       "classification": "expected_objects",
+#       "failedGate": "expected_objects,security_postconditions",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "ran",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "N17",
+#       "exactMutation": "extra argument",
+#       "classification": "expected_objects",
+#       "failedGate": "expected_objects,security_postconditions",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "ran",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "N18",
+#       "exactMutation": "similar-type timestamp vs timestamptz",
+#       "classification": "expected_objects",
+#       "failedGate": "expected_objects,security_postconditions",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "ran",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "N19",
+#       "exactMutation": "lookup alias timestamptz in identity_arguments",
+#       "classification": "expected_objects",
+#       "failedGate": "expected_objects,security_postconditions",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "ran",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "N20",
+#       "exactMutation": "unresolved signature",
+#       "classification": "expected_objects",
+#       "failedGate": "expected_objects,security_postconditions",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "ran",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "N21",
+#       "exactMutation": "malformed non-JSON probe",
+#       "classification": "expected_objects",
+#       "failedGate": "expected_objects,security_postconditions",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "ran",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "N22",
+#       "exactMutation": "truncated identity (object-probe)",
+#       "classification": "expected_objects",
+#       "failedGate": "expected_objects,security_postconditions",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "ran",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "N23",
+#       "exactMutation": "same object count different identity pairing",
+#       "classification": "expected_objects",
+#       "failedGate": "expected_objects,security_postconditions",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "ran",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "N24",
+#       "exactMutation": "duplicate structured records",
+#       "classification": "expected_objects",
+#       "failedGate": "expected_objects,security_postconditions",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "ran",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "FC-relations",
+#       "exactMutation": "empty relations",
+#       "classification": "fingerprint expected and observed are not canonically equal",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "none",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "FC-triggers",
+#       "exactMutation": "empty triggers",
+#       "classification": "fingerprint expected and observed are not canonically equal",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "none",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "FC-hgp",
+#       "exactMutation": "hgp def_md5 drift",
+#       "classification": "fingerprint expected and observed are not canonically equal",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "none",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "PLAT-missing-service_role",
+#       "exactMutation": "drop service_role ACL tuples",
+#       "classification": "fingerprint expected and observed are not canonically equal",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "none",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "TRIG-tgenabled",
+#       "exactMutation": "tgenabled O→D",
+#       "classification": "fingerprint expected and observed are not canonically equal",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "none",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "COL-attacl-missing",
+#       "exactMutation": "delete attacl coverage",
+#       "classification": "observed canonicalization rejected: columns attacl coverage missing",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "none",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "COL-null-vs-empty",
+#       "exactMutation": "flip attacl_is_null",
+#       "classification": "fingerprint expected and observed are not canonically equal",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "none",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "IND-REF-FAIL",
+#       "exactMutation": "independent reference / primary structured disagreement (empty triggers)",
+#       "classification": "fingerprint expected and observed are not canonically equal",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-compare",
+#       "poisonVerification": "n/a-compare",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "ENV-MISSING",
+#       "exactMutation": "missing original envelope",
+#       "classification": "HOLD: platform ACL envelope missing",
+#       "failedGate": "platform_acl_calibration",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-pre-runner",
+#       "poisonVerification": "n/a-pre-runner",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "ENV-DIGEST",
+#       "exactMutation": "envelope byte/digest mismatch",
+#       "classification": "HOLD: platform ACL envelope is not the sealed artifact",
+#       "failedGate": "platform_acl_calibration",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-pre-runner",
+#       "poisonVerification": "n/a-pre-runner",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "EVID-SANITIZE",
+#       "exactMutation": "semantic sanitization mutation of suite log secret",
+#       "classification": "sanitized",
+#       "failedGate": "evidence_sanitize",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-evidence",
+#       "poisonVerification": "n/a-evidence",
+#       "continuation": false,
+#       "result": "rejected-secret"
+#     },
+#     {
+#       "caseId": "FP-INCOMPLETE-PHASE",
+#       "exactMutation": "incomplete fingerprint phase (partial after-commit catalog)",
+#       "classification": "partial catalog inventory cannot substitute for a full fingerprint",
+#       "failedGate": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-sequence",
+#       "poisonVerification": "n/a-sequence",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "FP-KEYSET",
+#       "exactMutation": "expected/pre/post keyset mismatch (delete triggers)",
+#       "classification": "observed missing key triggers",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "none",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "EVID-MISSING-LOG",
+#       "exactMutation": "missing suite log / evidence index",
+#       "classification": "missing_index",
+#       "failedGate": "evidence_index",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-evidence",
+#       "poisonVerification": "n/a-evidence",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "EVID-LOG-META",
+#       "exactMutation": "log metadata / index checksum mismatch",
+#       "classification": "checksum_mismatch",
+#       "failedGate": "evidence_index",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-evidence",
+#       "poisonVerification": "n/a-evidence",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "EVID-DETACHED-INDEX",
+#       "exactMutation": "detached-index mismatch (artifact sha256 rewritten)",
+#       "classification": "detached_index",
+#       "failedGate": "evidence_index",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-evidence",
+#       "poisonVerification": "n/a-evidence",
+#       "continuation": false,
+#       "result": "rejected"
+#     }
+#   ]
+# }
+# {
+#   "publishedC1C14": [
+#     {
+#       "caseId": "C1",
+#       "exactMutation": "internal FK trigger tgenabled O→D",
+#       "classification": "fingerprint expected and observed are not canonically equal",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "none",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "C2",
+#       "exactMutation": "internal/user trigger missing",
+#       "classification": "fingerprint expected and observed are not canonically equal",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "none",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "C3",
+#       "exactMutation": "extra internal constraint trigger",
+#       "classification": "fingerprint expected and observed are not canonically equal",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "none",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "C4",
+#       "exactMutation": "constraint-trigger reassociation",
+#       "classification": "fingerprint expected and observed are not canonically equal",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "none",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "C5",
+#       "exactMutation": "trigger-function identity mismatch",
+#       "classification": "fingerprint expected and observed are not canonically equal",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "none",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "C6",
+#       "exactMutation": "trigger event/timing/level mismatch",
+#       "classification": "fingerprint expected and observed are not canonically equal",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "ran",
+#       "poisonVerification": "none",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "C7",
+#       "exactMutation": "missing suite output referenced by committed evidence",
+#       "classification": "F3_SUITE_OUTPUT_MISSING",
+#       "failedGate": "suite_evidence_integrity",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-evidence",
+#       "poisonVerification": "n/a-evidence",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "C8",
+#       "exactMutation": "suite output vs metadata SHA/byte-length disagreement",
+#       "classification": "F3_SUITE_META_MISMATCH",
+#       "failedGate": "suite_evidence_integrity",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-evidence",
+#       "poisonVerification": "n/a-evidence",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "C9",
+#       "exactMutation": "actual independent-reference disagreement (empty triggers)",
+#       "classification": "independent_reference_disagreement",
+#       "failedGate": "fingerprint_exact",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-compare",
+#       "poisonVerification": "n/a-compare",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "C10",
+#       "exactMutation": "semantic fingerprint mutation during sanitization",
+#       "classification": "F3_SEMANTIC_SANITIZE",
+#       "failedGate": "evidence_sanitize",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-evidence",
+#       "poisonVerification": "n/a-evidence",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "C11",
+#       "exactMutation": "incomplete recursive local dependency closure (hand list is not recursive)",
+#       "classification": "recursive_complete",
+#       "failedGate": "recursive_runtime_closure",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-closure",
+#       "poisonVerification": "n/a-closure",
+#       "continuation": false,
+#       "result": "rejected-hand-list"
+#     },
+#     {
+#       "caseId": "C12",
+#       "exactMutation": "purported final inventory captured before final DB state",
+#       "classification": "F3_INVENTORY_PREMATURE_FINAL",
+#       "failedGate": "inventory_chronology",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-inventory",
+#       "poisonVerification": "n/a-inventory",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "C13",
+#       "exactMutation": "invalid --evidence-out directory rejected BEFORE database access",
+#       "classification": "EISDIR",
+#       "failedGate": "evidence_out_contract",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-pre-db",
+#       "poisonVerification": "n/a-pre-db",
+#       "continuation": false,
+#       "result": "rejected"
+#     },
+#     {
+#       "caseId": "C14",
+#       "exactMutation": "post-database evidence-write EISDIR must prevent PASS",
+#       "classification": "EISDIR",
+#       "failedGate": "evidence_write",
+#       "dbPushCalls": 0,
+#       "repairCalls": 0,
+#       "cleanup": "n/a-evidence",
+#       "poisonVerification": "n/a-evidence",
+#       "continuation": false,
+#       "result": "rejected"
+#     }
+#   ],
+#   "schema_version": "f3-full-catalog-v3",
+#   "independent_reference_source_sha256": "cd5cd020788d7c8e77b4f08a6418cf76fac15dc7570ba20f52ec73d0c6dc0f5c"
+# }
+# Subtest: approved disposable pins are exact and production is excluded
+ok 20 - approved disposable pins are exact and production is excluded
+  ---
+  duration_ms: 2.495046
+  type: 'test'
+  ...
+# Subtest: preassigned versions are known before execution and map 00118-00123 exactly
+ok 21 - preassigned versions are known before execution and map 00118-00123 exactly
+  ---
+  duration_ms: 0.331554
+  type: 'test'
+  ...
+# Subtest: collision check PASSes vs prod ceiling, empty disposable history, and no repo timestamp filenames
+ok 22 - collision check PASSes vs prod ceiling, empty disposable history, and no repo timestamp filenames
+  ---
+  duration_ms: 0.994466
+  type: 'test'
+  ...
+# Subtest: collision check fails when a preassigned timestamp filename already exists in repo migrations
+ok 23 - collision check fails when a preassigned timestamp filename already exists in repo migrations
+  ---
+  duration_ms: 0.827429
+  type: 'test'
+  ...
+# Subtest: collision check fails when disposable history already has a preassigned version
+ok 24 - collision check fails when disposable history already has a preassigned version
+  ---
+  duration_ms: 0.378921
+  type: 'test'
+  ...
+# Subtest: frozen 00118-00123 digests stay byte-identical
+ok 25 - frozen 00118-00123 digests stay byte-identical
+  ---
+  duration_ms: 0.662014
+  type: 'test'
+  ...
+# Subtest: isolated workdir copies are byte-identical and do not rewrite repo files
+ok 26 - isolated workdir copies are byte-identical and do not rewrite repo files
+  ---
+  duration_ms: 4.538091
+  type: 'test'
+  ...
+# Subtest: gates refuse production ref before any spawn
+ok 27 - gates refuse production ref before any spawn
+  ---
+  duration_ms: 0.634913
+  type: 'test'
+  ...
+# Subtest: gates refuse unapproved ref, wrong sentinel, missing destructive, missing password
+ok 28 - gates refuse unapproved ref, wrong sentinel, missing destructive, missing password
+  ---
+  duration_ms: 0.612343
+  type: 'test'
+  ...
+# Subtest: db push / repair / query throw synchronously and spawn nothing when unauthorized
+ok 29 - db push / repair / query throw synchronously and spawn nothing when unauthorized
+  ---
+  duration_ms: 0.556236
+  type: 'test'
+  ...
+# Subtest: password is never accepted as -p and never appears in sanitized logs
+ok 30 - password is never accepted as -p and never appears in sanitized logs
+  ---
+  duration_ms: 1.362617
+  type: 'test'
+  ...
+# Subtest: constructed --db-url is session-mode pooler only; direct host and :6543 are refused
+ok 31 - constructed --db-url is session-mode pooler only; direct host and :6543 are refused
+  ---
+  duration_ms: 0.680835
+  type: 'test'
+  ...
+# Subtest: constructed URL and child env strip ambient DATABASE_URL / PG* / tokens
+ok 32 - constructed URL and child env strip ambient DATABASE_URL / PG* / tokens
+  ---
+  duration_ms: 0.95397
+  type: 'test'
+  ...
+# Subtest: candidate command uses --db-url --workdir --yes --skip-vault and never -p/--linked
+ok 33 - candidate command uses --db-url --workdir --yes --skip-vault and never -p/--linked
+  ---
+  duration_ms: 4.11709
+  type: 'test'
+  ...
+# Subtest: db query appends --output-format json before SQL/--file when help shows the flag
+ok 34 - db query appends --output-format json before SQL/--file when help shows the flag
+  ---
+  duration_ms: 3.149407
+  type: 'test'
+  ...
+# Subtest: repair command uses the filename version and --status applied from help
+ok 35 - repair command uses the filename version and --status applied from help
+  ---
+  duration_ms: 2.962681
+  type: 'test'
+  ...
+# Subtest: refuseClockOrGuessedVersion rejects apply-time clock and source labels
+ok 36 - refuseClockOrGuessedVersion rejects apply-time clock and source labels
+  ---
+  duration_ms: 0.269979
+  type: 'test'
+  ...
+# Subtest: history inject SQL is restricted to the exact preassigned target version
+ok 37 - history inject SQL is restricted to the exact preassigned target version
+  ---
+  duration_ms: 0.28849
+  type: 'test'
+  ...
+# Subtest: classifyDbPushHistoryFailure records post-COMMIT split without inventing history rows
+ok 38 - classifyDbPushHistoryFailure records post-COMMIT split without inventing history rows
+  ---
+  duration_ms: 0.227243
+  type: 'test'
+  ...
+# Subtest: cleanup SQL may drop only the throwaway probe
+ok 39 - cleanup SQL may drop only the throwaway probe
+  ---
+  duration_ms: 0.099063
+  type: 'test'
+  ...
+# Subtest: bootstrap and 00001 require psql -f; db query --file is refused
+ok 40 - bootstrap and 00001 require psql -f; db query --file is refused
+  ---
+  duration_ms: 3.358863
+  type: 'test'
+  ...
+# Subtest: gated remote psql -f uses pooler child env and never -p; unauthorized is zero-spawn
+ok 41 - gated remote psql -f uses pooler child env and never -p; unauthorized is zero-spawn
+  ---
+  duration_ms: 25.237578
+  type: 'test'
+  ...
+# Subtest: live HGP remote SQL preserves the live create body
+ok 42 - live HGP remote SQL preserves the live create body
+  ---
+  duration_ms: 0.297055
+  type: 'test'
+  ...
+# Subtest: repository floor lists through 00117 and excludes 00118-00123
+ok 43 - repository floor lists through 00117 and excludes 00118-00123
+  ---
+  duration_ms: 27.210894
+  type: 'test'
+  ...
+# Subtest: recognition allowlist is exactly manual_income
+ok 44 - recognition allowlist is exactly manual_income
+  ---
+  duration_ms: 0.208458
+  type: 'test'
+  ...
+# Subtest: identity GET is skipped without token and fetch ledger stays empty
+ok 45 - identity GET is skipped without token and fetch ledger stays empty
+  ---
+  duration_ms: 0.255339
+  type: 'test'
+  ...
+# Subtest: Management API apply remains permanently refused
+ok 46 - Management API apply remains permanently refused
+  ---
+  duration_ms: 0.1469
+  type: 'test'
+  ...
+# Subtest: CLI discovery uses --help and does not invent repair flags
+ok 47 - CLI discovery uses --help and does not invent repair flags
+  ---
+  duration_ms: 1959.709352
+  type: 'test'
+  ...
+# Subtest: qualify runner refuses to run without env (NOT_RUN) and never applies via Management API
+ok 48 - qualify runner refuses to run without env (NOT_RUN) and never applies via Management API
+  ---
+  duration_ms: 1.092127
+  type: 'test'
+  ...
+# Subtest: runbook permanently disqualifies Management API apply and keeps db push as candidate only
+ok 49 - runbook permanently disqualifies Management API apply and keeps db push as candidate only
+  ---
+  duration_ms: 0.647706
+  type: 'test'
+  ...
+# Subtest: repair-safety gate authorizes repair only after all proofs
+ok 50 - repair-safety gate authorizes repair only after all proofs
+  ---
+  duration_ms: 14.50429
+  type: 'test'
+  ...
+# Subtest: authorized repair proves poison absent before spawning migration repair
+ok 51 - authorized repair proves poison absent before spawning migration repair
+  ---
+  duration_ms: 9.746698
+  type: 'test'
+  ...
+# Subtest: repair-safety negatives spawn zero repair processes and still clean poison
+ok 52 - repair-safety negatives spawn zero repair processes and still clean poison
+  ---
+  duration_ms: 42.743611
+  type: 'test'
+  ...
+# Subtest: strict object probe rejects ERROR relation financial_private and all unstructured fallbacks
+ok 53 - strict object probe rejects ERROR relation financial_private and all unstructured fallbacks
+  ---
+  duration_ms: 6.926355
+  type: 'test'
+  ...
+# Subtest: timestamptz lookup resolves to frozen canonical timestamp with time zone identity
+ok 54 - timestamptz lookup resolves to frozen canonical timestamp with time zone identity
+  ---
+  duration_ms: 35.697668
+  type: 'test'
+  ...
+# Subtest: catalog-boundary object-probe identity matrix: exact pairing; semantic misses fail with zero repair
+ok 55 - catalog-boundary object-probe identity matrix: exact pairing; semantic misses fail with zero repair
+  ---
+  duration_ms: 424.705977
+  type: 'test'
+  ...
+# Subtest: live-observed data cannot populate or mutate expected object-probe descriptors
+ok 56 - live-observed data cannot populate or mutate expected object-probe descriptors
+  ---
+  duration_ms: 0.547043
+  type: 'test'
+  ...
+# Subtest: OID changes do not affect cross-database fingerprint or probe-identity equality
+ok 57 - OID changes do not affect cross-database fingerprint or probe-identity equality
+  ---
+  duration_ms: 41.993524
+  type: 'test'
+  ...
+# Subtest: fingerprint mismatch of any catalog value forbids repair
+ok 58 - fingerprint mismatch of any catalog value forbids repair
+  ---
+  duration_ms: 4.766792
+  type: 'test'
+  ...
+# Subtest: fingerprint gate forbids null sides, missing keys, extra keys, and security mismatches
+ok 59 - fingerprint gate forbids null sides, missing keys, extra keys, and security mismatches
+  ---
+  duration_ms: 102.700009
+  type: 'test'
+  ...
+# Subtest: reordered set-like values normalize; security-relevant changes never normalize away
+ok 60 - reordered set-like values normalize; security-relevant changes never normalize away
+  ---
+  duration_ms: 15.855365
+  type: 'test'
+  ...
+# Subtest: expected object is unchanged after observed processing
+ok 61 - expected object is unchanged after observed processing
+  ---
+  duration_ms: 3.627972
+  type: 'test'
+  ...
+# Subtest: module-load frozen expected hashes are independent of observed and match the offline seal
+ok 62 - module-load frozen expected hashes are independent of observed and match the offline seal
+  ---
+  duration_ms: 64.390759
+  type: 'test'
+  ...
+# Subtest: semantic set canonicalization matrix: order-only pass; association/expression mismatches fail with zero repair
+ok 63 - semantic set canonicalization matrix: order-only pass; association/expression mismatches fail with zero repair
+  ---
+  duration_ms: 52.636406
+  type: 'test'
+  ...
+# Subtest: structured ACL object identity matrix: complete pairing; comma truncation fails; repairCalls=0
+ok 64 - structured ACL object identity matrix: complete pairing; comma truncation fails; repairCalls=0
+  ---
+  duration_ms: 21.064212
+  type: 'test'
+  ...
+# Subtest: source contract forbids comma-split ACL object identity parsing
+ok 65 - source contract forbids comma-split ACL object identity parsing
+  ---
+  duration_ms: 16.742954
+  type: 'test'
+  ...
+# Subtest: source contract and unit test prove there is no generic array-sorting fallback
+ok 66 - source contract and unit test prove there is no generic array-sorting fallback
+  ---
+  duration_ms: 13.301696
+  type: 'test'
+  ...
+# Subtest: source contract forbids comma-split, fuzzy matching, and textual type-alias replacement for probe identity
+ok 67 - source contract forbids comma-split, fuzzy matching, and textual type-alias replacement for probe identity
+  ---
+  duration_ms: 12.364525
+  type: 'test'
+  ...
+# Subtest: source contract forbids assigning expected from observed in qualify and repair-safety-gate
+ok 68 - source contract forbids assigning expected from observed in qualify and repair-safety-gate
+  ---
+  duration_ms: 20.316475
+  type: 'test'
+  ...
+# Subtest: cleanup and poison-verify negatives never invoke repair
+ok 69 - cleanup and poison-verify negatives never invoke repair
+  ---
+  duration_ms: 44.777449
+  type: 'test'
+  ...
+# Subtest: teardown poison removal is recorded separately and is not cleanup success
+ok 70 - teardown poison removal is recorded separately and is not cleanup success
+  ---
+  duration_ms: 6.954481
+  type: 'test'
+  ...
+# Subtest: qualify runner classifies before repair and uses the new success label
+ok 71 - qualify runner classifies before repair and uses the new success label
+  ---
+  duration_ms: 0.715317
+  type: 'test'
+  ...
+# Subtest: real isolated staging stages prefix-complete through current and blocks unexpected files
+ok 72 - real isolated staging stages prefix-complete through current and blocks unexpected files
+  ---
+  duration_ms: 5.130703
+  type: 'test'
+  ...
+# Subtest: unexpected staged files and identity/cli misses forbid repair
+ok 73 - unexpected staged files and identity/cli misses forbid repair
+  ---
+  duration_ms: 37.572805
+  type: 'test'
+  ...
+# Subtest: prefix-complete single-pending positives through 00123 and empty pending after repair
+ok 74 - prefix-complete single-pending positives through 00123 and empty pending after repair
+  ---
+  duration_ms: 24.732325
+  type: 'test'
+  ...
+# Subtest: staging-negative matrix forbids db push and repair
+ok 75 - staging-negative matrix forbids db push and repair
+  ---
+  duration_ms: 48.95902
+  type: 'test'
+  ...
+# Subtest: malformed history envelopes and extra CLI drift still stop before push
+ok 76 - malformed history envelopes and extra CLI drift still stop before push
+  ---
+  duration_ms: 14.54627
+  type: 'test'
+  ...
+# Subtest: repair-safety staging gate accepts prefix-complete for 00119 and rejects one-file-only
+ok 77 - repair-safety staging gate accepts prefix-complete for 00119 and rejects one-file-only
+  ---
+  duration_ms: 56.281082
+  type: 'test'
+  ...
+# Subtest: harness uses exported staging preflight rather than a test-local copy
+ok 78 - harness uses exported staging preflight rather than a test-local copy
+  ---
+  duration_ms: 1.598334
+  type: 'test'
+  ...
+# Subtest: canonical full-fingerprint collector is the only post-repair/post-retry assembler
+ok 79 - canonical full-fingerprint collector is the only post-repair/post-retry assembler
+  ---
+  duration_ms: 7.313171
+  type: 'test'
+  ...
+# Subtest: 1-4 full pre/post-repair/post-retry/continuation captures are required on the qualify path
+ok 80 - 1-4 full pre/post-repair/post-retry/continuation captures are required on the qualify path
+  ---
+  duration_ms: 137.191901
+  type: 'test'
+  ...
+# Subtest: 5-6 missing or extra fingerprint keys HOLD on the qualify path
+ok 81 - 5-6 missing or extra fingerprint keys HOLD on the qualify path
+  ---
+  duration_ms: 97.344901
+  type: 'test'
+  ...
+# Subtest: 7-8 partial inventory cannot substitute for post-repair or post-retry fingerprints
+ok 82 - 7-8 partial inventory cannot substitute for post-repair or post-retry fingerprints
+  ---
+  duration_ms: 3.76104
+  type: 'test'
+  ...
+# Subtest: 9-10 copying pre-repair metadata onto post-repair inventory is prohibited
+ok 83 - 9-10 copying pre-repair metadata onto post-repair inventory is prohibited
+  ---
+  duration_ms: 3.241622
+  type: 'test'
+  ...
+# Subtest: 11-13 malformed post-repair captures HOLD and block retry
+ok 84 - 11-13 malformed post-repair captures HOLD and block retry
+  ---
+  duration_ms: 2.536936
+  type: 'test'
+  ...
+# Subtest: 14-17 catalog drift after repair HOLDs and blocks retry
+ok 85 - 14-17 catalog drift after repair HOLDs and blocks retry
+  ---
+  duration_ms: 147.030084
+  type: 'test'
+  ...
+# Subtest: 18-19 post-repair mismatch blocks retry and continuation; 20 post-retry mismatch blocks continuation
+ok 86 - 18-19 post-repair mismatch blocks retry and continuation; 20 post-retry mismatch blocks continuation
+  ---
+  duration_ms: 124.217766
+  type: 'test'
+  ...
+# Subtest: 21 source contract: qualify persists phase captures and never uses inventoryFromQuery as the fingerprint
+ok 87 - 21 source contract: qualify persists phase captures and never uses inventoryFromQuery as the fingerprint
+  ---
+  duration_ms: 0.718905
+  type: 'test'
+  ...
+# Subtest: 22 successful full captures equal sealed expected hashes; frozen expected is not populated from observed
+ok 88 - 22 successful full captures equal sealed expected hashes; frozen expected is not populated from observed
+  ---
+  duration_ms: 426.663869
+  type: 'test'
+  ...
+# Subtest: pre-repair collector rejects still spawn zero repair via the actual gate path
+ok 89 - pre-repair collector rejects still spawn zero repair via the actual gate path
+  ---
+  duration_ms: 2.334999
+  type: 'test'
+  ...
+# Subtest: poison / post-repair / post-retry evaluators expose distinct HOLD strings
+ok 90 - poison / post-repair / post-retry evaluators expose distinct HOLD strings
+  ---
+  duration_ms: 16.791493
+  type: 'test'
+  ...
+# Subtest: expanded catalog fingerprint schema version and required keys are complete
+ok 91 - expanded catalog fingerprint schema version and required keys are complete
+  ---
+  duration_ms: 26.648557
+  type: 'test'
+  ...
+# Subtest: expanded catalog drift matrix forbids repair on the actual gate path
+ok 92 - expanded catalog drift matrix forbids repair on the actual gate path
+  ---
+  duration_ms: 160.548853
+  type: 'test'
+  ...
+# Subtest: corrected builder uses PG deparser shapes and independent local-oracle seals
+ok 93 - corrected builder uses PG deparser shapes and independent local-oracle seals
+  ---
+  duration_ms: 9.416104
+  type: 'test'
+  ...
+# Subtest: corrected builder+comparator local negatives forbid repair with zero retry
+ok 94 - corrected builder+comparator local negatives forbid repair with zero retry
+  ---
+  duration_ms: 291.398395
+  type: 'test'
+  ...
+# Subtest: local-oracle seal helper refuses hosted fixtures and reports NOT_RUN without local PG hooks
+ok 95 - local-oracle seal helper refuses hosted fixtures and reports NOT_RUN without local PG hooks
+  ---
+  duration_ms: 1.388282
+  type: 'test'
+  ...
+# Subtest: evidence pipeline hashes sanitized .out bytes and detaches index checksum
+ok 96 - evidence pipeline hashes sanitized .out bytes and detaches index checksum
+  ---
+  duration_ms: 2.224032
+  type: 'test'
+  ...
+# Subtest: Phase B platform ACL envelope is sealed at module load and fail-closed
+ok 97 - Phase B platform ACL envelope is sealed at module load and fail-closed
+  ---
+  duration_ms: 9.023839
+  type: 'test'
+  ...
+# Subtest: Phase B platform ACL negatives: missing/extra/wrong service_role and grant semantics
+ok 98 - Phase B platform ACL negatives: missing/extra/wrong service_role and grant semantics
+  ---
+  duration_ms: 52.291842
+  type: 'test'
+  ...
+# Subtest: Phase B applying platform envelope to inapplicable object type rejects before db push
+ok 99 - Phase B applying platform envelope to inapplicable object type rejects before db push
+  ---
+  duration_ms: 1.987664
+  type: 'test'
+  ...
+# Subtest: Phase B target-observed ACL cannot replace or mutate sealed expected
+ok 100 - Phase B target-observed ACL cannot replace or mutate sealed expected
+  ---
+  duration_ms: 14.383622
+  type: 'test'
+  ...
+# Subtest: Phase B malformed or absent calibration evidence rejects before db push
+ok 101 - Phase B malformed or absent calibration evidence rejects before db push
+  ---
+  duration_ms: 1.783092
+  type: 'test'
+  ...
+# Subtest: independent collector source-contract: cannot import or invoke primary collector/builder
+ok 102 - independent collector source-contract: cannot import or invoke primary collector/builder
+  ---
+  duration_ms: 0.671739
+  type: 'test'
+  ...
+# Subtest: f3-full-catalog-v3 trigger-state and column-ACL negatives forbid repair
+ok 103 - f3-full-catalog-v3 trigger-state and column-ACL negatives forbid repair
+  ---
+  duration_ms: 176.403324
+  type: 'test'
+  ...
+# Subtest: published complete negative matrix: N1-N24 + FC/platform + v2 + envelope + evidence
+ok 104 - published complete negative matrix: N1-N24 + FC/platform + v2 + envelope + evidence
+  ---
+  duration_ms: 519.255767
+  type: 'test'
+  ...
+# Subtest: C1-C14 genuine negatives: internal constraint-trigger + evidence-integrity fail-closed
+ok 105 - C1-C14 genuine negatives: internal constraint-trigger + evidence-integrity fail-closed
+  ---
+  duration_ms: 371.436226
+  type: 'test'
+  ...
+# Subtest: required qualification floor label is exact
+ok 106 - required qualification floor label is exact
+  ---
+  duration_ms: 2.719996
+  type: 'test'
+  ...
+# Subtest: hosted default floor mode is stub-live-pin and greenfield is refused
+ok 107 - hosted default floor mode is stub-live-pin and greenfield is refused
+  ---
+  duration_ms: 0.656059
+  type: 'test'
+  ...
+# Subtest: floor SQL steps are the disclosed components and reuse repo fixtures
+ok 108 - floor SQL steps are the disclosed components and reuse repo fixtures
+  ---
+  duration_ms: 3.032711
+  type: 'test'
+  ...
+# Subtest: live pins come from Cut 3 hex and 00115 extract; 00117 bytes stay unmodified
+ok 109 - live pins come from Cut 3 hex and 00115 extract; 00117 bytes stay unmodified
+  ---
+  duration_ms: 2.709326
+  type: 'test'
+  ...
+# Subtest: isolated db-push workdir stays 00118-00123 only
+ok 110 - isolated db-push workdir stays 00118-00123 only
+  ---
+  duration_ms: 5.749911
+  type: 'test'
+  ...
+# Subtest: pre-db-push gates pass the fixture and HOLD on any miss
+ok 111 - pre-db-push gates pass the fixture and HOLD on any miss
+  ---
+  duration_ms: 5.852956
+  type: 'test'
+  ...
+# Subtest: gated stub+live-pin install uses psql -f for all floor SQL and never writes 00117 into migrations
+ok 112 - gated stub+live-pin install uses psql -f for all floor SQL and never writes 00117 into migrations
+  ---
+  duration_ms: 10.494746
+  type: 'test'
+  ...
+# Subtest: parseJsonish extracts JSON from supabase db query table/text stdout
+ok 113 - parseJsonish extracts JSON from supabase db query table/text stdout
+  ---
+  duration_ms: 2.210932
+  type: 'test'
+  ...
+# Subtest: coerceJsonValue peels double-encoded jsonb_build_object strings up to 3 times
+ok 114 - coerceJsonValue peels double-encoded jsonb_build_object strings up to 3 times
+  ---
+  duration_ms: 0.507384
+  type: 'test'
+  ...
+# Subtest: parseEvidenceOutArg accepts equals and space forms
+ok 115 - parseEvidenceOutArg accepts equals and space forms
+  ---
+  duration_ms: 0.294166
+  type: 'test'
+  ...
+# Subtest: Chief 06 pre-stub-floor clean-check PASSes empty post-wipe inventory and HOLDs residuals without wipe
+ok 116 - Chief 06 pre-stub-floor clean-check PASSes empty post-wipe inventory and HOLDs residuals without wipe
+  ---
+  duration_ms: 0.359674
+  type: 'test'
+  ...
+# Subtest: pre-stub clean-check accepts leftover floor storage policies/buckets or zero of them
+ok 117 - pre-stub clean-check accepts leftover floor storage policies/buckets or zero of them
+  ---
+  duration_ms: 0.58626
+  type: 'test'
+  ...
+# Subtest: public rowsFromQuery treats top-level JSON array rows like envelope.rows
+ok 118 - public rowsFromQuery treats top-level JSON array rows like envelope.rows
+  ---
+  duration_ms: 0.550235
+  type: 'test'
+  ...
+# Subtest: STUB_CORE_SQL creates auth.uid/auth.jwt only when missing and soft-fails auth GRANTs
+ok 119 - STUB_CORE_SQL creates auth.uid/auth.jwt only when missing and soft-fails auth GRANTs
+  ---
+  duration_ms: 0.347164
+  type: 'test'
+  ...
+# Subtest: floorApplyOk uses ERROR lines only; NOTICE already-exists cannot mask a real ERROR
+ok 120 - floorApplyOk uses ERROR lines only; NOTICE already-exists cannot mask a real ERROR
+  ---
+  duration_ms: 0.646093
+  type: 'test'
+  ...
+# Subtest: NOTICE already-exists plus auth ERROR fails stub floor and records stderrTail
+ok 121 - NOTICE already-exists plus auth ERROR fails stub floor and records stderrTail
+  ---
+  duration_ms: 6.117132
+  type: 'test'
+  ...
+# Subtest: success verdict is qualification-pass with superseded mechanics-pass and frozen F3 digests stay pinned
+ok 122 - success verdict is qualification-pass with superseded mechanics-pass and frozen F3 digests stay pinned
+  ---
+  duration_ms: 1.685976
+  type: 'test'
+  ...
+1..122
+# tests 122
+# suites 0
+# pass 121
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 6368.801825

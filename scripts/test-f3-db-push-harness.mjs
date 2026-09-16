@@ -1610,11 +1610,16 @@ test("module-load frozen expected hashes are independent of observed and match t
   );
   assert.equal(
     FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,
-    "abbfb0b6c08407710e3b4a74dec22ca2aabeeac7e04e8f200c0ac7f7c958fb92",
+    "5fd8fd857aa75932e18b8649a42b69502488ff16c8d7f882524a6460ddfa4164",
   );
   assert.equal(
     EXPECTED_FINGERPRINT_SEAL_PROVENANCE.catalog_sha256,
     FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,
+  );
+  assert.notEqual(
+    FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,
+    "abbfb0b6c08407710e3b4a74dec22ca2aabeeac7e04e8f200c0ac7f7c958fb92",
+    "V4 oracle catalog digest must supersede Catalog-V3 abbfb0b6",
   );
   assert.notEqual(
     FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,

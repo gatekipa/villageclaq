@@ -16,12 +16,18 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  APPROVED_DISPOSABLE_DATABASE,
   APPROVED_DISPOSABLE_HOST,
   APPROVED_DISPOSABLE_ORG_ID,
+  APPROVED_DISPOSABLE_POOLER_HOST,
+  APPROVED_DISPOSABLE_POOLER_PORT,
   APPROVED_DISPOSABLE_POOLER_USER,
+  APPROVED_DISPOSABLE_PORT,
   APPROVED_DISPOSABLE_PROJECT_NAME,
   APPROVED_DISPOSABLE_PROJECT_REF,
+  APPROVED_DISPOSABLE_USER,
   CLI_PIN,
+  DB_PASSWORD_ENV,
   F3_FORWARD_FILES,
   FROZEN_DIGESTS,
   HISTORY_INJECT_MARKER,
@@ -30,7 +36,13 @@ import {
   PRODUCTION_REF,
   RECOGNITION_ALLOWLIST,
   TARGET_OBJECT_PROBES,
+  TRANSACTION_POOLER_PORT,
 } from "./f3-db-push-pins.mjs";
+import {
+  evaluateOriginalProcessResultContract,
+  parseExactOriginalJsonObject,
+  preserveOriginalProcessStdout,
+} from "./f3-db-push-query-parse.mjs";
 import {
   sha256Buffer,
   sourceFileForVersion,
@@ -6319,18 +6331,11 @@ export const POISON_TRIGGER_NAME = "trg_f3_dbpush_fail_target_history";
 export const POISON_FUNCTION_REGPROCEDURE =
   "supabase_migrations.f3_dbpush_fail_target_history()";
 
+export const POISON_PROBE_MARKER = "f3_poison_absent_probe";
+
 export const POISON_ABSENT_PROBE_SQL = `
 SELECT jsonb_build_object(
-  'trigger_present', EXISTS (
-    SELECT 1
-    FROM pg_trigger t
-    JOIN pg_class c ON c.oid = t.tgrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE t.tgname = '${POISON_TRIGGER_NAME}'
-      AND n.nspname = 'supabase_migrations'
-      AND NOT t.tgisinternal
-  ),
-  'function_present', to_regprocedure('${POISON_FUNCTION_REGPROCEDURE}') IS NOT NULL,
+  'schema_version', 'f3-poison-envelope-v1',
   'poisonPresent', (
     EXISTS (
       SELECT 1
@@ -6344,41 +6349,80 @@ SELECT jsonb_build_object(
     OR to_regprocedure('${POISON_FUNCTION_REGPROCEDURE}') IS NOT NULL
   ),
   'current_database', current_database(),
-  'current_user', current_user
+  'current_user', current_user,
+  'probe_marker', '${POISON_PROBE_MARKER}'
 );
 `;
 
 export const FINAL_POISON_ABSENCE_HOLD =
   "HOLD: final poison verification failed closed; poison absence not proven; repair/retry/continuation/final PASS forbidden";
 
-export const FINAL_POISON_SCHEMA_VERSION = "f3-final-poison-v1";
+export const FINAL_POISON_SCHEMA_VERSION = "f3-poison-envelope-v1";
+export const POISON_ENVELOPE_SCHEMA_VERSION = FINAL_POISON_SCHEMA_VERSION;
 
 export const FINAL_POISON_REQUIRED_KEYS = Object.freeze([
   "schema_version",
-  "trigger_present",
-  "function_present",
   "poisonPresent",
-  "target_identity",
+  "current_database",
+  "current_user",
+  "probe_marker",
 ]);
 
-export const FINAL_POISON_TARGET_IDENTITY_KEYS = Object.freeze([
-  "project_ref",
-  "project_name",
-  "org_id",
-  "hostname",
-  "database_name",
-  "user",
-  "connection_mode",
-  "pooler_identity",
-  "qualification_run_id",
-  "evidence_schema_version",
-]);
+export const POISON_ENVELOPE_REQUIRED_KEYS = FINAL_POISON_REQUIRED_KEYS;
+
+export const FROZEN_TARGET_FIELD_PROVENANCE = Object.freeze({
+  project_ref: "approved_disposable_pin",
+  project_name: "approved_disposable_pin",
+  org_id: "approved_disposable_pin",
+  identity_hostname_pin: "approved_disposable_pin",
+  connection_hostname: "connection_metadata",
+  connection_port: "connection_metadata",
+  connection_database: "connection_metadata",
+  connection_username: "connection_metadata",
+  expected_live_database: "connection_username_mapping",
+  expected_live_role: "connection_username_mapping",
+  host_classification: "connection_metadata",
+  ssl_required: "connection_metadata",
+  sslmode: "connection_metadata",
+  credential_source: "connection_metadata",
+  production_ref_rejected: "connection_metadata",
+  live_current_database: "original_query_output",
+  live_current_user: "original_query_output",
+});
+
+export const APPROVED_SESSION_POOLER_USERNAME_MAPPING = Object.freeze({
+  connection_username: APPROVED_DISPOSABLE_POOLER_USER,
+  project_ref: APPROVED_DISPOSABLE_PROJECT_REF,
+  expected_live_current_user: APPROVED_DISPOSABLE_USER,
+  expected_live_current_database: APPROVED_DISPOSABLE_DATABASE,
+});
 
 export const APPROVED_POISON_TARGET_IDENTITY = Object.freeze({
   project_ref: APPROVED_DISPOSABLE_PROJECT_REF,
   project_name: APPROVED_DISPOSABLE_PROJECT_NAME,
   org_id: APPROVED_DISPOSABLE_ORG_ID,
 });
+
+export const IMMUTABLE_TARGET_HOLD =
+  "HOLD: disposable connection target failed validation; no database spawn; repair not spawned";
+
+const FROZEN_TARGET_HASH_FIELDS = Object.freeze([
+  "project_ref",
+  "project_name",
+  "org_id",
+  "identity_hostname_pin",
+  "connection_hostname",
+  "connection_port",
+  "connection_database",
+  "connection_username",
+  "expected_live_database",
+  "expected_live_role",
+  "host_classification",
+  "ssl_required",
+  "sslmode",
+  "credential_source",
+  "production_ref_rejected",
+]);
 
 const SQL_FAILURE_LINE = /(?:^|[\s:])(?:ERROR|FATAL|PANIC):/i;
 const ENVELOPE_ALLOWED_KEYS = Object.freeze(["rows", "advisory", "warning"]);
@@ -6740,164 +6784,491 @@ export function evaluateIndependentReferenceAgreement({ primary, independent } =
   return { ok: true, ...compared };
 }
 
-function poisonRowFromSupportedSchema(parsed) {
-  if (Array.isArray(parsed)) {
-    if (parsed.length !== 1) return { ok: false, reason: "verify malformed: expected one row" };
-    const row = parsed[0];
-    if (!row || typeof row !== "object" || Array.isArray(row)) {
-      return { ok: false, reason: "verify malformed: row is not an object" };
-    }
-    if (row.jsonb_build_object && typeof row.jsonb_build_object === "object") {
-      return { ok: true, row: row.jsonb_build_object };
-    }
-    return { ok: true, row };
+function hashFrozenTargetFields(fields) {
+  const payload = {};
+  for (const key of FROZEN_TARGET_HASH_FIELDS) {
+    payload[key] = fields[key];
   }
-  if (parsed && typeof parsed === "object") {
-    if (Array.isArray(parsed.rows)) {
-      if (parsed.rows.length !== 1) return { ok: false, reason: "verify malformed: expected one row" };
-      const row = parsed.rows[0];
-      if (row?.jsonb_build_object && typeof row.jsonb_build_object === "object") {
-        return { ok: true, row: row.jsonb_build_object };
-      }
-      return { ok: true, row };
-    }
-    if ("trigger_present" in parsed || "function_present" in parsed) {
-      return { ok: true, row: parsed };
-    }
-    if (parsed.jsonb_build_object && typeof parsed.jsonb_build_object === "object") {
-      return { ok: true, row: parsed.jsonb_build_object };
-    }
-  }
-  return { ok: false, reason: "verify malformed: unsupported schema" };
+  return createHash("sha256").update(JSON.stringify(payload), "utf8").digest("hex");
 }
 
-function sanitizePoisonProbeFields(result) {
-  const stdout = sanitizeEvidenceOutBytes(result?.stdout || "").toString("utf8");
-  const stderr = sanitizeEvidenceOutBytes(result?.stderr || "").toString("utf8");
+function parseConnectionUrlMetadata(url) {
+  if (typeof url !== "string" || !url.startsWith("postgresql://")) {
+    return { ok: false, reason: "connection URL is not a postgresql URL" };
+  }
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return { ok: false, reason: "connection URL is not parseable" };
+  }
+  const sslmode = parsed.searchParams.get("sslmode");
   return {
-    command_classification: result?.command_classification || result?.command || "poison_absent_probe",
-    status: result?.status ?? null,
-    signal: result?.signal ?? result?.signalCode ?? null,
-    timeout: result?.timeout === true || result?.timedOut === true,
-    stdout,
-    stderr,
-    timestamp: result?.timestamp || new Date().toISOString(),
-    target_identity: result?.target_identity || result?.file || null,
+    ok: true,
+    hostname: parsed.hostname,
+    port: Number(parsed.port || 0),
+    database: decodeURIComponent((parsed.pathname || "/").replace(/^\//, "")),
+    username: decodeURIComponent(parsed.username || ""),
+    sslmode,
+    ssl_required: sslmode === "require",
   };
 }
 
-export function evaluatePoisonAbsent(result) {
-  if (result == null || typeof result !== "object") {
-    return { ok: false, absent: false, reason: "verify result missing" };
+function mapPoolerUsername(username) {
+  const raw = String(username || "");
+  const dot = raw.indexOf(".");
+  if (dot <= 0 || dot !== raw.lastIndexOf(".")) {
+    return { ok: false, reason: "connection username is not role.project_ref" };
   }
-  if (result.status !== 0) {
-    return { ok: false, absent: false, reason: `verify status ${result.status}` };
-  }
-  const blob = textOf(result);
-  if (hasSqlFailureOutput(blob)) {
-    return { ok: false, absent: false, reason: "verify SQL error", errors: extractSqlFailureLines(blob) };
-  }
-  const parsed = parseEntireJson(result.stdout);
-  if (!parsed.ok) {
-    return { ok: false, absent: false, reason: `verify malformed: ${parsed.reason}` };
-  }
-  const shaped = poisonRowFromSupportedSchema(parsed.value);
-  if (!shaped.ok) return { ok: false, absent: false, reason: shaped.reason };
-  const row = shaped.row;
-  if (!row || typeof row !== "object") {
-    return { ok: false, absent: false, reason: "verify malformed: no structured row" };
-  }
-  if (!("trigger_present" in row) || !("function_present" in row)) {
-    return { ok: false, absent: false, reason: "verify malformed: missing trigger_present/function_present" };
-  }
-  if (typeof row.trigger_present !== "boolean" || typeof row.function_present !== "boolean") {
-    return { ok: false, absent: false, reason: "verify malformed: trigger_present/function_present must be boolean" };
-  }
-  if (row.poisonPresent === true) {
-    return { ok: false, absent: false, reason: "poisonPresent true" };
-  }
-  if (row.trigger_present !== false) {
-    return { ok: false, absent: false, reason: "poison trigger remains present" };
-  }
-  if (row.function_present !== false) {
-    return { ok: false, absent: false, reason: "poison function remains present" };
-  }
-  return { ok: true, absent: true, row, poisonPresent: false };
+  return {
+    ok: true,
+    expected_live_role: raw.slice(0, dot),
+    project_ref: raw.slice(dot + 1),
+    connection_username: raw,
+  };
 }
 
-export function evaluateFinalPoisonAbsence(result) {
-  const raw = sanitizePoisonProbeFields(result || {});
-  const fail = (reason, extra = {}) => ({
+export function validateConnectionAgainstDisposableAllowlist(connection = {}) {
+  const fail = (reason, parser_verdict = "connection_rejected") => ({
     ok: false,
-    absent: false,
-    poisonPresent: null,
-    hold: FINAL_POISON_ABSENCE_HOLD,
     reason,
-    parser_verdict: extra.parser_verdict || "rejected",
-    poison_absence_verdict: "not_proven",
-    raw,
-    ...extra,
+    parser_verdict,
+    hold: IMMUTABLE_TARGET_HOLD,
+    dbAccess: false,
+    dbPushCalls: 0,
+    repairCalls: 0,
+    continuationCalls: 0,
   });
-  if (result == null || typeof result !== "object" || Array.isArray(result)) {
-    return fail("final poison probe missing");
+  const hostname = String(connection.hostname || "");
+  const port = Number(connection.port);
+  const database = String(connection.database || "");
+  const username = String(connection.username || "");
+  const sslmode = String(connection.sslmode || "");
+  const classification = String(connection.host_classification || "");
+  const projectRef = String(connection.project_ref || "");
+  const orgId = String(connection.org_id || "");
+  const projectName = String(connection.project_name || "");
+
+  if (projectRef === PRODUCTION_REF || hostname.includes(PRODUCTION_REF) || username.includes(PRODUCTION_REF)) {
+    return fail("production ref", "production_ref");
   }
-  if (result.signal || result.signalCode) {
-    return fail(`final poison probe signaled: ${result.signal || result.signalCode}`);
+  if (projectRef && projectRef !== APPROVED_DISPOSABLE_PROJECT_REF) {
+    return fail("wrong ref", "wrong_ref");
   }
-  if (result.timeout === true || result.timedOut === true) {
-    return fail("final poison probe timed out");
+  if (orgId && orgId !== APPROVED_DISPOSABLE_ORG_ID) {
+    return fail("wrong org", "wrong_org");
   }
-  if (!Object.prototype.hasOwnProperty.call(result, "status") || result.status !== 0) {
-    return fail(`final poison probe status ${result.status}`);
+  if (projectName && projectName !== APPROVED_DISPOSABLE_PROJECT_NAME) {
+    return fail("wrong project name", "wrong_name");
   }
-  const blob = textOf(result);
-  if (hasSqlFailureOutput(blob)) {
-    return fail("final poison probe SQL error", { errors: extractSqlFailureLines(blob) });
+  if (port === TRANSACTION_POOLER_PORT) {
+    return fail("unapproved pooler port (transaction pooler)", "wrong_port");
   }
-  if (!String(result.stdout || "").trim()) {
-    return fail("final poison probe empty");
+  if (port !== APPROVED_DISPOSABLE_POOLER_PORT && port !== APPROVED_DISPOSABLE_PORT) {
+    return fail("wrong port", "wrong_port");
   }
-  const parsed = parseEntireJson(result.stdout);
-  if (!parsed.ok) {
-    return fail(`final poison probe ${parsed.reason}`, { parser_verdict: parsed.reason });
+  if (database !== APPROVED_DISPOSABLE_DATABASE) {
+    return fail("wrong database", "wrong_database");
   }
-  const shaped = poisonRowFromSupportedSchema(parsed.value);
-  if (!shaped.ok) return fail(shaped.reason, { parser_verdict: shaped.reason });
-  const row = shaped.row;
-  if (!row || typeof row !== "object" || Array.isArray(row)) {
-    return fail("final poison probe row is not an object");
+  if (sslmode !== "require" || connection.ssl_required !== true) {
+    return fail("missing SSL", "missing_ssl");
+  }
+  if (classification === "approved_session_pooler") {
+    if (hostname !== APPROVED_DISPOSABLE_POOLER_HOST) {
+      return fail("unapproved pooler", "wrong_pooler");
+    }
+    if (username !== APPROVED_DISPOSABLE_POOLER_USER) {
+      return fail("wrong username", "wrong_username");
+    }
+    if (port !== APPROVED_DISPOSABLE_POOLER_PORT) {
+      return fail("wrong port", "wrong_port");
+    }
+  } else if (classification === "approved_direct_host") {
+    if (hostname !== APPROVED_DISPOSABLE_HOST) {
+      return fail("wrong/aliased hostname", "wrong_hostname");
+    }
+    if (username !== APPROVED_DISPOSABLE_USER) {
+      return fail("wrong username", "wrong_username");
+    }
+  } else {
+    return fail("unapproved pooler or host classification", "wrong_pooler");
+  }
+  if (hostname !== APPROVED_DISPOSABLE_POOLER_HOST && hostname !== APPROVED_DISPOSABLE_HOST) {
+    return fail("wrong/aliased hostname", "wrong_hostname");
+  }
+  const mapped = mapPoolerUsername(
+    classification === "approved_session_pooler" ? username : `${APPROVED_DISPOSABLE_USER}.${APPROVED_DISPOSABLE_PROJECT_REF}`,
+  );
+  if (!mapped.ok) return fail(mapped.reason, "username_mapping");
+  if (mapped.project_ref !== APPROVED_DISPOSABLE_PROJECT_REF) {
+    return fail("username mapping ref mismatch", "username_mapping");
+  }
+  if (mapped.expected_live_role !== APPROVED_DISPOSABLE_USER) {
+    return fail("username mapping role mismatch", "username_mapping");
+  }
+  return {
+    ok: true,
+    mapping: Object.freeze({
+      connection_username: classification === "approved_session_pooler" ? username : APPROVED_DISPOSABLE_POOLER_USER,
+      project_ref: mapped.project_ref,
+      expected_live_current_user: mapped.expected_live_role,
+      expected_live_current_database: APPROVED_DISPOSABLE_DATABASE,
+    }),
+  };
+}
+
+/**
+ * ONE immutable validated target from the exact connection used by floor,
+ * db push, poison install/remove, poison probes, fingerprint queries,
+ * repair, retry, and continuation. Must be constructed BEFORE database
+ * activity. Field provenance is preserved: hostname/pooler/ref/org never
+ * claimed to come from SQL.
+ */
+export function constructImmutableValidatedTargetFromConnection(input = {}) {
+  const fail = (reason, parser_verdict = "target_rejected") => ({
+    ok: false,
+    reason,
+    parser_verdict,
+    hold: IMMUTABLE_TARGET_HOLD,
+    dbAccess: false,
+    dbPushCalls: 0,
+    repairCalls: 0,
+    continuationCalls: 0,
+    target: null,
+  });
+
+  let hostname = input.connection?.hostname;
+  let port = input.connection?.port;
+  let database = input.connection?.database;
+  let username = input.connection?.username;
+  let sslmode = input.connection?.sslmode;
+  let sslRequired = input.connection?.ssl_required;
+  let classification = input.connection?.host_classification;
+  let credentialSource = input.connection?.credential_source;
+
+  if (input.connectionUrl) {
+    const parsed = parseConnectionUrlMetadata(input.connectionUrl);
+    if (!parsed.ok) return fail(parsed.reason, "connection_url");
+    hostname = parsed.hostname;
+    port = parsed.port;
+    database = parsed.database;
+    username = parsed.username;
+    sslmode = parsed.sslmode;
+    sslRequired = parsed.ssl_required;
+    classification = hostname === APPROVED_DISPOSABLE_POOLER_HOST
+      ? "approved_session_pooler"
+      : hostname === APPROVED_DISPOSABLE_HOST
+        ? "approved_direct_host"
+        : "unknown";
+    credentialSource = credentialSource || `env:${DB_PASSWORD_ENV}`;
+  }
+
+  if (hostname == null && port == null && database == null && username == null) {
+    hostname = APPROVED_DISPOSABLE_POOLER_HOST;
+    port = APPROVED_DISPOSABLE_POOLER_PORT;
+    database = APPROVED_DISPOSABLE_DATABASE;
+    username = APPROVED_DISPOSABLE_POOLER_USER;
+    sslmode = "require";
+    sslRequired = true;
+    classification = "approved_session_pooler";
+    credentialSource = credentialSource || `env:${DB_PASSWORD_ENV}`;
+  }
+
+  const projectRef = input.project_ref || APPROVED_DISPOSABLE_PROJECT_REF;
+  const projectName = input.project_name || APPROVED_DISPOSABLE_PROJECT_NAME;
+  const orgId = input.org_id || APPROVED_DISPOSABLE_ORG_ID;
+  if (input.project_ref && input.project_ref !== APPROVED_DISPOSABLE_PROJECT_REF) {
+    return fail("caller-supplied identity not tracing to validated connection", "caller_identity");
+  }
+  if (input.project_name && input.project_name !== APPROVED_DISPOSABLE_PROJECT_NAME) {
+    return fail("caller-supplied identity not tracing to validated connection", "caller_identity");
+  }
+  if (input.org_id && input.org_id !== APPROVED_DISPOSABLE_ORG_ID) {
+    return fail("caller-supplied identity not tracing to validated connection", "caller_identity");
+  }
+  if (input.expected_live_role && input.expected_live_role !== APPROVED_DISPOSABLE_USER) {
+    return fail("caller-supplied identity not tracing to validated connection", "caller_identity");
+  }
+  if (input.expected_live_database && input.expected_live_database !== APPROVED_DISPOSABLE_DATABASE) {
+    return fail("caller-supplied identity not tracing to validated connection", "caller_identity");
+  }
+
+  const allowlist = validateConnectionAgainstDisposableAllowlist({
+    hostname,
+    port,
+    database,
+    username,
+    sslmode,
+    ssl_required: sslRequired === true || sslmode === "require",
+    host_classification: classification || "approved_session_pooler",
+    project_ref: projectRef,
+    project_name: projectName,
+    org_id: orgId,
+  });
+  if (!allowlist.ok) return fail(allowlist.reason, allowlist.parser_verdict);
+
+  const mapping = allowlist.mapping;
+  const fields = {
+    project_ref: APPROVED_DISPOSABLE_PROJECT_REF,
+    project_name: APPROVED_DISPOSABLE_PROJECT_NAME,
+    org_id: APPROVED_DISPOSABLE_ORG_ID,
+    identity_hostname_pin: APPROVED_DISPOSABLE_HOST,
+    connection_hostname: String(hostname),
+    connection_port: Number(port),
+    connection_database: String(database),
+    connection_username: String(username),
+    expected_live_database: mapping.expected_live_current_database,
+    expected_live_role: mapping.expected_live_current_user,
+    host_classification: classification || "approved_session_pooler",
+    ssl_required: true,
+    sslmode: "require",
+    credential_source: String(credentialSource || `env:${DB_PASSWORD_ENV}`),
+    production_ref_rejected: true,
+    production_ref: PRODUCTION_REF,
+    pooler_username_mapping: { ...APPROVED_SESSION_POOLER_USERNAME_MAPPING },
+    provenance: { ...FROZEN_TARGET_FIELD_PROVENANCE },
+    source: String(input.source || "connection_metadata"),
+  };
+  fields.immutable_hash = hashFrozenTargetFields(fields);
+  const target = deepFreeze(fields);
+  return { ok: true, target, allowlist };
+}
+
+export function assertFrozenTargetUnmutated(target) {
+  const fail = (reason, parser_verdict = "frozen_target_mutation") => ({
+    ok: false,
+    reason,
+    parser_verdict,
+    hold: IMMUTABLE_TARGET_HOLD,
+    dbAccess: false,
+    dbPushCalls: 0,
+    repairCalls: 0,
+    continuationCalls: 0,
+  });
+  if (target == null || typeof target !== "object" || Array.isArray(target)) {
+    return fail("frozen target missing", "target_missing");
+  }
+  if (!Object.isFrozen(target)) {
+    return fail("frozen target mutation", "frozen_target_mutation");
+  }
+  const actual = hashFrozenTargetFields(target);
+  if (!target.immutable_hash || actual !== target.immutable_hash) {
+    return fail("frozen target mutation", "frozen_target_mutation");
+  }
+  const allowlist = validateConnectionAgainstDisposableAllowlist({
+    hostname: target.connection_hostname,
+    port: target.connection_port,
+    database: target.connection_database,
+    username: target.connection_username,
+    sslmode: target.sslmode,
+    ssl_required: target.ssl_required,
+    host_classification: target.host_classification,
+    project_ref: target.project_ref,
+    project_name: target.project_name,
+    org_id: target.org_id,
+  });
+  if (!allowlist.ok) return fail(allowlist.reason, allowlist.parser_verdict);
+  return { ok: true, target };
+}
+
+export function compareLiveIdentityToFrozenTarget({ live = {}, frozenTarget } = {}) {
+  const fail = (reason, parser_verdict) => ({
+    ok: false,
+    reason,
+    parser_verdict,
+    hold: FINAL_POISON_ABSENCE_HOLD,
+    live,
+    frozenTarget,
+  });
+  const frozen = assertFrozenTargetUnmutated(frozenTarget);
+  if (!frozen.ok) return frozen;
+  const db = live.current_database;
+  const role = live.current_user;
+  if (db == null) return fail("null live current_database", "null_database");
+  if (role == null) return fail("null live current_user", "null_user");
+  if (db === "") return fail("empty live current_database", "empty_database");
+  if (role === "") return fail("empty live current_user", "empty_user");
+  if (typeof db !== "string") return fail("live current_database wrong type", "wrong_type");
+  if (typeof role !== "string") return fail("live current_user wrong type", "wrong_type");
+  if (db !== frozenTarget.expected_live_database) {
+    return fail("mismatched live DB vs frozen expected DB", "wrong_database");
+  }
+  if (db !== frozenTarget.connection_database) {
+    return fail("mismatched live DB vs connection database", "wrong_database");
+  }
+  if (role !== frozenTarget.expected_live_role) {
+    return fail("mismatched live role vs frozen expected role", "wrong_user");
+  }
+  if (role !== frozenTarget.pooler_username_mapping.expected_live_current_user) {
+    return fail("mismatched live role vs username mapping", "username_mapping");
+  }
+  if (frozenTarget.connection_username !== frozenTarget.pooler_username_mapping.connection_username) {
+    return fail("connection username mapping drifted", "username_mapping");
+  }
+  if (frozenTarget.project_ref !== frozenTarget.pooler_username_mapping.project_ref) {
+    return fail("project ref does not match username mapping", "wrong_ref");
+  }
+  if (frozenTarget.ssl_required !== true || frozenTarget.sslmode !== "require") {
+    return fail("missing SSL", "missing_ssl");
+  }
+  return {
+    ok: true,
+    live: Object.freeze({
+      current_database: db,
+      current_user: role,
+      provenance: "original_query_output",
+    }),
+    frozenTarget,
+  };
+}
+
+function exactPoisonEnvelopeFromOriginal(row) {
+  if (row == null || typeof row !== "object" || Array.isArray(row)) {
+    return { ok: false, reason: "envelope is not an object", parser_verdict: "array_not_object" };
   }
   const keys = Object.keys(row).sort();
   const required = [...FINAL_POISON_REQUIRED_KEYS].sort();
   if (keys.length !== required.length || keys.some((key, i) => key !== required[i])) {
     const extra = keys.filter((key) => !required.includes(key));
     const missing = required.filter((key) => !keys.includes(key));
-    const verdict = extra.length || missing.length
-      ? (keys.length < required.length && extra.length === 0
-        ? "required_key_subset"
-        : "keyset_mismatch")
+    const verdict = extra.length === 0 && missing.length > 0
+      ? "required_key_subset"
       : "keyset_mismatch";
-    return fail(
-      extra.length
+    return {
+      ok: false,
+      reason: extra.length
         ? `final poison probe extra key ${extra[0]}`
         : "final poison probe missing required keys",
-      { parser_verdict: verdict, extraKeys: extra, missingKeys: missing },
-    );
+      parser_verdict: verdict,
+      extraKeys: extra,
+      missingKeys: missing,
+    };
   }
   if (row.schema_version !== FINAL_POISON_SCHEMA_VERSION) {
-    return fail("final poison probe unknown schema version", { parser_verdict: "unknown_schema_version" });
+    return { ok: false, reason: "unknown schema version", parser_verdict: "unknown_schema_version" };
   }
-  for (const key of ["trigger_present", "function_present", "poisonPresent"]) {
-    if (typeof row[key] !== "boolean") {
-      return fail(`final poison probe ${key} is not an explicit boolean`, { parser_verdict: "wrong_type" });
-    }
+  if (row.probe_marker !== POISON_PROBE_MARKER) {
+    return { ok: false, reason: "unknown probe marker", parser_verdict: "probe_marker" };
   }
-  const targetEval = evaluatePoisonTargetIdentity(row.target_identity);
-  if (!targetEval.ok) {
-    return fail(targetEval.reason, { parser_verdict: targetEval.parser_verdict || "target_identity" });
+  if (typeof row.poisonPresent !== "boolean") {
+    return { ok: false, reason: "poisonPresent is not an explicit boolean", parser_verdict: "wrong_type" };
   }
-  if (row.poisonPresent !== false || row.trigger_present !== false || row.function_present !== false) {
-    return fail("poisonPresent true or poison objects remain", { poisonPresent: row.poisonPresent });
+  if (row.current_database == null) {
+    return { ok: false, reason: "null live current_database", parser_verdict: "null_database" };
+  }
+  if (row.current_user == null) {
+    return { ok: false, reason: "null live current_user", parser_verdict: "null_user" };
+  }
+  if (row.current_database === "") {
+    return { ok: false, reason: "empty live current_database", parser_verdict: "empty_database" };
+  }
+  if (row.current_user === "") {
+    return { ok: false, reason: "empty live current_user", parser_verdict: "empty_user" };
+  }
+  if (typeof row.current_database !== "string") {
+    return { ok: false, reason: "current_database wrong type", parser_verdict: "wrong_type" };
+  }
+  if (typeof row.current_user !== "string") {
+    return { ok: false, reason: "current_user wrong type", parser_verdict: "wrong_type" };
+  }
+  return { ok: true, row };
+}
+
+/**
+ * Strict original-process-result poison verifier.
+ * Validates the actual child-process result + original stdout.
+ * Never reconstructs a replacement JSON envelope.
+ */
+export function evaluateOriginalPoisonProcessResult(result, { frozenTarget } = {}) {
+  const fail = (reason, extra = {}) => ({
+    ok: false,
+    absent: false,
+    poisonPresent: extra.poisonPresent ?? null,
+    hold: extra.hold || FINAL_POISON_ABSENCE_HOLD,
+    reason,
+    parser_verdict: extra.parser_verdict || "rejected",
+    poison_absence_verdict: "not_proven",
+    usedFallbackParser: false,
+    reconstructedPoisonObject: extra.reconstructedPoisonObject === true,
+    raw: extra.raw || null,
+    parseResult: extra.parseResult || { ok: false, reason },
+    validationResult: extra.validationResult || { ok: false, reason },
+    live: extra.live || null,
+    frozenTarget: extra.frozenTarget || frozenTarget || null,
+    repairCalls: 0,
+    dbPushCalls: extra.dbPushCalls ?? 0,
+    continuationCalls: 0,
+  });
+
+  const contract = evaluateOriginalProcessResultContract(result);
+  if (!contract.ok) {
+    return fail(contract.reason, { parser_verdict: contract.parser_verdict });
+  }
+  const parsed = parseExactOriginalJsonObject(result);
+  if (!parsed.ok) {
+    return fail(parsed.reason, {
+      parser_verdict: parsed.parser_verdict,
+      raw: parsed.raw,
+      parseResult: parsed.parseResult,
+      reconstructedPoisonObject: parsed.parser_verdict === "reconstructed_not_original",
+    });
+  }
+  const envelope = exactPoisonEnvelopeFromOriginal(parsed.value);
+  if (!envelope.ok) {
+    return fail(envelope.reason, {
+      parser_verdict: envelope.parser_verdict,
+      raw: parsed.raw,
+      parseResult: parsed.parseResult,
+      validationResult: envelope,
+      extraKeys: envelope.extraKeys,
+      missingKeys: envelope.missingKeys,
+    });
+  }
+  const targetCheck = frozenTarget
+    ? assertFrozenTargetUnmutated(frozenTarget)
+    : constructImmutableValidatedTargetFromConnection({ source: "poison-default-connection" });
+  if (!targetCheck.ok) {
+    return fail(targetCheck.reason, {
+      parser_verdict: targetCheck.parser_verdict,
+      raw: parsed.raw,
+      parseResult: parsed.parseResult,
+      validationResult: targetCheck,
+      hold: targetCheck.hold || IMMUTABLE_TARGET_HOLD,
+      frozenTarget,
+    });
+  }
+  const bound = targetCheck.target;
+  const compared = compareLiveIdentityToFrozenTarget({
+    live: {
+      current_database: envelope.row.current_database,
+      current_user: envelope.row.current_user,
+    },
+    frozenTarget: bound,
+  });
+  if (!compared.ok) {
+    return fail(compared.reason, {
+      parser_verdict: compared.parser_verdict,
+      raw: parsed.raw,
+      parseResult: parsed.parseResult,
+      validationResult: compared,
+      live: {
+        current_database: envelope.row.current_database,
+        current_user: envelope.row.current_user,
+        provenance: "original_query_output",
+      },
+      frozenTarget: bound,
+    });
+  }
+  if (envelope.row.poisonPresent !== false) {
+    return fail("poisonPresent true", {
+      parser_verdict: "poison_present",
+      poisonPresent: true,
+      raw: parsed.raw,
+      parseResult: parsed.parseResult,
+      validationResult: { ok: false, reason: "poisonPresent true" },
+      live: compared.live,
+      frozenTarget: bound,
+    });
   }
   return {
     ok: true,
@@ -6905,101 +7276,116 @@ export function evaluateFinalPoisonAbsence(result) {
     poisonPresent: false,
     parser_verdict: "valid_json_exact_schema",
     poison_absence_verdict: "proven_absent",
-    row,
-    target_identity: targetEval.target_identity,
-    raw,
+    usedFallbackParser: false,
+    reconstructedPoisonObject: false,
+    row: envelope.row,
+    live: compared.live,
+    frozenTarget: bound,
+    raw: parsed.raw,
+    parseResult: parsed.parseResult,
+    validationResult: { ok: true, envelope: envelope.row, identity: compared.live },
+    repairCalls: 0,
+    dbPushCalls: 0,
+    continuationCalls: 0,
   };
+}
+
+export function evaluatePoisonAbsent(result, options = {}) {
+  const evaluated = evaluateOriginalPoisonProcessResult(result, options);
+  return {
+    ...evaluated,
+    absent: evaluated.ok === true && evaluated.absent === true,
+  };
+}
+
+export function evaluateFinalPoisonAbsence(result, options = {}) {
+  return evaluateOriginalPoisonProcessResult(result, options);
 }
 
 export function evaluatePoisonTargetIdentity(target) {
-  if (target == null) {
-    return {
-      ok: false,
-      reason: "HOLD: poison target_identity is null",
-      parser_verdict: "target_identity_null",
-    };
+  if (target && target.immutable_hash) {
+    return assertFrozenTargetUnmutated(target);
   }
-  if (typeof target !== "object" || Array.isArray(target)) {
-    return {
-      ok: false,
-      reason: "HOLD: poison target_identity is not an object",
-      parser_verdict: "wrong_type",
-    };
-  }
-  const keys = Object.keys(target).sort();
-  const required = [...FINAL_POISON_TARGET_IDENTITY_KEYS].sort();
-  if (keys.length !== required.length || keys.some((key, i) => key !== required[i])) {
-    return {
-      ok: false,
-      reason: "HOLD: poison target_identity keyset mismatch",
-      parser_verdict: "target_identity_keyset",
-    };
-  }
-  for (const key of FINAL_POISON_TARGET_IDENTITY_KEYS) {
-    if (target[key] == null || target[key] === "") {
-      return {
-        ok: false,
-        reason: `HOLD: poison target_identity.${key} is null or empty`,
-        parser_verdict: "target_identity_null",
-      };
-    }
-    if (typeof target[key] !== "string") {
-      return {
-        ok: false,
-        reason: `HOLD: poison target_identity.${key} is not a string`,
-        parser_verdict: "wrong_type",
-      };
-    }
-  }
-  if (target.project_ref !== APPROVED_DISPOSABLE_PROJECT_REF
-    || target.project_name !== APPROVED_DISPOSABLE_PROJECT_NAME
-    || target.org_id !== APPROVED_DISPOSABLE_ORG_ID) {
-    return {
-      ok: false,
-      reason: "HOLD: poison target_identity does not match approved disposable",
-      parser_verdict: "target_identity_mismatch",
-    };
-  }
-  return { ok: true, target_identity: target };
+  return constructImmutableValidatedTargetFromConnection({
+    connection: target && typeof target === "object" ? {
+      hostname: target.connection_hostname || target.hostname,
+      port: target.connection_port || target.port,
+      database: target.connection_database || target.database_name || target.database,
+      username: target.connection_username || target.pooler_identity || target.username,
+      sslmode: target.sslmode,
+      ssl_required: target.ssl_required,
+      host_classification: target.host_classification || target.connection_mode,
+      credential_source: target.credential_source,
+    } : undefined,
+    project_ref: target?.project_ref,
+    project_name: target?.project_name,
+    org_id: target?.org_id,
+    source: "evaluatePoisonTargetIdentity",
+  });
 }
 
-export function bindPoisonTargetIdentity({
-  live = {},
-  qualificationRunId = "",
-  hostname = APPROVED_DISPOSABLE_HOST,
-  connectionMode = "session_pooler",
-  poolerIdentity = APPROVED_DISPOSABLE_POOLER_USER,
-} = {}) {
-  const bound = {
-    project_ref: APPROVED_DISPOSABLE_PROJECT_REF,
-    project_name: APPROVED_DISPOSABLE_PROJECT_NAME,
-    org_id: APPROVED_DISPOSABLE_ORG_ID,
-    hostname: String(live.hostname || hostname || ""),
-    database_name: String(live.current_database || live.database_name || ""),
-    user: String(live.current_user || live.user || ""),
-    connection_mode: String(live.connection_mode || connectionMode || ""),
-    pooler_identity: String(live.pooler_identity || poolerIdentity || ""),
-    qualification_run_id: String(live.qualification_run_id || qualificationRunId || ""),
-    evidence_schema_version: F3_FULL_FINGERPRINT_SCHEMA_VERSION,
-  };
-  const checked = evaluatePoisonTargetIdentity(bound);
-  if (!checked.ok) return { ok: false, ...checked, target_identity: bound };
-  return { ok: true, target_identity: bound };
+export function bindPoisonTargetIdentity(input = {}) {
+  if (input.frozenTarget) {
+    const checked = assertFrozenTargetUnmutated(input.frozenTarget);
+    if (!checked.ok) return { ...checked, target_identity: null };
+    return { ok: true, target: checked.target, target_identity: checked.target };
+  }
+  const constructed = constructImmutableValidatedTargetFromConnection({
+    connection: input.connection,
+    connectionUrl: input.connectionUrl,
+    project_ref: input.project_ref || input.live?.project_ref,
+    project_name: input.project_name,
+    org_id: input.org_id,
+    source: input.source || "bindPoisonTargetIdentity",
+  });
+  if (!constructed.ok) return { ...constructed, target_identity: null };
+  if (input.live && (input.live.current_database != null || input.live.current_user != null)) {
+    const compared = compareLiveIdentityToFrozenTarget({
+      live: input.live,
+      frozenTarget: constructed.target,
+    });
+    if (!compared.ok) return { ...compared, target: constructed.target, target_identity: constructed.target };
+  }
+  return { ok: true, target: constructed.target, target_identity: constructed.target };
 }
 
+/**
+ * Test / evidence helper. Assembling a row is NOT original stdout.
+ * Passing the assembled object as process stdout without preservation
+ * stamps is rejected by the strict verifier when marked reconstructed.
+ */
 export function assembleFinalPoisonExactRow({
-  trigger_present,
-  function_present,
-  poisonPresent,
-  target_identity,
+  poisonPresent = false,
+  current_database = APPROVED_DISPOSABLE_DATABASE,
+  current_user = APPROVED_DISPOSABLE_USER,
+  probe_marker = POISON_PROBE_MARKER,
+  schema_version = FINAL_POISON_SCHEMA_VERSION,
 } = {}) {
   return {
-    schema_version: FINAL_POISON_SCHEMA_VERSION,
-    trigger_present,
-    function_present,
+    schema_version,
     poisonPresent,
-    target_identity,
+    current_database,
+    current_user,
+    probe_marker,
   };
+}
+
+export function originalPoisonProcessResult(overrides = {}) {
+  const row = assembleFinalPoisonExactRow(overrides.row || {});
+  const stdout = JSON.stringify(row);
+  const hashed = createHash("sha256").update(stdout, "utf8").digest("hex");
+  return preserveOriginalProcessStdout({
+    status: 0,
+    stdout,
+    stderr: "",
+    signal: null,
+    timeout: false,
+    originalStdout: stdout,
+    originalStdoutSha256: hashed,
+    originalStdoutByteLength: Buffer.byteLength(stdout),
+    stdoutPreservedBeforeTransform: true,
+    ...(overrides.result || {}),
+  }).preserved;
 }
 
 export function poisonAbsentFromProbe(result) {
@@ -7812,7 +8198,23 @@ export async function runRepairSafetyThenMaybeRepair({
   verifyPoisonAbsent,
   repair,
   teardown,
+  dbPush,
+  continuation: continuationFn,
+  frozenTarget,
 } = {}) {
+  const spies = {
+    repairCalls: 0,
+    dbPushCalls: 0,
+    continuationCalls: 0,
+    cleanupCalls: 0,
+    verifyCalls: 0,
+    historyMutated: false,
+    usedFallbackParser: false,
+    reconstructedPoisonObject: false,
+  };
+  const boundTarget = frozenTarget
+    ? assertFrozenTargetUnmutated(frozenTarget)
+    : constructImmutableValidatedTargetFromConnection({ source: "repair-safety-connection" });
   const gate = evaluateRepairSafetyGate(gateInput);
   let cleanupResult = null;
   let cleanupError = null;
@@ -7822,10 +8224,15 @@ export async function runRepairSafetyThenMaybeRepair({
   let repairAttempted = false;
   let teardownResult = null;
   let teardownRecorded = false;
+  let dbPushResult = null;
+  let continuationResult = null;
+
+  const rejectBeforeRepair = !boundTarget.ok || !gate.ok;
 
   try {
     if (typeof cleanup === "function") {
       try {
+        spies.cleanupCalls += 1;
         cleanupResult = await invokeMaybeAsync(cleanup);
       } catch (err) {
         cleanupError = err;
@@ -7838,27 +8245,62 @@ export async function runRepairSafetyThenMaybeRepair({
     const cleanupProof = evaluateCleanupProven(cleanupResult);
     const cleanupOk = cleanupProof.ok === true && cleanupError == null;
 
-    if (gate.ok && cleanupOk && typeof verifyPoisonAbsent === "function") {
+    if (boundTarget.ok && gate.ok && cleanupOk && typeof verifyPoisonAbsent === "function") {
       try {
+        spies.verifyCalls += 1;
         verifyResult = await invokeMaybeAsync(verifyPoisonAbsent);
-        verifyEval = evaluatePoisonAbsent(verifyResult);
+        if (verifyResult?.reconstructed === true
+          || verifyResult?.assembledFromExtractedFields === true
+          || verifyResult?.stdoutIsReconstructed === true
+          || verifyResult?.__assembled === true) {
+          spies.reconstructedPoisonObject = true;
+        }
+        verifyEval = evaluatePoisonAbsent(verifyResult, { frozenTarget: boundTarget.target });
+        spies.usedFallbackParser = verifyEval.usedFallbackParser === true;
+        spies.reconstructedPoisonObject = spies.reconstructedPoisonObject
+          || verifyEval.reconstructedPoisonObject === true;
       } catch (err) {
         verifyResult = { threw: true, error: String(err?.message || err) };
         verifyEval = { ok: false, absent: false, reason: "verify threw", error: String(err?.message || err) };
       }
+    } else if (!boundTarget.ok) {
+      verifyEval = {
+        ok: false,
+        absent: false,
+        reason: boundTarget.reason || IMMUTABLE_TARGET_HOLD,
+        parser_verdict: boundTarget.parser_verdict,
+      };
     } else if (gate.ok && cleanupOk && typeof verifyPoisonAbsent !== "function") {
       verifyEval = { ok: false, absent: false, reason: "verifyPoisonAbsent callback missing" };
     } else if (gate.ok && !cleanupOk) {
       verifyEval = { ok: false, absent: false, reason: cleanupProof.reason || "cleanup not proven" };
     }
 
-    const repairAllowed = Boolean(gate.ok && cleanupOk && verifyEval.ok && verifyEval.absent === true);
+    const repairAllowed = Boolean(
+      boundTarget.ok
+      && gate.ok
+      && cleanupOk
+      && verifyEval.ok
+      && verifyEval.absent === true
+      && spies.reconstructedPoisonObject !== true
+      && spies.usedFallbackParser !== true,
+    );
     if (repairAllowed) {
       if (typeof repair !== "function") {
         throw new Error("HOLD: repair executor required after authorized gate");
       }
       repairAttempted = true;
+      spies.repairCalls += 1;
       repairResult = await invokeMaybeAsync(repair);
+    }
+    const repairOk = !repairAttempted || (repairResult && repairResult.status === 0);
+    if (repairAllowed && repairOk && typeof dbPush === "function") {
+      spies.dbPushCalls += 1;
+      dbPushResult = await invokeMaybeAsync(dbPush);
+    }
+    if (repairAllowed && repairOk && typeof continuationFn === "function") {
+      spies.continuationCalls += 1;
+      continuationResult = await invokeMaybeAsync(continuationFn);
     }
   } catch (err) {
     if (typeof teardown === "function" && !teardownRecorded) {
@@ -7885,14 +8327,22 @@ export async function runRepairSafetyThenMaybeRepair({
   const cleanupProof = evaluateCleanupProven(cleanupResult);
   const cleanupOk = cleanupProof.ok === true && cleanupError == null;
   const repairOk = !repairAttempted || (repairResult && repairResult.status === 0);
+  const repairAuthorized = Boolean(
+    boundTarget.ok
+    && gate.ok
+    && cleanupOk
+    && verifyEval.ok
+    && verifyEval.absent === true
+    && spies.reconstructedPoisonObject !== true,
+  );
   return {
     gate,
-    repairAuthorized: Boolean(gate.ok && cleanupOk && verifyEval.ok && verifyEval.absent === true),
+    repairAuthorized,
     gateAuthorized: gate.ok,
     repairAttempted,
     repair: repairResult,
-    continuation: Boolean(repairAttempted && repairOk),
-    nextMigration: Boolean(repairAttempted && repairOk),
+    continuation: Boolean(repairAttempted && repairOk && repairAuthorized),
+    nextMigration: Boolean(repairAttempted && repairOk && repairAuthorized),
     cleanup: cleanupResult,
     cleanupError: cleanupError ? String(cleanupError.message || cleanupError) : null,
     cleanupProven: evaluateCleanupProven(cleanupResult).ok === true && cleanupError == null,
@@ -7903,5 +8353,28 @@ export async function runRepairSafetyThenMaybeRepair({
     teardownRecorded,
     poisonCleanupOnly: true,
     repairOk,
+    frozenTarget: boundTarget.ok ? boundTarget.target : null,
+    targetBinding: boundTarget,
+    dbPush: dbPushResult,
+    continuationResult,
+    repairCalls: spies.repairCalls,
+    dbPushCalls: spies.dbPushCalls,
+    continuationCalls: spies.continuationCalls,
+    cleanupCalls: spies.cleanupCalls,
+    verifyCalls: spies.verifyCalls,
+    historyMutated: spies.historyMutated,
+    usedFallbackParser: spies.usedFallbackParser,
+    reconstructedPoisonObject: spies.reconstructedPoisonObject,
+    rejectBeforeRepair,
   };
+}
+
+/**
+ * Production-path wrapper used by hosted qualify and harness E2E negatives.
+ * Same functions: process-result contract, original stdout parser, exact
+ * envelope validator, target-binding comparator, cleanup, poison-absence,
+ * repair auth, repair / db-push / continuation callbacks.
+ */
+export async function runQualifyPoisonBoundPath(input = {}) {
+  return runRepairSafetyThenMaybeRepair(input);
 }

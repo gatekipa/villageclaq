@@ -6334,7 +6334,7 @@ export const POISON_FUNCTION_REGPROCEDURE =
 export const POISON_PROBE_MARKER = "f3_poison_absent_probe";
 
 export const POISON_ABSENT_PROBE_SQL = `
-SELECT jsonb_build_object(
+SELECT json_build_object(
   'schema_version', 'f3-poison-envelope-v1',
   'poisonPresent', (
     EXISTS (
@@ -6351,7 +6351,7 @@ SELECT jsonb_build_object(
   'current_database', current_database(),
   'current_user', current_user,
   'probe_marker', '${POISON_PROBE_MARKER}'
-);
+)::text;
 `;
 
 export const FINAL_POISON_ABSENCE_HOLD =
@@ -7372,7 +7372,7 @@ export function assembleFinalPoisonExactRow({
 
 export function originalPoisonProcessResult(overrides = {}) {
   const row = assembleFinalPoisonExactRow(overrides.row || {});
-  const stdout = JSON.stringify(row);
+  const stdout = `${JSON.stringify(row)}\n`;
   const hashed = createHash("sha256").update(stdout, "utf8").digest("hex");
   return preserveOriginalProcessStdout({
     status: 0,
@@ -7390,6 +7390,278 @@ export function originalPoisonProcessResult(overrides = {}) {
 
 export function poisonAbsentFromProbe(result) {
   return evaluatePoisonAbsent(result).absent === true;
+}
+
+/**
+ * Isolated read-only psql transport for poison-absence queries only.
+ * Migration runner remains supabase db push CLI 2.117.0. Repair remains
+ * version-pinned CLI repair. Password never on argv / logs / evidence.
+ */
+export const PSQL_POISON_QUERY_ARGV = Object.freeze([
+  "-X",
+  "-q",
+  "-t",
+  "-A",
+  "-w",
+  "-v",
+  "ON_ERROR_STOP=1",
+]);
+
+export const PSQL_POISON_ISOLATED_ENV_KEYS = Object.freeze([
+  "PGHOST",
+  "PGPORT",
+  "PGDATABASE",
+  "PGUSER",
+  "PGPASSWORD",
+  "PGSSLMODE",
+  "PGCONNECT_TIMEOUT",
+  "PATH",
+  "HOME",
+]);
+
+export const PSQL_POISON_CONNECT_TIMEOUT_SECONDS = "15";
+
+/**
+ * No local PostgreSQL 17 / psql in this cloud-agent image. Framing is
+ * unit-tested against the exact byte contract. Chief box has
+ * docker postgres:17.6 — live proof remains required there.
+ */
+export const MUST_LOCAL_PSQL_PROOF_ON_17_6 = true;
+
+let poisonPsqlSpawnImpl = spawnSync;
+
+export function __installPoisonPsqlSpawnForTests(fn) {
+  poisonPsqlSpawnImpl = typeof fn === "function" ? fn : spawnSync;
+}
+
+export function __resetPoisonPsqlSpawnForTests() {
+  poisonPsqlSpawnImpl = spawnSync;
+}
+
+function failPoisonPsqlBeforeSpawn(reason, parser_verdict = "target_rejected") {
+  return {
+    ok: false,
+    spawned: false,
+    reason,
+    parser_verdict,
+    hold: IMMUTABLE_TARGET_HOLD,
+    status: 1,
+    stdout: "",
+    stderr: "",
+    signal: null,
+    timeout: false,
+    spawnError: reason,
+    queryError: reason,
+    psqlVersion: null,
+    argv: null,
+    envKeys: null,
+    repairCalls: 0,
+    dbPushCalls: 0,
+    continuationCalls: 0,
+  };
+}
+
+function resolvePsqlBinaryDir() {
+  const search = process.env.PATH || "/usr/bin:/bin:/usr/local/bin";
+  for (const dir of search.split(path.delimiter)) {
+    if (!dir) continue;
+    const candidate = path.join(dir, "psql");
+    try {
+      if (fs.existsSync(candidate)) return dir;
+    } catch {
+      // continue
+    }
+  }
+  return ["/usr/bin", "/bin"].join(path.delimiter);
+}
+
+function assertPoisonPsqlArgvSafe(args, password) {
+  const list = Array.isArray(args) ? args.map((a) => String(a)) : [];
+  if (list.some((a) => a === "-d" || a === "--dbname" || a.startsWith("postgresql://") || a.startsWith("postgres://"))) {
+    return { ok: false, reason: "poison psql must not take a URL on argv" };
+  }
+  if (list.some((a) => a === "-p" || a === "--password" || a === "-W")) {
+    return { ok: false, reason: "poison psql must not take password/port flags on argv" };
+  }
+  if (password && list.some((a) => a.includes(password))) {
+    return { ok: false, reason: "poison psql argv leaked password" };
+  }
+  return { ok: true, args: list };
+}
+
+export function readInstalledPsqlVersion() {
+  const dir = resolvePsqlBinaryDir();
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "f3-poison-psql-ver-"));
+  try {
+    const child = poisonPsqlSpawnImpl("psql", ["--version"], {
+      encoding: "utf8",
+      env: { PATH: dir, HOME: home },
+      timeout: 5000,
+      windowsHide: true,
+    });
+    if (child.error && child.error.code !== "ETIMEDOUT") {
+      return { ok: false, version: null, reason: child.error.message || "psql version spawn error" };
+    }
+    if (child.status !== 0) {
+      return { ok: false, version: null, reason: "psql --version nonzero" };
+    }
+    return { ok: true, version: String(child.stdout || "").trim() };
+  } finally {
+    try {
+      fs.rmSync(home, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export function validatePoisonPsqlTargetBeforeSpawn(frozenTarget) {
+  const frozen = assertFrozenTargetUnmutated(frozenTarget);
+  if (!frozen.ok) return frozen;
+  const t = frozen.target;
+  if (t.credential_source !== `env:${DB_PASSWORD_ENV}`) {
+    return failPoisonPsqlBeforeSpawn("credential source not frozen env password", "credential_source");
+  }
+  if (t.ssl_required !== true || t.sslmode !== "require") {
+    return failPoisonPsqlBeforeSpawn("missing SSL", "missing_ssl");
+  }
+  if (
+    t.connection_hostname !== APPROVED_DISPOSABLE_POOLER_HOST
+    && t.connection_hostname !== APPROVED_DISPOSABLE_HOST
+  ) {
+    return failPoisonPsqlBeforeSpawn("wrong/aliased hostname", "wrong_hostname");
+  }
+  if (
+    t.connection_port !== APPROVED_DISPOSABLE_POOLER_PORT
+    && t.connection_port !== APPROVED_DISPOSABLE_PORT
+  ) {
+    return failPoisonPsqlBeforeSpawn("wrong port", "wrong_port");
+  }
+  if (t.connection_database !== APPROVED_DISPOSABLE_DATABASE) {
+    return failPoisonPsqlBeforeSpawn("wrong database", "wrong_database");
+  }
+  if (
+    t.connection_username !== APPROVED_DISPOSABLE_POOLER_USER
+    && t.connection_username !== APPROVED_DISPOSABLE_USER
+  ) {
+    return failPoisonPsqlBeforeSpawn("wrong username", "wrong_username");
+  }
+  if (t.project_ref !== APPROVED_DISPOSABLE_PROJECT_REF) {
+    return failPoisonPsqlBeforeSpawn("wrong ref", "wrong_ref");
+  }
+  if (t.org_id !== APPROVED_DISPOSABLE_ORG_ID) {
+    return failPoisonPsqlBeforeSpawn("wrong org", "wrong_org");
+  }
+  if (t.pooler_username_mapping.connection_username !== APPROVED_DISPOSABLE_POOLER_USER) {
+    return failPoisonPsqlBeforeSpawn("connection username mapping drifted", "username_mapping");
+  }
+  if (t.pooler_username_mapping.expected_live_current_user !== APPROVED_DISPOSABLE_USER) {
+    return failPoisonPsqlBeforeSpawn("username mapping role mismatch", "username_mapping");
+  }
+  if (t.pooler_username_mapping.project_ref !== APPROVED_DISPOSABLE_PROJECT_REF) {
+    return failPoisonPsqlBeforeSpawn("project ref does not match username mapping", "wrong_ref");
+  }
+  const password = process.env[DB_PASSWORD_ENV];
+  if (password == null || String(password) === "") {
+    return failPoisonPsqlBeforeSpawn("frozen credential env password missing", "credential_source");
+  }
+  return { ok: true, target: t, password: String(password) };
+}
+
+export function buildIsolatedPoisonPsqlEnv(frozenTarget) {
+  const validated = validatePoisonPsqlTargetBeforeSpawn(frozenTarget);
+  if (!validated.ok) return validated;
+  const t = validated.target;
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "f3-poison-psql-home-"));
+  const env = Object.create(null);
+  env.PGHOST = t.connection_hostname;
+  env.PGPORT = String(t.connection_port);
+  env.PGDATABASE = t.connection_database;
+  env.PGUSER = t.connection_username;
+  env.PGPASSWORD = validated.password;
+  env.PGSSLMODE = t.sslmode;
+  env.PGCONNECT_TIMEOUT = PSQL_POISON_CONNECT_TIMEOUT_SECONDS;
+  env.PATH = resolvePsqlBinaryDir();
+  env.HOME = home;
+  const keys = Object.keys(env).sort();
+  const allowed = [...PSQL_POISON_ISOLATED_ENV_KEYS].sort();
+  if (keys.length !== allowed.length || keys.some((key, i) => key !== allowed[i])) {
+    try {
+      fs.rmSync(home, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+    return failPoisonPsqlBeforeSpawn("isolated psql env key set drifted", "env_keys");
+  }
+  if (env.DATABASE_URL || env.DIRECT_URL || env.SUPABASE_ACCESS_TOKEN || env.PGURL) {
+    return failPoisonPsqlBeforeSpawn("isolated psql env inherited forbidden keys", "env_keys");
+  }
+  return { ok: true, env, home, target: t };
+}
+
+export function runIsolatedPoisonPsqlQuery({ frozenTarget, sql } = {}) {
+  const validated = validatePoisonPsqlTargetBeforeSpawn(frozenTarget);
+  if (!validated.ok) return validated;
+  if (typeof sql !== "string" || sql.trim() === "") {
+    return failPoisonPsqlBeforeSpawn("poison psql SQL missing", "query_error");
+  }
+  const envBuilt = buildIsolatedPoisonPsqlEnv(frozenTarget);
+  if (!envBuilt.ok) return envBuilt;
+  const args = [...PSQL_POISON_QUERY_ARGV, "-c", sql];
+  const argvSafe = assertPoisonPsqlArgvSafe(args, envBuilt.env.PGPASSWORD);
+  if (!argvSafe.ok) {
+    try {
+      fs.rmSync(envBuilt.home, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+    return failPoisonPsqlBeforeSpawn(argvSafe.reason, "argv");
+  }
+  let psqlVersion = null;
+  try {
+    const versionProbe = readInstalledPsqlVersion();
+    psqlVersion = versionProbe.ok ? versionProbe.version : null;
+    if (!versionProbe.ok) {
+      return {
+        ...failPoisonPsqlBeforeSpawn(versionProbe.reason || "psql version probe failed", "spawn_error"),
+        psqlVersion: null,
+      };
+    }
+    const child = poisonPsqlSpawnImpl("psql", args, {
+      encoding: "utf8",
+      env: envBuilt.env,
+      timeout: Number(PSQL_POISON_CONNECT_TIMEOUT_SECONDS) * 1000,
+      maxBuffer: 1024 * 1024,
+      windowsHide: true,
+    });
+    const timeout = child.error?.code === "ETIMEDOUT"
+      || child.timeout === true
+      || child.timedOut === true;
+    const spawnError = child.error && child.error.code !== "ETIMEDOUT"
+      ? child.error
+      : null;
+    return {
+      status: child.status,
+      signal: child.signal ?? child.signalCode ?? null,
+      stdout: child.stdout ?? "",
+      stderr: child.stderr ?? "",
+      timeout,
+      spawnError,
+      killed: child.killed === true,
+      queryError: null,
+      psqlVersion,
+      argv: args,
+      envKeys: Object.keys(envBuilt.env).sort(),
+      transport: "isolated-psql",
+      spawned: true,
+    };
+  } finally {
+    try {
+      fs.rmSync(envBuilt.home, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+  }
 }
 
 export function evaluateCleanupProven(result) {

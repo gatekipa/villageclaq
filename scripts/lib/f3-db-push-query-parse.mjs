@@ -243,6 +243,34 @@ export function rowsFromQuery(result) {
 export const ORIGINAL_PROCESS_RESULT_HOLD =
   "HOLD: original process result failed closed; reconstructed or permissive parse forbidden";
 
+/**
+ * Exact isolated-psql stdout byte contract for poison-absence queries.
+ * Proven / required framing for `psql -X -q -t -A -w -v ON_ERROR_STOP=1`
+ * with `SELECT json_build_object(...)::text`:
+ *   - UTF-8
+ *   - exactly one JSON object
+ *   - followed by exactly one LF (0x0A)
+ *   - no leading whitespace, no blank line, no second row
+ *   - no trailing spaces, no extra bytes after the LF
+ *   - no CRLF, no prefix/suffix
+ * Parser may slice the single required framing LF from the original
+ * bytes as a payload range. It must not reconstruct or replace stdout.
+ */
+export const PSQL_POISON_STDOUT_FRAMING_CONTRACT = Object.freeze({
+  encoding: "utf-8",
+  requiredSuffix: "\n",
+  requiredSuffixByte: 0x0a,
+  allowCrlf: false,
+  allowMissingLf: false,
+  allowLeadingWhitespace: false,
+  allowTrailingSpace: false,
+  allowExtraLf: false,
+  allowPrefix: false,
+  allowSecondObject: false,
+  description:
+    "UTF-8; exactly one JSON object; exactly one trailing LF (0x0A); no other bytes",
+});
+
 const STDOUT_WARNING_OR_ERROR = /(?:^|[\s])(?:WARNING|NOTICE|ERROR|FATAL|PANIC):/im;
 
 function stdoutToBuffer(stdout) {
@@ -527,6 +555,88 @@ export function parseDuplicateKeySafeJson(text) {
   return { ok: true, value, end: scanned.end, keys: scanned.keys || Object.keys(value) };
 }
 
+function isValidUtf8Buffer(buf) {
+  return Buffer.from(buf.toString("utf8"), "utf8").equals(buf);
+}
+
+/**
+ * Exact isolated-psql stdout framing. Separates the single required
+ * trailing LF from the JSON payload as a byte range on the original
+ * bytes. Never reconstructs stdout.
+ */
+export function evaluateExactPsqlStdoutFraming(stdout) {
+  const fail = (reason, parser_verdict) => ({
+    ok: false,
+    reason,
+    parser_verdict,
+    payloadStart: null,
+    payloadEnd: null,
+    framingLfStart: null,
+    framingLfEnd: null,
+  });
+  const buf = stdoutToBuffer(stdout);
+  if (!buf) return fail("original stdout missing or not string/Buffer", "stdout_missing");
+  if (buf.byteLength === 0) return fail("empty", "empty");
+  if (!isValidUtf8Buffer(buf)) return fail("stdout is not UTF-8", "non_utf8");
+  const first = buf[0];
+  if (first === 0x20 || first === 0x09 || first === 0x0a || first === 0x0d) {
+    return fail("leading whitespace", "leading_whitespace");
+  }
+  if (first === 0x5b) {
+    return fail("arrays when object required", "array_not_object");
+  }
+  if (first !== 0x7b) {
+    return fail("non-JSON or prefix", "prefix_or_non_json");
+  }
+  const last = buf[buf.byteLength - 1];
+  const prev = buf.byteLength >= 2 ? buf[buf.byteLength - 2] : null;
+  if (last === 0x0a && prev === 0x0d) {
+    return fail("CRLF framing", "crlf_not_lf");
+  }
+  if (last !== 0x0a) {
+    return fail("missing final LF", "missing_final_lf");
+  }
+  if (prev === 0x0a) {
+    return fail("extra newline", "extra_newline");
+  }
+  const raw = buf.toString("utf8");
+  if (raw.includes("\r")) {
+    return fail("CRLF framing", "crlf_not_lf");
+  }
+  const scanned = scanJsonValue(raw, 0, { allowLeadingWs: false });
+  if (!scanned.ok) {
+    return fail(scanned.reason || "non-JSON", scanned.reason || "non-JSON");
+  }
+  if (scanned.type !== "object") {
+    return fail("arrays when object required", "array_not_object");
+  }
+  const rest = raw.slice(scanned.end);
+  if (rest === "\n\n" || rest.startsWith("\n\n")) {
+    return fail("extra newline", "extra_newline");
+  }
+  if (rest === "\r\n") {
+    return fail("CRLF framing", "crlf_not_lf");
+  }
+  if (rest !== "\n") {
+    if (rest.startsWith("\n{") || rest.trimStart().startsWith("{")) {
+      return fail("trailing suffix, multi-JSON, or multi-row", "trailing_or_multi");
+    }
+    if (rest.trim() === "") {
+      return fail("trailing whitespace", "trailing");
+    }
+    return fail("trailing suffix, multi-JSON, or multi-row", "trailing_or_multi");
+  }
+  return {
+    ok: true,
+    duplicateKeys: false,
+    payloadStart: 0,
+    payloadEnd: scanned.end,
+    framingLfStart: scanned.end,
+    framingLfEnd: scanned.end + 1,
+    payloadByteLength: scanned.end,
+  };
+}
+
 export function evaluateOriginalProcessResultContract(result) {
   const fail = (reason, parser_verdict = "rejected") => ({
     ok: false,
@@ -565,7 +675,11 @@ export function evaluateOriginalProcessResultContract(result) {
     return fail(`nonzero status ${result.status}`, "nonzero_status");
   }
   const stderr = result.stderr;
-  if (stderr != null && String(stderr).trim() !== "") {
+  const stderrBuf = stdoutToBuffer(stderr);
+  if (stderrBuf == null) {
+    return fail("stderr missing or not string/Buffer", "unexpected_stderr");
+  }
+  if (stderrBuf.byteLength !== 0) {
     return fail("unexpected stderr", "unexpected_stderr");
   }
   const stdout = Object.prototype.hasOwnProperty.call(result, "originalStdout")
@@ -582,7 +696,11 @@ export function evaluateOriginalProcessResultContract(result) {
       "reconstructed_not_original",
     );
   }
-  return { ok: true, stdout };
+  const framing = evaluateExactPsqlStdoutFraming(stdout);
+  if (!framing.ok) {
+    return fail(framing.reason, framing.parser_verdict);
+  }
+  return { ok: true, stdout, framing, stderr };
 }
 
 /**
@@ -619,6 +737,8 @@ export function parseExactOriginalJsonObject(result) {
       parseResult: { ok: false, reason: preserved.reason },
     };
   }
+  const stderrHashed = hashOriginalStdout(result.stderr ?? "");
+  const framing = contract.framing || evaluateExactPsqlStdoutFraming(preserved.preserved.originalStdout);
   const raw = {
     stdout: preserved.preserved.originalStdout,
     stdoutSha256: preserved.sha256,
@@ -628,8 +748,29 @@ export function parseExactOriginalJsonObject(result) {
     signal: result.signal ?? result.signalCode ?? null,
     timeout: result.timeout === true || result.timedOut === true,
     stderr: result.stderr ?? "",
+    stderrSha256: stderrHashed.sha256,
+    stderrByteLength: stderrHashed.byteLength,
+    payloadByteRange: framing && framing.ok
+      ? { start: framing.payloadStart, end: framing.payloadEnd }
+      : null,
+    framingLfByteRange: framing && framing.ok
+      ? { start: framing.framingLfStart, end: framing.framingLfEnd }
+      : null,
   };
-  const parsed = parseDuplicateKeySafeJson(preserved.preserved.originalStdout);
+  if (!framing || !framing.ok) {
+    return {
+      ok: false,
+      reason: framing?.reason || "stdout framing rejected",
+      parser_verdict: framing?.parser_verdict || "rejected",
+      hold: ORIGINAL_PROCESS_RESULT_HOLD,
+      raw,
+      parseResult: { ok: false, reason: framing?.reason || "stdout framing rejected" },
+      value: null,
+    };
+  }
+  const originalBuf = stdoutToBuffer(preserved.preserved.originalStdout);
+  const payloadSlice = originalBuf.subarray(framing.payloadStart, framing.payloadEnd);
+  const parsed = parseDuplicateKeySafeJson(payloadSlice);
   if (!parsed.ok) {
     return {
       ok: false,
@@ -648,5 +789,6 @@ export function parseExactOriginalJsonObject(result) {
     raw,
     parseResult: { ok: true, keys: parsed.keys },
     preserved: preserved.preserved,
+    framing,
   };
 }

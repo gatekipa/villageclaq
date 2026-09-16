@@ -154,6 +154,15 @@ import {
   assertFrozenTargetUnmutated,
   evaluateOriginalPoisonProcessResult,
   originalPoisonProcessResult,
+  POISON_ABSENT_PROBE_SQL,
+  PSQL_POISON_QUERY_ARGV,
+  PSQL_POISON_ISOLATED_ENV_KEYS,
+  MUST_LOCAL_PSQL_PROOF_ON_17_6,
+  buildIsolatedPoisonPsqlEnv,
+  validatePoisonPsqlTargetBeforeSpawn,
+  runIsolatedPoisonPsqlQuery,
+  __installPoisonPsqlSpawnForTests,
+  __resetPoisonPsqlSpawnForTests,
   runQualifyPoisonBoundPath,
   validateConnectionAgainstDisposableAllowlist,
   APPROVED_SESSION_POOLER_USERNAME_MAPPING,
@@ -241,6 +250,9 @@ import {
   parseDuplicateKeySafeJson,
   parseExactOriginalJsonObject,
   preserveOriginalProcessStdout,
+  evaluateExactPsqlStdoutFraming,
+  evaluateOriginalProcessResultContract,
+  PSQL_POISON_STDOUT_FRAMING_CONTRACT,
 } from "./lib/f3-db-push-query-parse.mjs";
 import { BOOTSTRAP_WITH_LOCAL_SHIM } from "./_f3_apply_current_main_floor.mjs";
 import {
@@ -305,6 +317,7 @@ beforeEach(() => {
   __resetDbPushSpawnForTests();
   __resetDbPushFetchForTests();
   __resetGitRunnerForTests();
+  __resetPoisonPsqlSpawnForTests();
   clearEnv();
 });
 
@@ -312,6 +325,7 @@ afterEach(() => {
   __resetDbPushSpawnForTests();
   __resetDbPushFetchForTests();
   __resetGitRunnerForTests();
+  __resetPoisonPsqlSpawnForTests();
   clearEnv();
 });
 
@@ -5971,6 +5985,11 @@ test("Daybreak original-stdout poison + connection-bound target: ACTUAL spies, f
   assert.match(qualifySrc, /preserveOriginalProcessStdout/);
   assert.match(qualifySrc, /constructImmutableValidatedTargetFromConnection/);
   assert.match(qualifySrc, /frozenTarget: frozenTargetBuilt\.target/);
+  assert.match(qualifySrc, /runIsolatedPoisonPsqlQuery/);
+  assert.doesNotMatch(qualifySrc, /runDbQuery\(\{[\s\S]{0,180}POISON_ABSENT_PROBE_SQL/);
+  assert.match(POISON_ABSENT_PROBE_SQL, /json_build_object\(/);
+  assert.match(POISON_ABSENT_PROBE_SQL, /::text/);
+  assert.doesNotMatch(POISON_ABSENT_PROBE_SQL, /jsonb_build_object/);
 
   const approved = constructImmutableValidatedTargetFromConnection({
     source: "test-f3-daybreak-original-stdout",
@@ -6073,27 +6092,27 @@ test("Daybreak original-stdout poison + connection-bound target: ACTUAL spies, f
   await publish("F3-N11-DUPLICATE-KEYS", "duplicate keys", () => runActualSpyPath({
     frozenTarget: approved.target,
     processResult: exactProcess({
-      stdout: '{"schema_version":"f3-poison-envelope-v1","poisonPresent":false,"current_database":"postgres","current_user":"postgres","probe_marker":"f3_poison_absent_probe","poisonPresent":true}',
+      stdout: '{"schema_version":"f3-poison-envelope-v1","poisonPresent":false,"current_database":"postgres","current_user":"postgres","probe_marker":"f3_poison_absent_probe","poisonPresent":true}\n',
     }),
   }));
   await publish("F3-N12-EXTRA-PROPERTY", "extra property", () => runActualSpyPath({
     frozenTarget: approved.target,
-    processResult: exactProcess({ stdout: JSON.stringify({ ...exactEnvelope(), canary: true }) }),
+    processResult: exactProcess({ stdout: `${JSON.stringify({ ...exactEnvelope(), canary: true })}\n` }),
   }));
   await publish("F3-N13-MISSING-PROPERTY", "missing property", () => runActualSpyPath({
     frozenTarget: approved.target,
     processResult: exactProcess({
-      stdout: JSON.stringify({
+      stdout: `${JSON.stringify({
         schema_version: FINAL_POISON_SCHEMA_VERSION,
         poisonPresent: false,
         current_database: "postgres",
         current_user: "postgres",
-      }),
+      })}\n`,
     }),
   }));
   await publish("F3-N14-NULL-DB", "null current_database", () => runActualSpyPath({
     frozenTarget: approved.target,
-    processResult: exactProcess({ stdout: JSON.stringify({ ...exactEnvelope(), current_database: null }) }),
+    processResult: exactProcess({ stdout: `${JSON.stringify({ ...exactEnvelope(), current_database: null })}\n` }),
   }));
   await publish("F3-N15-EMPTY-DB", "empty current_database", () => runActualSpyPath({
     frozenTarget: approved.target,
@@ -6101,7 +6120,7 @@ test("Daybreak original-stdout poison + connection-bound target: ACTUAL spies, f
   }));
   await publish("F3-N16-NULL-USER", "null current_user", () => runActualSpyPath({
     frozenTarget: approved.target,
-    processResult: exactProcess({ stdout: JSON.stringify({ ...exactEnvelope(), current_user: null }) }),
+    processResult: exactProcess({ stdout: `${JSON.stringify({ ...exactEnvelope(), current_user: null })}\n` }),
   }));
   await publish("F3-N17-EMPTY-USER", "empty current_user", () => runActualSpyPath({
     frozenTarget: approved.target,
@@ -6320,6 +6339,7 @@ test("Daybreak original-stdout poison + connection-bound target: ACTUAL spies, f
     "F3-N29-CLEANUP-NONZERO", "F3-N30-CLEANUP-MALFORMED", "F3-N31-FROZEN-TARGET-MUTATION",
     "F3-N32-FINGERPRINT-MISMATCH", "F3-N33-HISTORY-PRESENT", "F3-N34-UNEXPECTED-STAGED",
     "F3-N35-RECONSTRUCTED-NOT-ORIGINAL",
+    "F3-N36-NL-MULTI", "F3-N37-UNEXPECTED-STDERR",
   ];
   const ids = records.map((row) => row.caseId);
   for (const id of required) {
@@ -6344,6 +6364,15 @@ test("Daybreak original-stdout poison + connection-bound target: ACTUAL spies, f
   const parsedExact = parseExactOriginalJsonObject(originalPoisonProcessResult());
   assert.equal(parsedExact.ok, true);
   assert.equal(parsedExact.raw.stdoutPreservedBeforeTransform, true);
+  assert.equal(parsedExact.raw.stderrByteLength, 0);
+  assert.equal(parsedExact.raw.payloadByteRange.start, 0);
+  assert.equal(
+    parsedExact.raw.payloadByteRange.end,
+    parsedExact.raw.stdoutByteLength - 1,
+  );
+  assert.equal(String(parsedExact.raw.stdout).endsWith("\n"), true);
+  assert.equal(String(parsedExact.raw.stdout).endsWith("\r\n"), false);
+  assert.equal(parsedExact.raw.stdout, parsedExact.preserved.stdout);
 
   console.log(JSON.stringify({
     publishedOriginalStdoutNegatives: records,
@@ -6353,5 +6382,353 @@ test("Daybreak original-stdout poison + connection-bound target: ACTUAL spies, f
     independent_reference_source_sha256: independentSha,
     v5_hashes: FROZEN_EXPECTED_FINGERPRINT_SHA256,
     mapping: APPROVED_SESSION_POOLER_USERNAME_MAPPING,
+  }, null, 2));
+});
+
+function framedPoisonStdout(row = {}) {
+  return `${JSON.stringify(assembleFinalPoisonExactRow(row))}\n`;
+}
+
+function installPoisonPsqlMock({ stdout, stderr = "", status = 0, signal = null, timeout = false, spawnError = null } = {}) {
+  const framed = stdout == null ? framedPoisonStdout() : stdout;
+  __installPoisonPsqlSpawnForTests((cmd, args) => {
+    assert.equal(cmd, "psql");
+    if (args.includes("--version")) {
+      return { status: 0, stdout: "psql (PostgreSQL) 17.6\n", stderr: "", signal: null };
+    }
+    return { status, stdout: framed, stderr, signal, timeout, error: spawnError, killed: timeout === true };
+  });
+}
+
+test("isolated psql poison transport: exact framing, env isolation, CLI wrappers rejected", async () => {
+  const qualifySrc = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
+  const parseSrc = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-query-parse.mjs"), "utf8");
+  const gateSrc = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-repair-safety-gate.mjs"), "utf8");
+  assert.match(qualifySrc, /runIsolatedPoisonPsqlQuery/);
+  assert.doesNotMatch(qualifySrc, /runDbQuery\(\{[\s\S]{0,180}POISON_ABSENT_PROBE_SQL/);
+  assert.match(POISON_ABSENT_PROBE_SQL, /SELECT json_build_object\(/);
+  assert.match(POISON_ABSENT_PROBE_SQL, /::text;/);
+  assert.doesNotMatch(POISON_ABSENT_PROBE_SQL, /jsonb_build_object/);
+  assert.deepEqual([...PSQL_POISON_QUERY_ARGV], ["-X", "-q", "-t", "-A", "-w", "-v", "ON_ERROR_STOP=1"]);
+  assert.equal(PSQL_POISON_STDOUT_FRAMING_CONTRACT.requiredSuffix, "\n");
+  assert.equal(PSQL_POISON_STDOUT_FRAMING_CONTRACT.allowCrlf, false);
+  assert.equal(MUST_LOCAL_PSQL_PROOF_ON_17_6, true);
+  assert.match(parseSrc, /evaluateExactPsqlStdoutFraming/);
+  assert.match(gateSrc, /runIsolatedPoisonPsqlQuery/);
+  assert.doesNotMatch(parseSrc, /inventoryFromQuery\(poison/);
+
+  const approved = constructImmutableValidatedTargetFromConnection({
+    source: "test-f3-isolated-psql-transport",
+  });
+  assert.equal(approved.ok, true);
+
+  setAuthorizedEnv();
+  process.env.DATABASE_URL = "postgresql://ubuntu@127.0.0.1:5432/postgres";
+  process.env.PGPASSWORD = "ambient-must-not-leak";
+  process.env.SUPABASE_ACCESS_TOKEN = "sbp_ambient";
+  process.env.PGHOST = "evil.example.com";
+  const envBuilt = buildIsolatedPoisonPsqlEnv(approved.target);
+  assert.equal(envBuilt.ok, true);
+  assert.deepEqual(Object.keys(envBuilt.env).sort(), [...PSQL_POISON_ISOLATED_ENV_KEYS].sort());
+  assert.equal(envBuilt.env.DATABASE_URL, undefined);
+  assert.equal(envBuilt.env.SUPABASE_ACCESS_TOKEN, undefined);
+  assert.equal(envBuilt.env.PGHOST, APPROVED_DISPOSABLE_POOLER_HOST);
+  assert.equal(envBuilt.env.PGPORT, String(APPROVED_DISPOSABLE_POOLER_PORT));
+  assert.equal(envBuilt.env.PGDATABASE, "postgres");
+  assert.equal(envBuilt.env.PGUSER, APPROVED_DISPOSABLE_POOLER_USER);
+  assert.equal(envBuilt.env.PGSSLMODE, "require");
+  assert.equal(envBuilt.env.PGPASSWORD, process.env[DB_PASSWORD_ENV]);
+  assert.notEqual(envBuilt.env.PGPASSWORD, "ambient-must-not-leak");
+  assert.equal(envBuilt.env.HOME.includes("f3-poison-psql-home-"), true);
+  assert.equal(fs.existsSync(path.join(envBuilt.env.HOME, ".psqlrc")), false);
+  fs.rmSync(envBuilt.home, { recursive: true, force: true });
+
+  installPoisonPsqlMock();
+  const spawned = [];
+  __installPoisonPsqlSpawnForTests((cmd, args, opts) => {
+    spawned.push({ cmd, args, envKeys: Object.keys(opts.env).sort() });
+    assert.equal(cmd, "psql");
+    if (args.includes("--version")) {
+      return { status: 0, stdout: "psql (PostgreSQL) 17.6\n", stderr: "" };
+    }
+    assert.deepEqual(args.slice(0, PSQL_POISON_QUERY_ARGV.length), [...PSQL_POISON_QUERY_ARGV]);
+    assert.equal(args.includes("-c"), true);
+    assert.equal(args.includes("-d"), false);
+    assert.equal(args.some((a) => String(a).startsWith("postgresql://")), false);
+    assert.equal(args.includes("-p"), false);
+    assert.equal(JSON.stringify(args).includes(process.env[DB_PASSWORD_ENV]), false);
+    assert.equal(opts.env.DATABASE_URL, undefined);
+    assert.equal(opts.env.SUPABASE_ACCESS_TOKEN, undefined);
+    assert.equal(opts.env.PGPASSWORD, process.env[DB_PASSWORD_ENV]);
+    return { status: 0, stdout: framedPoisonStdout(), stderr: "", signal: null };
+  });
+  const live = runIsolatedPoisonPsqlQuery({
+    frozenTarget: approved.target,
+    sql: POISON_ABSENT_PROBE_SQL,
+  });
+  assert.equal(live.spawned, true);
+  assert.equal(live.psqlVersion, "psql (PostgreSQL) 17.6");
+  assert.equal(live.stdout, framedPoisonStdout());
+  assert.equal(live.stderr, "");
+  const accepted = parseExactOriginalJsonObject(live);
+  assert.equal(accepted.ok, true);
+  assert.equal(accepted.raw.stdout, live.stdout);
+  assert.equal(accepted.raw.stderrByteLength, 0);
+  assert.notEqual(accepted.raw.stdout, accepted.value);
+
+  const wrapperArray = parseExactOriginalJsonObject({
+    status: 0,
+    stdout: `${JSON.stringify([{ jsonb_build_object: assembleFinalPoisonExactRow() }])}\n`,
+    stderr: "",
+  });
+  assert.equal(wrapperArray.ok, false);
+  assert.equal(wrapperArray.parser_verdict, "array_not_object");
+  const columnWrapper = evaluateOriginalPoisonProcessResult({
+    status: 0,
+    stdout: `${JSON.stringify({ json_build_object: assembleFinalPoisonExactRow() })}\n`,
+    stderr: "",
+  }, { frozenTarget: approved.target });
+  assert.equal(columnWrapper.ok, false);
+  assert.equal(columnWrapper.parser_verdict, "keyset_mismatch");
+  const banner = evaluateOriginalProcessResultContract({
+    status: 0,
+    stdout: framedPoisonStdout(),
+    stderr: "Connecting to remote database...\n",
+  });
+  assert.equal(banner.ok, false);
+  assert.equal(banner.parser_verdict, "unexpected_stderr");
+
+  const framingOk = evaluateExactPsqlStdoutFraming(framedPoisonStdout());
+  assert.equal(framingOk.ok, true);
+  assert.equal(framingOk.payloadStart, 0);
+  assert.equal(evaluateExactPsqlStdoutFraming(JSON.stringify(assembleFinalPoisonExactRow())).parser_verdict, "missing_final_lf");
+  assert.equal(evaluateExactPsqlStdoutFraming(`${JSON.stringify(assembleFinalPoisonExactRow())}\r\n`).parser_verdict, "crlf_not_lf");
+  assert.equal(evaluateExactPsqlStdoutFraming(`${JSON.stringify(assembleFinalPoisonExactRow())}\n\n`).parser_verdict, "extra_newline");
+  assert.equal(evaluateExactPsqlStdoutFraming(` ${JSON.stringify(assembleFinalPoisonExactRow())}\n`).parser_verdict, "leading_whitespace");
+  assert.equal(evaluateExactPsqlStdoutFraming(`${JSON.stringify(assembleFinalPoisonExactRow())} \n`).parser_verdict, "trailing");
+
+  const records = [];
+  const publish = async (caseId, exactMutation, runner) => {
+    const { decided, spies } = await runner();
+    const rejected = decided.repairAuthorized === false
+      && spies.repairCalls === 0
+      && decided.repairCalls === 0
+      && spies.dbPushCalls === 0
+      && decided.continuation !== true
+      && decided.usedFallbackParser !== true
+      && decided.reconstructedPoisonObject !== true;
+    records.push({
+      caseId,
+      exactMutation,
+      repairCalls: spies.repairCalls,
+      result: rejected ? "rejected" : "UNEXPECTED",
+    });
+    assert.equal(spies.repairCalls, 0, `${caseId} ACTUAL repairCalls`);
+    assert.equal(decided.repairCalls, 0, `${caseId} path repairCalls`);
+    assert.equal(spies.dbPushCalls, 0, `${caseId} ACTUAL dbPushCalls`);
+    assert.equal(decided.continuation, false, `${caseId} no continuation`);
+    assert.equal(decided.usedFallbackParser, false, `${caseId} no fallback parser`);
+    assert.notEqual(records[records.length - 1].result, "UNEXPECTED", caseId);
+    return records[records.length - 1];
+  };
+
+  await publish("F3-T01-CLI-BANNER-STDERR", "CLI banner stderr", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({ stdout: framedPoisonStdout(), stderr: "Connecting to remote database...\n" }),
+  }));
+  await publish("F3-T02-CLI-WRAPPER-ARRAY", "CLI wrapper array", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({
+      stdout: `${JSON.stringify([{ jsonb_build_object: assembleFinalPoisonExactRow() }])}\n`,
+    }),
+  }));
+  await publish("F3-T03-COLUMN-NAME-WRAPPER", "column-name wrapper", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({
+      stdout: `${JSON.stringify({ json_build_object: assembleFinalPoisonExactRow() })}\n`,
+    }),
+  }));
+  await publish("F3-T04-EXTRA-NEWLINE", "extra newline", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({ stdout: `${framedPoisonStdout()}\n` }),
+  }));
+  await publish("F3-T05-MISSING-FINAL-LF", "missing final LF", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({ stdout: JSON.stringify(assembleFinalPoisonExactRow()) }),
+  }));
+  await publish("F3-T06-CRLF", "CRLF when LF required", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({ stdout: `${JSON.stringify(assembleFinalPoisonExactRow())}\r\n` }),
+  }));
+  await publish("F3-T07-LEADING-SPACE", "leading space", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({ stdout: ` ${framedPoisonStdout()}` }),
+  }));
+  await publish("F3-T08-TRAILING-SPACE", "trailing space", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({ stdout: `${JSON.stringify(assembleFinalPoisonExactRow())} \n` }),
+  }));
+  await publish("F3-T09-MULTIPLE-ROWS", "multiple rows", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({
+      stdout: `${JSON.stringify([assembleFinalPoisonExactRow(), assembleFinalPoisonExactRow()])}\n`,
+    }),
+  }));
+  await publish("F3-T10-MULTIPLE-JSON-OBJECTS", "multiple JSON objects", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({
+      stdout: `${framedPoisonStdout()}${framedPoisonStdout()}`,
+    }),
+  }));
+  await publish("F3-T11-DUPLICATE-KEYS", "duplicate keys", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({
+      stdout: '{"schema_version":"f3-poison-envelope-v1","poisonPresent":false,"current_database":"postgres","current_user":"postgres","probe_marker":"f3_poison_absent_probe","poisonPresent":true}\n',
+    }),
+  }));
+  await publish("F3-T12-EXTRA-FIELD", "extra field", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({ stdout: `${JSON.stringify({ ...assembleFinalPoisonExactRow(), extra: 1 })}\n` }),
+  }));
+  await publish("F3-T13-WRONG-DB", "wrong live database", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({ row: { current_database: "template1" } }),
+  }));
+  await publish("F3-T14-WRONG-USER", "wrong live user", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({ row: { current_user: "ubuntu" } }),
+  }));
+  await publish("F3-T15-WRONG-USERNAME-MAPPING", "wrong username mapping", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({ row: { current_user: "authenticator" } }),
+  }));
+  const wrongHost = constructImmutableValidatedTargetFromConnection({
+    connection: {
+      hostname: "db.aliased.example.com",
+      port: APPROVED_DISPOSABLE_POOLER_PORT,
+      database: "postgres",
+      username: APPROVED_DISPOSABLE_POOLER_USER,
+      sslmode: "require",
+      ssl_required: true,
+      host_classification: "approved_session_pooler",
+    },
+  });
+  assert.equal(wrongHost.ok, false);
+  await publish("F3-T16-WRONG-HOST", "wrong/aliased hostname", () => runActualSpyPath({
+    frozenTargetResult: wrongHost,
+    processResult: originalPoisonProcessResult(),
+  }));
+  const wrongRef = constructImmutableValidatedTargetFromConnection({
+    project_ref: "not-the-disposable-ref",
+    source: "transport-wrong-ref",
+  });
+  assert.equal(wrongRef.ok, false);
+  await publish("F3-T17-WRONG-REF", "wrong ref", () => runActualSpyPath({
+    frozenTargetResult: wrongRef,
+    processResult: originalPoisonProcessResult(),
+  }));
+  const wrongPort = constructImmutableValidatedTargetFromConnection({
+    connection: {
+      hostname: APPROVED_DISPOSABLE_POOLER_HOST,
+      port: TRANSACTION_POOLER_PORT,
+      database: "postgres",
+      username: APPROVED_DISPOSABLE_POOLER_USER,
+      sslmode: "require",
+      ssl_required: true,
+      host_classification: "approved_session_pooler",
+    },
+  });
+  assert.equal(wrongPort.ok, false);
+  await publish("F3-T18-WRONG-PORT", "wrong port", () => runActualSpyPath({
+    frozenTargetResult: wrongPort,
+    processResult: originalPoisonProcessResult(),
+  }));
+  const missingSsl = constructImmutableValidatedTargetFromConnection({
+    connection: {
+      hostname: APPROVED_DISPOSABLE_POOLER_HOST,
+      port: APPROVED_DISPOSABLE_POOLER_PORT,
+      database: "postgres",
+      username: APPROVED_DISPOSABLE_POOLER_USER,
+      sslmode: "disable",
+      ssl_required: false,
+      host_classification: "approved_session_pooler",
+    },
+  });
+  assert.equal(missingSsl.ok, false);
+  await publish("F3-T19-WRONG-SSL", "wrong SSL", () => runActualSpyPath({
+    frozenTargetResult: missingSsl,
+    processResult: originalPoisonProcessResult(),
+  }));
+  await publish("F3-T20-NONZERO-STATUS", "nonzero status", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({ status: 1, stdout: framedPoisonStdout() }),
+  }));
+  await publish("F3-T21-SIGNAL", "signal", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({ signal: "SIGTERM", stdout: framedPoisonStdout() }),
+  }));
+  await publish("F3-T22-TIMEOUT", "timeout", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({ timeout: true, stdout: framedPoisonStdout() }),
+  }));
+  await publish("F3-T23-SPAWN-ERROR", "spawn error", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({ spawnError: new Error("ENOENT"), stdout: framedPoisonStdout() }),
+  }));
+  await publish("F3-T24-NONEMPTY-STDERR", "nonempty stderr", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({ stdout: framedPoisonStdout(), stderr: "NOTICE: x\n" }),
+  }));
+  await publish("F3-T25-POISON-PRESENT", "poison still present", () => runActualSpyPath({
+    frozenTarget: approved.target,
+    processResult: exactProcess({ row: { poisonPresent: true } }),
+  }));
+
+  const savedPassword = process.env[DB_PASSWORD_ENV];
+  delete process.env[DB_PASSWORD_ENV];
+  const preSpawn = validatePoisonPsqlTargetBeforeSpawn(approved.target);
+  assert.equal(preSpawn.ok, false);
+  assert.equal(preSpawn.spawned, false);
+  process.env[DB_PASSWORD_ENV] = savedPassword;
+
+  const required = [
+    "F3-T01-CLI-BANNER-STDERR", "F3-T02-CLI-WRAPPER-ARRAY", "F3-T03-COLUMN-NAME-WRAPPER",
+    "F3-T04-EXTRA-NEWLINE", "F3-T05-MISSING-FINAL-LF", "F3-T06-CRLF",
+    "F3-T07-LEADING-SPACE", "F3-T08-TRAILING-SPACE", "F3-T09-MULTIPLE-ROWS",
+    "F3-T10-MULTIPLE-JSON-OBJECTS", "F3-T11-DUPLICATE-KEYS", "F3-T12-EXTRA-FIELD",
+    "F3-T13-WRONG-DB", "F3-T14-WRONG-USER", "F3-T15-WRONG-USERNAME-MAPPING",
+    "F3-T16-WRONG-HOST", "F3-T17-WRONG-REF", "F3-T18-WRONG-PORT", "F3-T19-WRONG-SSL",
+    "F3-T20-NONZERO-STATUS", "F3-T21-SIGNAL", "F3-T22-TIMEOUT", "F3-T23-SPAWN-ERROR",
+    "F3-T24-NONEMPTY-STDERR", "F3-T25-POISON-PRESENT",
+  ];
+  const ids = records.map((row) => row.caseId);
+  for (const id of required) {
+    assert.equal(ids.includes(id), true, `missing ${id}`);
+  }
+
+  const independentPath = path.join(root, INDEPENDENT_REFERENCE_MODULE_RELPATH);
+  const independentSha = createHash("sha256").update(fs.readFileSync(independentPath)).digest("hex");
+  assert.equal(independentSha, F3_FUNCTIONAL_RECURSIVE_CLOSURE.independent_reference_source_sha256);
+  assert.equal(F3_FULL_FINGERPRINT_SCHEMA_VERSION, "f3-full-catalog-v5");
+  assert.equal(FROZEN_EXPECTED_FINGERPRINT_SHA256["00118_f3_bounded_financial_epoch_foundation.sql"], "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d");
+  assert.equal(FROZEN_EXPECTED_FINGERPRINT_SHA256["00123_f3_05_opening_cash_command.sql"], "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34");
+
+  const columnDirect = parseDuplicateKeySafeJson(
+    JSON.stringify({ json_build_object: assembleFinalPoisonExactRow() }),
+  );
+  assert.equal(columnDirect.ok, true, "JSON parser still parses objects; envelope schema rejects wrappers");
+  const arrayDirect = parseDuplicateKeySafeJson(
+    JSON.stringify([{ jsonb_build_object: assembleFinalPoisonExactRow() }]),
+  );
+  assert.equal(arrayDirect.ok, false);
+  assert.equal(arrayDirect.parser_verdict, "array_not_object");
+
+  console.log(JSON.stringify({
+    publishedTransportNegatives: records,
+    requiredTransportCaseCount: required.length,
+    must_local_psql_proof_on_17_6: MUST_LOCAL_PSQL_PROOF_ON_17_6,
+    independent_reference_source_sha256: independentSha,
+    psqlArgv: [...PSQL_POISON_QUERY_ARGV],
+    framing: PSQL_POISON_STDOUT_FRAMING_CONTRACT,
   }, null, 2));
 });

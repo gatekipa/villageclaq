@@ -11,7 +11,7 @@
  */
 import { createHash } from "node:crypto";
 
-export const INDEPENDENT_REFERENCE_SCHEMA_VERSION = "f3-full-catalog-v4";
+export const INDEPENDENT_REFERENCE_SCHEMA_VERSION = "f3-full-catalog-v5";
 export const INDEPENDENT_REFERENCE_MODULE_RELPATH =
   "scripts/lib/f3-full-catalog-independent-reference.mjs";
 export const INDEPENDENT_RECOGNITION = Object.freeze(["manual_income"]);
@@ -21,6 +21,223 @@ export const INDEPENDENT_ACTION_ROLES = Object.freeze([
   "referenced_action",
   "constraint_other",
 ]);
+export const INDEPENDENT_TRIGGER_CATEGORIES = Object.freeze([
+  "internal_fk",
+  "ordinary_user",
+  "user_defined_constraint",
+  "explicitly_named_other",
+]);
+
+/**
+ * Independent RI role mapping. Prefix/event parser — not the primary
+ * explicit function-contract table. Unknown function, unknown
+ * event pairing, or ambiguous role → HOLD. Never defaults to
+ * referencing or referenced via relation-OID equality.
+ */
+const INDEPENDENT_RI_EVENT_BY_SUFFIX = Object.freeze({
+  ins: "INSERT",
+  upd: "UPDATE",
+  del: "DELETE",
+});
+const INDEPENDENT_RI_CHECK_FAMILIES = Object.freeze(["check"]);
+const INDEPENDENT_RI_ACTION_FAMILIES = Object.freeze([
+  "noaction",
+  "restrict",
+  "cascade",
+  "setnull",
+  "setdefault",
+]);
+const INDEPENDENT_RI_ACTION_CODE = Object.freeze({
+  noaction: "a",
+  restrict: "r",
+  cascade: "c",
+  setnull: "n",
+  setdefault: "d",
+});
+
+export function independentlyParseRiFunctionName(functionName) {
+  const name = String(functionName || "");
+  const match = /^RI_FKey_(check|noaction|restrict|cascade|setnull|setdefault)_(ins|upd|del)$/.exec(name);
+  if (!match) return null;
+  return { family: match[1], suffix: match[2] };
+}
+
+export function independentlyClassifyTriggerRole(row, constraintHint = {}) {
+  if (!row || typeof row !== "object" || Array.isArray(row)) {
+    return { ok: false, reason: "independent trigger row is not an object" };
+  }
+  const associated = row.constraint_association === true;
+  const internal = row.tgisinternal === true;
+  const constraintType = String(row.constraint_type || "");
+  const events = String(row.events || "");
+  const functionName = String(row.function_name || "");
+  if (!associated) {
+    if (internal) {
+      return { ok: false, reason: "independent internal trigger missing constraint association" };
+    }
+    return {
+      ok: true,
+      action_role: "user",
+      category: "ordinary_user",
+    };
+  }
+  if (constraintType && constraintType !== "f") {
+    if (independentlyParseRiFunctionName(functionName)) {
+      return { ok: false, reason: `independent RI function ${functionName} on non-FK constraint` };
+    }
+    return {
+      ok: true,
+      action_role: "constraint_other",
+      category: internal ? "explicitly_named_other" : "user_defined_constraint",
+    };
+  }
+  const parsed = independentlyParseRiFunctionName(functionName);
+  if (!parsed) {
+    if (/^RI_/i.test(functionName)) {
+      return { ok: false, reason: `independent unknown RI function ${functionName}` };
+    }
+    return { ok: false, reason: `independent FK trigger function is not a classified RI function: ${functionName}` };
+  }
+  const expectedEvent = INDEPENDENT_RI_EVENT_BY_SUFFIX[parsed.suffix];
+  if (!expectedEvent || events !== expectedEvent) {
+    return {
+      ok: false,
+      reason: `independent RI function ${functionName} incompatible with event ${events}`,
+    };
+  }
+  if (INDEPENDENT_RI_CHECK_FAMILIES.includes(parsed.family)) {
+    if (parsed.suffix === "del") {
+      return { ok: false, reason: "independent RI check family has no DELETE pairing" };
+    }
+    return { ok: true, action_role: "referencing_action", category: "internal_fk" };
+  }
+  if (!INDEPENDENT_RI_ACTION_FAMILIES.includes(parsed.family)) {
+    return { ok: false, reason: `independent unknown RI action family ${parsed.family}` };
+  }
+  if (parsed.suffix === "ins") {
+    return { ok: false, reason: "independent RI action family has no INSERT pairing" };
+  }
+  const expectedCode = INDEPENDENT_RI_ACTION_CODE[parsed.family];
+  const hintKey = parsed.suffix === "del" ? "delete_action" : "update_action";
+  if (constraintHint && constraintHint[hintKey] && expectedCode && constraintHint[hintKey] !== expectedCode) {
+    return {
+      ok: false,
+      reason: `independent RI function ${functionName} incompatible with constraint action ${constraintHint[hintKey]}`,
+    };
+  }
+  return { ok: true, action_role: "referenced_action", category: "internal_fk" };
+}
+
+export function independentlyApplyTriggerRoles(catalog) {
+  if (!catalog || typeof catalog !== "object" || Array.isArray(catalog)) {
+    return { ok: false, reason: "independent catalog missing" };
+  }
+  const triggers = Array.isArray(catalog.triggers) ? catalog.triggers : null;
+  if (!triggers) return { ok: false, reason: "independent triggers must be an array" };
+  const constraints = Array.isArray(catalog.constraints) ? catalog.constraints : [];
+  const next = [];
+  for (const row of triggers) {
+    const hint = independentConstraintHintFor(row, constraints);
+    const classified = independentlyClassifyTriggerRole(row, hint);
+    if (!classified.ok) return classified;
+    next.push({ ...row, action_role: classified.action_role });
+  }
+  return { ok: true, catalog: { ...catalog, triggers: next }, triggers: next };
+}
+
+function independentConstraintHintFor(row, constraints) {
+  if (!row?.constraint_name) return {};
+  const match = constraints.find((item) => (
+    item?.name === row.constraint_name
+    && (!row.constraint_schema || !item.schema || item.schema === row.constraint_schema)
+  ));
+  if (!match || typeof match.definition !== "string") return {};
+  return independentActionsFromConstraintDefinition(match.definition);
+}
+
+export function independentActionsFromConstraintDefinition(definition) {
+  const text = String(definition || "");
+  const map = Object.freeze({
+    "NO ACTION": "a",
+    RESTRICT: "r",
+    CASCADE: "c",
+    "SET NULL": "n",
+    "SET DEFAULT": "d",
+  });
+  const del = /ON DELETE (NO ACTION|RESTRICT|CASCADE|SET NULL|SET DEFAULT)/i.exec(text);
+  const upd = /ON UPDATE (NO ACTION|RESTRICT|CASCADE|SET NULL|SET DEFAULT)/i.exec(text);
+  return {
+    delete_action: del ? map[del[1].toUpperCase()] : null,
+    update_action: upd ? map[upd[1].toUpperCase()] : null,
+  };
+}
+
+export function independentlyReconcileTriggerPartitions(triggers) {
+  if (!Array.isArray(triggers)) {
+    return { ok: false, reason: "independent trigger partitions require an array" };
+  }
+  const tallies = {
+    total: triggers.length,
+    internal_fk: 0,
+    ordinary_user: 0,
+    user_defined_constraint: 0,
+    explicitly_named_other: 0,
+    referencing: 0,
+    referenced: 0,
+    unknown: 0,
+    duplicate_category: 0,
+  };
+  const seen = new Set();
+  for (const row of triggers) {
+    const classified = independentlyClassifyTriggerRole(row);
+    if (!classified.ok) {
+      tallies.unknown += 1;
+      return { ok: false, reason: classified.reason, ...tallies };
+    }
+    if (!row.action_role) {
+      return { ok: false, reason: "independent trigger has no semantic role", ...tallies };
+    }
+    if (row.action_role !== classified.action_role) {
+      return {
+        ok: false,
+        reason: "independent declared semantic role contradicts RI mapping; category totals do not reconcile",
+        ...tallies,
+      };
+    }
+    const internalFkFlags = row.tgisinternal === true && row.constraint_association === true && String(row.constraint_type || "") === "f";
+    if (internalFkFlags && classified.category !== "internal_fk") {
+      return { ok: false, reason: "independent trigger multiply classified", ...tallies, duplicate_category: 1 };
+    }
+    const identity = JSON.stringify([
+      row.schema, row.relation, row.constraint_name, row.function_name,
+      row.events, row.timing, row.level, classified.action_role,
+    ]);
+    if (seen.has(identity)) {
+      return { ok: false, reason: "independent trigger classified more than once", ...tallies, duplicate_category: 1 };
+    }
+    seen.add(identity);
+    tallies[classified.category === "internal_fk" ? "internal_fk"
+      : classified.category === "ordinary_user" ? "ordinary_user"
+      : classified.category === "user_defined_constraint" ? "user_defined_constraint"
+      : "explicitly_named_other"] += 1;
+    if (classified.category === "internal_fk") {
+      if (classified.action_role === "referencing_action") tallies.referencing += 1;
+      else if (classified.action_role === "referenced_action") tallies.referenced += 1;
+      else {
+        return { ok: false, reason: "independent internal FK missing referencing/referenced role", ...tallies };
+      }
+    }
+  }
+  const categorySum = tallies.internal_fk + tallies.ordinary_user
+    + tallies.user_defined_constraint + tallies.explicitly_named_other;
+  if (categorySum !== tallies.total) {
+    return { ok: false, reason: "independent trigger category totals do not reconcile", ...tallies };
+  }
+  if (tallies.internal_fk !== tallies.referencing + tallies.referenced) {
+    return { ok: false, reason: "independent internal FK total != referencing + referenced", ...tallies };
+  }
+  return { ok: true, ...tallies };
+}
 
 const TGENABLED_STATES = Object.freeze(["O", "D", "R", "A"]);
 const TRIGGER_TIMINGS = Object.freeze(["BEFORE", "AFTER", "INSTEAD"]);
@@ -442,6 +659,24 @@ sibling_counts AS (
     AND t.tgconstraint IN (SELECT conid FROM in_scope_con)
   GROUP BY t.tgconstraint
 ),
+-- Independent RI map: VALUES join on function name + decoded event.
+-- Not a copy of the primary CASE contract and not relation-OID equality.
+ri_fn_event_role AS (
+  SELECT * FROM (VALUES
+    ('RI_FKey_check_ins', 'INSERT', 'referencing_action'),
+    ('RI_FKey_check_upd', 'UPDATE', 'referencing_action'),
+    ('RI_FKey_noaction_del', 'DELETE', 'referenced_action'),
+    ('RI_FKey_noaction_upd', 'UPDATE', 'referenced_action'),
+    ('RI_FKey_restrict_del', 'DELETE', 'referenced_action'),
+    ('RI_FKey_restrict_upd', 'UPDATE', 'referenced_action'),
+    ('RI_FKey_cascade_del', 'DELETE', 'referenced_action'),
+    ('RI_FKey_cascade_upd', 'UPDATE', 'referenced_action'),
+    ('RI_FKey_setnull_del', 'DELETE', 'referenced_action'),
+    ('RI_FKey_setnull_upd', 'UPDATE', 'referenced_action'),
+    ('RI_FKey_setdefault_del', 'DELETE', 'referenced_action'),
+    ('RI_FKey_setdefault_upd', 'UPDATE', 'referenced_action')
+  ) AS m(fn, ev, role)
+),
 trigger_rows AS (
   SELECT jsonb_build_object(
     'schema', own_ns.nspname,
@@ -476,9 +711,19 @@ trigger_rows AS (
     'level', CASE WHEN (t.tgtype::integer % 2) = 1 THEN 'ROW' ELSE 'STATEMENT' END,
     'action_role', CASE
       WHEN t.tgconstraint = 0 THEN 'user'
-      WHEN con.conrelid = t.tgrelid THEN 'referencing_action'
-      WHEN con.confrelid <> 0 AND con.confrelid = t.tgrelid THEN 'referenced_action'
-      ELSE 'constraint_other'
+      WHEN con.contype IS NOT NULL AND con.contype <> 'f' THEN 'constraint_other'
+      ELSE (
+        SELECT m.role
+        FROM ri_fn_event_role m
+        WHERE m.fn = fn.proname
+          AND m.ev = concat_ws('+',
+            CASE WHEN (t.tgtype::integer / 4) % 2 = 1 THEN 'INSERT' END,
+            CASE WHEN (t.tgtype::integer / 8) % 2 = 1 THEN 'DELETE' END,
+            CASE WHEN (t.tgtype::integer / 16) % 2 = 1 THEN 'UPDATE' END,
+            CASE WHEN (t.tgtype::integer / 32) % 2 = 1 THEN 'TRUNCATE' END
+          )
+        LIMIT 1
+      )
     END,
     'tgenabled', t.tgenabled::text,
     'tgdeferrable', t.tgdeferrable,
@@ -756,7 +1001,7 @@ export function assertIndependentTriggerCoverage(triggers) {
     const keys = Object.keys(row).sort();
     const expected = [...INDEPENDENT_TRIGGER_FIELDS].sort();
     if (keys.length !== expected.length || keys.some((key, i) => key !== expected[i])) {
-      return { ok: false, reason: "independent trigger keyset is not the v4 semantic contract" };
+      return { ok: false, reason: "independent trigger keyset is not the v5 semantic contract" };
     }
     if (Object.prototype.hasOwnProperty.call(row, "oid") || Object.prototype.hasOwnProperty.call(row, "name")) {
       return { ok: false, reason: "independent trigger must not fingerprint OIDs or generated names" };
@@ -775,7 +1020,7 @@ export function assertIndependentTriggerCoverage(triggers) {
       return { ok: false, reason: `independent trigger level is not decoded: ${row.level}` };
     }
     if (!INDEPENDENT_ACTION_ROLES.includes(row.action_role)) {
-      return { ok: false, reason: `independent trigger action_role is not a v4 role: ${row.action_role}` };
+      return { ok: false, reason: `independent trigger action_role is not a v5 role: ${row.action_role}` };
     }
     if (typeof row.function_schema !== "string" || typeof row.function_name !== "string"
       || typeof row.function_identity_arguments !== "string") {
@@ -880,13 +1125,17 @@ export function collectIndependentFullCatalogReference({
   if (catalog == null || typeof catalog !== "object" || Array.isArray(catalog)) {
     throw new Error("HOLD: independent collector returned a non-object catalog");
   }
-  const triggerCheck = assertIndependentTriggerCoverage(catalog.triggers);
+  const classified = independentlyApplyTriggerRoles(catalog);
+  if (!classified.ok) throw new Error(`HOLD: ${classified.reason}`);
+  const triggerCheck = assertIndependentTriggerCoverage(classified.triggers);
   if (!triggerCheck.ok) throw new Error(`HOLD: ${triggerCheck.reason}`);
+  const partitions = independentlyReconcileTriggerPartitions(classified.triggers);
+  if (!partitions.ok) throw new Error(`HOLD: ${partitions.reason}`);
   const columnCheck = assertIndependentColumnAclCoverage(catalog.columns);
   if (!columnCheck.ok) throw new Error(`HOLD: ${columnCheck.reason}`);
 
   const assembled = independentlyNormalizeCatalog({
-    ...catalog,
+    ...classified.catalog,
     schema_version: INDEPENDENT_REFERENCE_SCHEMA_VERSION,
     migration_file: file || migration.file,
     migration_source_label: migration.source_label,

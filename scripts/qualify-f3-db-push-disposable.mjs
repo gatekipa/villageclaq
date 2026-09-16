@@ -163,6 +163,9 @@ import {
   RECURSIVE_CLOSURE_HOLD,
   MUST_REVERIFY_ON_17_6,
   CATALOG_V3_00123_SUPERSESSION,
+  GIT_VERIFICATION_UNAVAILABLE,
+  bindPoisonTargetIdentity,
+  assembleFinalPoisonExactRow,
 } from "./lib/f3-db-push-repair-safety-gate.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -364,7 +367,8 @@ async function main() {
       repairCalls: 0,
       continuationCalls: 0,
       fingerprint_exact: false,
-      failedGate: "recursive_runtime_closure",
+      failedGate: recursiveClosureGate.failedGate || "recursive_runtime_closure",
+      git_verification_unavailable: recursiveClosureGate.code === "GIT_VERIFICATION_UNAVAILABLE",
     }, { evidenceOut: args.evidenceOut, exitCode: 1 });
   }
   const platformAclCalibration = authorizeDbPushAfterPlatformAclCalibration();
@@ -1135,42 +1139,80 @@ async function main() {
         help: listHelp,
       });
       evidence.migrationListAfter = listedAfter;
-      const finalInv = await runDbQuery({
-        bin: cli.bin,
-        workdir: isolated.workdir,
-        help: queryHelp,
-        sql: INVENTORY_CAPTURE_SQL,
-      });
+      let chronologySeq = 0;
       const poisonFinal = await runDbQuery({
         bin: cli.bin,
         workdir: isolated.workdir,
         help: queryHelp,
         sql: POISON_ABSENT_PROBE_SQL,
       });
-      const historyFinal = await runDbQuery({
-        bin: cli.bin,
-        workdir: isolated.workdir,
-        help: queryHelp,
-        sql: READ_SCHEMA_MIGRATIONS_SQL,
+      const poisonSeq = chronologySeq += 1;
+      const livePoison = inventoryFromQuery(poisonFinal.stdout) || {};
+      const boundTarget = bindPoisonTargetIdentity({
+        live: {
+          current_database: livePoison.current_database,
+          current_user: livePoison.current_user,
+          hostname: APPROVED_DISPOSABLE_HOST,
+          pooler_identity: APPROVED_DISPOSABLE_POOLER_USER,
+          qualification_run_id: evidence.expectedFingerprintsBeforeDb?.sha256BeforeDb
+            ? Object.keys(evidence.expectedFingerprintsBeforeDb.sha256BeforeDb).join(",")
+            : "qualify-f3-db-push-disposable",
+        },
+        qualificationRunId: "qualify-f3-db-push-disposable",
       });
-      const poisonBody = inventoryFromQuery(poisonFinal.stdout) || {};
-      evidence.finalPoisonProbe = evaluateFinalPoisonAbsence(poisonFinal);
+      const exactPoisonStdout = JSON.stringify(assembleFinalPoisonExactRow({
+        trigger_present: livePoison.trigger_present,
+        function_present: livePoison.function_present,
+        poisonPresent: livePoison.poisonPresent,
+        target_identity: boundTarget.target_identity,
+      }));
+      evidence.finalPoisonProbe = evaluateFinalPoisonAbsence({
+        ...poisonFinal,
+        stdout: exactPoisonStdout,
+        target_identity: boundTarget.target_identity,
+      });
       if (args.sequenceF3 && evidence.sequence.length === F3_FORWARD_FILES.length) {
-        if (!evidence.finalPoisonProbe?.ok || evidence.finalPoisonProbe.poisonPresent !== false) {
+        if (!boundTarget.ok || !evidence.finalPoisonProbe?.ok || evidence.finalPoisonProbe.poisonPresent !== false) {
           evidence.status = "HOLD";
           evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
-          evidence.limitation = evidence.finalPoisonProbe?.reason || FINAL_POISON_ABSENCE_HOLD;
+          evidence.limitation = boundTarget.reason || evidence.finalPoisonProbe?.reason || FINAL_POISON_ABSENCE_HOLD;
           evidence.claims.dbPush = FINAL_POISON_ABSENCE_HOLD;
         } else {
+        const historyFinal = await runDbQuery({
+          bin: cli.bin,
+          workdir: isolated.workdir,
+          help: queryHelp,
+          sql: READ_SCHEMA_MIGRATIONS_SQL,
+        });
+        const historySeq = chronologySeq += 1;
+        const historyRows = rowsFromQuery(historyFinal);
+        const historyVerified = Array.isArray(historyRows) && historyRows.length === F3_FORWARD_FILES.length;
+        if (!historyVerified) {
+          evidence.status = "HOLD";
+          evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+          evidence.limitation = `HOLD: FINAL inventory history must contain six rows, saw ${Array.isArray(historyRows) ? historyRows.length : 0}`;
+        } else {
+        const finalInv = await runDbQuery({
+          bin: cli.bin,
+          workdir: isolated.workdir,
+          help: queryHelp,
+          sql: INVENTORY_CAPTURE_SQL,
+        });
+        const finalSeq = chronologySeq += 1;
         evidence.inventories[INVENTORY_PHASES.FINAL] = labelInventoryCapture({
           phase: INVENTORY_PHASES.FINAL,
           body: inventoryFromQuery(finalInv.stdout),
         });
         evidence.finalInventoryChronology = assertFinalInventoryChronology({
           inventories: evidence.inventories,
-          historyRows: rowsFromQuery(historyFinal),
+          historyRows,
           recognition: evidence.recognition,
           poisonPresent: evidence.finalPoisonProbe.poisonPresent,
+          poisonVerified: evidence.finalPoisonProbe.ok === true && evidence.finalPoisonProbe.poisonPresent === false,
+          historyVerified: true,
+          poisonSequence: poisonSeq,
+          historySequence: historySeq,
+          finalInventorySequence: finalSeq,
         });
         if (!evidence.finalInventoryChronology?.ok) {
           evidence.status = "HOLD";
@@ -1184,6 +1226,7 @@ async function main() {
           evidence.claims.mechanicsPass = "SUPERSEDED";
           evidence.claims.productionApproval = "NOT CLAIMED";
           evidence.floorLabel = QUALIFICATION_FLOOR_LABEL;
+        }
         }
         }
       } else if (!args.sequenceF3) {

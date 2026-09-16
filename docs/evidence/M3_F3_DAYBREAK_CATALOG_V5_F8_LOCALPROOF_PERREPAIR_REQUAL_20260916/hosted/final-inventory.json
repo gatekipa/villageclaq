@@ -1,0 +1,895 @@
+{
+  "ok": true,
+  "phase": "FINAL",
+  "file": null,
+  "body": {
+    "schemas": [
+      "auth",
+      "extensions",
+      "financial_core",
+      "financial_private",
+      "graphql",
+      "graphql_public",
+      "information_schema",
+      "pg_catalog",
+      "pg_toast",
+      "pgbouncer",
+      "public",
+      "realtime",
+      "storage",
+      "supabase_migrations",
+      "vault"
+    ],
+    "public_types": [
+      "financial_account_kind",
+      "financial_account_status",
+      "financial_category_class",
+      "financial_config_status",
+      "financial_control_class",
+      "financial_event_class",
+      "financial_event_status",
+      "notification_channel"
+    ],
+    "public_views": [],
+    "public_tables": [
+      "announcements",
+      "contribution_obligations",
+      "elections",
+      "events",
+      "financial_accounts",
+      "financial_categories",
+      "financial_events",
+      "financial_funds",
+      "financial_ledger_epochs",
+      "financial_postings",
+      "fines",
+      "group_positions",
+      "group_subscriptions",
+      "groups",
+      "hosting_assignments",
+      "hosting_rosters",
+      "hosting_swap_requests",
+      "invitations",
+      "loans",
+      "meeting_minutes",
+      "member_transfers",
+      "memberships",
+      "notification_policies",
+      "notification_policy_occurrences",
+      "notification_policy_triggers",
+      "notifications_queue",
+      "organizations",
+      "payment_obligation_applications",
+      "payments",
+      "position_assignments",
+      "position_permissions",
+      "profiles",
+      "projects",
+      "relief_claims",
+      "relief_enrollments",
+      "relief_plans",
+      "relief_remittances"
+    ],
+    "exchange_rates": false,
+    "financial_core": true,
+    "recognition_pin": "manual_income",
+    "storage_buckets": [],
+    "public_functions": [
+      {
+        "name": "cash_dist",
+        "identity": "public.cash_dist(money, money)"
+      },
+      {
+        "name": "compute_member_standing",
+        "identity": "public.compute_member_standing(p_membership_id uuid)"
+      },
+      {
+        "name": "correct_financial_event",
+        "identity": "public.correct_financial_event(p_command jsonb)"
+      },
+      {
+        "name": "date_dist",
+        "identity": "public.date_dist(date, date)"
+      },
+      {
+        "name": "enqueue_outbound_notification",
+        "identity": "public.enqueue_outbound_notification(p_notification_type text, p_domain_object_id uuid, p_channel notification_channel, p_recipient_membership_id uuid, p_locale text)"
+      },
+      {
+        "name": "execute_member_transfer",
+        "identity": "public.execute_member_transfer(p_payload jsonb)"
+      },
+      {
+        "name": "float4_dist",
+        "identity": "public.float4_dist(real, real)"
+      },
+      {
+        "name": "float8_dist",
+        "identity": "public.float8_dist(double precision, double precision)"
+      },
+      {
+        "name": "gbt_bit_compress",
+        "identity": "public.gbt_bit_compress(internal)"
+      },
+      {
+        "name": "gbt_bit_consistent",
+        "identity": "public.gbt_bit_consistent(internal, bit, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_bit_penalty",
+        "identity": "public.gbt_bit_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_bit_picksplit",
+        "identity": "public.gbt_bit_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_bit_same",
+        "identity": "public.gbt_bit_same(gbtreekey_var, gbtreekey_var, internal)"
+      },
+      {
+        "name": "gbt_bit_union",
+        "identity": "public.gbt_bit_union(internal, internal)"
+      },
+      {
+        "name": "gbt_bool_compress",
+        "identity": "public.gbt_bool_compress(internal)"
+      },
+      {
+        "name": "gbt_bool_consistent",
+        "identity": "public.gbt_bool_consistent(internal, boolean, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_bool_fetch",
+        "identity": "public.gbt_bool_fetch(internal)"
+      },
+      {
+        "name": "gbt_bool_penalty",
+        "identity": "public.gbt_bool_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_bool_picksplit",
+        "identity": "public.gbt_bool_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_bool_same",
+        "identity": "public.gbt_bool_same(gbtreekey2, gbtreekey2, internal)"
+      },
+      {
+        "name": "gbt_bool_union",
+        "identity": "public.gbt_bool_union(internal, internal)"
+      },
+      {
+        "name": "gbt_bpchar_compress",
+        "identity": "public.gbt_bpchar_compress(internal)"
+      },
+      {
+        "name": "gbt_bpchar_consistent",
+        "identity": "public.gbt_bpchar_consistent(internal, character, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_bytea_compress",
+        "identity": "public.gbt_bytea_compress(internal)"
+      },
+      {
+        "name": "gbt_bytea_consistent",
+        "identity": "public.gbt_bytea_consistent(internal, bytea, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_bytea_penalty",
+        "identity": "public.gbt_bytea_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_bytea_picksplit",
+        "identity": "public.gbt_bytea_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_bytea_same",
+        "identity": "public.gbt_bytea_same(gbtreekey_var, gbtreekey_var, internal)"
+      },
+      {
+        "name": "gbt_bytea_union",
+        "identity": "public.gbt_bytea_union(internal, internal)"
+      },
+      {
+        "name": "gbt_cash_compress",
+        "identity": "public.gbt_cash_compress(internal)"
+      },
+      {
+        "name": "gbt_cash_consistent",
+        "identity": "public.gbt_cash_consistent(internal, money, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_cash_distance",
+        "identity": "public.gbt_cash_distance(internal, money, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_cash_fetch",
+        "identity": "public.gbt_cash_fetch(internal)"
+      },
+      {
+        "name": "gbt_cash_penalty",
+        "identity": "public.gbt_cash_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_cash_picksplit",
+        "identity": "public.gbt_cash_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_cash_same",
+        "identity": "public.gbt_cash_same(gbtreekey16, gbtreekey16, internal)"
+      },
+      {
+        "name": "gbt_cash_union",
+        "identity": "public.gbt_cash_union(internal, internal)"
+      },
+      {
+        "name": "gbt_date_compress",
+        "identity": "public.gbt_date_compress(internal)"
+      },
+      {
+        "name": "gbt_date_consistent",
+        "identity": "public.gbt_date_consistent(internal, date, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_date_distance",
+        "identity": "public.gbt_date_distance(internal, date, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_date_fetch",
+        "identity": "public.gbt_date_fetch(internal)"
+      },
+      {
+        "name": "gbt_date_penalty",
+        "identity": "public.gbt_date_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_date_picksplit",
+        "identity": "public.gbt_date_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_date_same",
+        "identity": "public.gbt_date_same(gbtreekey8, gbtreekey8, internal)"
+      },
+      {
+        "name": "gbt_date_union",
+        "identity": "public.gbt_date_union(internal, internal)"
+      },
+      {
+        "name": "gbt_decompress",
+        "identity": "public.gbt_decompress(internal)"
+      },
+      {
+        "name": "gbt_enum_compress",
+        "identity": "public.gbt_enum_compress(internal)"
+      },
+      {
+        "name": "gbt_enum_consistent",
+        "identity": "public.gbt_enum_consistent(internal, anyenum, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_enum_fetch",
+        "identity": "public.gbt_enum_fetch(internal)"
+      },
+      {
+        "name": "gbt_enum_penalty",
+        "identity": "public.gbt_enum_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_enum_picksplit",
+        "identity": "public.gbt_enum_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_enum_same",
+        "identity": "public.gbt_enum_same(gbtreekey8, gbtreekey8, internal)"
+      },
+      {
+        "name": "gbt_enum_union",
+        "identity": "public.gbt_enum_union(internal, internal)"
+      },
+      {
+        "name": "gbt_float4_compress",
+        "identity": "public.gbt_float4_compress(internal)"
+      },
+      {
+        "name": "gbt_float4_consistent",
+        "identity": "public.gbt_float4_consistent(internal, real, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_float4_distance",
+        "identity": "public.gbt_float4_distance(internal, real, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_float4_fetch",
+        "identity": "public.gbt_float4_fetch(internal)"
+      },
+      {
+        "name": "gbt_float4_penalty",
+        "identity": "public.gbt_float4_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_float4_picksplit",
+        "identity": "public.gbt_float4_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_float4_same",
+        "identity": "public.gbt_float4_same(gbtreekey8, gbtreekey8, internal)"
+      },
+      {
+        "name": "gbt_float4_union",
+        "identity": "public.gbt_float4_union(internal, internal)"
+      },
+      {
+        "name": "gbt_float8_compress",
+        "identity": "public.gbt_float8_compress(internal)"
+      },
+      {
+        "name": "gbt_float8_consistent",
+        "identity": "public.gbt_float8_consistent(internal, double precision, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_float8_distance",
+        "identity": "public.gbt_float8_distance(internal, double precision, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_float8_fetch",
+        "identity": "public.gbt_float8_fetch(internal)"
+      },
+      {
+        "name": "gbt_float8_penalty",
+        "identity": "public.gbt_float8_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_float8_picksplit",
+        "identity": "public.gbt_float8_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_float8_same",
+        "identity": "public.gbt_float8_same(gbtreekey16, gbtreekey16, internal)"
+      },
+      {
+        "name": "gbt_float8_union",
+        "identity": "public.gbt_float8_union(internal, internal)"
+      },
+      {
+        "name": "gbt_inet_compress",
+        "identity": "public.gbt_inet_compress(internal)"
+      },
+      {
+        "name": "gbt_inet_consistent",
+        "identity": "public.gbt_inet_consistent(internal, inet, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_inet_penalty",
+        "identity": "public.gbt_inet_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_inet_picksplit",
+        "identity": "public.gbt_inet_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_inet_same",
+        "identity": "public.gbt_inet_same(gbtreekey16, gbtreekey16, internal)"
+      },
+      {
+        "name": "gbt_inet_union",
+        "identity": "public.gbt_inet_union(internal, internal)"
+      },
+      {
+        "name": "gbt_int2_compress",
+        "identity": "public.gbt_int2_compress(internal)"
+      },
+      {
+        "name": "gbt_int2_consistent",
+        "identity": "public.gbt_int2_consistent(internal, smallint, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_int2_distance",
+        "identity": "public.gbt_int2_distance(internal, smallint, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_int2_fetch",
+        "identity": "public.gbt_int2_fetch(internal)"
+      },
+      {
+        "name": "gbt_int2_penalty",
+        "identity": "public.gbt_int2_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_int2_picksplit",
+        "identity": "public.gbt_int2_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_int2_same",
+        "identity": "public.gbt_int2_same(gbtreekey4, gbtreekey4, internal)"
+      },
+      {
+        "name": "gbt_int2_union",
+        "identity": "public.gbt_int2_union(internal, internal)"
+      },
+      {
+        "name": "gbt_int4_compress",
+        "identity": "public.gbt_int4_compress(internal)"
+      },
+      {
+        "name": "gbt_int4_consistent",
+        "identity": "public.gbt_int4_consistent(internal, integer, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_int4_distance",
+        "identity": "public.gbt_int4_distance(internal, integer, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_int4_fetch",
+        "identity": "public.gbt_int4_fetch(internal)"
+      },
+      {
+        "name": "gbt_int4_penalty",
+        "identity": "public.gbt_int4_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_int4_picksplit",
+        "identity": "public.gbt_int4_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_int4_same",
+        "identity": "public.gbt_int4_same(gbtreekey8, gbtreekey8, internal)"
+      },
+      {
+        "name": "gbt_int4_union",
+        "identity": "public.gbt_int4_union(internal, internal)"
+      },
+      {
+        "name": "gbt_int8_compress",
+        "identity": "public.gbt_int8_compress(internal)"
+      },
+      {
+        "name": "gbt_int8_consistent",
+        "identity": "public.gbt_int8_consistent(internal, bigint, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_int8_distance",
+        "identity": "public.gbt_int8_distance(internal, bigint, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_int8_fetch",
+        "identity": "public.gbt_int8_fetch(internal)"
+      },
+      {
+        "name": "gbt_int8_penalty",
+        "identity": "public.gbt_int8_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_int8_picksplit",
+        "identity": "public.gbt_int8_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_int8_same",
+        "identity": "public.gbt_int8_same(gbtreekey16, gbtreekey16, internal)"
+      },
+      {
+        "name": "gbt_int8_union",
+        "identity": "public.gbt_int8_union(internal, internal)"
+      },
+      {
+        "name": "gbt_intv_compress",
+        "identity": "public.gbt_intv_compress(internal)"
+      },
+      {
+        "name": "gbt_intv_consistent",
+        "identity": "public.gbt_intv_consistent(internal, interval, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_intv_decompress",
+        "identity": "public.gbt_intv_decompress(internal)"
+      },
+      {
+        "name": "gbt_intv_distance",
+        "identity": "public.gbt_intv_distance(internal, interval, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_intv_fetch",
+        "identity": "public.gbt_intv_fetch(internal)"
+      },
+      {
+        "name": "gbt_intv_penalty",
+        "identity": "public.gbt_intv_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_intv_picksplit",
+        "identity": "public.gbt_intv_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_intv_same",
+        "identity": "public.gbt_intv_same(gbtreekey32, gbtreekey32, internal)"
+      },
+      {
+        "name": "gbt_intv_union",
+        "identity": "public.gbt_intv_union(internal, internal)"
+      },
+      {
+        "name": "gbt_macad8_compress",
+        "identity": "public.gbt_macad8_compress(internal)"
+      },
+      {
+        "name": "gbt_macad8_consistent",
+        "identity": "public.gbt_macad8_consistent(internal, macaddr8, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_macad8_fetch",
+        "identity": "public.gbt_macad8_fetch(internal)"
+      },
+      {
+        "name": "gbt_macad8_penalty",
+        "identity": "public.gbt_macad8_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_macad8_picksplit",
+        "identity": "public.gbt_macad8_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_macad8_same",
+        "identity": "public.gbt_macad8_same(gbtreekey16, gbtreekey16, internal)"
+      },
+      {
+        "name": "gbt_macad8_union",
+        "identity": "public.gbt_macad8_union(internal, internal)"
+      },
+      {
+        "name": "gbt_macad_compress",
+        "identity": "public.gbt_macad_compress(internal)"
+      },
+      {
+        "name": "gbt_macad_consistent",
+        "identity": "public.gbt_macad_consistent(internal, macaddr, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_macad_fetch",
+        "identity": "public.gbt_macad_fetch(internal)"
+      },
+      {
+        "name": "gbt_macad_penalty",
+        "identity": "public.gbt_macad_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_macad_picksplit",
+        "identity": "public.gbt_macad_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_macad_same",
+        "identity": "public.gbt_macad_same(gbtreekey16, gbtreekey16, internal)"
+      },
+      {
+        "name": "gbt_macad_union",
+        "identity": "public.gbt_macad_union(internal, internal)"
+      },
+      {
+        "name": "gbt_numeric_compress",
+        "identity": "public.gbt_numeric_compress(internal)"
+      },
+      {
+        "name": "gbt_numeric_consistent",
+        "identity": "public.gbt_numeric_consistent(internal, numeric, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_numeric_penalty",
+        "identity": "public.gbt_numeric_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_numeric_picksplit",
+        "identity": "public.gbt_numeric_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_numeric_same",
+        "identity": "public.gbt_numeric_same(gbtreekey_var, gbtreekey_var, internal)"
+      },
+      {
+        "name": "gbt_numeric_union",
+        "identity": "public.gbt_numeric_union(internal, internal)"
+      },
+      {
+        "name": "gbt_oid_compress",
+        "identity": "public.gbt_oid_compress(internal)"
+      },
+      {
+        "name": "gbt_oid_consistent",
+        "identity": "public.gbt_oid_consistent(internal, oid, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_oid_distance",
+        "identity": "public.gbt_oid_distance(internal, oid, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_oid_fetch",
+        "identity": "public.gbt_oid_fetch(internal)"
+      },
+      {
+        "name": "gbt_oid_penalty",
+        "identity": "public.gbt_oid_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_oid_picksplit",
+        "identity": "public.gbt_oid_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_oid_same",
+        "identity": "public.gbt_oid_same(gbtreekey8, gbtreekey8, internal)"
+      },
+      {
+        "name": "gbt_oid_union",
+        "identity": "public.gbt_oid_union(internal, internal)"
+      },
+      {
+        "name": "gbt_text_compress",
+        "identity": "public.gbt_text_compress(internal)"
+      },
+      {
+        "name": "gbt_text_consistent",
+        "identity": "public.gbt_text_consistent(internal, text, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_text_penalty",
+        "identity": "public.gbt_text_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_text_picksplit",
+        "identity": "public.gbt_text_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_text_same",
+        "identity": "public.gbt_text_same(gbtreekey_var, gbtreekey_var, internal)"
+      },
+      {
+        "name": "gbt_text_union",
+        "identity": "public.gbt_text_union(internal, internal)"
+      },
+      {
+        "name": "gbt_time_compress",
+        "identity": "public.gbt_time_compress(internal)"
+      },
+      {
+        "name": "gbt_time_consistent",
+        "identity": "public.gbt_time_consistent(internal, time without time zone, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_time_distance",
+        "identity": "public.gbt_time_distance(internal, time without time zone, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_time_fetch",
+        "identity": "public.gbt_time_fetch(internal)"
+      },
+      {
+        "name": "gbt_time_penalty",
+        "identity": "public.gbt_time_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_time_picksplit",
+        "identity": "public.gbt_time_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_time_same",
+        "identity": "public.gbt_time_same(gbtreekey16, gbtreekey16, internal)"
+      },
+      {
+        "name": "gbt_time_union",
+        "identity": "public.gbt_time_union(internal, internal)"
+      },
+      {
+        "name": "gbt_timetz_compress",
+        "identity": "public.gbt_timetz_compress(internal)"
+      },
+      {
+        "name": "gbt_timetz_consistent",
+        "identity": "public.gbt_timetz_consistent(internal, time with time zone, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_ts_compress",
+        "identity": "public.gbt_ts_compress(internal)"
+      },
+      {
+        "name": "gbt_ts_consistent",
+        "identity": "public.gbt_ts_consistent(internal, timestamp without time zone, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_ts_distance",
+        "identity": "public.gbt_ts_distance(internal, timestamp without time zone, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_ts_fetch",
+        "identity": "public.gbt_ts_fetch(internal)"
+      },
+      {
+        "name": "gbt_ts_penalty",
+        "identity": "public.gbt_ts_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_ts_picksplit",
+        "identity": "public.gbt_ts_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_ts_same",
+        "identity": "public.gbt_ts_same(gbtreekey16, gbtreekey16, internal)"
+      },
+      {
+        "name": "gbt_ts_union",
+        "identity": "public.gbt_ts_union(internal, internal)"
+      },
+      {
+        "name": "gbt_tstz_compress",
+        "identity": "public.gbt_tstz_compress(internal)"
+      },
+      {
+        "name": "gbt_tstz_consistent",
+        "identity": "public.gbt_tstz_consistent(internal, timestamp with time zone, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_tstz_distance",
+        "identity": "public.gbt_tstz_distance(internal, timestamp with time zone, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_uuid_compress",
+        "identity": "public.gbt_uuid_compress(internal)"
+      },
+      {
+        "name": "gbt_uuid_consistent",
+        "identity": "public.gbt_uuid_consistent(internal, uuid, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_uuid_fetch",
+        "identity": "public.gbt_uuid_fetch(internal)"
+      },
+      {
+        "name": "gbt_uuid_penalty",
+        "identity": "public.gbt_uuid_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_uuid_picksplit",
+        "identity": "public.gbt_uuid_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_uuid_same",
+        "identity": "public.gbt_uuid_same(gbtreekey32, gbtreekey32, internal)"
+      },
+      {
+        "name": "gbt_uuid_union",
+        "identity": "public.gbt_uuid_union(internal, internal)"
+      },
+      {
+        "name": "gbt_var_decompress",
+        "identity": "public.gbt_var_decompress(internal)"
+      },
+      {
+        "name": "gbt_var_fetch",
+        "identity": "public.gbt_var_fetch(internal)"
+      },
+      {
+        "name": "gbtreekey16_in",
+        "identity": "public.gbtreekey16_in(cstring)"
+      },
+      {
+        "name": "gbtreekey16_out",
+        "identity": "public.gbtreekey16_out(gbtreekey16)"
+      },
+      {
+        "name": "gbtreekey2_in",
+        "identity": "public.gbtreekey2_in(cstring)"
+      },
+      {
+        "name": "gbtreekey2_out",
+        "identity": "public.gbtreekey2_out(gbtreekey2)"
+      },
+      {
+        "name": "gbtreekey32_in",
+        "identity": "public.gbtreekey32_in(cstring)"
+      },
+      {
+        "name": "gbtreekey32_out",
+        "identity": "public.gbtreekey32_out(gbtreekey32)"
+      },
+      {
+        "name": "gbtreekey4_in",
+        "identity": "public.gbtreekey4_in(cstring)"
+      },
+      {
+        "name": "gbtreekey4_out",
+        "identity": "public.gbtreekey4_out(gbtreekey4)"
+      },
+      {
+        "name": "gbtreekey8_in",
+        "identity": "public.gbtreekey8_in(cstring)"
+      },
+      {
+        "name": "gbtreekey8_out",
+        "identity": "public.gbtreekey8_out(gbtreekey8)"
+      },
+      {
+        "name": "gbtreekey_var_in",
+        "identity": "public.gbtreekey_var_in(cstring)"
+      },
+      {
+        "name": "gbtreekey_var_out",
+        "identity": "public.gbtreekey_var_out(gbtreekey_var)"
+      },
+      {
+        "name": "get_financial_cashbook",
+        "identity": "public.get_financial_cashbook(p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer, p_limit integer)"
+      },
+      {
+        "name": "get_financial_projection_bundle",
+        "identity": "public.get_financial_projection_bundle(p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_as_of_exclusive timestamp with time zone)"
+      },
+      {
+        "name": "has_group_permission",
+        "identity": "public.has_group_permission(gid uuid, perm_key text, uid uuid)"
+      },
+      {
+        "name": "int2_dist",
+        "identity": "public.int2_dist(smallint, smallint)"
+      },
+      {
+        "name": "int4_dist",
+        "identity": "public.int4_dist(integer, integer)"
+      },
+      {
+        "name": "int8_dist",
+        "identity": "public.int8_dist(bigint, bigint)"
+      },
+      {
+        "name": "interval_dist",
+        "identity": "public.interval_dist(interval, interval)"
+      },
+      {
+        "name": "m2_is_valid_iana_timezone",
+        "identity": "public.m2_is_valid_iana_timezone(tz text)"
+      },
+      {
+        "name": "notification_policy_set_updated_at",
+        "identity": "public.notification_policy_set_updated_at()"
+      },
+      {
+        "name": "oid_dist",
+        "identity": "public.oid_dist(oid, oid)"
+      },
+      {
+        "name": "post_financial_command",
+        "identity": "public.post_financial_command(p_command jsonb)"
+      },
+      {
+        "name": "post_financial_opening_cash",
+        "identity": "public.post_financial_opening_cash(p_command jsonb)"
+      },
+      {
+        "name": "request_member_transfer",
+        "identity": "public.request_member_transfer(p_payload jsonb)"
+      },
+      {
+        "name": "time_dist",
+        "identity": "public.time_dist(time without time zone, time without time zone)"
+      },
+      {
+        "name": "ts_dist",
+        "identity": "public.ts_dist(timestamp without time zone, timestamp without time zone)"
+      },
+      {
+        "name": "tstz_dist",
+        "identity": "public.tstz_dist(timestamp with time zone, timestamp with time zone)"
+      },
+      {
+        "name": "uuid_generate_v5",
+        "identity": "public.uuid_generate_v5(namespace uuid, name text)"
+      }
+    ],
+    "storage_policies": [],
+    "unnest_uuid_shim": false,
+    "financial_private": true,
+    "groups_group_level": false,
+    "schema_migrations_rows": 6,
+    "financial_ledger_epochs": true,
+    "schema_migrations_present": true,
+    "organizations_base_country": false,
+    "auth_handle_new_user_trigger": false,
+    "committees_budget_allocation": false
+  },
+  "is_final": true
+}

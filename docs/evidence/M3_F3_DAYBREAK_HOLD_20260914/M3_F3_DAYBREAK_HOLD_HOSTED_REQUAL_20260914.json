@@ -1,0 +1,18 @@
+{
+  "title": "M3_F3_DAYBREAK_HOLD_HOSTED_REQUAL_20260914",
+  "verdict": "HOLD",
+  "functional_sha": "b45042d8c9927a72fa1fddf9e6be27b96ee56919",
+  "parent_sha": "c1a18a95f3da21ebd098bc304fed01402bafc0f8",
+  "root_cause": "qualify wires fingerprint.expected=null; fingerprintCompleteAndExact requires expected object; stopped at 00118 fingerprint_exact; repairAttempted=false",
+  "negatives_all_repairCalls_zero": true,
+  "migrations_run": [
+    "00118"
+  ],
+  "migrations_not_run": [
+    "00119",
+    "00120",
+    "00121",
+    "00122",
+    "00123"
+  ]
+}

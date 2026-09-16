@@ -1,0 +1,207 @@
+{
+  "artifact": "M3_F3_MANAGEMENT_API_LIVE_PROBE_HOLD_20260913",
+  "founder_report_status": "HOLD — MANAGEMENT API VERSION UNRECOVERABLE",
+  "do_not_convert_to_pass": true,
+  "remediation_pass_claimed": false,
+  "hosted_fidelity_pass_claimed": false,
+  "functional_sha": "0c2fe83107fe440b46f978baf56ffd12db4f8cd4",
+  "functional_sha_changed": false,
+  "evidence_sha": "35befd90f16ad37d78857c513831321699230b73",
+  "pre_test_content_sha": "52b679509842b43a09b7f4a6ad53b79b052ab45a",
+  "starting_ref": "440ca02316f60750034943a479215e7b992e6c70",
+  "prior_evidence": "235116f9d9cb4665dd8d5385ac4b6af7ebc279f5",
+  "superseded_scaffolding_evidence": "74e001eb2fd336924497b45f8db243da1f672f2c",
+  "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "pr84": {
+    "url": "https://github.com/gatekipa/villageclaq/pull/84",
+    "state": "OPEN DRAFT UNMERGED"
+  },
+  "recognition": ["manual_income"],
+  "disposable": {
+    "name": "villageclaq-f3-management-api-disposable-20260913",
+    "ref": "jkorwnwwmdeflfntxntl",
+    "org": "eyztkzkprpmlmcabrfef",
+    "identity_http_status": 200,
+    "identity_active_healthy": true,
+    "not_production": true,
+    "project_deleted": false,
+    "project_paused": false
+  },
+  "production_ref": "llbnliixczcqfftxpsmb",
+  "production_ref_contacted": false,
+  "token_printed": false,
+  "this_vm_hosted_rerun": "NOT_RUN",
+  "this_vm_token_len": 0,
+  "exact_sanitized_request": {
+    "method": "POST",
+    "path": "/v1/projects/jkorwnwwmdeflfntxntl/database/migrations",
+    "body_keys": ["query", "name"],
+    "body": {
+      "query": "create table if not exists public.f3_mapi_throwaway_probe (\n  id bigint primary key generated always as identity,\n  note text default 'f3-mapi-disposable-probe'\n);\nCOMMIT;",
+      "name": "f3_mapi_fail_probe_throwaway"
+    },
+    "authorization_logged": false
+  },
+  "exact_sanitized_response": {
+    "status": "HTTP/2 400",
+    "http_status": 400,
+    "body": {
+      "message": "Failed to apply database migration: ERROR:  P0001: F3_MAPI_DISPOSABLE_HISTORY_INJECT: blocked INSERT into schema_migrations (probe)\nCONTEXT:  PL/pgSQL function supabase_migrations.f3_mapi_block_history_insert() line 3 at RAISE\n"
+    },
+    "version_in_body": null,
+    "name_in_body": null,
+    "useful_version_headers": false,
+    "authorization_logged": false
+  },
+  "facts": {
+    "sql_committed_despite_http_400": true,
+    "throwaway_table_exists": true,
+    "history_insertion_failed": true,
+    "exact_server_generated_version_recoverable": false,
+    "exact_server_generated_name_recoverable": false,
+    "migrations_list": [],
+    "repair_attempted": false,
+    "repair_correctly_not_attempted": true,
+    "runner_faithful_limited_to_one_tiny_disposable_fixture": true,
+    "remote_00118_00123_applied": false,
+    "production_untouched": true,
+    "prior_version_recovery_dependent_claims": "SUPERSEDED"
+  },
+  "chief_live_probe": {
+    "baseline_migrations": [],
+    "query_http_status": 201,
+    "inject_marker": "F3_MAPI_DISPOSABLE_HISTORY_INJECT",
+    "apply_body_fields": ["query", "name"],
+    "throwaway_table": "public.f3_mapi_throwaway_probe",
+    "apply_http_status": 400,
+    "apply_error_mentions": "history INSERT blocked",
+    "list_after": [],
+    "schema_migrations_rows": 0,
+    "throwaway_table_exists": true,
+    "sql_committed": true,
+    "history_failed": true,
+    "recovered_version": null,
+    "recovered_name": null,
+    "repair": "FORBIDDEN",
+    "sequential_00118_00123": "NOT COMPLETED",
+    "limitation": "one runner-faithful case established universal unrecoverability under history-insert failure",
+    "poison_trigger_dropped": true,
+    "throwaway_table_left_in_place": true
+  },
+  "disposable_object_inventory_readonly_20260913": {
+    "do_not_modify_objects": true,
+    "poison_still_installed": false,
+    "poison_note": "already dropped by earlier probe cleanup BEFORE founder freeze-on-objects note; do not reinstall; do not drop remaining objects",
+    "absent": [
+      "function supabase_migrations.f3_mapi_block_history_insert",
+      "any trigger with F3_MAPI_DISPOSABLE_HISTORY_INJECT"
+    ],
+    "still_present": [
+      {
+        "name": "public.f3_mapi_throwaway_probe",
+        "kind": "table",
+        "rows": 0,
+        "columns": [
+          {"name": "id", "type": "bigint", "null": false},
+          {"name": "note", "type": "text", "default": "f3-mapi-disposable-probe"}
+        ]
+      },
+      {
+        "name": "public.f3_mapi_throwaway_probe_id_seq",
+        "kind": "sequence"
+      },
+      {
+        "name": "public.f3_mapi_throwaway_probe_pkey",
+        "kind": "index"
+      },
+      {
+        "name": "supabase_migrations.schema_migrations",
+        "kind": "table",
+        "rows": 0,
+        "note": "leftover from poison install"
+      },
+      {
+        "name": "supabase_migrations.schema_migrations_pkey",
+        "kind": "index"
+      },
+      {
+        "name": "supabase_migrations.schema_migrations_idempotency_key_key",
+        "kind": "index"
+      }
+    ],
+    "migrations_list": []
+  },
+  "fail_closed_production_runner_proposal": {
+    "implemented": false,
+    "docs_only": true,
+    "transport": "Management API file-stream POST {query,name}",
+    "fail_closed_when": [
+      "apply response is non-2xx",
+      "post-apply GET /migrations does not show a new authoritative server version+name mappable to the exact authorized SQL digest"
+    ],
+    "on_fail_closed": [
+      "STOP with HOLD — MANAGEMENT API VERSION UNRECOVERABLE",
+      "do not repair",
+      "do not guess timestamps",
+      "do not continue the queue",
+      "escalate to founder"
+    ],
+    "optional_future_separate_auth": "out-of-band pre-agreed history attestation channel only if Supabase later exposes an authoritative failed-apply version artifact; until then absence of persisted version is terminal HOLD",
+    "do_not_fall_back_to": [
+      "db push",
+      "MCP for large SQL",
+      "caller-generated timestamps",
+      "local two-phase as production apply"
+    ],
+    "no_auto_repair_or_continue_after_unrecoverable_hold": true
+  },
+  "verdict": "HOLD — MANAGEMENT API VERSION UNRECOVERABLE",
+  "local_counts": {
+    "status": "THIS_REVISION",
+    "prior_observed_at": "2026-09-13T17:03Z",
+    "local_safety": "45/45",
+    "mapi_harness": "22/22",
+    "sql_precommit_atomicity": "14/14",
+    "local_two_phase_external_ledger_non_api": "9/9",
+    "recognition": "40/40",
+    "f3_01_db": "43/43",
+    "f3_02_db": "159/159",
+    "f3_02_astra": "169/169",
+    "f3_03_db": "25/25",
+    "f3_03_astra": "80/80",
+    "f3_04_db": "23/23",
+    "f3_04_astra": "170/170",
+    "f3_05_db": "31/31",
+    "f3_05_astra": "118/118",
+    "post_s0_regression": "14/14",
+    "test_f3": "962/962",
+    "test_m2": "111/111",
+    "m2_static": "9/9",
+    "cut1_static": "11/11",
+    "cut2_nonregression": "20/20",
+    "cut2_nonregression_note": "M2-C2-01..20; prior 17:03Z table listed 21/21",
+    "cut3_storage_buckets": "11/11",
+    "tsc": "PASS",
+    "build": "PASS (dummy https://example.invalid.supabase.local)",
+    "qualify_without_env": "NOT_RUN exit 2",
+    "hosted_rerun": "NOT_RUN",
+    "digests_00118_00123": "UNCHANGED"
+  },
+  "postgres": "17.11",
+  "supabase_cli": "2.117.0",
+  "observed_at": "2026-09-13T17:18Z",
+  "cleanup_recommendation": "Leave jkorwnwwmdeflfntxntl in place. Do not delete or pause. Do not modify leftover objects.",
+  "withdrawn": [
+    "REMEDIATION PASS",
+    "hosted Management API fidelity PASS",
+    "recovered version from live 400 body / list_migrations / schema_migrations",
+    "CLI repair attempted or completed",
+    "00118-00123 Management API apply completed",
+    "apply-time clock may recover a repaired version",
+    "Management API custom skip",
+    "local two-phase helper is Management API equivalent",
+    "clean 00001-00117 disposable replay",
+    "any prior equivalence / repair / skip / continuation claim that depended on version recovery"
+  ]
+}

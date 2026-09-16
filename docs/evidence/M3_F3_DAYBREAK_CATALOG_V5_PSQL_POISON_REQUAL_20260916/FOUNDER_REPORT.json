@@ -1,0 +1,176 @@
+{
+  "1_verdict": "REMEDIATION PASS",
+  "1_verdict_detail": "REMEDIATION PASS \u2014 disposable CLI 2.117.0 file-based runner + isolated psql poison transport under stub/live-pin floor ONLY \u2014 not production/merge auth. Local CONTINUE + F7 additive FF to OPEN DRAFT #84/#85/#86. Exactly one disposable reset \u2192 CLEAN_BASELINE. Hosted qualify process exit 0; final bare-envelope poison absence proven; six V5 fingerprints EXACT; pending empty; six history rows.",
+  "2_main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "3_pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "4_HOLD_parent_F6_evidence_tip": "0ba4e293d5d0895e3e107a367887745a877d0756",
+  "5_F6_in_ancestry": "1f965219d73ec4c4c3455d8119e232757bba6ee6",
+  "6_PR102_tip_blob_source_only": "19e997dfadd9f6a8bc1a221a7edb5f6e8ec02d80",
+  "7_PR102_vs_HOLD": {
+    "file_count": 4,
+    "files": [
+      "scripts/lib/f3-db-push-query-parse.mjs",
+      "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+      "scripts/qualify-f3-db-push-disposable.mjs",
+      "scripts/test-f3-db-push-harness.mjs"
+    ],
+    "independent_ref_blob_unchanged": "09b6e97ee0605d4af81b027746e49a6e43ff6ff1",
+    "V5_hashes_sealed_unchanged": true
+  },
+  "8_F7_functional": "5d480db63592b85dfdeeb3dc4b955bd9b83878f1",
+  "9_evidence_commit": null,
+  "10_PR96_to_102": {
+    "96_to_101": "not authority",
+    "102": "OPEN DRAFT left unused as authority (blob source only)"
+  },
+  "11_PRs_84_85_86": {
+    "state": "OPEN DRAFT UNMERGED",
+    "head": "5d480db63592b85dfdeeb3dc4b955bd9b83878f1",
+    "head_identical": true,
+    "title": "DAYBREAK HOLD \u2014 catalog-v5 self-FK RI roles + fail-closed",
+    "ff_only": true,
+    "force_push": false
+  },
+  "12_schema_version": "f3-full-catalog-v5",
+  "13_envelope": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "14_independent_module_sha256": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+  "15_V5_hashes": {
+    "00118": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d",
+    "00119": "5e03111ffb34be3ed76a714370c93e70210a9741a25ac7b9158a9a9ad22f12f4",
+    "00120": "35eba6966d2c077a9467f09adc6c85306b951c9d8388ee758a60d924c05ae51a",
+    "00121": "8f65797949d8c5afb7dfa99b8020da52385347099b2a5b9be5148b253e76bde6",
+    "00122": "6e3240759aec64d4692422aac006b4fb865e3039832be84efea86b39c0253175",
+    "00123": "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34"
+  },
+  "16_local_gates": {
+    "verdict": "CONTINUE",
+    "test_f3_db_push": {
+      "tests": 127,
+      "pass": 126,
+      "fail": 0,
+      "skipped": 1
+    },
+    "actual_spy_negatives": {
+      "test": "Daybreak original-stdout poison + connection-bound target: ACTUAL spies, founder 1-34+",
+      "ok": true,
+      "case_count": 37,
+      "cases_F3_N01_to_N37": true,
+      "transport_F3_T01_to_T25": true,
+      "requiredCaseCount": 37,
+      "publishedCaseCount": 38,
+      "requiredTransportCaseCount": 25
+    },
+    "recognition": {
+      "tests": 40,
+      "pass": 40,
+      "fail": 0,
+      "skipped": 0
+    },
+    "oracles": {
+      "tests": 577,
+      "pass": 577,
+      "fail": 0,
+      "skipped": 0
+    },
+    "local_safety": {
+      "tests": 45,
+      "pass": 45,
+      "fail": 0,
+      "skipped": 0
+    },
+    "m2": {
+      "tests": 111,
+      "pass": 111,
+      "fail": 0,
+      "skipped": 0
+    },
+    "tsc": "PASS",
+    "next_build": "PASS",
+    "s0_cut2": "ENV_DEPENDENT_FAIL",
+    "secret_scan": "PASS (fixture URLs / local disposable fixture strings only; no live tokens; ambient PG*/DATABASE_URL absent)",
+    "recursive_closure": {
+      "closure_complete": true,
+      "git_verification": {
+        "ok": true,
+        "porcelain_empty": true,
+        "head": "19e997dfadd9f6a8bc1a221a7edb5f6e8ec02d80"
+      },
+      "hosted_tree_mismatches": 0,
+      "uncommitted_functional_diffs": 0,
+      "F6_in_HOLD_ancestry": true,
+      "tip_vs_HOLD_commits": 1
+    }
+  },
+  "17_local_psql_17_6_proof": {
+    "verdict": "CONTINUE",
+    "host_psql_client": "psql (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+    "container_psql": "psql (PostgreSQL) 17.6 (Debian 17.6-2.pgdg13+1)",
+    "server_version": "17.6 (Debian 17.6-2.pgdg13+1)",
+    "exit": 0,
+    "stderr_bytes": 0,
+    "stdout_sha256": "11efee8db8172d031b58dd6e694464473cafa48ebed638fb7be96becf8aeaf6d",
+    "stdout_byte_length": 200,
+    "framing_lf_only_match": true,
+    "envelope_ok": true,
+    "local_bind_ok": true,
+    "note_json_spacing": "PostgreSQL json_build_object()::text emits spaces around ':' and after ',' \u2014 parser accepts; not reconstruction"
+  },
+  "18_prehosted": "CONTINUE",
+  "19_disposable": {
+    "ref": "jkorwnwwmdeflfntxntl",
+    "name": "villageclaq-f3-management-api-disposable-20260913",
+    "org": "eyztkzkprpmlmcabrfef",
+    "not_production": "llbnliixczcqfftxpsmb"
+  },
+  "20_reset": {
+    "count": 1,
+    "second_reset": false,
+    "classification_verdict": "CLEAN_BASELINE",
+    "ambiguous_objects": "none",
+    "floorLabel": "DOCUMENTED QUALIFICATION FIXTURE \u2014 NOT A CLEAN 00001\u201300117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+    "cli": "2.117.0"
+  },
+  "21_hosted_qualification": {
+    "process_exit": 0,
+    "verdict": "FILE-BASED RUNNER QUALIFICATION PASS \u2014 STUB/LIVE-PIN FLOOR LIMITATION",
+    "poison_transport": "isolated-psql",
+    "final_poison_ok": true,
+    "final_poison_stdout_sha256": "b13be10ffcd515af2b0e34b54400484c7bf7715ae6d786ff585c661551f70d02",
+    "final_poison_stdout_bytes": 175,
+    "final_poison_stderr_bytes": 0,
+    "exact_raw_envelope": "{\"schema_version\" : \"f3-poison-envelope-v1\", \"poisonPresent\" : false, \"current_database\" : \"postgres\", \"current_user\" : \"postgres\", \"probe_marker\" : \"f3_poison_absent_probe\"}\n",
+    "target_binding": {
+      "current_database": "postgres",
+      "current_user": "postgres",
+      "provenance": "original_query_output"
+    },
+    "poison_absent": true,
+    "six_history_rows": true,
+    "pending_empty": true,
+    "all_six_v5_exact_through_repair_retry": true,
+    "evidence_out_durable_file": true
+  },
+  "22_per_migration": "see docs/evidence/.../hosted/per-migration-proof.json \u2014 all six POST_COMMIT_HISTORY_FAILURE \u2192 repair \u2192 retry; V5 exact",
+  "23_recognition": [
+    "manual_income"
+  ],
+  "24_frozen_migration_digests_unchanged": true,
+  "25_bans_honored": {
+    "production_never": true,
+    "no_force_push": true,
+    "no_merge": true,
+    "no_project_delete_pause": true,
+    "no_daybreak_blue_astra": true,
+    "no_second_reset": true,
+    "no_second_hosted_run": true,
+    "no_silent_patch": true,
+    "no_parser_weakening": true,
+    "no_reconstruction": true,
+    "independent_ref_untouched": true,
+    "PR102_not_authority": true
+  },
+  "26_evidence_package": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_PSQL_POISON_REQUAL_20260916/",
+  "27_pass_scope": "disposable CLI 2.117.0 file-based runner + isolated psql poison transport under stub/live-pin floor ONLY \u2014 not production/merge auth",
+  "28_captured_at_et": "2026-09-16 12:09:57 EDT",
+  "remediation": "PASS"
+}

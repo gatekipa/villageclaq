@@ -1,0 +1,9 @@
+{
+  "ahead": 2,
+  "count": 3,
+  "files": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ]
+}

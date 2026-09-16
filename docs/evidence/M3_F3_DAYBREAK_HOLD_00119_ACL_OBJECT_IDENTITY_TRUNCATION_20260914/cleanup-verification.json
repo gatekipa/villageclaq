@@ -1,0 +1,54 @@
+{
+  "artifact": "cleanup-verification",
+  "functional_sha": "8e67138929d5c0925a89adb0d34eeff9a2d3cab4",
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "production_contacted": false,
+  "poison_cleanup_status": 0,
+  "poison_absent": {
+    "ok": true,
+    "absent": true,
+    "row": {
+      "function_present": false,
+      "trigger_present": false
+    }
+  },
+  "history_get": [
+    {
+      "version": "20260913173000",
+      "name": "f3_bounded_financial_epoch_foundation"
+    }
+  ],
+  "post_stop_state": {
+    "f3_schemas": [
+      "financial_core",
+      "financial_private"
+    ],
+    "public_tables_count": 37,
+    "public_tables_sample": [
+      "announcements",
+      "contribution_obligations",
+      "elections",
+      "events",
+      "financial_accounts",
+      "financial_categories",
+      "financial_events",
+      "financial_funds",
+      "financial_ledger_epochs",
+      "financial_postings",
+      "fines",
+      "group_positions",
+      "group_subscriptions",
+      "groups",
+      "hosting_assignments"
+    ],
+    "schema_migrations": [
+      {
+        "name": "f3_bounded_financial_epoch_foundation",
+        "version": "20260913173000"
+      }
+    ],
+    "note": "STOP at 00119 left 00118 objects/history in place; project not deleted/paused"
+  },
+  "f3_fully_absent": false,
+  "project_deleted_or_paused": false
+}

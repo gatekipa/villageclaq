@@ -1,0 +1,57 @@
+{
+  "artifact": "M3_F3_FCG1_READINESS_20260913",
+  "date": "2026-09-13",
+  "functional_sha": "fc3d4ff8cb59ad09abdc07033cbfd20cec75e585",
+  "supersedes": {
+    "artifact": "M3_F3_FCG1_READINESS_20260913 bound to bb0c918",
+    "old_functional_sha": "bb0c918201f4114303404a3498f312d9679c36cd",
+    "old_evidence_tip": "a983157cbc3507f925f5889d23ac2a1be90e2a2d",
+    "recognition_progress_claims": "OVERSTATED — denylist default-to-income was not a fail-closed module gate"
+  },
+  "fcg1_closed": false,
+  "skip_fcg1": "FORBIDDEN",
+  "placement": "F3-06 → F3-07 → FCG-1 → F3-08 → F3-09",
+  "recognition_gate_now": {
+    "allowlist": ["manual_income"],
+    "fail_closed": true,
+    "note": "Unknown strings including dues_assessment, loan_principal_repayment, relief_remittance, njangi_contribution return false. That is NOT implemented module-adapter recognition. Those kinds are not F3-02 effect_kinds. Do not treat fail-closed unknowns as shipped dues/loan/relief/njangi templates."
+  },
+  "shared_occurrence_invariant": {
+    "p1b_natural_key": "(group_id, source_module, source_record_id, effect_kind, ledger_epoch)",
+    "manual_f3_on_disposable_after_00120": "PRESENT — unique + advisory lock + identical replay / changed-payload CONFLICT",
+    "shared_manual_plus_module": "MISSING / NEEDS_FCG1"
+  },
+  "proofs": [
+    {
+      "id": "FCG1-03",
+      "status_now": "NEEDS_FCG1",
+      "progress": "TS allowlist fail-closed: dues_assessment / unconfirmed are not SoA income because they are not allowlisted. SUPERSEDES the 2026-09-12 claim that an F3-02 recognition gate already forbade those as implemented dues semantics.",
+      "still_open": "Fixture: confirm 500 unapplied → one income 500 + custody 500; later allocate 300 → zero new income/custody/occurrence"
+    },
+    {
+      "id": "FCG1-07",
+      "status_now": "CONTRACT_ALIGNED_NOT_IMPLEMENTED",
+      "progress": "loan_principal_repayment fails closed on the TS allowlist; it is not an F3-02 effect_kind and has no posting template.",
+      "still_open": "F3-07 taxonomy + negative test"
+    },
+    {
+      "id": "FCG1-08",
+      "status_now": "CONTRACT_ALIGNED_NOT_IMPLEMENTED",
+      "progress": "njangi_contribution fails closed on the TS allowlist; not an F3-02 effect_kind.",
+      "still_open": "F3-07 classification ban; N-010 is M8"
+    },
+    {
+      "id": "FCG1-09",
+      "status_now": "NEEDS_FCG1",
+      "progress": "relief_remittance fails closed on the TS allowlist; not an F3-02 effect_kind. SUPERSEDES the 2026-09-12 claim of a recognition gate that already implemented relief restricted-income-once.",
+      "still_open": "Documented occurrence identity for owner receipt vs remittance settlement"
+    }
+  ],
+  "gaps_blocking_fcg1_close": [
+    "F3-06 UI not started",
+    "F3-07 Record Transaction not started",
+    "Shared occurrence identity across manual + module adapters not specified/tested",
+    "Dues confirmation/allocation goldens not run against live templates",
+    "F3-08 / F3-09 not started"
+  ]
+}

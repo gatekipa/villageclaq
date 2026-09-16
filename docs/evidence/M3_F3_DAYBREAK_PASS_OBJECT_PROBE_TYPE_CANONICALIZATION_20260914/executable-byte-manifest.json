@@ -1,0 +1,42 @@
+{
+  "functional_sha": "7d18aacaa163f9738be16be80489654b048e2150",
+  "sealedAt": "2026-09-14T18:33:00.055404+00:00",
+  "files": {
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs": {
+      "bytes": 147354,
+      "sha256": "18c6509e7d8d4a68b41f317851e550c91725a7a2cbcd3ba1b9655f0460785473"
+    },
+    "scripts/qualify-f3-db-push-disposable.mjs": {
+      "bytes": 29275,
+      "sha256": "318ea8f3c3282b8e3720853d5753f9852191357354194d68cffd01d016285272"
+    },
+    "scripts/test-f3-db-push-harness.mjs": {
+      "bytes": 108164,
+      "sha256": "d02ed17a46f639c55025e72781dba6d781dd0aba316dad196e01a0ff175279db"
+    },
+    "supabase/migrations/00118_f3_bounded_financial_epoch_foundation.sql": {
+      "bytes": 12935,
+      "sha256": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed"
+    },
+    "supabase/migrations/00119_f3_01_core_ledger_foundation.sql": {
+      "bytes": 35663,
+      "sha256": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11"
+    },
+    "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql": {
+      "bytes": 33103,
+      "sha256": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60"
+    },
+    "supabase/migrations/00121_f3_03_projection_read_proof.sql": {
+      "bytes": 36076,
+      "sha256": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce"
+    },
+    "supabase/migrations/00122_f3_04_correction_reversal.sql": {
+      "bytes": 49221,
+      "sha256": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3"
+    },
+    "supabase/migrations/00123_f3_05_opening_cash_command.sql": {
+      "bytes": 19813,
+      "sha256": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d"
+    }
+  }
+}

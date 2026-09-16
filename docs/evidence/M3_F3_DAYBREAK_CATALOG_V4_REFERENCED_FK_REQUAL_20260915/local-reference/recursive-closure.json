@@ -1,0 +1,10 @@
+{
+  "closure_complete": true,
+  "missing": 0,
+  "unresolved": 0,
+  "unexplained_exclusions": 0,
+  "uncommitted_functional_diffs": 0,
+  "hosted_tree_mismatches": 0,
+  "schema_primary": "f3-full-catalog-v4",
+  "schema_independent": "f3-full-catalog-v4"
+}

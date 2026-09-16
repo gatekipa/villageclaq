@@ -39,7 +39,9 @@ import {
   TRANSACTION_POOLER_PORT,
 } from "./f3-db-push-pins.mjs";
 import {
+  evaluateExactPsqlStdoutFraming,
   evaluateOriginalProcessResultContract,
+  hashOriginalStdout,
   parseExactOriginalJsonObject,
   preserveOriginalProcessStdout,
 } from "./f3-db-push-query-parse.mjs";
@@ -2137,6 +2139,57 @@ function sha256Bytes(buf) {
   return createHash("sha256").update(buf).digest("hex");
 }
 
+/**
+ * Hash the FINAL committed bytes that are actually on disk.
+ * Always re-read as Buffer; never hash a trimmed or in-memory stand-in.
+ */
+export function readFinalCommittedBytes(abs) {
+  if (!abs || !fs.existsSync(abs)) {
+    return { ok: false, reason: "committed artifact missing", abs: abs || null };
+  }
+  let buf;
+  try {
+    buf = fs.readFileSync(abs);
+  } catch (err) {
+    return { ok: false, reason: `committed artifact unreadable: ${err?.message || err}`, abs };
+  }
+  if (!Buffer.isBuffer(buf)) {
+    return { ok: false, reason: "committed artifact read did not return Buffer", abs };
+  }
+  return {
+    ok: true,
+    abs,
+    buf,
+    sha256: sha256Bytes(buf),
+    bytes: buf.byteLength,
+    endsWithSingleLf: buf.byteLength > 0 && buf[buf.byteLength - 1] === 0x0a
+      && (buf.byteLength < 2 || buf[buf.byteLength - 2] !== 0x0a),
+    missingFinalNewline: buf.byteLength === 0 || buf[buf.byteLength - 1] !== 0x0a,
+    addedFinalNewline: buf.byteLength >= 2 && buf[buf.byteLength - 1] === 0x0a && buf[buf.byteLength - 2] === 0x0a,
+  };
+}
+
+function writeFinalArtifactBytes(abs, buf) {
+  const body = Buffer.isBuffer(buf) ? buf : Buffer.from(String(buf ?? ""), "utf8");
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  fs.writeFileSync(abs, body);
+  const committed = readFinalCommittedBytes(abs);
+  if (!committed.ok) return committed;
+  if (Buffer.compare(committed.buf, body) !== 0) {
+    return {
+      ok: false,
+      reason: "HOLD: written artifact bytes mutated before re-read",
+      abs,
+    };
+  }
+  return committed;
+}
+
+function writeFinalJsonArtifact(abs, value) {
+  const body = Buffer.from(`${JSON.stringify(value, null, 2)}\n`, "utf8");
+  return writeFinalArtifactBytes(abs, body);
+}
+
 export function sanitizeEvidenceOutBytes(raw, extraSecrets = []) {
   const secrets = extraSecrets.filter(Boolean).map(String);
   const input = Buffer.isBuffer(raw) ? raw : Buffer.from(String(raw ?? ""), "utf8");
@@ -2207,14 +2260,41 @@ export function writeSuiteMetaForOutFile(outPath, { tests = [], extraSecrets = [
   const raw = fs.readFileSync(outPath);
   const sanitized = sanitizeEvidenceOutBytes(raw, extraSecrets);
   if (Buffer.compare(raw, sanitized) !== 0) {
-    fs.writeFileSync(outPath, sanitized);
+    const rewritten = writeFinalArtifactBytes(outPath, sanitized);
+    if (!rewritten.ok) {
+      const err = new Error(rewritten.reason);
+      err.code = "F3_SUITE_OUT_REWRITE";
+      throw err;
+    }
   }
-  const meta = buildSuiteMetaFromSanitizedOut({ sanitizedOut: sanitized, tests });
+  const committedOut = readFinalCommittedBytes(outPath);
+  if (!committedOut.ok) {
+    const err = new Error(committedOut.reason);
+    err.code = "F3_SUITE_OUT_REREAD";
+    throw err;
+  }
+  const meta = buildSuiteMetaFromSanitizedOut({
+    sanitizedOut: committedOut.buf,
+    tests,
+  });
   const metaPath = outPath.endsWith(".out")
     ? `${outPath.slice(0, -4)}.meta.json`
     : `${outPath}.meta.json`;
-  fs.writeFileSync(metaPath, `${JSON.stringify(meta, null, 2)}\n`);
-  return { metaPath, meta, sanitizedBytes: sanitized.byteLength };
+  const writtenMeta = writeFinalJsonArtifact(metaPath, meta);
+  if (!writtenMeta.ok) {
+    const err = new Error(writtenMeta.reason);
+    err.code = "F3_SUITE_META_WRITE";
+    throw err;
+  }
+  return {
+    metaPath,
+    meta,
+    sanitizedBytes: committedOut.bytes,
+    outSha256: committedOut.sha256,
+    outBytes: committedOut.bytes,
+    metaFileSha256: writtenMeta.sha256,
+    metaFileBytes: writtenMeta.bytes,
+  };
 }
 
 export function buildEvidenceIndex({ artifacts = [], exclusions = EVIDENCE_INDEX_EXCLUSIONS } = {}) {
@@ -2276,13 +2356,17 @@ export function writeExecutableManifest(dir, artifacts = []) {
     throw err;
   }
   const abs = path.join(dir, EXECUTABLE_MANIFEST_FILENAME);
-  const body = `${JSON.stringify(manifest, null, 2)}\n`;
-  fs.writeFileSync(abs, body);
+  const written = writeFinalJsonArtifact(abs, manifest);
+  if (!written.ok) {
+    const err = new Error(written.reason);
+    err.code = "F3_EXECUTABLE_MANIFEST_WRITE";
+    throw err;
+  }
   return {
     path: EXECUTABLE_MANIFEST_FILENAME,
     abs,
-    sha256: sha256Utf8(body),
-    bytes: Buffer.byteLength(body),
+    sha256: written.sha256,
+    bytes: written.bytes,
     manifest,
     self_entries: 0,
   };
@@ -2290,12 +2374,39 @@ export function writeExecutableManifest(dir, artifacts = []) {
 
 export function writeEvidenceIndexAndChecksum(dir, artifacts = []) {
   const index = buildEvidenceIndex({ artifacts });
+  const names = (index.artifacts || []).map((item) => item.path);
+  if (new Set(names).size !== names.length) {
+    const err = new Error("HOLD: evidence-index contains a duplicate entry");
+    err.code = "F3_EVIDENCE_INDEX_DUPLICATE";
+    throw err;
+  }
+  if (names.includes(EVIDENCE_INDEX_FILENAME) || names.includes(EVIDENCE_INDEX_CHECKSUM_FILENAME)) {
+    const err = new Error("HOLD: evidence-index lists itself or its detached checksum");
+    err.code = "F3_EVIDENCE_INDEX_SELF_ENTRY";
+    throw err;
+  }
   const indexPath = path.join(dir, EVIDENCE_INDEX_FILENAME);
   const checksumPath = path.join(dir, EVIDENCE_INDEX_CHECKSUM_FILENAME);
-  const body = `${JSON.stringify(index, null, 2)}\n`;
-  fs.writeFileSync(indexPath, body);
-  fs.writeFileSync(checksumPath, `${sha256Utf8(body)}\n`);
-  return { indexPath, checksumPath, index, sha256: sha256Utf8(body) };
+  const written = writeFinalJsonArtifact(indexPath, index);
+  if (!written.ok) {
+    const err = new Error(written.reason);
+    err.code = "F3_EVIDENCE_INDEX_WRITE";
+    throw err;
+  }
+  const checksumBody = Buffer.from(`${written.sha256}\n`, "utf8");
+  const checksumWritten = writeFinalArtifactBytes(checksumPath, checksumBody);
+  if (!checksumWritten.ok) {
+    const err = new Error(checksumWritten.reason);
+    err.code = "F3_EVIDENCE_INDEX_CHECKSUM_WRITE";
+    throw err;
+  }
+  return {
+    indexPath,
+    checksumPath,
+    index,
+    sha256: written.sha256,
+    bytes: written.bytes,
+  };
 }
 
 export function verifyEvidenceIndex(dir) {
@@ -2307,22 +2418,33 @@ export function verifyEvidenceIndex(dir) {
   if (!fs.existsSync(checksumPath)) {
     return { ok: false, reason: "detached evidence-index.sha256 missing" };
   }
-  const body = fs.readFileSync(indexPath, "utf8");
-  const expected = fs.readFileSync(checksumPath, "utf8").trim();
-  const actual = sha256Utf8(body);
+  const indexCommitted = readFinalCommittedBytes(indexPath);
+  if (!indexCommitted.ok) {
+    return { ok: false, reason: indexCommitted.reason };
+  }
+  const checksumCommitted = readFinalCommittedBytes(checksumPath);
+  if (!checksumCommitted.ok) {
+    return { ok: false, reason: checksumCommitted.reason };
+  }
+  const expected = checksumCommitted.buf.toString("utf8").replace(/\n$/, "").trim();
+  const actual = indexCommitted.sha256;
   if (actual !== expected) {
     return { ok: false, reason: "evidence-index.sha256 does not match evidence-index.json" };
   }
   let parsed;
   try {
-    parsed = JSON.parse(body);
+    parsed = JSON.parse(indexCommitted.buf.toString("utf8"));
   } catch {
     return { ok: false, reason: "evidence-index.json is not JSON" };
   }
   if (parsed.self_hash === true) {
     return { ok: false, reason: "evidence-index.json must not self-hash" };
   }
-  const names = (parsed.artifacts || []).map((item) => path.basename(item.path || item));
+  const artifactPaths = (parsed.artifacts || []).map((item) => item.path || item);
+  if (new Set(artifactPaths).size !== artifactPaths.length) {
+    return { ok: false, reason: "HOLD: evidence-index contains a duplicate entry" };
+  }
+  const names = artifactPaths.map((rel) => path.basename(rel));
   if (names.includes(EVIDENCE_INDEX_FILENAME) || names.includes(EVIDENCE_INDEX_CHECKSUM_FILENAME)) {
     return { ok: false, reason: "evidence-index lists itself or its detached checksum" };
   }
@@ -2348,22 +2470,16 @@ export function verifyEvidenceIndex(dir) {
   for (const item of parsed.artifacts || []) {
     const rel = item.path || item;
     const artifactAbs = path.join(dir, rel);
-    if (!fs.existsSync(artifactAbs)) {
-      missing += 1;
+    const committed = readFinalCommittedBytes(artifactAbs);
+    if (!committed.ok) {
+      if (!fs.existsSync(artifactAbs)) missing += 1;
+      else broken += 1;
       continue;
     }
-    let committed;
-    try {
-      committed = fs.readFileSync(artifactAbs);
-    } catch {
-      broken += 1;
-      continue;
-    }
-    const sha = sha256Bytes(committed);
-    if (item.sha256 && item.sha256 !== sha) hashMismatches += 1;
-    if (item.bytes != null && item.bytes !== committed.byteLength) byteMismatches += 1;
-    if (/\[REDACTED\]/.test(committed.toString("utf8")) && /digest|sha256|privilege|identity_arguments/i.test(committed.toString("utf8"))) {
-      if (/"digest[^"]*"\s*:\s*"[^"]*\[REDACTED\]/.test(committed.toString("utf8"))) redactedDigest += 1;
+    if (item.sha256 && item.sha256 !== committed.sha256) hashMismatches += 1;
+    if (item.bytes != null && item.bytes !== committed.bytes) byteMismatches += 1;
+    if (/\[REDACTED\]/.test(committed.buf.toString("utf8")) && /digest|sha256|privilege|identity_arguments/i.test(committed.buf.toString("utf8"))) {
+      if (/"digest[^"]*"\s*:\s*"[^"]*\[REDACTED\]/.test(committed.buf.toString("utf8"))) redactedDigest += 1;
     }
   }
   const total = (parsed.artifacts || []).length;
@@ -2401,6 +2517,114 @@ export function verifyEvidenceIndex(dir) {
   };
 }
 
+export const QUALIFY_EVIDENCE_PACKAGING_HOLD =
+  "HOLD: qualify evidence packaging failed closed; hashes must come from final committed bytes";
+
+export const FOUNDER_REPORT_BASENAME_RE = /founder[-_].+\.(md|json|txt)$/i;
+
+function listEvidenceDirFiles(dir) {
+  if (!dir || !fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter((name) => {
+    try {
+      return fs.statSync(path.join(dir, name)).isFile();
+    } catch {
+      return false;
+    }
+  });
+}
+
+function refuseIfArtifactsChanged(entries) {
+  for (const entry of entries) {
+    const committed = readFinalCommittedBytes(entry.abs);
+    if (!committed.ok) {
+      return { ok: false, reason: committed.reason, path: entry.path };
+    }
+    if (committed.sha256 !== entry.sha256 || committed.bytes !== entry.bytes) {
+      return {
+        ok: false,
+        reason: "HOLD: evidence artifact changed after hashing final committed bytes",
+        path: entry.path,
+        expected: { sha256: entry.sha256, bytes: entry.bytes },
+        actual: { sha256: committed.sha256, bytes: committed.bytes },
+      };
+    }
+  }
+  return { ok: true };
+}
+
+/**
+ * Nested qualify-evidence packaging verify.
+ * Re-reads every nested entry from disk as Buffer. Refuses unindexed
+ * evidence artifacts, duplicate/self/missing entries, broken references,
+ * extra founder reports, and post-hash mutation.
+ */
+export function verifyQualifyEvidencePackaging(dir, { requiredArtifacts = [] } = {}) {
+  const independent = verifyEvidenceIndex(dir);
+  if (!independent.ok) {
+    return { ...independent, hold: QUALIFY_EVIDENCE_PACKAGING_HOLD };
+  }
+  const index = independent.index;
+  const indexed = new Map(
+    (index.artifacts || []).map((item) => [item.path, item]),
+  );
+  const indexedNames = [...indexed.keys()];
+  if (new Set(indexedNames).size !== indexedNames.length) {
+    return { ok: false, reason: "HOLD: evidence-index contains a duplicate entry" };
+  }
+  if (indexed.has(EVIDENCE_INDEX_FILENAME) || indexed.has(EVIDENCE_INDEX_CHECKSUM_FILENAME)) {
+    return { ok: false, reason: "HOLD: outer detached index contains a self-entry" };
+  }
+  const required = requiredArtifacts.length
+    ? requiredArtifacts
+    : indexedNames;
+  for (const rel of required) {
+    if (!indexed.has(rel)) {
+      return { ok: false, reason: `HOLD: missing index entry ${rel}` };
+    }
+    const item = indexed.get(rel);
+    const committed = readFinalCommittedBytes(path.join(dir, rel));
+    if (!committed.ok) {
+      return { ok: false, reason: `HOLD: broken reference ${rel}` };
+    }
+    if (item.sha256 && item.sha256 !== committed.sha256) {
+      return {
+        ok: false,
+        reason: `HOLD: wrong digest for ${rel}`,
+        expected: item.sha256,
+        actual: committed.sha256,
+      };
+    }
+    if (item.bytes != null && item.bytes !== committed.bytes) {
+      return {
+        ok: false,
+        reason: `HOLD: wrong byte length for ${rel}`,
+        expected: item.bytes,
+        actual: committed.bytes,
+      };
+    }
+    const generatedJsonSidecar = rel.endsWith(".meta.json")
+      || rel === EXECUTABLE_MANIFEST_FILENAME
+      || rel === EVIDENCE_INDEX_FILENAME;
+    if (generatedJsonSidecar && committed.missingFinalNewline) {
+      return { ok: false, reason: `HOLD: missing final newline ${rel}` };
+    }
+    if (generatedJsonSidecar && committed.addedFinalNewline) {
+      return { ok: false, reason: `HOLD: added final newline ${rel}` };
+    }
+  }
+  const present = listEvidenceDirFiles(dir);
+  for (const name of present) {
+    if (EVIDENCE_INDEX_EXCLUSIONS.includes(name)) continue;
+    if (!indexed.has(name)) {
+      if (FOUNDER_REPORT_BASENAME_RE.test(name)) {
+        return { ok: false, reason: `HOLD: extra unindexed founder report ${name}` };
+      }
+      return { ok: false, reason: `HOLD: unindexed evidence artifact ${name}` };
+    }
+  }
+  return { ok: true, index, sha256: independent.sha256 };
+}
+
 export function writeQualifyEvidenceArtifacts({ dest, sanitizedJson, extraSecrets = [] } = {}) {
   const abs = path.resolve(dest);
   if (fs.existsSync(abs) && fs.statSync(abs).isDirectory()) {
@@ -2408,6 +2632,8 @@ export function writeQualifyEvidenceArtifacts({ dest, sanitizedJson, extraSecret
     err.code = "EISDIR";
     throw err;
   }
+  // 1. Produce semantic evidence (caller payload).
+  // 2. Sanitize only allowed nonsemantic fields.
   const sanitized = sanitizeEvidenceOutBytes(sanitizedJson, extraSecrets);
   const semantic = assertSanitizationPreservesSemanticFingerprint(sanitizedJson, sanitized);
   if (!semantic.ok) {
@@ -2415,31 +2641,38 @@ export function writeQualifyEvidenceArtifacts({ dest, sanitizedJson, extraSecret
     err.code = "F3_EVIDENCE_SEMANTIC_SANITIZE";
     throw err;
   }
-  fs.mkdirSync(path.dirname(abs), { recursive: true });
-  fs.writeFileSync(abs, sanitized);
+  // 3. Write final artifact bytes.
+  const writtenOut = writeFinalArtifactBytes(abs, sanitized);
+  if (!writtenOut.ok) {
+    const err = new Error(writtenOut.reason);
+    err.code = "F3_EVIDENCE_OUT_WRITE";
+    throw err;
+  }
+  // 4–5. Re-read final bytes; hash from those Buffer bytes.
+  const outCommitted = readFinalCommittedBytes(abs);
+  if (!outCommitted.ok) {
+    const err = new Error(outCommitted.reason);
+    err.code = "F3_EVIDENCE_OUT_REREAD";
+    throw err;
+  }
   const meta = writeSuiteMetaForOutFile(abs, {
     tests: [{
       name: "qualify-f3-db-push-disposable",
       ok: null,
-      output: sanitized.toString("utf8"),
+      output: outCommitted.buf.toString("utf8"),
     }],
     extraSecrets,
   });
-  const committed = fs.readFileSync(abs);
-  if (Buffer.compare(committed, sanitized) !== 0) {
-    fs.writeFileSync(abs, sanitized);
+  const metaCommitted = readFinalCommittedBytes(meta.metaPath);
+  if (!metaCommitted.ok) {
+    const err = new Error(metaCommitted.reason);
+    err.code = "F3_SUITE_META_REREAD";
+    throw err;
   }
-  const regenerated = buildSuiteMetaFromSanitizedOut({
-    sanitizedOut: fs.readFileSync(abs),
-    tests: [{
-      name: "qualify-f3-db-push-disposable",
-      ok: null,
-      output: fs.readFileSync(abs, "utf8"),
-    }],
-  });
-  if (regenerated.sha256 !== meta.meta.sha256 || regenerated.bytes !== meta.meta.bytes) {
-    fs.writeFileSync(meta.metaPath, `${JSON.stringify(regenerated, null, 2)}\n`);
-    meta.meta = regenerated;
+  if (meta.metaFileSha256 && meta.metaFileSha256 !== metaCommitted.sha256) {
+    const err = new Error("HOLD: suite metadata hashed before final committed bytes");
+    err.code = "F3_SUITE_META_HASH_BEFORE_COMMIT";
+    throw err;
   }
   const verify = verifyCommittedSuiteEvidence({ outPath: abs, metaPath: meta.metaPath });
   if (!verify.ok) {
@@ -2448,32 +2681,79 @@ export function writeQualifyEvidenceArtifacts({ dest, sanitizedJson, extraSecret
     throw err;
   }
   const dir = path.dirname(abs);
+  // 6. Generate the executable manifest from those final bytes.
   const finalizedArtifacts = [
-    { path: path.basename(abs), sha256: sha256Bytes(fs.readFileSync(abs)), bytes: fs.readFileSync(abs).byteLength },
-    { path: path.basename(meta.metaPath), sha256: sha256Utf8(fs.readFileSync(meta.metaPath, "utf8")), bytes: fs.readFileSync(meta.metaPath).byteLength },
+    { path: path.basename(abs), sha256: outCommitted.sha256, bytes: outCommitted.bytes },
+    { path: path.basename(meta.metaPath), sha256: metaCommitted.sha256, bytes: metaCommitted.bytes },
   ];
   const executable = writeExecutableManifest(dir, finalizedArtifacts);
+  const manifestCommitted = readFinalCommittedBytes(executable.abs);
+  if (!manifestCommitted.ok) {
+    const err = new Error(manifestCommitted.reason);
+    err.code = "F3_EXECUTABLE_MANIFEST_REREAD";
+    throw err;
+  }
+  if (manifestCommitted.sha256 !== executable.sha256 || manifestCommitted.bytes !== executable.bytes) {
+    const err = new Error("HOLD: executable-manifest hashed before final committed bytes");
+    err.code = "F3_EXECUTABLE_MANIFEST_HASH_BEFORE_COMMIT";
+    throw err;
+  }
   finalizedArtifacts.push({
     path: executable.path,
-    sha256: executable.sha256,
-    bytes: executable.bytes,
+    sha256: manifestCommitted.sha256,
+    bytes: manifestCommitted.bytes,
   });
+  // 7. Finalize the nested index from final artifact bytes.
   const index = writeEvidenceIndexAndChecksum(dir, finalizedArtifacts);
-  const independent = verifyEvidenceIndex(dir);
-  if (!independent.ok) {
-    const err = new Error(independent.reason || "HOLD: evidence index independent verify failed");
+  // 8. Re-read and verify every nested entry.
+  const nested = verifyQualifyEvidencePackaging(dir, {
+    requiredArtifacts: finalizedArtifacts.map((item) => item.path),
+  });
+  if (!nested.ok) {
+    const err = new Error(nested.reason || "HOLD: evidence index independent verify failed");
     err.code = "F3_EVIDENCE_INDEX_VERIFY";
     throw err;
   }
-  const committedManifest = fs.readFileSync(executable.abs);
-  const committedManifestSha = sha256Bytes(committedManifest);
-  const indexedManifest = (index.index.artifacts || []).find((item) => item.path === EXECUTABLE_MANIFEST_FILENAME);
-  if (!indexedManifest || indexedManifest.sha256 !== committedManifestSha || indexedManifest.sha256 !== executable.sha256) {
-    const err = new Error("HOLD: index executable-manifest hash != committed file");
-    err.code = "F3_EXECUTABLE_MANIFEST_MISMATCH";
+  // 9–10. Outer detached index has no self-entry; re-read and verify.
+  const outer = verifyEvidenceIndex(dir);
+  if (!outer.ok) {
+    const err = new Error(outer.reason || "HOLD: outer detached index verify failed");
+    err.code = "F3_EVIDENCE_INDEX_VERIFY";
     throw err;
   }
-  return { outPath: abs, ...meta, ...index, executable };
+  if ((outer.index.artifacts || []).some((item) => {
+    const name = path.basename(item.path || item);
+    return name === EVIDENCE_INDEX_FILENAME || name === EVIDENCE_INDEX_CHECKSUM_FILENAME;
+  })) {
+    const err = new Error("HOLD: outer detached index contains a self-entry");
+    err.code = "F3_EVIDENCE_INDEX_SELF_ENTRY";
+    throw err;
+  }
+  const snapshot = [
+    { path: path.basename(abs), abs, sha256: outCommitted.sha256, bytes: outCommitted.bytes },
+    { path: path.basename(meta.metaPath), abs: meta.metaPath, sha256: metaCommitted.sha256, bytes: metaCommitted.bytes },
+    { path: executable.path, abs: executable.abs, sha256: manifestCommitted.sha256, bytes: manifestCommitted.bytes },
+    {
+      path: EVIDENCE_INDEX_FILENAME,
+      abs: index.indexPath,
+      sha256: readFinalCommittedBytes(index.indexPath).sha256,
+      bytes: readFinalCommittedBytes(index.indexPath).bytes,
+    },
+    {
+      path: EVIDENCE_INDEX_CHECKSUM_FILENAME,
+      abs: index.checksumPath,
+      sha256: readFinalCommittedBytes(index.checksumPath).sha256,
+      bytes: readFinalCommittedBytes(index.checksumPath).bytes,
+    },
+  ];
+  // 11. Refuse packaging if any file changes afterward.
+  const unchanged = refuseIfArtifactsChanged(snapshot);
+  if (!unchanged.ok) {
+    const err = new Error(unchanged.reason);
+    err.code = "F3_EVIDENCE_POST_HASH_MUTATION";
+    throw err;
+  }
+  return { outPath: abs, ...meta, ...index, executable, packaging: nested };
 }
 
 export const EVIDENCE_OUT_FILE_CONTRACT =
@@ -7122,7 +7402,7 @@ export function compareLiveIdentityToFrozenTarget({ live = {}, frozenTarget } = 
   };
 }
 
-function exactPoisonEnvelopeFromOriginal(row) {
+export function exactPoisonEnvelopeFromOriginal(row) {
   if (row == null || typeof row !== "object" || Array.isArray(row)) {
     return { ok: false, reason: "envelope is not an object", parser_verdict: "array_not_object" };
   }
@@ -8451,6 +8731,268 @@ export function evaluateRepairSafetyGate(input = {}) {
     poisonCleanupOnly: !ok,
     nextMigration: ok,
     objectProbe: probeEval,
+  };
+}
+
+export const REPAIR_AUTHORIZATION_SCHEMA_VERSION = "f3-repair-authorization-v1";
+export const REPAIR_AUTHORIZATION_HOLD =
+  "HOLD: repair-authorization record incomplete; repairCalls=0; no continuation; no evidence backfill";
+
+export const REPAIR_AUTHORIZATION_PRE_REPAIR_SECTIONS = Object.freeze([
+  "migrationIdentity",
+  "initialPush",
+  "fingerprint",
+  "poisonCleanup",
+  "poisonAbsenceQuery",
+  "targetBinding",
+  "repairGate",
+]);
+
+export const REPAIR_AUTHORIZATION_POST_REPAIR_SECTIONS = Object.freeze([
+  "repair",
+  "retry",
+  "continuation",
+  "postRepairFingerprint",
+  "postRetryFingerprint",
+]);
+
+const REPAIR_AUTHORIZATION_PRE_REPAIR_FIELDS = Object.freeze({
+  migrationIdentity: Object.freeze(["file", "version", "digest", "destName"]),
+  initialPush: Object.freeze(["status", "exitStatus", "stdoutSha256", "stderrSha256", "stdoutByteLength", "stderrByteLength"]),
+  fingerprint: Object.freeze(["expectedSha256", "observedSha256", "expected", "observed"]),
+  poisonCleanup: Object.freeze(["status", "stdoutSha256", "stderrSha256", "proven"]),
+  poisonAbsenceQuery: Object.freeze([
+    "stdoutBase64",
+    "stderrBase64",
+    "stdoutSha256",
+    "stderrSha256",
+    "stdoutByteLength",
+    "stderrByteLength",
+    "payloadByteRange",
+    "framingLfByteRange",
+    "parsedEnvelope",
+    "live",
+    "poisonPresent",
+    "stdoutPreservedBeforeTransform",
+  ]),
+  targetBinding: Object.freeze(["ok", "live", "frozenTarget", "fieldComparisons"]),
+  repairGate: Object.freeze(["input"]),
+});
+
+const REPAIR_AUTHORIZATION_POST_REPAIR_FIELDS = Object.freeze({
+  repair: Object.freeze(["attempted", "status", "repairCalls", "callbackOrder"]),
+  retry: Object.freeze(["status", "staged"]),
+  continuation: Object.freeze(["allowed"]),
+  postRepairFingerprint: Object.freeze(["sha256", "ok"]),
+  postRetryFingerprint: Object.freeze(["sha256", "ok"]),
+  repairGateResult: Object.freeze(["result", "counters", "callbackOrder"]),
+});
+
+function isBlankAuthValue(value) {
+  if (value == null) return true;
+  if (typeof value === "object" && !Array.isArray(value)) {
+    if (value.reconstructed === true || value.summaryOnly === true || value.backfilled === true) {
+      return true;
+    }
+    if (Object.keys(value).length === 0) return true;
+  }
+  return false;
+}
+
+function sectionMissingFields(section, required) {
+  if (section == null || typeof section !== "object" || Array.isArray(section)) {
+    return required.slice();
+  }
+  if (section.summaryOnly === true || section.reconstructed === true || section.backfilled === true) {
+    return ["summary-only-or-reconstructed"];
+  }
+  return required.filter((key) => isBlankAuthValue(section[key]));
+}
+
+export function encodeIsolatedPsqlProcessBytes(result = {}) {
+  const stdoutBuf = Buffer.isBuffer(result.stdout)
+    ? result.stdout
+    : Buffer.from(String(result.stdout ?? result.originalStdout ?? ""), "utf8");
+  const stderrBuf = Buffer.isBuffer(result.stderr)
+    ? result.stderr
+    : Buffer.from(String(result.stderr ?? ""), "utf8");
+  const hashedOut = hashOriginalStdout(stdoutBuf);
+  const hashedErr = hashOriginalStdout(stderrBuf);
+  const framing = evaluateExactPsqlStdoutFraming(stdoutBuf);
+  return {
+    stdoutEncoding: "base64",
+    stdoutBase64: stdoutBuf.toString("base64"),
+    stdoutSha256: hashedOut.sha256,
+    stdoutByteLength: hashedOut.byteLength,
+    stderrEncoding: "base64",
+    stderrBase64: stderrBuf.toString("base64"),
+    stderrSha256: hashedErr.sha256,
+    stderrByteLength: hashedErr.byteLength,
+    payloadByteRange: framing && framing.ok
+      ? { start: framing.payloadStart, end: framing.payloadEnd }
+      : null,
+    framingLfByteRange: framing && framing.ok
+      ? { start: framing.framingLfStart, end: framing.framingLfEnd }
+      : null,
+    status: result.status ?? null,
+    signal: result.signal ?? null,
+    timeout: result.timeout === true,
+    transport: result.transport || "isolated-psql",
+    argv: Array.isArray(result.argv) ? [...result.argv] : null,
+  };
+}
+
+export function encodeTargetBindingFieldComparisons({ live = {}, frozenTarget = {} } = {}) {
+  const pairs = [
+    ["current_database", live.current_database, frozenTarget.expected_live_database],
+    ["current_user", live.current_user, frozenTarget.expected_live_role],
+    ["connection_database", live.current_database, frozenTarget.connection_database],
+    ["expected_live_role", live.current_user, frozenTarget.expected_live_role],
+    ["pooler_mapped_role", live.current_user, frozenTarget.pooler_username_mapping?.expected_live_current_user],
+    ["connection_hostname", frozenTarget.connection_hostname, frozenTarget.connection_hostname],
+    ["connection_port", frozenTarget.connection_port, frozenTarget.connection_port],
+    ["sslmode", frozenTarget.sslmode, frozenTarget.sslmode],
+    ["project_ref", frozenTarget.project_ref, frozenTarget.project_ref],
+  ];
+  const fieldComparisons = {};
+  for (const [name, actual, expected] of pairs) {
+    fieldComparisons[name] = {
+      actual: actual ?? null,
+      expected: expected ?? null,
+      match: actual === expected && actual != null && expected != null,
+    };
+  }
+  return fieldComparisons;
+}
+
+export function createRepairAuthorizationRecord(partial = {}) {
+  return {
+    schema_version: REPAIR_AUTHORIZATION_SCHEMA_VERSION,
+    reconstructed: false,
+    backfilled: false,
+    summaryOnly: false,
+    writtenBeforeNextMigration: false,
+    hold: null,
+    migrationIdentity: partial.migrationIdentity ?? null,
+    initialPush: partial.initialPush ?? null,
+    fingerprint: partial.fingerprint ?? null,
+    poisonCleanup: partial.poisonCleanup ?? null,
+    poisonAbsenceQuery: partial.poisonAbsenceQuery ?? null,
+    targetBinding: partial.targetBinding ?? null,
+    repairGate: partial.repairGate ?? null,
+    repair: partial.repair ?? null,
+    retry: partial.retry ?? null,
+    continuation: partial.continuation ?? null,
+    postRepairFingerprint: partial.postRepairFingerprint ?? null,
+    postRetryFingerprint: partial.postRetryFingerprint ?? null,
+  };
+}
+
+export function assertRepairAuthorizationPreRepairComplete(record) {
+  const fail = (section, missing) => ({
+    ok: false,
+    hold: REPAIR_AUTHORIZATION_HOLD,
+    reason: `${REPAIR_AUTHORIZATION_HOLD}: missing ${section}${missing?.length ? ` (${missing.join(",")})` : ""}`,
+    section,
+    missing,
+    repairCalls: 0,
+    continuation: false,
+    dbPushCalls: 0,
+  });
+  if (record == null || typeof record !== "object" || Array.isArray(record)) {
+    return fail("record", ["record"]);
+  }
+  if (record.reconstructed === true || record.backfilled === true || record.summaryOnly === true) {
+    return fail("record", ["summary-only-or-reconstructed"]);
+  }
+  if (record.schema_version !== REPAIR_AUTHORIZATION_SCHEMA_VERSION) {
+    return fail("schema_version", ["schema_version"]);
+  }
+  for (const section of REPAIR_AUTHORIZATION_PRE_REPAIR_SECTIONS) {
+    const missing = sectionMissingFields(record[section], REPAIR_AUTHORIZATION_PRE_REPAIR_FIELDS[section]);
+    if (missing.length) return fail(section, missing);
+  }
+  return { ok: true, record, repairCalls: 0 };
+}
+
+export function assertRepairAuthorizationComplete(record) {
+  const pre = assertRepairAuthorizationPreRepairComplete(record);
+  if (!pre.ok) return pre;
+  const fail = (section, missing) => ({
+    ok: false,
+    hold: REPAIR_AUTHORIZATION_HOLD,
+    reason: `${REPAIR_AUTHORIZATION_HOLD}: missing ${section}${missing?.length ? ` (${missing.join(",")})` : ""}`,
+    section,
+    missing,
+    repairCalls: record?.repair?.repairCalls ?? 0,
+    continuation: false,
+  });
+  for (const section of REPAIR_AUTHORIZATION_POST_REPAIR_SECTIONS) {
+    const required = REPAIR_AUTHORIZATION_POST_REPAIR_FIELDS[section];
+    const missing = sectionMissingFields(record[section], required);
+    if (missing.length) return fail(section, missing);
+  }
+  const gateMissing = sectionMissingFields(
+    record.repairGate,
+    [...REPAIR_AUTHORIZATION_PRE_REPAIR_FIELDS.repairGate, ...REPAIR_AUTHORIZATION_POST_REPAIR_FIELDS.repairGateResult],
+  );
+  if (gateMissing.length) return fail("repairGate", gateMissing);
+  return { ok: true, record };
+}
+
+export function writeRepairAuthorizationRecord({ dest, record } = {}) {
+  const complete = assertRepairAuthorizationComplete(record);
+  if (!complete.ok) {
+    return {
+      ...complete,
+      written: false,
+    };
+  }
+  if (!dest) {
+    return { ok: true, written: false, record, reason: "in-memory only" };
+  }
+  const abs = path.resolve(dest);
+  if (fs.existsSync(abs) && fs.statSync(abs).isDirectory()) {
+    return {
+      ok: false,
+      hold: REPAIR_AUTHORIZATION_HOLD,
+      reason: "HOLD: repair-authorization dest must be a file path",
+      written: false,
+      repairCalls: 0,
+    };
+  }
+  const durable = {
+    ...record,
+    writtenBeforeNextMigration: true,
+    writtenAt: new Date().toISOString(),
+  };
+  const written = writeFinalJsonArtifact(abs, durable);
+  if (!written.ok) {
+    return {
+      ok: false,
+      hold: REPAIR_AUTHORIZATION_HOLD,
+      reason: written.reason,
+      written: false,
+      repairCalls: 0,
+    };
+  }
+  const reread = readFinalCommittedBytes(abs);
+  if (!reread.ok || reread.sha256 !== written.sha256) {
+    return {
+      ok: false,
+      hold: REPAIR_AUTHORIZATION_HOLD,
+      reason: "HOLD: repair-authorization durable write failed re-read",
+      written: false,
+      repairCalls: 0,
+    };
+  }
+  return {
+    ok: true,
+    written: true,
+    dest: abs,
+    sha256: reread.sha256,
+    bytes: reread.bytes,
+    record: durable,
   };
 }
 

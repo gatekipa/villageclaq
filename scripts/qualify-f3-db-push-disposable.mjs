@@ -104,8 +104,10 @@ import {
 import { runGatedRemoteSqlText } from "./lib/f3-db-push-remote-sql-file.mjs";
 import { INVENTORY_CAPTURE_SQL } from "./lib/f3-db-push-inventory.mjs";
 import {
+  hashOriginalStdout,
   inventoryFromQuery,
   parseEvidenceOutArg,
+  parseExactOriginalJsonObject,
   parseJsonish,
   preserveOriginalProcessStdout,
   rowsFromQuery,
@@ -170,6 +172,16 @@ import {
   runIsolatedPoisonPsqlQuery,
   PSQL_POISON_QUERY_ARGV,
   MUST_LOCAL_PSQL_PROOF_ON_17_6,
+  exactPoisonEnvelopeFromOriginal,
+  evaluateOriginalPoisonProcessResult,
+  fingerprintCanonicalSha256,
+  createRepairAuthorizationRecord,
+  assertRepairAuthorizationPreRepairComplete,
+  assertRepairAuthorizationComplete,
+  writeRepairAuthorizationRecord,
+  encodeIsolatedPsqlProcessBytes,
+  encodeTargetBindingFieldComparisons,
+  REPAIR_AUTHORIZATION_HOLD,
 } from "./lib/f3-db-push-repair-safety-gate.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -308,6 +320,33 @@ function objectsPresentFromProbe(result) {
     if (Object.prototype.hasOwnProperty.call(value, "oid")) return false;
   }
   return true;
+}
+
+function durableWriteRepairAuthorization(evidence, record, evidenceOut) {
+  const complete = writeRepairAuthorizationRecord({ record });
+  if (!complete.ok) return complete;
+  evidence.repairAuthorizationRecords = Array.isArray(evidence.repairAuthorizationRecords)
+    ? evidence.repairAuthorizationRecords
+    : [];
+  record.writtenBeforeNextMigration = true;
+  evidence.repairAuthorizationRecords.push(record);
+  if (!evidenceOut) {
+    return { ok: true, written: false, record };
+  }
+  const dest = path.resolve(root, evidenceOut);
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  const body = JSON.stringify(sanitizeForLog(evidence), null, 2);
+  fs.writeFileSync(dest, body);
+  const reread = fs.readFileSync(dest);
+  if (!reread.byteLength || reread.toString("utf8") !== body) {
+    return {
+      ok: false,
+      hold: REPAIR_AUTHORIZATION_HOLD,
+      reason: `${REPAIR_AUTHORIZATION_HOLD}: durable evidence-out re-read failed`,
+      repairCalls: 0,
+    };
+  }
+  return { ok: true, written: true, record, dest };
 }
 
 function emitAndExit(payload, { evidenceOut = null, exitCode = 1 } = {}) {
@@ -472,6 +511,7 @@ async function main() {
     cli: null,
     help: null,
     sequence: [],
+    repairAuthorizationRecords: [],
     stagingInvariant: "PREFIX-COMPLETE, SINGLE-PENDING",
     productionHistoryLimitation: PRODUCTION_HISTORY_LIMITATION_WARNING,
     claims: {
@@ -825,43 +865,135 @@ async function main() {
           targetVersion: version,
           objectsPresent,
         });
-        const decided = await runRepairSafetyThenMaybeRepair({
-          gateInput: {
+        const hashedPushOut = hashOriginalStdout(push.stdout ?? "");
+        const hashedPushErr = hashOriginalStdout(push.stderr ?? "");
+        const gateInput = {
+          file,
+          targetVersion: version,
+          injectInstalled: inject.status === 0,
+          injectStatus: inject.status,
+          injectSql,
+          exitStatus: push.status,
+          stdout: push.stdout,
+          stderr: push.stderr,
+          historyRows: rowsFromQuery(historyAfterFail),
+          objectsPresent,
+          probe: { ...probe, file },
+          securityPostconditionsOk: objectsPresent === true && fingerprintObserved && typeof fingerprintObserved === "object",
+          fingerprint,
+          digest: FROZEN_DIGESTS[file],
+          onDiskDigest: FROZEN_DIGESTS[file],
+          originalSqlError: `${push.stderr || ""}\n${push.stdout || ""}`.trim() || null,
+          disposableIdentityVerified:
+            evidence.projectRef === APPROVED_DISPOSABLE_PROJECT_REF &&
+            evidence.host === APPROVED_DISPOSABLE_HOST,
+          productionIdentityRejected: evidence.projectRef !== PRODUCTION_REF,
+          cliVersion: cli.version,
+          projectRef: evidence.projectRef,
+          host: evidence.host,
+          stagedMigrations: staged,
+        };
+        const authRecord = createRepairAuthorizationRecord({
+          migrationIdentity: {
             file,
-            targetVersion: version,
-            injectInstalled: inject.status === 0,
-            injectStatus: inject.status,
-            injectSql,
-            exitStatus: push.status,
-            stdout: push.stdout,
-            stderr: push.stderr,
-            historyRows: rowsFromQuery(historyAfterFail),
-            objectsPresent,
-            probe: { ...probe, file },
-            securityPostconditionsOk: objectsPresent === true && fingerprintObserved && typeof fingerprintObserved === "object",
-            fingerprint,
+            version,
             digest: FROZEN_DIGESTS[file],
-            onDiskDigest: FROZEN_DIGESTS[file],
-            originalSqlError: `${push.stderr || ""}\n${push.stdout || ""}`.trim() || null,
-            disposableIdentityVerified:
-              evidence.projectRef === APPROVED_DISPOSABLE_PROJECT_REF &&
-              evidence.host === APPROVED_DISPOSABLE_HOST,
-            productionIdentityRejected: evidence.projectRef !== PRODUCTION_REF,
-            cliVersion: cli.version,
-            projectRef: evidence.projectRef,
-            host: evidence.host,
-            stagedMigrations: staged,
+            destName: timestampFilenameFor(file),
           },
+          initialPush: {
+            status: push.status,
+            exitStatus: push.status,
+            stdoutSha256: hashedPushOut.sha256,
+            stderrSha256: hashedPushErr.sha256,
+            stdoutByteLength: hashedPushOut.byteLength,
+            stderrByteLength: hashedPushErr.byteLength,
+            classification,
+          },
+          fingerprint: {
+            expectedSha256: expectedFingerprintSha256(file),
+            observedSha256: fingerprintCanonicalSha256(fingerprintObserved),
+            expected: expectedFingerprint,
+            observed: fingerprintObserved,
+            fingerprintAfterCommitFailedHistory,
+          },
+          repairGate: { input: gateInput },
+        });
+        const decided = await runRepairSafetyThenMaybeRepair({
+          gateInput,
           frozenTarget: frozenTargetBuilt.target,
-          cleanup: () =>
-            runGatedRemoteSqlText(isolated.workdir, `remove-inject-${version}.sql`, REMOVE_HISTORY_INJECT_SQL),
+          cleanup: () => {
+            const cleanupResult = runGatedRemoteSqlText(
+              isolated.workdir,
+              `remove-inject-${version}.sql`,
+              REMOVE_HISTORY_INJECT_SQL,
+            );
+            const encodedCleanup = encodeIsolatedPsqlProcessBytes(cleanupResult);
+            authRecord.poisonCleanup = {
+              status: cleanupResult.status,
+              proven: cleanupResult.status === 0,
+              stdoutSha256: encodedCleanup.stdoutSha256,
+              stderrSha256: encodedCleanup.stderrSha256,
+              stdoutByteLength: encodedCleanup.stdoutByteLength,
+              stderrByteLength: encodedCleanup.stderrByteLength,
+              stdoutBase64: encodedCleanup.stdoutBase64,
+              stderrBase64: encodedCleanup.stderrBase64,
+            };
+            return cleanupResult;
+          },
           verifyPoisonAbsent: async () => {
-            const probe = runIsolatedPoisonPsqlQuery({
+            const poisonProbe = runIsolatedPoisonPsqlQuery({
               frozenTarget: frozenTargetBuilt.target,
               sql: POISON_ABSENT_PROBE_SQL,
             });
-            const preserved = preserveOriginalProcessStdout(probe);
-            return preserved.ok ? preserved.preserved : probe;
+            const preserved = preserveOriginalProcessStdout(poisonProbe);
+            const processResult = preserved.ok ? preserved.preserved : poisonProbe;
+            const hashedBeforeParse = hashOriginalStdout(
+              processResult.originalStdout ?? processResult.stdout ?? "",
+            );
+            const parsed = parseExactOriginalJsonObject(processResult);
+            const evaluated = evaluateOriginalPoisonProcessResult(processResult, {
+              frozenTarget: frozenTargetBuilt.target,
+            });
+            const encoded = encodeIsolatedPsqlProcessBytes(processResult);
+            const envelope = parsed.ok
+              ? exactPoisonEnvelopeFromOriginal(parsed.value)
+              : { ok: false, row: null };
+            authRecord.poisonAbsenceQuery = {
+              ...encoded,
+              stdoutSha256: hashedBeforeParse.sha256,
+              stdoutByteLength: hashedBeforeParse.byteLength,
+              parsedEnvelope: envelope.ok ? envelope.row : null,
+              live: evaluated.live || (envelope.ok ? {
+                current_database: envelope.row.current_database,
+                current_user: envelope.row.current_user,
+                provenance: "original_query_output",
+              } : null),
+              poisonPresent: evaluated.poisonPresent,
+              stdoutPreservedBeforeTransform: parsed.raw?.stdoutPreservedBeforeTransform === true
+                || preserved.ok === true,
+              payloadByteRange: parsed.raw?.payloadByteRange || encoded.payloadByteRange,
+              framingLfByteRange: parsed.raw?.framingLfByteRange || encoded.framingLfByteRange,
+            };
+            authRecord.targetBinding = {
+              ok: evaluated.ok === true,
+              live: evaluated.live || null,
+              frozenTarget: frozenTargetBuilt.target,
+              fieldComparisons: encodeTargetBindingFieldComparisons({
+                live: evaluated.live || {},
+                frozenTarget: frozenTargetBuilt.target,
+              }),
+            };
+            const pre = assertRepairAuthorizationPreRepairComplete(authRecord);
+            if (!pre.ok) {
+              authRecord.hold = pre;
+              return {
+                status: 1,
+                stdout: "",
+                stderr: pre.reason,
+                queryError: pre.reason,
+              };
+            }
+            return processResult;
           },
           repair: async () => {
             const poisonQuery = await runDbQuery({
@@ -899,6 +1031,40 @@ async function main() {
             });
           },
         });
+        const callbackOrder = [
+          decided.cleanupCalls > 0 ? "cleanup" : null,
+          decided.verifyCalls > 0 ? "verify" : null,
+          decided.repairCalls > 0 ? "repair" : null,
+        ].filter(Boolean);
+        authRecord.repairGate = {
+          ...(authRecord.repairGate || {}),
+          input: gateInput,
+          result: decided.gate,
+          counters: {
+            repairCalls: decided.repairCalls,
+            cleanupCalls: decided.cleanupCalls,
+            verifyCalls: decided.verifyCalls,
+            dbPushCalls: decided.dbPushCalls,
+            continuationCalls: decided.continuationCalls,
+          },
+          callbackOrder,
+        };
+        authRecord.repair = {
+          attempted: decided.repairAttempted === true,
+          status: decided.repair?.status ?? null,
+          repairCalls: decided.repairCalls,
+          callbackOrder,
+        };
+        if (authRecord.hold) {
+          evidence.status = "HOLD";
+          evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+          evidence.limitation = authRecord.hold.reason || REPAIR_AUTHORIZATION_HOLD;
+          evidence.repairAuthorizationRecords.push({
+            ...authRecord,
+            writtenBeforeNextMigration: false,
+          });
+          break;
+        }
         if (fingerprintAfterPoisonCleanup == null && decided.cleanupProven) {
           const poisonQuery = await runDbQuery({
             bin: cli.bin,
@@ -1138,6 +1304,44 @@ async function main() {
             break;
           }
         }
+        authRecord.retry = {
+          status: retry.status,
+          staged: retryStaged,
+          preflight: retryPreflight,
+        };
+        authRecord.continuation = {
+          allowed: isLastFile ? false : postContinuationFingerprintEval?.ok === true,
+          reason: isLastFile ? "last-file" : null,
+        };
+        authRecord.postRepairFingerprint = {
+          sha256: fingerprintAfterRepair?.sha256 ?? null,
+          ok: postRepairFingerprintEval?.ok === true,
+          capture: fingerprintAfterRepair,
+          eval: postRepairFingerprintEval,
+        };
+        authRecord.postRetryFingerprint = {
+          sha256: fingerprintAfterRetryNoPending?.sha256 ?? null,
+          ok: postRetryFingerprintEval?.ok === true,
+          capture: fingerprintAfterRetryNoPending,
+          eval: postRetryFingerprintEval,
+        };
+        const persisted = durableWriteRepairAuthorization(evidence, authRecord, args.evidenceOut);
+        if (!persisted.ok) {
+          holdSequence(persisted.reason || REPAIR_AUTHORIZATION_HOLD, {
+            historyAfterRepair: rowsFromQuery(historyAfterRepair),
+            fingerprintAfterRepair,
+            fingerprintAfterRetryNoPending,
+            fingerprintAfterCleanContinuation,
+            postRepairFingerprintEval,
+            postRetryFingerprintEval,
+            postContinuationFingerprintEval,
+            retryStaged,
+            retryPreflight,
+            retry,
+            repairAuthorization: authRecord,
+          });
+          break;
+        }
         evidence.sequence.push({
           ...step,
           historyAfterRepair: rowsFromQuery(historyAfterRepair),
@@ -1150,6 +1354,7 @@ async function main() {
           retryStaged,
           retryPreflight,
           retry,
+          repairAuthorization: authRecord,
         });
       }
     }

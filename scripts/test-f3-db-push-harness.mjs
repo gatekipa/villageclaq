@@ -222,6 +222,19 @@ import {
   writeEvidenceIndexAndChecksum,
   verifyEvidenceIndex,
   writeSuiteMetaForOutFile,
+  writeQualifyEvidenceArtifacts,
+  readFinalCommittedBytes,
+  verifyQualifyEvidencePackaging,
+  exactPoisonEnvelopeFromOriginal,
+  createRepairAuthorizationRecord,
+  assertRepairAuthorizationPreRepairComplete,
+  assertRepairAuthorizationComplete,
+  writeRepairAuthorizationRecord,
+  encodeIsolatedPsqlProcessBytes,
+  encodeTargetBindingFieldComparisons,
+  REPAIR_AUTHORIZATION_HOLD,
+  QUALIFY_EVIDENCE_PACKAGING_HOLD,
+  FOUNDER_REPORT_BASENAME_RE,
   YAML_ERROR_MARKER,
   EVIDENCE_INDEX_FILENAME,
   EVIDENCE_INDEX_CHECKSUM_FILENAME,
@@ -254,6 +267,7 @@ import {
   evaluateOriginalProcessResultContract,
   PSQL_POISON_STDOUT_FRAMING_CONTRACT,
 } from "./lib/f3-db-push-query-parse.mjs";
+import { runLocalPsqlPoisonProof } from "../docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_PSQL_POISON_REQUAL_20260916/psql-proof/psql-proof/run-local-psql-poison-proof.mjs";
 import { BOOTSTRAP_WITH_LOCAL_SHIM } from "./_f3_apply_current_main_floor.mjs";
 import {
   FLOOR_HOLD_IF_INEXACT,
@@ -6730,5 +6744,496 @@ test("isolated psql poison transport: exact framing, env isolation, CLI wrappers
     independent_reference_source_sha256: independentSha,
     psqlArgv: [...PSQL_POISON_QUERY_ARGV],
     framing: PSQL_POISON_STDOUT_FRAMING_CONTRACT,
+  }, null, 2));
+});
+
+function completePreRepairAuth(extra = {}) {
+  const approved = constructImmutableValidatedTargetFromConnection({
+    source: "test-f8-repair-auth",
+  });
+  const processResult = originalPoisonProcessResult();
+  const encoded = encodeIsolatedPsqlProcessBytes(processResult);
+  const parsed = parseExactOriginalJsonObject(processResult);
+  const envelope = exactPoisonEnvelopeFromOriginal(parsed.value);
+  const live = {
+    current_database: envelope.row.current_database,
+    current_user: envelope.row.current_user,
+    provenance: "original_query_output",
+  };
+  return createRepairAuthorizationRecord({
+    migrationIdentity: extra.migrationIdentity === undefined ? {
+      file: FILE118,
+      version: VER118,
+      digest: FROZEN_DIGESTS[FILE118],
+      destName: timestampFilenameFor(FILE118),
+    } : extra.migrationIdentity,
+    initialPush: extra.initialPush === undefined ? {
+      status: 3,
+      exitStatus: 3,
+      stdoutSha256: "a".repeat(64),
+      stderrSha256: "b".repeat(64),
+      stdoutByteLength: 12,
+      stderrByteLength: 40,
+    } : extra.initialPush,
+    fingerprint: extra.fingerprint === undefined ? {
+      expectedSha256: expectedFingerprintSha256(FILE118),
+      observedSha256: expectedFingerprintSha256(FILE118),
+      expected: getFrozenExpectedFingerprint(FILE118),
+      observed: getFrozenExpectedFingerprint(FILE118),
+    } : extra.fingerprint,
+    poisonCleanup: extra.poisonCleanup === undefined ? {
+      status: 0,
+      proven: true,
+      stdoutSha256: "c".repeat(64),
+      stderrSha256: "d".repeat(64),
+    } : extra.poisonCleanup,
+    poisonAbsenceQuery: extra.poisonAbsenceQuery === undefined ? {
+      ...encoded,
+      parsedEnvelope: envelope.row,
+      live,
+      poisonPresent: false,
+      stdoutPreservedBeforeTransform: true,
+    } : extra.poisonAbsenceQuery,
+    targetBinding: extra.targetBinding === undefined ? {
+      ok: true,
+      live,
+      frozenTarget: approved.target,
+      fieldComparisons: encodeTargetBindingFieldComparisons({
+        live,
+        frozenTarget: approved.target,
+      }),
+    } : extra.targetBinding,
+    repairGate: extra.repairGate === undefined ? {
+      input: authorizedGateInput(),
+    } : extra.repairGate,
+    ...extra.rest,
+  });
+}
+
+function completeAuthRecord(extra = {}) {
+  const record = completePreRepairAuth(extra);
+  record.repair = extra.repair === undefined ? {
+    attempted: true,
+    status: 0,
+    repairCalls: 1,
+    callbackOrder: ["cleanup", "verify", "repair"],
+  } : extra.repair;
+  record.retry = extra.retry === undefined ? {
+    status: 0,
+    staged: [timestampFilenameFor(FILE118)],
+  } : extra.retry;
+  record.continuation = extra.continuation === undefined ? {
+    allowed: false,
+  } : extra.continuation;
+  record.postRepairFingerprint = extra.postRepairFingerprint === undefined ? {
+    sha256: expectedFingerprintSha256(FILE118),
+    ok: true,
+  } : extra.postRepairFingerprint;
+  record.postRetryFingerprint = extra.postRetryFingerprint === undefined ? {
+    sha256: expectedFingerprintSha256(FILE118),
+    ok: true,
+  } : extra.postRetryFingerprint;
+  record.repairGate = {
+    ...(record.repairGate || {}),
+    result: { ok: true, repairAuthorized: true },
+    counters: { repairCalls: 1, cleanupCalls: 1, verifyCalls: 1 },
+    callbackOrder: ["cleanup", "verify", "repair"],
+    ...(extra.repairGateResult || {}),
+  };
+  return record;
+}
+
+test("F8 repair-authorization missing-section negatives hold with repairCalls=0", async () => {
+  const qualify = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
+  assert.match(qualify, /createRepairAuthorizationRecord/);
+  assert.match(qualify, /assertRepairAuthorizationPreRepairComplete/);
+  assert.match(qualify, /assertRepairAuthorizationComplete/);
+  assert.match(qualify, /durableWriteRepairAuthorization/);
+  assert.match(qualify, /repairAuthorizationRecords/);
+  assert.equal(typeof exactPoisonEnvelopeFromOriginal, "function");
+  const exactOk = exactPoisonEnvelopeFromOriginal(assembleFinalPoisonExactRow());
+  assert.equal(exactOk.ok, true);
+
+  const sections = [
+    ["F8-R01-MISSING-MIGRATION-IDENTITY", "migrationIdentity"],
+    ["F8-R02-MISSING-INITIAL-PUSH", "initialPush"],
+    ["F8-R03-MISSING-FINGERPRINT", "fingerprint"],
+    ["F8-R04-MISSING-POISON-CLEANUP", "poisonCleanup"],
+    ["F8-R05-MISSING-POISON-ABSENCE", "poisonAbsenceQuery"],
+    ["F8-R06-MISSING-TARGET-BINDING", "targetBinding"],
+    ["F8-R07-MISSING-REPAIR-GATE", "repairGate"],
+  ];
+  const records = [];
+  for (const [caseId, section] of sections) {
+    const partial = completePreRepairAuth({ [section]: null });
+    const pre = assertRepairAuthorizationPreRepairComplete(partial);
+    let repairCalls = 0;
+    const decided = await runRepairSafetyThenMaybeRepair({
+      gateInput: authorizedGateInput(),
+      cleanup: () => provenCleanup(),
+      verifyPoisonAbsent: () => {
+        if (!pre.ok) {
+          return { status: 1, stdout: "", stderr: pre.reason, queryError: pre.reason };
+        }
+        return poisonAbsentResult();
+      },
+      repair: () => {
+        repairCalls += 1;
+        return { status: 0 };
+      },
+    });
+    records.push({
+      caseId,
+      section,
+      preOk: pre.ok,
+      repairCalls: decided.repairCalls,
+      spyRepairCalls: repairCalls,
+    });
+    assert.equal(pre.ok, false, caseId);
+    assert.match(pre.reason, /repair-authorization record incomplete/);
+    assert.equal(pre.repairCalls, 0, caseId);
+    assert.equal(decided.repairCalls, 0, caseId);
+    assert.equal(repairCalls, 0, caseId);
+    assert.equal(decided.repairAuthorized, false, caseId);
+  }
+
+  const postSections = [
+    ["F8-R08-MISSING-REPAIR", "repair"],
+    ["F8-R09-MISSING-RETRY", "retry"],
+    ["F8-R10-MISSING-POST-REPAIR-FP", "postRepairFingerprint"],
+    ["F8-R11-MISSING-POST-RETRY-FP", "postRetryFingerprint"],
+  ];
+  for (const [caseId, section] of postSections) {
+    const record = completeAuthRecord({ [section]: null });
+    const complete = assertRepairAuthorizationComplete(record);
+    assert.equal(complete.ok, false, caseId);
+    assert.equal(complete.continuation, false, caseId);
+    records.push({ caseId, section, completeOk: complete.ok });
+  }
+
+  const complete = completeAuthRecord();
+  assert.equal(assertRepairAuthorizationPreRepairComplete(complete).ok, true);
+  assert.equal(assertRepairAuthorizationComplete(complete).ok, true);
+  const summaryOnly = completePreRepairAuth({
+    fingerprint: { summaryOnly: true, expectedSha256: "x" },
+  });
+  assert.equal(assertRepairAuthorizationPreRepairComplete(summaryOnly).ok, false);
+  const reconstructed = completeAuthRecord();
+  reconstructed.reconstructed = true;
+  assert.equal(assertRepairAuthorizationComplete(reconstructed).ok, false);
+
+  const ids = records.map((row) => row.caseId);
+  for (const required of [
+    "F8-R01-MISSING-MIGRATION-IDENTITY", "F8-R02-MISSING-INITIAL-PUSH",
+    "F8-R03-MISSING-FINGERPRINT", "F8-R04-MISSING-POISON-CLEANUP",
+    "F8-R05-MISSING-POISON-ABSENCE", "F8-R06-MISSING-TARGET-BINDING",
+    "F8-R07-MISSING-REPAIR-GATE", "F8-R08-MISSING-REPAIR",
+    "F8-R09-MISSING-RETRY", "F8-R10-MISSING-POST-REPAIR-FP",
+    "F8-R11-MISSING-POST-RETRY-FP",
+  ]) {
+    assert.equal(ids.includes(required), true, `missing ${required}`);
+  }
+  console.log(JSON.stringify({ publishedRepairAuthNegatives: records }, null, 2));
+});
+
+test("F8 evidence-integrity packaging negatives fail closed from final committed bytes", () => {
+  const f7Meta = path.join(
+    root,
+    "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_PSQL_POISON_REQUAL_20260916/hosted/qualify-evidence/qualify-result.json.meta.json",
+  );
+  const committed = fs.readFileSync(f7Meta);
+  const noLf = Buffer.from(JSON.stringify(JSON.parse(committed), null, 2), "utf8");
+  assert.equal(committed.byteLength, 281);
+  assert.equal(createHash("sha256").update(committed).digest("hex"), "977802458baba26c6246e9fed500a553c1b2678d851b5265790980e0091bf896");
+  assert.equal(noLf.byteLength, 280);
+  assert.notEqual(
+    createHash("sha256").update(noLf).digest("hex"),
+    createHash("sha256").update(committed).digest("hex"),
+  );
+
+  const records = [];
+  const publish = (caseId, exactMutation, ok) => {
+    records.push({ caseId, exactMutation, result: ok ? "UNEXPECTED" : "rejected" });
+    assert.equal(ok, false, caseId);
+  };
+
+  const pack = (label) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), `f3-f8-${label}-`));
+    const dest = path.join(dir, "qualify-result.json");
+    const written = writeQualifyEvidenceArtifacts({
+      dest,
+      sanitizedJson: JSON.stringify({ status: "HOLD", recognition: ["manual_income"] }, null, 2),
+    });
+    return { dir, dest, written };
+  };
+
+  {
+    const { dir, dest } = pack("i01");
+    const metaPath = `${dest}.meta.json`;
+    const stripped = fs.readFileSync(metaPath).subarray(0, -1);
+    fs.writeFileSync(metaPath, stripped);
+    const verified = verifyQualifyEvidencePackaging(dir, {
+      requiredArtifacts: [path.basename(dest), path.basename(metaPath), EXECUTABLE_MANIFEST_FILENAME],
+    });
+    publish("F8-I01-MISSING-FINAL-NEWLINE", "strip final LF after commit", verified.ok);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  {
+    const { dir, dest } = pack("i02");
+    const metaPath = `${dest}.meta.json`;
+    fs.writeFileSync(metaPath, Buffer.concat([fs.readFileSync(metaPath), Buffer.from("\n")]));
+    const verified = verifyQualifyEvidencePackaging(dir, {
+      requiredArtifacts: [path.basename(dest), path.basename(metaPath), EXECUTABLE_MANIFEST_FILENAME],
+    });
+    publish("F8-I02-ADDED-FINAL-NEWLINE", "add extra final LF after commit", verified.ok);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  {
+    const { dir, dest } = pack("i03");
+    fs.writeFileSync(dest, `${fs.readFileSync(dest, "utf8")}\nmutated\n`);
+    const verified = verifyQualifyEvidencePackaging(dir, {
+      requiredArtifacts: [path.basename(dest), path.basename(`${dest}.meta.json`), EXECUTABLE_MANIFEST_FILENAME],
+    });
+    publish("F8-I03-POST-HASH-MUTATION", "mutate artifact after hashing", verified.ok);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  {
+    const { dir, dest } = pack("i04");
+    const raw = fs.readFileSync(dest);
+    const after = sanitizeEvidenceOutBytes(Buffer.concat([raw, Buffer.from("super-secret-db-password")]));
+    fs.writeFileSync(dest, after);
+    const verified = verifyQualifyEvidencePackaging(dir, {
+      requiredArtifacts: [path.basename(dest), path.basename(`${dest}.meta.json`), EXECUTABLE_MANIFEST_FILENAME],
+    });
+    publish("F8-I04-SANITIZE-AFTER-HASH", "sanitize after hashing final bytes", verified.ok);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  {
+    const { dir } = pack("i05");
+    const indexPath = path.join(dir, EVIDENCE_INDEX_FILENAME);
+    const index = JSON.parse(fs.readFileSync(indexPath, "utf8"));
+    index.artifacts = index.artifacts.map((item) => (
+      item.path === "qualify-result.json" ? { ...item, bytes: item.bytes + 1 } : item
+    ));
+    fs.writeFileSync(indexPath, `${JSON.stringify(index, null, 2)}\n`);
+    fs.writeFileSync(
+      path.join(dir, EVIDENCE_INDEX_CHECKSUM_FILENAME),
+      `${createHash("sha256").update(fs.readFileSync(indexPath)).digest("hex")}\n`,
+    );
+    const verified = verifyQualifyEvidencePackaging(dir);
+    publish("F8-I05-WRONG-BYTE-LENGTH", "index byte length disagrees with committed Buffer", verified.ok);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  {
+    const { dir } = pack("i06");
+    const indexPath = path.join(dir, EVIDENCE_INDEX_FILENAME);
+    const index = JSON.parse(fs.readFileSync(indexPath, "utf8"));
+    index.artifacts = index.artifacts.map((item) => (
+      item.path === "qualify-result.json" ? { ...item, sha256: "0".repeat(64) } : item
+    ));
+    fs.writeFileSync(indexPath, `${JSON.stringify(index, null, 2)}\n`);
+    fs.writeFileSync(
+      path.join(dir, EVIDENCE_INDEX_CHECKSUM_FILENAME),
+      `${createHash("sha256").update(fs.readFileSync(indexPath)).digest("hex")}\n`,
+    );
+    const verified = verifyQualifyEvidencePackaging(dir);
+    publish("F8-I06-WRONG-DIGEST", "index digest disagrees with committed Buffer", verified.ok);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  {
+    const { dir } = pack("i07");
+    const indexPath = path.join(dir, EVIDENCE_INDEX_FILENAME);
+    const index = JSON.parse(fs.readFileSync(indexPath, "utf8"));
+    index.artifacts = [...index.artifacts, index.artifacts[0]];
+    fs.writeFileSync(indexPath, `${JSON.stringify(index, null, 2)}\n`);
+    fs.writeFileSync(
+      path.join(dir, EVIDENCE_INDEX_CHECKSUM_FILENAME),
+      `${createHash("sha256").update(fs.readFileSync(indexPath)).digest("hex")}\n`,
+    );
+    const verified = verifyQualifyEvidencePackaging(dir);
+    publish("F8-I07-DUPLICATE-INDEX-ENTRY", "duplicate index entry", verified.ok);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  {
+    const { dir, dest } = pack("i08");
+    const indexPath = path.join(dir, EVIDENCE_INDEX_FILENAME);
+    const index = JSON.parse(fs.readFileSync(indexPath, "utf8"));
+    index.artifacts = index.artifacts.filter((item) => item.path !== path.basename(`${dest}.meta.json`));
+    fs.writeFileSync(indexPath, `${JSON.stringify(index, null, 2)}\n`);
+    fs.writeFileSync(
+      path.join(dir, EVIDENCE_INDEX_CHECKSUM_FILENAME),
+      `${createHash("sha256").update(fs.readFileSync(indexPath)).digest("hex")}\n`,
+    );
+    const verified = verifyQualifyEvidencePackaging(dir, {
+      requiredArtifacts: [path.basename(dest), path.basename(`${dest}.meta.json`), EXECUTABLE_MANIFEST_FILENAME],
+    });
+    publish("F8-I08-MISSING-INDEX-ENTRY", "required artifact omitted from index", verified.ok);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  {
+    const { dir } = pack("i09");
+    fs.writeFileSync(path.join(dir, "extra-unindexed.json"), "{}\n");
+    const verified = verifyQualifyEvidencePackaging(dir);
+    publish("F8-I09-UNINDEXED-EVIDENCE-ARTIFACT", "unindexed evidence artifact in pack dir", verified.ok);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  {
+    const { dir } = pack("i10");
+    const indexPath = path.join(dir, EVIDENCE_INDEX_FILENAME);
+    const index = JSON.parse(fs.readFileSync(indexPath, "utf8"));
+    index.artifacts.push({ path: "missing-artifact.json", sha256: "1".repeat(64), bytes: 2 });
+    fs.writeFileSync(indexPath, `${JSON.stringify(index, null, 2)}\n`);
+    fs.writeFileSync(
+      path.join(dir, EVIDENCE_INDEX_CHECKSUM_FILENAME),
+      `${createHash("sha256").update(fs.readFileSync(indexPath)).digest("hex")}\n`,
+    );
+    const verified = verifyQualifyEvidencePackaging(dir, {
+      requiredArtifacts: ["missing-artifact.json"],
+    });
+    publish("F8-I10-BROKEN-REFERENCE", "index references missing file", verified.ok);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  {
+    const { dir } = pack("i11");
+    const indexPath = path.join(dir, EVIDENCE_INDEX_FILENAME);
+    const index = JSON.parse(fs.readFileSync(indexPath, "utf8"));
+    index.artifacts.push({
+      path: EVIDENCE_INDEX_FILENAME,
+      sha256: createHash("sha256").update(fs.readFileSync(indexPath)).digest("hex"),
+      bytes: fs.readFileSync(indexPath).byteLength,
+    });
+    fs.writeFileSync(indexPath, `${JSON.stringify(index, null, 2)}\n`);
+    fs.writeFileSync(
+      path.join(dir, EVIDENCE_INDEX_CHECKSUM_FILENAME),
+      `${createHash("sha256").update(fs.readFileSync(indexPath)).digest("hex")}\n`,
+    );
+    const verified = verifyQualifyEvidencePackaging(dir);
+    publish("F8-I11-SELF-ENTRY", "outer detached index self-entry", verified.ok);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  {
+    const { dir } = pack("i12");
+    fs.writeFileSync(path.join(dir, "founder-K-checklist.json"), "{}\n");
+    assert.match("founder-K-checklist.json", FOUNDER_REPORT_BASENAME_RE);
+    const verified = verifyQualifyEvidencePackaging(dir);
+    publish("F8-I12-EXTRA-UNINDEXED-FOUNDER-REPORT", "extra unindexed founder report", verified.ok);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+
+  const happy = pack("ok");
+  const happyVerify = verifyQualifyEvidencePackaging(happy.dir);
+  assert.equal(happyVerify.ok, true);
+  const metaCommitted = readFinalCommittedBytes(`${happy.dest}.meta.json`);
+  assert.equal(metaCommitted.ok, true);
+  const indexedMeta = happyVerify.index.artifacts.find((item) => item.path === "qualify-result.json.meta.json");
+  assert.equal(indexedMeta.sha256, metaCommitted.sha256);
+  assert.equal(indexedMeta.bytes, metaCommitted.bytes);
+  assert.notEqual(indexedMeta.bytes, JSON.stringify(JSON.parse(metaCommitted.buf.toString("utf8")), null, 2).length);
+  fs.rmSync(happy.dir, { recursive: true, force: true });
+
+  const ids = records.map((row) => row.caseId);
+  for (const required of [
+    "F8-I01-MISSING-FINAL-NEWLINE", "F8-I02-ADDED-FINAL-NEWLINE", "F8-I03-POST-HASH-MUTATION",
+    "F8-I04-SANITIZE-AFTER-HASH", "F8-I05-WRONG-BYTE-LENGTH", "F8-I06-WRONG-DIGEST",
+    "F8-I07-DUPLICATE-INDEX-ENTRY", "F8-I08-MISSING-INDEX-ENTRY", "F8-I09-UNINDEXED-EVIDENCE-ARTIFACT",
+    "F8-I10-BROKEN-REFERENCE", "F8-I11-SELF-ENTRY", "F8-I12-EXTRA-UNINDEXED-FOUNDER-REPORT",
+  ]) {
+    assert.equal(ids.includes(required), true, `missing ${required}`);
+  }
+  assert.equal(QUALIFY_EVIDENCE_PACKAGING_HOLD.includes("final committed bytes"), true);
+  console.log(JSON.stringify({ publishedIntegrityNegatives: records }, null, 2));
+});
+
+test("F8 local-proof helper invokes the actual gate with injected spawn", async () => {
+  const helperSrc = fs.readFileSync(path.join(
+    root,
+    "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_PSQL_POISON_REQUAL_20260916/psql-proof/psql-proof/run-local-psql-poison-proof.mjs",
+  ), "utf8");
+  assert.doesNotMatch(helperSrc, /\/workspace\/f3-psql-poison-requal/);
+  assert.doesNotMatch(helperSrc, /\/tmp\/f3-reference-local\.env/);
+  assert.match(helperSrc, /import\.meta\.url/);
+  assert.match(helperSrc, /runRepairSafetyThenMaybeRepair/);
+  assert.match(helperSrc, /exactPoisonEnvelopeFromOriginal/);
+  assert.match(helperSrc, /parseExactOriginalJsonObject/);
+  assert.equal(MUST_LOCAL_PSQL_PROOF_ON_17_6, true);
+
+  const framed = originalPoisonProcessResult();
+  const spawnImpl = (cmd, args) => {
+    assert.equal(cmd, "psql");
+    if (args.includes("--version")) {
+      return { status: 0, stdout: Buffer.from("psql (PostgreSQL) 17.6\n"), stderr: Buffer.from(""), signal: null };
+    }
+    return {
+      status: 0,
+      stdout: Buffer.from(String(framed.stdout)),
+      stderr: Buffer.from(""),
+      signal: null,
+    };
+  };
+
+  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f8-local-proof-"));
+  const positive = await runLocalPsqlPoisonProof({
+    outDir,
+    spawnImpl,
+    connection: {
+      host: "127.0.0.1",
+      port: 5432,
+      database: "postgres",
+      user: "postgres",
+      password: "not-a-real-password",
+      sslmode: "disable",
+    },
+    args: { caseId: "positive", outDir },
+    injectedProcessResult: framed,
+  });
+  assert.equal(positive.verdict, "CONTINUE");
+  assert.equal(positive.repairCalls, 1);
+  assert.deepEqual(positive.callback_order, ["cleanup", "verify", "repair"]);
+  assert.equal(positive.parser.envelope_ok, true);
+  assert.equal(positive.stdout.BEFORE_parse, true);
+  assert.equal(fs.existsSync(path.join(outDir, "STATUS.json")), true);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(outDir, "STATUS.json"), "utf8")).repairCalls, 1);
+
+  const negatives = [
+    "undefined-parser-export",
+    "malformed-output",
+    "duplicate-keys",
+    "extra-field",
+    "wrong-database",
+    "wrong-live-role",
+    "wrong-connection-metadata",
+    "nonzero-process",
+    "nonempty-stderr",
+    "poison-present",
+    "cleanup-failure",
+    "fingerprint-mismatch",
+  ];
+  for (const caseId of negatives) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), `f3-f8-local-${caseId}-`));
+    const report = await runLocalPsqlPoisonProof({
+      outDir: dir,
+      spawnImpl,
+      connection: {
+        host: "127.0.0.1",
+        port: 5432,
+        database: "postgres",
+        user: "postgres",
+        password: "not-a-real-password",
+        sslmode: "disable",
+      },
+      args: { caseId, outDir: dir },
+      parseModule: caseId === "undefined-parser-export" ? {} : undefined,
+      injectedProcessResult: framed,
+    });
+    assert.equal(report.repairCalls, 0, caseId);
+    assert.notEqual(report.verdict, "CONTINUE", caseId);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+
+  fs.rmSync(outDir, { recursive: true, force: true });
+  console.log(JSON.stringify({
+    localProofPositiveRepairCalls: positive.repairCalls,
+    localProofNegatives: negatives,
+    must_local_psql_proof_on_17_6: MUST_LOCAL_PSQL_PROOF_ON_17_6,
   }, null, 2));
 });

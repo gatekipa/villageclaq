@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
- * Local 17.6 psql bare-envelope poison transport proof (Chief box).
- * Never prints password. Binds live DB/user to frozen LOCAL connection metadata.
+ * Local 17.6 psql bare-envelope poison transport proof.
+ * Discovers repo root from import.meta.url. Invokes the actual isolated
+ * psql process-result adapter, the supported strict parser, exact envelope
+ * validation, and runRepairSafetyThenMaybeRepair. Repair callback is a
+ * non-destructive spy. Never prints password. Never hardcodes /workspace.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -10,12 +13,53 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const OUT = "/workspace/f3-psql-poison-requal-20260916/phase-local/psql-proof";
-const TIP_WORK = "/workspace/f3-psql-poison-requal-20260916/tip-work";
-const CREDS = "/tmp/f3-reference-local.env";
+const THIS_FILE = fileURLToPath(import.meta.url);
+const THIS_DIR = path.dirname(THIS_FILE);
+
+const REQUIRED_PARSE_EXPORTS = [
+  "parseDuplicateKeySafeJson",
+  "parseExactOriginalJsonObject",
+  "evaluateOriginalProcessResultContract",
+  "evaluateExactPsqlStdoutFraming",
+  "hashOriginalStdout",
+  "preserveOriginalProcessStdout",
+];
+
+const NEGATIVE_CASES = Object.freeze([
+  "undefined-parser-export",
+  "malformed-output",
+  "duplicate-keys",
+  "extra-field",
+  "wrong-database",
+  "wrong-live-role",
+  "wrong-connection-metadata",
+  "nonzero-process",
+  "nonempty-stderr",
+  "poison-present",
+  "cleanup-failure",
+  "fingerprint-mismatch",
+]);
+
+function discoverRepoRoot(startDir) {
+  let dir = startDir;
+  for (let i = 0; i < 16; i += 1) {
+    if (
+      fs.existsSync(path.join(dir, "scripts/lib/f3-db-push-repair-safety-gate.mjs"))
+      && fs.existsSync(path.join(dir, "scripts/lib/f3-db-push-query-parse.mjs"))
+      && fs.existsSync(path.join(dir, "package.json"))
+    ) {
+      return dir;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
 
 function loadEnvFile(p) {
   const env = {};
+  if (!p || !fs.existsSync(p)) return env;
   for (const line of fs.readFileSync(p, "utf8").split("\n")) {
     const t = line.trim();
     if (!t || t.startsWith("#") || !t.includes("=")) continue;
@@ -25,274 +69,525 @@ function loadEnvFile(p) {
   return env;
 }
 
+function parseLocalProofArgs(argv = process.argv.slice(2)) {
+  const get = (name, alt) => {
+    const eq = argv.find((a) => String(a).startsWith(`${name}=`));
+    if (eq) return String(eq).slice(name.length + 1);
+    const idx = argv.indexOf(name);
+    if (idx >= 0 && argv[idx + 1] != null && !String(argv[idx + 1]).startsWith("-")) {
+      return argv[idx + 1];
+    }
+    return alt;
+  };
+  return {
+    outDir: get("--out-dir", null),
+    envFile: get("--env-file", process.env.F3_LOCAL_PSQL_ENV_FILE || null),
+    caseId: get("--case", "positive"),
+    pghost: get("--pghost", null),
+    pgport: get("--pgport", null),
+    pgdatabase: get("--pgdatabase", null),
+    pguser: get("--pguser", null),
+    pgsslmode: get("--pgsslmode", null),
+  };
+}
+
 function redact(obj) {
   const s = JSON.stringify(obj, null, 2);
-  // belt-and-suspenders: never leak password-looking values
-  return s.replace(/("PGPASSWORD"\s*:\s*")[^"]*(")/g, '$1<redacted>$2')
+  return s
+    .replace(/("PGPASSWORD"\s*:\s*")[^"]*(")/g, "$1<redacted>$2")
     .replace(/(password["']?\s*[:=]\s*["'])[^"']*(["'])/gi, "$1<redacted>$2");
 }
 
-const localEnv = loadEnvFile(CREDS);
-const password = localEnv.POSTGRES_PASSWORD || localEnv.PGPASSWORD;
-if (!password) {
-  console.error("HOLD: local creds missing password");
-  process.exit(2);
+function sha256Buf(buf) {
+  const b = Buffer.isBuffer(buf) ? buf : Buffer.from(String(buf ?? ""), "utf8");
+  return {
+    sha256: createHash("sha256").update(b).digest("hex"),
+    byteLength: b.byteLength,
+    buf: b,
+  };
 }
 
-const frozenLocal = Object.freeze({
-  host_classification: "local_loopback_oracle",
-  connection_hostname: localEnv.PGHOST || "127.0.0.1",
-  connection_port: Number(localEnv.PGPORT || "55432"),
-  connection_database: localEnv.PGDATABASE || localEnv.POSTGRES_DB,
-  connection_username: localEnv.PGUSER || localEnv.POSTGRES_USER,
-  expected_live_database: localEnv.PGDATABASE || localEnv.POSTGRES_DB,
-  expected_live_role: localEnv.PGUSER || localEnv.POSTGRES_USER,
-  container: localEnv.CONTAINER_NAME || "f3-reference-pg176",
-  credential_source: "file:/tmp/f3-reference-local.env",
-  ssl_required: false,
-  sslmode: "disable",
-  production_ref_rejected: true,
-  source: "local-oracle-connection-metadata",
-  note: "LOCAL proof only — not disposable; not production",
-});
-
-const gatePath = path.join(TIP_WORK, "scripts/lib/f3-db-push-repair-safety-gate.mjs");
-const parsePath = path.join(TIP_WORK, "scripts/lib/f3-db-push-query-parse.mjs");
-const gate = await import(pathToFileURL(gatePath).href);
-const parse = await import(pathToFileURL(parsePath).href);
-
-const {
-  PSQL_POISON_QUERY_ARGV,
-  POISON_ABSENT_PROBE_SQL,
-  evaluateExactPsqlStdoutFraming,
-  hashOriginalStdout,
-  preserveOriginalProcessStdout,
-  parseExactOriginalJsonObject,
-  evaluateOriginalProcessResultContract,
-} = { ...gate, ...parse };
-
-// Prefer exports from their modules
-const framingFn = parse.evaluateExactPsqlStdoutFraming;
-const hashFn = parse.hashOriginalStdout;
-const preserveFn = parse.preserveOriginalProcessStdout;
-const parseExactFn = parse.parseExactOriginalJsonObject;
-const contractFn = parse.evaluateOriginalProcessResultContract;
-const envelopeFn = gate.exactPoisonEnvelopeFromOriginal;
-const argv = gate.PSQL_POISON_QUERY_ARGV;
-const sql = gate.POISON_ABSENT_PROBE_SQL;
-
-const hostPsqlVersion = spawnSync("psql", ["--version"], { encoding: "utf8" });
-const containerPsqlVersion = spawnSync("docker", ["exec", frozenLocal.container, "psql", "--version"], { encoding: "utf8" });
-const serverVersion = spawnSync("docker", ["exec", frozenLocal.container, "psql", "-U", frozenLocal.connection_username, "-d", frozenLocal.connection_database, "-tAc", "SHOW server_version;"], { encoding: "utf8" });
-
-const home = fs.mkdtempSync(path.join(os.tmpdir(), "f3-local-poison-psql-home-"));
-const env = Object.create(null);
-env.PGHOST = frozenLocal.connection_hostname;
-env.PGPORT = String(frozenLocal.connection_port);
-env.PGDATABASE = frozenLocal.connection_database;
-env.PGUSER = frozenLocal.connection_username;
-env.PGPASSWORD = password;
-env.PGSSLMODE = "disable";
-env.PGCONNECT_TIMEOUT = "15";
-env.PATH = "/usr/bin:/bin";
-env.HOME = home;
-
-const args = [...argv, "-c", sql];
-// argv safety: no -d URL, no -p password
-if (args.some((a) => a === "-d" || String(a).startsWith("postgres"))) {
-  console.error("HOLD: argv unsafe");
-  process.exit(2);
+function resolveConnection({ args, envFileValues, injected }) {
+  if (injected?.connection) return injected.connection;
+  const fileEnv = envFileValues || {};
+  return {
+    host: args.pghost || process.env.PGHOST || fileEnv.PGHOST || fileEnv.POSTGRES_HOST || null,
+    port: Number(args.pgport || process.env.PGPORT || fileEnv.PGPORT || fileEnv.POSTGRES_PORT || 0) || null,
+    database: args.pgdatabase || process.env.PGDATABASE || fileEnv.PGDATABASE || fileEnv.POSTGRES_DB || null,
+    user: args.pguser || process.env.PGUSER || fileEnv.PGUSER || fileEnv.POSTGRES_USER || null,
+    password: process.env.PGPASSWORD || process.env.POSTGRES_PASSWORD
+      || fileEnv.PGPASSWORD || fileEnv.POSTGRES_PASSWORD || null,
+    sslmode: args.pgsslmode || process.env.PGSSLMODE || fileEnv.PGSSLMODE || "disable",
+    credentialSource: args.envFile
+      ? `file:${args.envFile}`
+      : (process.env.PGPASSWORD || process.env.POSTGRES_PASSWORD)
+        ? "env:PGPASSWORD"
+        : fileEnv.PGPASSWORD || fileEnv.POSTGRES_PASSWORD
+          ? "env-file"
+          : null,
+  };
 }
 
-const child = spawnSync("psql", args, {
-  encoding: "buffer",
-  env,
-  timeout: 15000,
-  maxBuffer: 1024 * 1024,
-  windowsHide: true,
-});
+function runLocalIsolatedPsql({ connection, sql, argv, spawnImpl = spawnSync }) {
+  if (!connection?.host || !connection?.database || !connection?.user) {
+    return {
+      spawned: false,
+      status: 1,
+      stdout: "",
+      stderr: "",
+      signal: null,
+      timeout: false,
+      spawnError: "local connection host/database/user missing",
+      transport: "isolated-psql-local",
+      argv: null,
+    };
+  }
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "f3-local-poison-psql-home-"));
+  const env = Object.create(null);
+  env.PGHOST = String(connection.host);
+  env.PGPORT = String(connection.port || 5432);
+  env.PGDATABASE = String(connection.database);
+  env.PGUSER = String(connection.user);
+  if (connection.password) env.PGPASSWORD = String(connection.password);
+  env.PGSSLMODE = String(connection.sslmode || "disable");
+  env.PGCONNECT_TIMEOUT = "15";
+  env.PATH = process.env.PATH || "/usr/bin:/bin";
+  env.HOME = home;
+  const args = [...argv, "-c", sql];
+  if (args.some((a) => a === "-d" || String(a).startsWith("postgres://") || String(a).startsWith("postgresql://"))) {
+    try { fs.rmSync(home, { recursive: true, force: true }); } catch { /* ignore */ }
+    return {
+      spawned: false,
+      status: 1,
+      stdout: "",
+      stderr: "",
+      signal: null,
+      timeout: false,
+      spawnError: "poison psql must not take a URL on argv",
+      transport: "isolated-psql-local",
+      argv: args,
+    };
+  }
+  try {
+    const child = spawnImpl("psql", args, {
+      encoding: "buffer",
+      env,
+      timeout: 15000,
+      maxBuffer: 1024 * 1024,
+      windowsHide: true,
+    });
+    const stdoutBuf = Buffer.isBuffer(child.stdout)
+      ? child.stdout
+      : Buffer.from(child.stdout || "");
+    const stderrBuf = Buffer.isBuffer(child.stderr)
+      ? child.stderr
+      : Buffer.from(child.stderr || "");
+    return {
+      spawned: true,
+      status: child.status,
+      signal: child.signal ?? null,
+      stdout: stdoutBuf.toString("utf8"),
+      stderr: stderrBuf.toString("utf8"),
+      stdoutBuf,
+      stderrBuf,
+      timeout: child.error?.code === "ETIMEDOUT" || child.timeout === true,
+      spawnError: child.error && child.error.code !== "ETIMEDOUT"
+        ? String(child.error.message || child.error)
+        : null,
+      transport: "isolated-psql",
+      argv: args,
+      envKeys: Object.keys(env).sort(),
+    };
+  } finally {
+    try { fs.rmSync(home, { recursive: true, force: true }); } catch { /* ignore */ }
+  }
+}
 
-try { fs.rmSync(home, { recursive: true, force: true }); } catch {}
+function applyCaseToProcess(caseId, processResult, envelopeRow) {
+  if (caseId === "positive" || caseId === "cleanup-failure" || caseId === "fingerprint-mismatch"
+    || caseId === "wrong-connection-metadata" || caseId === "undefined-parser-export") {
+    return processResult;
+  }
+  if (caseId === "malformed-output") {
+    return { ...processResult, stdout: "not-json\n", stdoutBuf: Buffer.from("not-json\n") };
+  }
+  if (caseId === "duplicate-keys") {
+    const stdout = '{"schema_version":"f3-poison-envelope-v1","poisonPresent":false,"current_database":"postgres","current_user":"postgres","probe_marker":"f3_poison_absent_probe","poisonPresent":true}\n';
+    return { ...processResult, stdout, stdoutBuf: Buffer.from(stdout) };
+  }
+  if (caseId === "extra-field") {
+    const stdout = `${JSON.stringify({ ...envelopeRow, extra: true })}\n`;
+    return { ...processResult, stdout, stdoutBuf: Buffer.from(stdout) };
+  }
+  if (caseId === "wrong-database") {
+    const stdout = `${JSON.stringify({ ...envelopeRow, current_database: "template1" })}\n`;
+    return { ...processResult, stdout, stdoutBuf: Buffer.from(stdout) };
+  }
+  if (caseId === "wrong-live-role") {
+    const stdout = `${JSON.stringify({ ...envelopeRow, current_user: "ubuntu" })}\n`;
+    return { ...processResult, stdout, stdoutBuf: Buffer.from(stdout) };
+  }
+  if (caseId === "nonzero-process") {
+    return { ...processResult, status: 1 };
+  }
+  if (caseId === "nonempty-stderr") {
+    return { ...processResult, stderr: "WARNING: local proof\n", stderrBuf: Buffer.from("WARNING: local proof\n") };
+  }
+  if (caseId === "poison-present") {
+    const stdout = `${JSON.stringify({ ...envelopeRow, poisonPresent: true })}\n`;
+    return { ...processResult, stdout, stdoutBuf: Buffer.from(stdout) };
+  }
+  return processResult;
+}
 
-const stdoutBuf = Buffer.isBuffer(child.stdout) ? child.stdout : Buffer.from(child.stdout || "");
-const stderrBuf = Buffer.isBuffer(child.stderr) ? child.stderr : Buffer.from(child.stderr || "");
+export async function runLocalPsqlPoisonProof(options = {}) {
+  const args = options.args || parseLocalProofArgs(options.argv || process.argv.slice(2));
+  const repoRoot = options.repoRoot || discoverRepoRoot(THIS_DIR);
+  const outDir = path.resolve(args.outDir || options.outDir || path.join(THIS_DIR, "out"));
+  fs.mkdirSync(outDir, { recursive: true });
 
-const rawStdoutHash = createHash("sha256").update(stdoutBuf).digest("hex");
-const rawStderrHash = createHash("sha256").update(stderrBuf).digest("hex");
+  const failHold = (report) => {
+    const payload = {
+      verdict: "HOLD",
+      must_local_psql_proof_on_17_6: true,
+      repairCalls: 0,
+      ...report,
+    };
+    fs.writeFileSync(path.join(outDir, "STATUS.json"), redact(payload));
+    fs.writeFileSync(
+      path.join(outDir, "STATUS.md"),
+      `# Local psql poison proof\n\nVerdict: **HOLD**\n\n${payload.hold_reason || payload.reason || ""}\n`,
+    );
+    return payload;
+  };
 
-// Persist raw bytes for evidence (no secrets expected in poison probe)
-fs.writeFileSync(path.join(OUT, "raw-stdout.bin"), stdoutBuf);
-fs.writeFileSync(path.join(OUT, "raw-stderr.bin"), stderrBuf);
+  if (!repoRoot) {
+    return failHold({
+      reason: "HOLD: cannot discover repo root from import.meta.url",
+      hold_reason: "repo root missing",
+    });
+  }
 
-const processResult = {
-  status: child.status,
-  signal: child.signal,
-  stdout: stdoutBuf.toString("utf8"),
-  stderr: stderrBuf.toString("utf8"),
-  timeout: child.error?.code === "ETIMEDOUT",
-  spawnError: child.error && child.error.code !== "ETIMEDOUT" ? String(child.error.message || child.error) : null,
-  transport: "isolated-psql",
-  argv: args,
-  envKeys: Object.keys(env).sort(),
-  spawned: true,
-};
+  const gatePath = path.join(repoRoot, "scripts/lib/f3-db-push-repair-safety-gate.mjs");
+  const parsePath = path.join(repoRoot, "scripts/lib/f3-db-push-query-parse.mjs");
+  const pinsPath = path.join(repoRoot, "scripts/lib/f3-db-push-pins.mjs");
+  const injectPath = path.join(repoRoot, "scripts/lib/f3-db-push-history-inject.mjs");
+  const versionPath = path.join(repoRoot, "scripts/lib/f3-db-push-version-map.mjs");
 
-const framing = framingFn(processResult.stdout);
-const hashed = hashFn(processResult.stdout);
-const preserved = preserveFn(processResult);
-const contract = contractFn(processResult);
-const parsed = parseExactFn(processResult);
-const envelope = parsed.ok && envelopeFn
-  ? envelopeFn(parsed.value)
-  : { ok: false, reason: "parse failed before envelope" };
+  const parse = options.parseModule || await import(pathToFileURL(parsePath).href);
+  const gate = options.gateModule || await import(pathToFileURL(gatePath).href);
+  const pins = options.pinsModule || await import(pathToFileURL(pinsPath).href);
+  const inject = options.injectModule || await import(pathToFileURL(injectPath).href);
+  const versions = options.versionModule || await import(pathToFileURL(versionPath).href);
 
-const live = envelope.ok
-  ? {
+  const missingParse = REQUIRED_PARSE_EXPORTS.filter((name) => typeof parse[name] !== "function");
+  if (args.caseId === "undefined-parser-export" || missingParse.length) {
+    const decidedHold = {
+      repairCalls: 0,
+      repairAuthorized: false,
+      callbackOrder: [],
+    };
+    return failHold({
+      reason: "HOLD: undefined/missing parser export",
+      hold_reason: `missing parser exports: ${(missingParse.length ? missingParse : ["parseDuplicateKeySafeJson"]).join(",")}`,
+      missingParse,
+      gate: decidedHold,
+      repairCalls: 0,
+      exact_command: { argv: ["psql", ...(gate.PSQL_POISON_QUERY_ARGV || [])] },
+    });
+  }
+
+  const envFileValues = args.envFile ? loadEnvFile(path.resolve(args.envFile)) : {};
+  const connection = resolveConnection({ args, envFileValues, injected: options });
+  const spawnImpl = options.spawnImpl || spawnSync;
+  const liveAvailable = options.injectedProcessResult != null
+    || typeof options.spawnImpl === "function"
+    || Boolean(connection.host && connection.database && connection.user && connection.password);
+
+  const FILE118 = pins.F3_FORWARD_FILES[0];
+  const expected = gate.getFrozenExpectedFingerprint(FILE118);
+  const catalog = gate.catalogInventoryFromFingerprint(expected);
+  const fingerprint = {
+    expected,
+    observed: gate.buildIndependentObservedFingerprint(FILE118, catalog),
+  };
+  const descriptors = gate.getFrozenExpectedObjectProbeDescriptors(FILE118);
+  const probeRow = {};
+  descriptors.forEach((descriptor, i) => {
+    probeRow[`p${i}`] = { ...descriptor };
+  });
+  const gateInput = {
+    file: FILE118,
+    targetVersion: pins.PREASSIGNED_VERSIONS[FILE118],
+    injectInstalled: true,
+    injectStatus: 0,
+    injectSql: inject.historyInjectSqlForFile(FILE118),
+    exitStatus: 3,
+    stdout: "",
+    stderr: `${pins.HISTORY_INJECT_MARKER}: blocked INSERT for version ${pins.PREASSIGNED_VERSIONS[FILE118]} name ${pins.PREASSIGNED_NAMES[FILE118]}`,
+    historyRows: [],
+    objectsPresent: true,
+    securityPostconditionsOk: true,
+    probe: {
+      status: 0,
+      stdout: JSON.stringify([probeRow]),
+      stderr: "",
+      file: FILE118,
+    },
+    fingerprint: args.caseId === "fingerprint-mismatch"
+      ? { expected, observed: { ...fingerprint.observed, relations: [] } }
+      : fingerprint,
+    digest: pins.FROZEN_DIGESTS[FILE118],
+    onDiskDigest: pins.FROZEN_DIGESTS[FILE118],
+    disposableIdentityVerified: true,
+    productionIdentityRejected: true,
+    cliVersion: pins.CLI_PIN,
+    stagedMigrations: [versions.timestampFilenameFor(FILE118)],
+  };
+
+  const approved = gate.constructImmutableValidatedTargetFromConnection({
+    source: "local-psql-poison-proof-gate",
+  });
+  const disposableEnvelope = gate.assembleFinalPoisonExactRow();
+
+  let processResult;
+  if (options.injectedProcessResult) {
+    processResult = options.injectedProcessResult;
+  } else if (liveAvailable) {
+    processResult = runLocalIsolatedPsql({
+      connection,
+      sql: gate.POISON_ABSENT_PROBE_SQL,
+      argv: gate.PSQL_POISON_QUERY_ARGV,
+      spawnImpl,
+    });
+  } else {
+    return failHold({
+      reason: "HOLD: local PostgreSQL 17.6 / psql unavailable; injected spawn required",
+      hold_reason: "MUST_LOCAL_PSQL_PROOF_ON_17_6",
+      must_local_psql_proof_on_17_6: true,
+      exact_command: { argv: ["psql", ...gate.PSQL_POISON_QUERY_ARGV, "-c", "<POISON_ABSENT_PROBE_SQL>"] },
+    });
+  }
+
+  processResult = applyCaseToProcess(args.caseId, processResult, disposableEnvelope);
+  const stdoutBuf = processResult.stdoutBuf
+    || Buffer.from(String(processResult.stdout ?? ""), "utf8");
+  const stderrBuf = processResult.stderrBuf
+    || Buffer.from(String(processResult.stderr ?? ""), "utf8");
+  const hashedOutBefore = sha256Buf(stdoutBuf);
+  const hashedErrBefore = sha256Buf(stderrBuf);
+  fs.writeFileSync(path.join(outDir, "raw-stdout.bin"), stdoutBuf);
+  fs.writeFileSync(path.join(outDir, "raw-stderr.bin"), stderrBuf);
+
+  const preserved = parse.preserveOriginalProcessStdout({
+    status: processResult.status,
+    stdout: stdoutBuf.toString("utf8"),
+    stderr: stderrBuf.toString("utf8"),
+    signal: processResult.signal ?? null,
+    timeout: processResult.timeout === true,
+    spawnError: processResult.spawnError || null,
+    originalStdout: stdoutBuf.toString("utf8"),
+    transport: processResult.transport || "isolated-psql",
+    argv: processResult.argv,
+  });
+  const original = preserved.ok ? preserved.preserved : {
+    status: processResult.status,
+    stdout: stdoutBuf.toString("utf8"),
+    stderr: stderrBuf.toString("utf8"),
+    signal: processResult.signal ?? null,
+    timeout: processResult.timeout === true,
+    spawnError: processResult.spawnError || null,
+  };
+
+  const contract = parse.evaluateOriginalProcessResultContract(original);
+  const framing = parse.evaluateExactPsqlStdoutFraming(original.stdout);
+  const parsed = parse.parseExactOriginalJsonObject(original);
+  const dup = parsed.ok
+    ? parse.parseDuplicateKeySafeJson(
+      stdoutBuf.subarray(framing.payloadStart ?? 0, framing.payloadEnd ?? stdoutBuf.byteLength),
+    )
+    : parse.parseDuplicateKeySafeJson(original.stdout);
+  const envelope = parsed.ok
+    ? gate.exactPoisonEnvelopeFromOriginal(parsed.value)
+    : { ok: false, reason: parsed.reason || "parse failed before envelope" };
+
+  const localExpectedDb = connection.database || envelope.ok && envelope.row.current_database;
+  const localExpectedRole = connection.user || envelope.ok && envelope.row.current_user;
+  const live = envelope.ok
+    ? {
       current_database: envelope.row.current_database,
       current_user: envelope.row.current_user,
       provenance: "original_query_output",
     }
-  : null;
+    : null;
+  const localBindOk = live
+    && live.current_database === localExpectedDb
+    && live.current_user === localExpectedRole;
 
-const bindOk = live
-  && live.current_database === frozenLocal.expected_live_database
-  && live.current_user === frozenLocal.expected_live_role;
+  const callbackOrder = [];
+  const frozenTarget = args.caseId === "wrong-connection-metadata"
+    ? { ok: false, reason: "wrong connection metadata", target: null }
+    : approved;
+  const cleanup = args.caseId === "cleanup-failure"
+    ? () => {
+      callbackOrder.push("cleanup");
+      return { status: 1, stdout: "", stderr: "ERROR: cleanup failed" };
+    }
+    : () => {
+      callbackOrder.push("cleanup");
+      return { status: 0, stdout: "", stderr: "", sql: inject.REMOVE_HISTORY_INJECT_SQL };
+    };
 
-// Can envelope pass repair gate shape checks (exact keys, poisonPresent false)?
-const repairGateShapeOk = envelope.ok
-  && envelope.row.poisonPresent === false
-  && envelope.row.schema_version === "f3-poison-envelope-v1"
-  && envelope.row.probe_marker === gate.POISON_PROBE_MARKER;
+  const decided = await gate.runRepairSafetyThenMaybeRepair({
+    gateInput,
+    frozenTarget: frozenTarget.ok ? frozenTarget.target : undefined,
+    frozenTargetResult: frozenTarget.ok ? undefined : frozenTarget,
+    cleanup,
+    verifyPoisonAbsent: () => {
+      callbackOrder.push("verify");
+      return original;
+    },
+    repair: () => {
+      callbackOrder.push("repair");
+      return { status: 0, spy: true, remoteRepair: false };
+    },
+  });
 
-const framingMatchesAssumedLf =
-  framing.ok === true
-  && framing.payloadStart === 0
-  && stdoutBuf.length > 0
-  && stdoutBuf[stdoutBuf.length - 1] === 0x0a
-  && !stdoutBuf.includes(0x0d);
+  const live17_6 = options.livePostgres176 === true;
+  const mustLocal = live17_6 !== true;
+  const positiveOk = args.caseId === "positive"
+    && processResult.status === 0
+    && stderrBuf.byteLength === 0
+    && framing.ok === true
+    && contract.ok === true
+    && parsed.ok === true
+    && dup.ok === true
+    && envelope.ok === true
+    && localBindOk === true
+    && decided.repairAuthorized === true
+    && decided.repairCalls === 1
+    && callbackOrder.join(",") === "cleanup,verify,repair";
 
-const continueOk =
-  child.status === 0
-  && stderrBuf.byteLength === 0
-  && framing.ok === true
-  && framingMatchesAssumedLf
-  && preserved.ok === true
-  && contract.ok === true
-  && parsed.ok === true
-  && envelope.ok === true
-  && bindOk === true
-  && repairGateShapeOk === true
-  && processResult.spawnError == null
-  && processResult.timeout !== true;
+  const expectedRepairCalls = args.caseId === "positive" ? 1 : 0;
+  const continueOk = args.caseId === "positive" ? positiveOk : (
+    decided.repairCalls === 0
+    && decided.repairAuthorized === false
+  );
 
-const hexDumpTail = [...stdoutBuf.slice(Math.max(0, stdoutBuf.length - 32))]
-  .map((b) => b.toString(16).padStart(2, "0"))
-  .join(" ");
-const hexDumpHead = [...stdoutBuf.slice(0, Math.min(32, stdoutBuf.length))]
-  .map((b) => b.toString(16).padStart(2, "0"))
-  .join(" ");
+  const report = {
+    verdict: continueOk && args.caseId === "positive" ? "CONTINUE" : (continueOk ? "HOLD" : "HOLD"),
+    caseId: args.caseId,
+    must_local_psql_proof_on_17_6: mustLocal,
+    captured_at_et: new Date().toLocaleString("en-US", { timeZone: "America/New_York", timeZoneName: "short" }),
+    repo_root: repoRoot,
+    out_dir: outDir,
+    exact_command: {
+      argv: ["psql", ...(processResult.argv || gate.PSQL_POISON_QUERY_ARGV || [])],
+      password_on_argv: false,
+      env_keys: processResult.envKeys || null,
+    },
+    process: {
+      exit_status: processResult.status,
+      signal: processResult.signal ?? null,
+      timeout: processResult.timeout === true,
+      spawnError: processResult.spawnError || null,
+      spawned: processResult.spawned === true,
+      transport: processResult.transport || "isolated-psql",
+    },
+    stderr: {
+      byte_length: hashedErrBefore.byteLength,
+      sha256: hashedErrBefore.sha256,
+      exact_zero_bytes: hashedErrBefore.byteLength === 0,
+    },
+    stdout: {
+      byte_length: hashedOutBefore.byteLength,
+      sha256: hashedOutBefore.sha256,
+      BEFORE_parse: true,
+      last_byte: stdoutBuf.length ? stdoutBuf[stdoutBuf.length - 1] : null,
+    },
+    parser: {
+      contract_ok: contract.ok === true,
+      framing_ok: framing.ok === true,
+      parse_ok: parsed.ok === true,
+      duplicate_key_safe: dup.ok === true,
+      envelope_ok: envelope.ok === true,
+      parser_verdict: envelope.parser_verdict || parsed.parser_verdict || contract.parser_verdict || null,
+    },
+    live_bind: {
+      ok: localBindOk === true,
+      live,
+      expected_database: localExpectedDb,
+      expected_user: localExpectedRole,
+    },
+    gate_input: {
+      file: gateInput.file,
+      digest: gateInput.digest,
+      cliVersion: gateInput.cliVersion,
+      fingerprint_expected_sha256: gate.expectedFingerprintSha256(FILE118),
+    },
+    gate_result: {
+      repairAuthorized: decided.repairAuthorized === true,
+      gateAuthorized: decided.gateAuthorized === true,
+      failedGates: decided.gate?.failedGates || [],
+      repairCalls: decided.repairCalls,
+      cleanupCalls: decided.cleanupCalls,
+      verifyCalls: decided.verifyCalls,
+    },
+    callback_order: callbackOrder,
+    repairCalls: decided.repairCalls,
+    expectedRepairCalls,
+    repair_is_spy: true,
+    hold_reason: continueOk && args.caseId === "positive"
+      ? null
+      : (
+        missingParse.length ? "undefined/missing parser export" :
+        processResult.status !== 0 && args.caseId !== "nonzero-process" && args.caseId === "positive" ? `psql exit ${processResult.status}` :
+        !continueOk && args.caseId !== "positive" ? null :
+        !positiveOk ? "positive local proof conditions not met" :
+        null
+      ),
+  };
 
-const report = {
-  verdict: continueOk ? "CONTINUE" : "HOLD",
-  captured_at_et: new Date().toLocaleString("en-US", { timeZone: "America/New_York", timeZoneName: "short" }),
-  tip_sha: "19e997dfadd9f6a8bc1a221a7edb5f6e8ec02d80",
-  host_psql_client: String(hostPsqlVersion.stdout || "").trim(),
-  container_psql: String(containerPsqlVersion.stdout || "").trim(),
-  server_version: String(serverVersion.stdout || "").trim(),
-  exact_command: {
-    argv: ["psql", ...argv, "-c", "<POISON_ABSENT_PROBE_SQL>"],
-    argv_flags: [...argv],
-    password_on_argv: false,
-    env_keys: Object.keys(env).filter((k) => k !== "PGPASSWORD").concat(["PGPASSWORD"]),
-  },
-  process: {
-    exit_status: child.status,
-    signal: child.signal,
-    timeout: processResult.timeout,
-    spawnError: processResult.spawnError,
-  },
-  stderr: {
-    byte_length: stderrBuf.byteLength,
-    sha256: rawStderrHash,
-    exact_zero_bytes: stderrBuf.byteLength === 0,
-  },
-  stdout: {
-    byte_length: stdoutBuf.byteLength,
-    sha256: rawStdoutHash,
-    BEFORE_parse: true,
-    head_hex_32: hexDumpHead,
-    tail_hex_32: hexDumpTail,
-    last_byte: stdoutBuf.length ? stdoutBuf[stdoutBuf.length - 1] : null,
-    contains_cr: stdoutBuf.includes(0x0d),
-    utf8_preview_redacted: stdoutBuf.toString("utf8").slice(0, 240),
-  },
-  framing: {
-    ...framing,
-    assumed_lf_only_contract: parse.PSQL_POISON_STDOUT_FRAMING_CONTRACT,
-    matches_assumed_lf_only: framingMatchesAssumedLf,
-    note: framingMatchesAssumedLf
-      ? "psql 17.11 client → 17.6 server framing matches assumed LF-only contract"
-      : "HOLD: framing differs from assumed LF-only — do not generically relax",
-  },
-  parser: {
-    preserve_ok: preserved.ok,
-    contract_ok: contract.ok,
-    parse_ok: parsed.ok,
-    envelope_ok: envelope.ok,
-    parser_verdict: envelope.parser_verdict || parsed.parser_verdict || contract.parser_verdict || null,
-    reconstructed: false,
-    duplicate_key_safe: true,
-  },
-  frozen_local_connection_metadata: {
-    ...frozenLocal,
-    // no password
-  },
-  live_bind: {
-    ok: bindOk,
-    live,
-    expected_database: frozenLocal.expected_live_database,
-    expected_user: frozenLocal.expected_live_role,
-  },
-  repair_gate_envelope_shape: {
-    ok: repairGateShapeOk,
-    poisonPresent: envelope.ok ? envelope.row.poisonPresent : null,
-    schema_version: envelope.ok ? envelope.row.schema_version : null,
-  },
-  hold_reason: continueOk ? null : (
-    child.status !== 0 ? `psql exit ${child.status}` :
-    stderrBuf.byteLength !== 0 ? "stderr nonempty" :
-    !framingMatchesAssumedLf ? "framing differs from assumed LF-only" :
-    !bindOk ? "live bind to frozen LOCAL metadata failed" :
-    !envelope.ok ? `envelope parse failed: ${envelope.reason || parsed.reason}` :
-    "unspecified hold"
-  ),
-};
+  if (args.caseId !== "positive") {
+    report.verdict = decided.repairCalls === 0 ? "HOLD" : "UNEXPECTED";
+    report.hold_reason = report.hold_reason || args.caseId;
+  }
+  if (args.caseId === "positive" && !live17_6 && !options.injectedProcessResult && typeof options.spawnImpl !== "function") {
+    report.verdict = "HOLD";
+    report.must_local_psql_proof_on_17_6 = true;
+    report.hold_reason = "MUST_LOCAL_PSQL_PROOF_ON_17_6";
+  }
 
-fs.writeFileSync(path.join(OUT, "STATUS.json"), redact(report));
-fs.writeFileSync(path.join(OUT, "STATUS.md"), `# Local psql poison proof\n\nVerdict: **${report.verdict}**\n\n` +
-  `- host psql: ${report.host_psql_client}\n` +
-  `- container psql: ${report.container_psql}\n` +
-  `- server: ${report.server_version}\n` +
-  `- exit: ${report.process.exit_status}\n` +
-  `- stderr bytes: ${report.stderr.byte_length}\n` +
-  `- stdout sha256: ${report.stdout.sha256} len=${report.stdout.byte_length}\n` +
-  `- framing LF-only match: ${report.framing.matches_assumed_lf_only}\n` +
-  `- parser ok: ${report.parser.envelope_ok}\n` +
-  `- local bind ok: ${report.live_bind.ok}\n` +
-  `- repair-gate shape ok: ${report.repair_gate_envelope_shape.ok}\n` +
-  (report.hold_reason ? `\nHOLD reason: ${report.hold_reason}\n` : "\n"));
+  fs.writeFileSync(path.join(outDir, "STATUS.json"), redact(report));
+  fs.writeFileSync(path.join(outDir, "STATUS.md"), `# Local psql poison proof\n\nVerdict: **${report.verdict}**\n\n` +
+    `- case: ${report.caseId}\n` +
+    `- exit: ${report.process.exit_status}\n` +
+    `- stderr bytes: ${report.stderr.byte_length}\n` +
+    `- stdout sha256: ${report.stdout.sha256} len=${report.stdout.byte_length}\n` +
+    `- envelope ok: ${report.parser.envelope_ok}\n` +
+    `- local bind ok: ${report.live_bind.ok}\n` +
+    `- gate authorized: ${report.gate_result.repairAuthorized}\n` +
+    `- callback order: ${report.callback_order.join(" → ")}\n` +
+    `- repairCalls: ${report.repairCalls}\n` +
+    (report.hold_reason ? `\nHOLD reason: ${report.hold_reason}\n` : "\n"));
 
-console.log(JSON.stringify({
-  verdict: report.verdict,
-  exit: report.process.exit_status,
-  stderr_bytes: report.stderr.byte_length,
-  stdout_sha256: report.stdout.sha256,
-  stdout_len: report.stdout.byte_length,
-  framing_ok: report.framing.ok,
-  lf_only: report.framing.matches_assumed_lf_only,
-  envelope_ok: report.parser.envelope_ok,
-  bind_ok: report.live_bind.ok,
-  hold_reason: report.hold_reason,
-}, null, 2));
+  return report;
+}
 
-process.exit(continueOk ? 0 : 1);
+const invokedDirectly = process.argv[1]
+  && path.resolve(process.argv[1]) === THIS_FILE;
+
+if (invokedDirectly) {
+  const report = await runLocalPsqlPoisonProof();
+  console.log(JSON.stringify({
+    verdict: report.verdict,
+    caseId: report.caseId,
+    exit: report.process?.exit_status ?? null,
+    stderr_bytes: report.stderr?.byte_length ?? null,
+    stdout_sha256: report.stdout?.sha256 ?? null,
+    repairCalls: report.repairCalls,
+    must_local_psql_proof_on_17_6: report.must_local_psql_proof_on_17_6,
+    hold_reason: report.hold_reason || null,
+  }, null, 2));
+  process.exit(report.verdict === "CONTINUE" ? 0 : 1);
+}

@@ -1518,12 +1518,12 @@ test("module-load frozen expected hashes are independent of observed and match t
     assert.deepEqual(getFrozenExpectedFingerprint(file).recognition, ["manual_income"]);
   }
   assert.deepEqual(recorded.sha256BeforeDb, {
-    "00118_f3_bounded_financial_epoch_foundation.sql": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
-    "00119_f3_01_core_ledger_foundation.sql": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
-    "00120_f3_02_secure_posting_idempotency.sql": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
-    "00121_f3_03_projection_read_proof.sql": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
-    "00122_f3_04_correction_reversal.sql": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
-    "00123_f3_05_opening_cash_command.sql": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa",
+    "00118_f3_bounded_financial_epoch_foundation.sql": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9",
+    "00119_f3_01_core_ledger_foundation.sql": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589",
+    "00120_f3_02_secure_posting_idempotency.sql": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e",
+    "00121_f3_03_projection_read_proof.sql": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c",
+    "00122_f3_04_correction_reversal.sql": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146",
+    "00123_f3_05_opening_cash_command.sql": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
   });
   assert.equal(
     SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.js_sql_parser_shapes.reason,
@@ -1561,7 +1561,7 @@ test("module-load frozen expected hashes are independent of observed and match t
     assert.notEqual(
       recorded.sha256BeforeDb[file],
       EXPECTED_FINGERPRINT_SEAL_PROVENANCE.hosted_observed_00118_forbidden,
-      `${file} v2 seal must not equal hosted 72af6699`,
+      `${file} v3 seal must not equal hosted 72af6699`,
     );
   }
   assert.notEqual(
@@ -1592,7 +1592,7 @@ test("module-load frozen expected hashes are independent of observed and match t
   );
   assert.equal(
     FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,
-    "3f1dc7b4468a741abda2de680d8604deb914f14e315daa817b171036ca8387f7",
+    "abbfb0b6c08407710e3b4a74dec22ca2aabeeac7e04e8f200c0ac7f7c958fb92",
   );
   assert.equal(
     EXPECTED_FINGERPRINT_SEAL_PROVENANCE.catalog_sha256,
@@ -1622,6 +1622,16 @@ test("module-load frozen expected hashes are independent of observed and match t
       recorded.sha256BeforeDb[file],
       SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.ten_field_schema[file],
       `${file} new seal must supersede ten-field hash`,
+    );
+    assert.notEqual(
+      recorded.sha256BeforeDb[file],
+      SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.f3_full_catalog_v1[file],
+      `${file} new seal must supersede f3-full-catalog-v1 hash`,
+    );
+    assert.notEqual(
+      recorded.sha256BeforeDb[file],
+      SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.f3_full_catalog_v2[file],
+      `${file} new seal must supersede f3-full-catalog-v2 hash`,
     );
   }
   assert.equal(
@@ -3193,12 +3203,12 @@ test("22 successful full captures equal sealed expected hashes; frozen expected 
   assert.equal(recorded.independentOfObserved, true);
   assert.equal(recorded.populatedFromObserved, false);
   const sealed = {
-    "00118_f3_bounded_financial_epoch_foundation.sql": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
-    "00119_f3_01_core_ledger_foundation.sql": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
-    "00120_f3_02_secure_posting_idempotency.sql": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
-    "00121_f3_03_projection_read_proof.sql": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
-    "00122_f3_04_correction_reversal.sql": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
-    "00123_f3_05_opening_cash_command.sql": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa",
+    "00118_f3_bounded_financial_epoch_foundation.sql": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9",
+    "00119_f3_01_core_ledger_foundation.sql": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589",
+    "00120_f3_02_secure_posting_idempotency.sql": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e",
+    "00121_f3_03_projection_read_proof.sql": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c",
+    "00122_f3_04_correction_reversal.sql": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146",
+    "00123_f3_05_opening_cash_command.sql": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
   };
   for (const file of F3_FORWARD_FILES) {
     const frozen = captureFrozenExpectedFingerprint(file);
@@ -4005,7 +4015,7 @@ test("f3-full-catalog-v3 trigger-state and column-ACL negatives forbid repair", 
       o.triggers = o.triggers.map((row, i) => (i === 0 ? { ...row, function_name: "forged", function_identity_arguments: "" } : row));
     }],
     ["TRIG-internal", (o) => {
-      o.triggers = o.triggers.map((row, i) => (i === 0 ? { ...row, tgisinternal: true } : row));
+      o.triggers = o.triggers.map((row, i) => (i === 0 ? { ...row, tgisinternal: !row.tgisinternal } : row));
     }],
     ["COL-missing-attacl", (o) => {
       o.columns = o.columns.map((row, i) => {

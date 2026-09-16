@@ -107,6 +107,7 @@ import {
   inventoryFromQuery,
   parseEvidenceOutArg,
   parseJsonish,
+  preserveOriginalProcessStdout,
   rowsFromQuery,
 } from "./lib/f3-db-push-query-parse.mjs";
 import {
@@ -164,8 +165,8 @@ import {
   MUST_REVERIFY_ON_17_6,
   CATALOG_V3_00123_SUPERSESSION,
   GIT_VERIFICATION_UNAVAILABLE,
-  bindPoisonTargetIdentity,
-  assembleFinalPoisonExactRow,
+  constructImmutableValidatedTargetFromConnection,
+  IMMUTABLE_TARGET_HOLD,
 } from "./lib/f3-db-push-repair-safety-gate.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -509,6 +510,22 @@ async function main() {
     evidence.historyGet = listed;
 
     const isolated = createIsolatedDbPushWorkdir();
+    const frozenTargetBuilt = constructImmutableValidatedTargetFromConnection({
+      source: "qualify-f3-db-push-disposable",
+    });
+    if (!frozenTargetBuilt.ok) {
+      evidence.status = "HOLD";
+      evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+      evidence.limitation = frozenTargetBuilt.reason || IMMUTABLE_TARGET_HOLD;
+      evidence.frozenTarget = { ok: false, reason: frozenTargetBuilt.reason };
+      throw Object.assign(new Error(evidence.limitation), { code: "F3_DBPUSH_TARGET_BINDING" });
+    }
+    evidence.frozenTarget = {
+      ok: true,
+      target: frozenTargetBuilt.target,
+      provenance: frozenTargetBuilt.target.provenance,
+      pooler_username_mapping: frozenTargetBuilt.target.pooler_username_mapping,
+    };
     evidence.isolatedWorkdir = {
       created: true,
       copyCount: isolated.copies.length,
@@ -832,15 +849,19 @@ async function main() {
             host: evidence.host,
             stagedMigrations: staged,
           },
+          frozenTarget: frozenTargetBuilt.target,
           cleanup: () =>
             runGatedRemoteSqlText(isolated.workdir, `remove-inject-${version}.sql`, REMOVE_HISTORY_INJECT_SQL),
-          verifyPoisonAbsent: () =>
-            runDbQuery({
+          verifyPoisonAbsent: async () => {
+            const probe = await runDbQuery({
               bin: cli.bin,
               workdir: isolated.workdir,
               help: queryHelp,
               sql: POISON_ABSENT_PROBE_SQL,
-            }),
+            });
+            const preserved = preserveOriginalProcessStdout(probe);
+            return preserved.ok ? preserved.preserved : probe;
+          },
           repair: async () => {
             const poisonQuery = await runDbQuery({
               bin: cli.bin,
@@ -1147,35 +1168,16 @@ async function main() {
         sql: POISON_ABSENT_PROBE_SQL,
       });
       const poisonSeq = chronologySeq += 1;
-      const livePoison = inventoryFromQuery(poisonFinal.stdout) || {};
-      const boundTarget = bindPoisonTargetIdentity({
-        live: {
-          current_database: livePoison.current_database,
-          current_user: livePoison.current_user,
-          hostname: APPROVED_DISPOSABLE_HOST,
-          pooler_identity: APPROVED_DISPOSABLE_POOLER_USER,
-          qualification_run_id: evidence.expectedFingerprintsBeforeDb?.sha256BeforeDb
-            ? Object.keys(evidence.expectedFingerprintsBeforeDb.sha256BeforeDb).join(",")
-            : "qualify-f3-db-push-disposable",
-        },
-        qualificationRunId: "qualify-f3-db-push-disposable",
-      });
-      const exactPoisonStdout = JSON.stringify(assembleFinalPoisonExactRow({
-        trigger_present: livePoison.trigger_present,
-        function_present: livePoison.function_present,
-        poisonPresent: livePoison.poisonPresent,
-        target_identity: boundTarget.target_identity,
-      }));
-      evidence.finalPoisonProbe = evaluateFinalPoisonAbsence({
-        ...poisonFinal,
-        stdout: exactPoisonStdout,
-        target_identity: boundTarget.target_identity,
-      });
+      const preservedPoison = preserveOriginalProcessStdout(poisonFinal);
+      evidence.finalPoisonProbe = evaluateFinalPoisonAbsence(
+        preservedPoison.ok ? preservedPoison.preserved : poisonFinal,
+        { frozenTarget: frozenTargetBuilt.target },
+      );
       if (args.sequenceF3 && evidence.sequence.length === F3_FORWARD_FILES.length) {
-        if (!boundTarget.ok || !evidence.finalPoisonProbe?.ok || evidence.finalPoisonProbe.poisonPresent !== false) {
+        if (!evidence.finalPoisonProbe?.ok || evidence.finalPoisonProbe.poisonPresent !== false) {
           evidence.status = "HOLD";
           evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
-          evidence.limitation = boundTarget.reason || evidence.finalPoisonProbe?.reason || FINAL_POISON_ABSENCE_HOLD;
+          evidence.limitation = evidence.finalPoisonProbe?.reason || FINAL_POISON_ABSENCE_HOLD;
           evidence.claims.dbPush = FINAL_POISON_ABSENCE_HOLD;
         } else {
         const historyFinal = await runDbQuery({

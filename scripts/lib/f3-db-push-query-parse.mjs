@@ -6,7 +6,15 @@
  * chrome and leaves inventory as a string → leftoverOk false → HOLD.
  *
  * Not a hosted runner. Does not invent SQL or apply migrations.
+ *
+ * Poison / identity probes MUST NOT use the permissive helpers below
+ * (`parseJsonish`, `inventoryFromQuery`, `unwrapInventory`,
+ * `coerceJsonValue`). Those exist only for inventory / fingerprint
+ * chrome. Poison verification uses the strict original-process-result
+ * contract at the bottom of this file.
  */
+
+import { createHash } from "node:crypto";
 
 const BOX_DRAWING = /[\u2500-\u257F]/g;
 
@@ -224,4 +232,421 @@ export function rowsFromQuery(result) {
     return parsed;
   }
   return [];
+}
+
+/**
+ * Strict original child-process result + exact-one-JSON-object contract.
+ * Used by poison / identity verification only. Never reconstructs a
+ * replacement JSON envelope for a later validator.
+ */
+
+export const ORIGINAL_PROCESS_RESULT_HOLD =
+  "HOLD: original process result failed closed; reconstructed or permissive parse forbidden";
+
+const STDOUT_WARNING_OR_ERROR = /(?:^|[\s])(?:WARNING|NOTICE|ERROR|FATAL|PANIC):/im;
+
+function stdoutToBuffer(stdout) {
+  if (Buffer.isBuffer(stdout)) return stdout;
+  if (typeof stdout === "string") return Buffer.from(stdout, "utf8");
+  return null;
+}
+
+function stdoutToText(stdout) {
+  if (Buffer.isBuffer(stdout)) return stdout.toString("utf8");
+  if (typeof stdout === "string") return stdout;
+  return null;
+}
+
+function buffersEqual(a, b) {
+  if (a == null || b == null) return false;
+  const left = stdoutToBuffer(a);
+  const right = stdoutToBuffer(b);
+  if (!left || !right) return false;
+  return left.equals(right);
+}
+
+export function hashOriginalStdout(stdout) {
+  const buf = stdoutToBuffer(stdout);
+  if (!buf) {
+    return { ok: false, sha256: null, byteLength: null };
+  }
+  return {
+    ok: true,
+    sha256: createHash("sha256").update(buf).digest("hex"),
+    byteLength: buf.byteLength,
+  };
+}
+
+/**
+ * Record exact original stdout, SHA-256, and byte length BEFORE any
+ * transformation. Never labels reconstructed content as raw.stdout.
+ */
+export function preserveOriginalProcessStdout(result) {
+  if (result == null || typeof result !== "object" || Array.isArray(result)) {
+    return { ok: false, reason: "process result missing", preserved: result };
+  }
+  if (result.reconstructed === true
+    || result.assembledFromExtractedFields === true
+    || result.stdoutIsReconstructed === true
+    || result.__assembled === true) {
+    return {
+      ok: false,
+      reason: "reconstructed rather than original output",
+      parser_verdict: "reconstructed_not_original",
+      preserved: result,
+    };
+  }
+  const stdout = Object.prototype.hasOwnProperty.call(result, "originalStdout")
+    ? result.originalStdout
+    : result.stdout;
+  if (!(typeof stdout === "string" || Buffer.isBuffer(stdout))) {
+    return {
+      ok: false,
+      reason: "original stdout missing or not string/Buffer",
+      parser_verdict: "stdout_missing",
+      preserved: result,
+    };
+  }
+  if (Object.prototype.hasOwnProperty.call(result, "originalStdout")
+    && result.stdout != null
+    && !buffersEqual(result.originalStdout, result.stdout)) {
+    return {
+      ok: false,
+      reason: "stdout mutated after preservation; reconstructed content is not raw.stdout",
+      parser_verdict: "reconstructed_not_original",
+      preserved: result,
+    };
+  }
+  const hashed = hashOriginalStdout(stdout);
+  const preserved = {
+    ...result,
+    originalStdout: stdout,
+    stdout,
+    originalStdoutSha256: hashed.sha256,
+    originalStdoutByteLength: hashed.byteLength,
+    stdoutPreservedBeforeTransform: true,
+    stdoutIsReconstructed: false,
+  };
+  return { ok: true, preserved, sha256: hashed.sha256, byteLength: hashed.byteLength };
+}
+
+function skipNestedWs(text, index) {
+  let i = index;
+  while (i < text.length && (text[i] === " " || text[i] === "\t" || text[i] === "\n" || text[i] === "\r")) {
+    i += 1;
+  }
+  return i;
+}
+
+function scanJsonString(text, index) {
+  if (text[index] !== "\"") return { ok: false, reason: "non-JSON" };
+  let i = index + 1;
+  while (i < text.length) {
+    const ch = text[i];
+    if (ch === "\\") {
+      if (i + 1 >= text.length) return { ok: false, reason: "non-JSON" };
+      i += 2;
+      continue;
+    }
+    if (ch === "\"") return { ok: true, end: i + 1 };
+    i += 1;
+  }
+  return { ok: false, reason: "non-JSON" };
+}
+
+function scanJsonNumber(text, index) {
+  let i = index;
+  if (text[i] === "-") i += 1;
+  if (i >= text.length || (text[i] < "0" || text[i] > "9")) {
+    return { ok: false, reason: "non-JSON" };
+  }
+  if (text[i] === "0") i += 1;
+  else {
+    while (i < text.length && text[i] >= "0" && text[i] <= "9") i += 1;
+  }
+  if (text[i] === ".") {
+    i += 1;
+    if (i >= text.length || text[i] < "0" || text[i] > "9") {
+      return { ok: false, reason: "non-JSON" };
+    }
+    while (i < text.length && text[i] >= "0" && text[i] <= "9") i += 1;
+  }
+  if (text[i] === "e" || text[i] === "E") {
+    i += 1;
+    if (text[i] === "+" || text[i] === "-") i += 1;
+    if (i >= text.length || text[i] < "0" || text[i] > "9") {
+      return { ok: false, reason: "non-JSON" };
+    }
+    while (i < text.length && text[i] >= "0" && text[i] <= "9") i += 1;
+  }
+  return { ok: true, end: i, type: "number" };
+}
+
+function scanJsonLiteral(text, index, literal, type) {
+  if (text.slice(index, index + literal.length) !== literal) {
+    return { ok: false, reason: "non-JSON" };
+  }
+  return { ok: true, end: index + literal.length, type };
+}
+
+function scanJsonValue(text, index, { allowLeadingWs = true } = {}) {
+  let i = allowLeadingWs ? skipNestedWs(text, index) : index;
+  if (i >= text.length) return { ok: false, reason: "empty" };
+  const ch = text[i];
+  if (ch === "\"") {
+    const scanned = scanJsonString(text, i);
+    if (!scanned.ok) return scanned;
+    return { ok: true, end: scanned.end, type: "string", duplicateKeys: false };
+  }
+  if (ch === "{") return scanJsonObject(text, i);
+  if (ch === "[") return scanJsonArray(text, i);
+  if (ch === "t") return scanJsonLiteral(text, i, "true", "boolean");
+  if (ch === "f") return scanJsonLiteral(text, i, "false", "boolean");
+  if (ch === "n") return scanJsonLiteral(text, i, "null", "null");
+  if (ch === "-" || (ch >= "0" && ch <= "9")) return scanJsonNumber(text, i);
+  return { ok: false, reason: "non-JSON" };
+}
+
+function scanJsonArray(text, index) {
+  let i = index + 1;
+  i = skipNestedWs(text, i);
+  if (text[i] === "]") {
+    return { ok: true, end: i + 1, type: "array", duplicateKeys: false };
+  }
+  let duplicateKeys = false;
+  while (i < text.length) {
+    const value = scanJsonValue(text, i, { allowLeadingWs: true });
+    if (!value.ok) return value;
+    duplicateKeys = duplicateKeys || value.duplicateKeys === true;
+    i = skipNestedWs(text, value.end);
+    if (text[i] === ",") {
+      i += 1;
+      continue;
+    }
+    if (text[i] === "]") {
+      return { ok: true, end: i + 1, type: "array", duplicateKeys };
+    }
+    return { ok: false, reason: "non-JSON" };
+  }
+  return { ok: false, reason: "non-JSON" };
+}
+
+function scanJsonObject(text, index) {
+  let i = index + 1;
+  i = skipNestedWs(text, i);
+  if (text[i] === "}") {
+    return { ok: true, end: i + 1, type: "object", duplicateKeys: false, keys: [] };
+  }
+  const keys = [];
+  let duplicateKeys = false;
+  while (i < text.length) {
+    i = skipNestedWs(text, i);
+    const keyScan = scanJsonString(text, i);
+    if (!keyScan.ok) return { ok: false, reason: "non-JSON" };
+    let key;
+    try {
+      key = JSON.parse(text.slice(i, keyScan.end));
+    } catch {
+      return { ok: false, reason: "non-JSON" };
+    }
+    if (keys.includes(key)) duplicateKeys = true;
+    keys.push(key);
+    i = skipNestedWs(text, keyScan.end);
+    if (text[i] !== ":") return { ok: false, reason: "non-JSON" };
+    const value = scanJsonValue(text, i + 1, { allowLeadingWs: true });
+    if (!value.ok) return value;
+    duplicateKeys = duplicateKeys || value.duplicateKeys === true;
+    i = skipNestedWs(text, value.end);
+    if (text[i] === ",") {
+      i += 1;
+      continue;
+    }
+    if (text[i] === "}") {
+      return { ok: true, end: i + 1, type: "object", duplicateKeys, keys };
+    }
+    return { ok: false, reason: "non-JSON" };
+  }
+  return { ok: false, reason: "non-JSON" };
+}
+
+/**
+ * Bounded duplicate-key-safe parser. JSON.parse cannot guarantee
+ * duplicate-key detection; this scanner does, then JSON.parse is used
+ * only on the exact single-value slice.
+ */
+export function parseDuplicateKeySafeJson(text) {
+  if (text == null) return { ok: false, reason: "empty", parser_verdict: "empty" };
+  if (typeof text !== "string" && !Buffer.isBuffer(text)) {
+    return { ok: false, reason: "stdout not string or Buffer", parser_verdict: "stdout_type" };
+  }
+  const raw = stdoutToText(text);
+  if (raw == null) return { ok: false, reason: "stdout not string or Buffer", parser_verdict: "stdout_type" };
+  if (raw.length === 0) return { ok: false, reason: "empty", parser_verdict: "empty" };
+  if (STDOUT_WARNING_OR_ERROR.test(raw)) {
+    return { ok: false, reason: "warnings or errors in stdout", parser_verdict: "stdout_warning" };
+  }
+  if (raw[0] === "[") {
+    return { ok: false, reason: "arrays when object required", parser_verdict: "array_not_object" };
+  }
+  if (raw[0] !== "{") {
+    return { ok: false, reason: "non-JSON or prefix", parser_verdict: "prefix_or_non_json" };
+  }
+  const scanned = scanJsonValue(raw, 0, { allowLeadingWs: false });
+  if (!scanned.ok) {
+    return { ok: false, reason: scanned.reason || "non-JSON", parser_verdict: scanned.reason || "non-JSON" };
+  }
+  if (scanned.duplicateKeys) {
+    return { ok: false, reason: "duplicate keys", parser_verdict: "duplicate_keys" };
+  }
+  if (scanned.type !== "object") {
+    return { ok: false, reason: "arrays when object required", parser_verdict: "array_not_object" };
+  }
+  const rest = raw.slice(scanned.end);
+  if (rest.length > 0) {
+    if (rest === "\n" || rest === "\r\n") {
+      // single trailing newline from process capture is the only suffix allowed
+    } else if (rest.trim() === "") {
+      return { ok: false, reason: "trailing whitespace", parser_verdict: "trailing" };
+    } else {
+      return {
+        ok: false,
+        reason: "trailing suffix, multi-JSON, or multi-row",
+        parser_verdict: "trailing_or_multi",
+      };
+    }
+  }
+  let value;
+  try {
+    value = JSON.parse(raw.slice(0, scanned.end));
+  } catch {
+    return { ok: false, reason: "non-JSON", parser_verdict: "non-JSON" };
+  }
+  if (value == null || typeof value !== "object" || Array.isArray(value)) {
+    return { ok: false, reason: "arrays when object required", parser_verdict: "array_not_object" };
+  }
+  return { ok: true, value, end: scanned.end, keys: scanned.keys || Object.keys(value) };
+}
+
+export function evaluateOriginalProcessResultContract(result) {
+  const fail = (reason, parser_verdict = "rejected") => ({
+    ok: false,
+    reason,
+    parser_verdict,
+    hold: ORIGINAL_PROCESS_RESULT_HOLD,
+  });
+  if (result == null || typeof result !== "object" || Array.isArray(result)) {
+    return fail("process result missing", "result_missing");
+  }
+  if (result.reconstructed === true
+    || result.assembledFromExtractedFields === true
+    || result.stdoutIsReconstructed === true
+    || result.__assembled === true) {
+    return fail("strict validator received reconstructed rather than original output", "reconstructed_not_original");
+  }
+  if (result.usedFallbackParser === true || result.permissiveParse === true) {
+    return fail("fallback parser is forbidden", "fallback_parser");
+  }
+  if (result.signal || result.signalCode) {
+    return fail(`signal: ${result.signal || result.signalCode}`, "signal");
+  }
+  if (result.timeout === true || result.timedOut === true || result.killed === true) {
+    return fail("timeout", "timeout");
+  }
+  if (result.spawnError || result.executionError) {
+    return fail("spawn/execution error", "spawn_error");
+  }
+  if (result.queryError) {
+    return fail("query error", "query_error");
+  }
+  if (result.error && result.error !== true && result.error !== false) {
+    return fail("spawn/execution error", "spawn_error");
+  }
+  if (!Object.prototype.hasOwnProperty.call(result, "status") || result.status !== 0) {
+    return fail(`nonzero status ${result.status}`, "nonzero_status");
+  }
+  const stderr = result.stderr;
+  if (stderr != null && String(stderr).trim() !== "") {
+    return fail("unexpected stderr", "unexpected_stderr");
+  }
+  const stdout = Object.prototype.hasOwnProperty.call(result, "originalStdout")
+    ? result.originalStdout
+    : result.stdout;
+  if (!(typeof stdout === "string" || Buffer.isBuffer(stdout))) {
+    return fail("original stdout missing or not string/Buffer", "stdout_missing");
+  }
+  if (Object.prototype.hasOwnProperty.call(result, "originalStdout")
+    && result.stdout != null
+    && !buffersEqual(result.originalStdout, result.stdout)) {
+    return fail(
+      "stdout mutated after preservation; reconstructed content is not raw.stdout",
+      "reconstructed_not_original",
+    );
+  }
+  return { ok: true, stdout };
+}
+
+/**
+ * Validate the actual child-process result + original stdout.
+ * Records SHA-256 + byte length BEFORE parsing. Accepts exactly one
+ * JSON object envelope. Does not extract fields and reconstruct.
+ */
+export function parseExactOriginalJsonObject(result) {
+  const contract = evaluateOriginalProcessResultContract(result);
+  if (!contract.ok) {
+    return {
+      ...contract,
+      raw: null,
+      parseResult: { ok: false, reason: contract.reason },
+    };
+  }
+  const preserved = preserveOriginalProcessStdout({
+    ...result,
+    stdout: contract.stdout,
+    originalStdout: contract.stdout,
+  });
+  if (!preserved.ok) {
+    return {
+      ok: false,
+      reason: preserved.reason,
+      parser_verdict: preserved.parser_verdict || "rejected",
+      hold: ORIGINAL_PROCESS_RESULT_HOLD,
+      raw: {
+        stdout: contract.stdout,
+        stdoutSha256: null,
+        stdoutByteLength: null,
+        stdoutPreservedBeforeTransform: false,
+      },
+      parseResult: { ok: false, reason: preserved.reason },
+    };
+  }
+  const raw = {
+    stdout: preserved.preserved.originalStdout,
+    stdoutSha256: preserved.sha256,
+    stdoutByteLength: preserved.byteLength,
+    stdoutPreservedBeforeTransform: true,
+    status: result.status,
+    signal: result.signal ?? result.signalCode ?? null,
+    timeout: result.timeout === true || result.timedOut === true,
+    stderr: result.stderr ?? "",
+  };
+  const parsed = parseDuplicateKeySafeJson(preserved.preserved.originalStdout);
+  if (!parsed.ok) {
+    return {
+      ok: false,
+      reason: parsed.reason,
+      parser_verdict: parsed.parser_verdict || parsed.reason,
+      hold: ORIGINAL_PROCESS_RESULT_HOLD,
+      raw,
+      parseResult: parsed,
+      value: null,
+    };
+  }
+  return {
+    ok: true,
+    value: parsed.value,
+    keys: parsed.keys,
+    raw,
+    parseResult: { ok: true, keys: parsed.keys },
+    preserved: preserved.preserved,
+  };
 }

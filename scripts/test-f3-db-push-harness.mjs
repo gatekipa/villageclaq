@@ -129,10 +129,28 @@ import {
   F3_FULL_FINGERPRINT_SCHEMA_VERSION,
   SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION,
   SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION_V2,
+  SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION_V4,
   CATALOG_V3_00123_SUPERSESSION,
   CATALOG_V3_00123_HASH_D692,
   CATALOG_V3_00123_HASH_D802,
   MUST_REVERIFY_ON_17_6,
+  PRIMARY_PG17_RI_ENFORCEMENT,
+  classifyPrimaryTriggerSemanticRole,
+  applyPrimaryCatalogTriggerRoles,
+  reconcileTriggerPartitions,
+  reproduceTriggerPartitionsFromFingerprint,
+  REPRODUCED_TRIGGER_PARTITION_EXPECTATIONS,
+  GIT_VERIFICATION_UNAVAILABLE,
+  runVerifiedGit,
+  __installGitRunnerForTests,
+  __resetGitRunnerForTests,
+  FINAL_POISON_SCHEMA_VERSION,
+  FINAL_POISON_REQUIRED_KEYS,
+  bindPoisonTargetIdentity,
+  assembleFinalPoisonExactRow,
+  evaluatePoisonTargetIdentity,
+  assertExecutableManifestNoSelfEntry,
+  EXECUTABLE_BYTE_MANIFEST_FILENAME,
   REQUIRED_RUNTIME_READ_INPUTS,
   assertRecursiveClosureReadyForDb,
   evaluateFinalPoisonAbsence,
@@ -272,12 +290,14 @@ function assertRejectedBeforeSpawn(fn) {
 beforeEach(() => {
   __resetDbPushSpawnForTests();
   __resetDbPushFetchForTests();
+  __resetGitRunnerForTests();
   clearEnv();
 });
 
 afterEach(() => {
   __resetDbPushSpawnForTests();
   __resetDbPushFetchForTests();
+  __resetGitRunnerForTests();
   clearEnv();
 });
 
@@ -917,6 +937,37 @@ function poisonAbsentResult() {
   };
 }
 
+function approvedPoisonTargetIdentity(extra = {}) {
+  return {
+    project_ref: APPROVED_DISPOSABLE_PROJECT_REF,
+    project_name: APPROVED_DISPOSABLE_PROJECT_NAME,
+    org_id: APPROVED_DISPOSABLE_ORG_ID,
+    hostname: APPROVED_DISPOSABLE_HOST,
+    database_name: "postgres",
+    user: "postgres",
+    connection_mode: "session_pooler",
+    pooler_identity: APPROVED_DISPOSABLE_POOLER_USER,
+    qualification_run_id: "test-f3-db-push-harness",
+    evidence_schema_version: F3_FULL_FINGERPRINT_SCHEMA_VERSION,
+    ...extra,
+  };
+}
+
+function finalPoisonExactResult(overrides = {}) {
+  const row = assembleFinalPoisonExactRow({
+    trigger_present: false,
+    function_present: false,
+    poisonPresent: false,
+    target_identity: approvedPoisonTargetIdentity(),
+    ...overrides,
+  });
+  return {
+    status: 0,
+    stdout: JSON.stringify(row),
+    stderr: "",
+  };
+}
+
 function provenCleanup() {
   return { status: 0, stdout: "", stderr: "", sql: REMOVE_HISTORY_INJECT_SQL };
 }
@@ -1536,11 +1587,20 @@ test("module-load frozen expected hashes are independent of observed and match t
     SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.f3_full_catalog_v3["00123_f3_05_opening_cash_command.sql"],
     CATALOG_V3_00123_HASH_D692,
   );
-  assert.equal(CATALOG_V3_00123_SUPERSESSION.occurrences.length, 2);
+  assert.ok(CATALOG_V3_00123_SUPERSESSION.occurrences.length >= 20, "complete d692/d802 inventory");
   assert.equal(CATALOG_V3_00123_SUPERSESSION.occurrences[0].hash, CATALOG_V3_00123_HASH_D692);
-  assert.equal(CATALOG_V3_00123_SUPERSESSION.occurrences[1].hash, CATALOG_V3_00123_HASH_D802);
+  assert.ok(CATALOG_V3_00123_SUPERSESSION.occurrences.some((row) => row.hash === CATALOG_V3_00123_HASH_D802));
   assert.equal(CATALOG_V3_00123_SUPERSESSION.do_not_claim_d802_founder_prose_only, true);
   assert.equal(CATALOG_V3_00123_SUPERSESSION.both_superseded_by_v4, true);
+  assert.equal(CATALOG_V3_00123_SUPERSESSION.both_superseded_by_v5, true);
+  for (const occ of CATALOG_V3_00123_SUPERSESSION.occurrences) {
+    assert.ok(occ.path, `${occ.token} missing path`);
+    assert.ok(occ.hash, `${occ.token} missing hash`);
+    assert.ok(occ.role, `${occ.token} missing role`);
+    assert.ok(occ.why_non_authoritative, `${occ.token} missing why_non_authoritative`);
+    assert.equal(occ.v5_superseding_schema, F3_FULL_FINGERPRINT_SCHEMA_VERSION);
+    assert.ok(["executable", "evidence", "log", "prose"].includes(occ.kind), occ.path);
+  }
   assert.notEqual(recorded.sha256BeforeDb["00123_f3_05_opening_cash_command.sql"], CATALOG_V3_00123_HASH_D692);
   assert.notEqual(recorded.sha256BeforeDb["00123_f3_05_opening_cash_command.sql"], CATALOG_V3_00123_HASH_D802);
   assert.equal(
@@ -1579,7 +1639,7 @@ test("module-load frozen expected hashes are independent of observed and match t
     assert.notEqual(
       recorded.sha256BeforeDb[file],
       EXPECTED_FINGERPRINT_SEAL_PROVENANCE.hosted_observed_00118_forbidden,
-      `${file} v4 seal must not equal hosted 72af6699`,
+      `${file} v5 seal must not equal hosted 72af6699`,
     );
   }
   assert.notEqual(
@@ -1619,7 +1679,7 @@ test("module-load frozen expected hashes are independent of observed and match t
   assert.notEqual(
     FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,
     "abbfb0b6c08407710e3b4a74dec22ca2aabeeac7e04e8f200c0ac7f7c958fb92",
-    "V4 oracle catalog digest must supersede Catalog-V3 abbfb0b6",
+    "V5 oracle catalog digest must remain the sealed local-oracle snapshot (roles applied in builder)",
   );
   assert.notEqual(
     FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,
@@ -3315,13 +3375,15 @@ test("poison / post-repair / post-retry evaluators expose distinct HOLD strings"
 });
 
 test("expanded catalog fingerprint schema version and required keys are complete", () => {
-  assert.equal(F3_FULL_FINGERPRINT_SCHEMA_VERSION, "f3-full-catalog-v4");
+  assert.equal(F3_FULL_FINGERPRINT_SCHEMA_VERSION, "f3-full-catalog-v5");
+  assert.equal(SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION_V4, "f3-full-catalog-v4");
   assert.equal(SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION, "f3-full-catalog-v3");
   assert.equal(SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION_V2, "f3-full-catalog-v2");
-  assert.equal(INDEPENDENT_REFERENCE_SCHEMA_VERSION, "f3-full-catalog-v4");
+  assert.equal(INDEPENDENT_REFERENCE_SCHEMA_VERSION, "f3-full-catalog-v5");
   assert.doesNotMatch(F3_FULL_FINGERPRINT_SCHEMA_VERSION, /f3-full-catalog-v1/);
   assert.doesNotMatch(F3_FULL_FINGERPRINT_SCHEMA_VERSION, /f3-full-catalog-v2$/);
   assert.doesNotMatch(F3_FULL_FINGERPRINT_SCHEMA_VERSION, /f3-full-catalog-v3$/);
+  assert.doesNotMatch(F3_FULL_FINGERPRINT_SCHEMA_VERSION, /f3-full-catalog-v4$/);
   assert.equal(MUST_REVERIFY_ON_17_6, true);
   const required = [
     "schema_version", "schema", "schemas", "function_owner", "acl", "acls",
@@ -3921,11 +3983,14 @@ test("Phase B malformed or absent calibration evidence rejects before db push", 
 });
 
 function publishNegativeRecord(partial) {
-  const dbPushCalls = Number(partial.dbPushCalls ?? 0);
-  const repairCalls = Number(partial.repairCalls ?? 0);
-  const continuationCalls = Number(
-    partial.continuationCalls ?? (partial.continuation === true ? 1 : 0),
+  const dbPushCallsObserved = Number(partial.dbPushCallsObserved ?? partial.dbPushCalls ?? 0);
+  const repairCallsObserved = Number(partial.repairCallsObserved ?? partial.repairCalls ?? 0);
+  const continuationCallsObserved = Number(
+    partial.continuationCallsObserved
+    ?? partial.continuationCalls
+    ?? (partial.continuation === true ? 1 : 0),
   );
+  const orderedCallTrace = Array.isArray(partial.orderedCallTrace) ? [...partial.orderedCallTrace] : [];
   return {
     caseId: partial.caseId,
     name: partial.name || partial.caseId,
@@ -3935,9 +4000,13 @@ function publishNegativeRecord(partial) {
     actualClassification: partial.actualClassification || partial.classification,
     classification: partial.classification,
     failedGate: partial.failedGate,
-    dbPushCalls,
-    repairCalls,
-    continuationCalls,
+    dbPushCalls: dbPushCallsObserved,
+    repairCalls: repairCallsObserved,
+    continuationCalls: continuationCallsObserved,
+    dbPushCallsObserved,
+    repairCallsObserved,
+    continuationCallsObserved,
+    orderedCallTrace,
     cleanup: partial.cleanup,
     poisonVerification: partial.poisonVerification,
     continuation: partial.continuation,
@@ -3950,8 +4019,10 @@ async function recordFingerprintReject(caseId, exactMutation, mutate, file = FIL
   const observed = structuredClone(expected);
   mutate(observed);
   const exact = fingerprintCompleteAndExact({ expected, observed }, file);
-  let dbPushCalls = 0;
-  let repairCalls = 0;
+  const orderedCallTrace = [];
+  let dbPushCallsObserved = 0;
+  let repairCallsObserved = 0;
+  let continuationCallsObserved = 0;
   let cleanupCalls = 0;
   let poisonCalls = 0;
   const decided = await runRepairSafetyThenMaybeRepair({
@@ -3968,32 +4039,37 @@ async function recordFingerprintReject(caseId, exactMutation, mutate, file = FIL
     }),
     cleanup: () => {
       cleanupCalls += 1;
+      orderedCallTrace.push("cleanup");
       return provenCleanup();
     },
     verifyPoisonAbsent: () => {
       poisonCalls += 1;
+      orderedCallTrace.push("verifyPoisonAbsent");
       return poisonAbsentResult();
     },
     repair: () => {
-      repairCalls += 1;
+      repairCallsObserved += 1;
+      orderedCallTrace.push("repair");
       return { status: 0 };
     },
   });
+  if (decided.continuation === true) continuationCallsObserved += 1;
   return publishNegativeRecord({
     caseId,
     exactMutation,
     classification: exact.reason || decided.gate?.reason || "rejected",
     failedGate: (decided.gate?.failedGates || []).join(",") || "fingerprint_exact",
-    dbPushCalls,
-    repairCalls,
-    continuationCalls: decided.continuation === true ? 1 : 0,
+    dbPushCallsObserved,
+    repairCallsObserved,
+    continuationCallsObserved,
+    orderedCallTrace,
     enforcementPath: "runRepairSafetyThenMaybeRepair/fingerprintCompleteAndExact",
     expectedClassification: "rejected",
     actualClassification: exact.reason || decided.gate?.reason || "rejected",
     cleanup: cleanupCalls > 0 ? "ran" : "none",
     poisonVerification: poisonCalls > 0 ? "ran" : "none",
     continuation: decided.continuation === true,
-    result: decided.repairAuthorized === false && repairCalls === 0 ? "rejected" : "UNEXPECTED",
+    result: decided.repairAuthorized === false && repairCallsObserved === 0 ? "rejected" : "UNEXPECTED",
   });
 }
 
@@ -4021,9 +4097,9 @@ test("independent collector source-contract: cannot import or invoke primary col
   assert.equal(F3_FUNCTIONAL_RECURSIVE_CLOSURE.independent_reference_source_sha256, recomputed);
 });
 
-test("f3-full-catalog-v4 trigger-state and column-ACL negatives forbid repair", async () => {
+test("f3-full-catalog-v5 trigger-state and column-ACL negatives forbid repair", async () => {
   const expected = getFrozenExpectedFingerprint(FILE118);
-  assert.equal(expected.schema_version, "f3-full-catalog-v4");
+  assert.equal(expected.schema_version, "f3-full-catalog-v5");
   assert.equal(F3_FULL_FINGERPRINT_NESTED_KEYS.triggers.includes("tgenabled"), true);
   assert.equal(F3_FULL_FINGERPRINT_NESTED_KEYS.columns.includes("attacl"), true);
   assert.ok(expected.triggers.every((row) => ["O", "D", "R", "A"].includes(row.tgenabled)));
@@ -5048,9 +5124,10 @@ test("C1-C14 genuine negatives: internal constraint-trigger + evidence-integrity
     actualClassification: c14.code || "EISDIR",
     classification: c14.code || "EISDIR",
     failedGate: "evidence_write",
-    dbPushCalls: Number(c14.dbPushCalls ?? 0),
-    repairCalls: Number(c14.repairCalls ?? 0),
-    continuationCalls: Number(c14.continuationCalls ?? 0),
+    dbPushCallsObserved: Number(c14.dbPushCalls ?? 0),
+    repairCallsObserved: Number(c14.repairCalls ?? 0),
+    continuationCallsObserved: Number(c14.continuationCalls ?? 0),
+    orderedCallTrace: ["commitQualifyEvidenceOrHold"],
     cleanup: "n/a-evidence",
     poisonVerification: "n/a-evidence",
     continuation: false,
@@ -5065,9 +5142,12 @@ test("C1-C14 genuine negatives: internal constraint-trigger + evidence-integrity
 
   for (const record of outcomes) {
     if (record.caseId === "C14") {
+      assert.equal(record.dbPushCallsObserved, 6, "C14 published dbPushCallsObserved must be actual observed, not overwritten zeros");
       assert.equal(record.dbPushCalls, 6, "C14 published dbPushCalls must be actual observed, not overwritten zeros");
+      assert.equal(record.repairCallsObserved, 0, `${record.caseId} repairCallsObserved`);
       assert.equal(record.repairCalls, 0, `${record.caseId} repairCalls`);
       assert.equal(record.continuationCalls, 0, `${record.caseId} continuationCalls`);
+      assert.deepEqual(record.orderedCallTrace, ["commitQualifyEvidenceOrHold"]);
     } else {
       assert.equal(record.repairCalls, 0, `${record.caseId} repairCalls`);
       assert.equal(record.dbPushCalls, 0, `${record.caseId} dbPushCalls`);
@@ -5092,7 +5172,7 @@ test("C1-C14 genuine negatives: internal constraint-trigger + evidence-integrity
 test("V4 genuine negatives: referenced-side FK triggers + fail-closed integrity with actual call counts", async () => {
   const expected = getFrozenExpectedFingerprint(FILE118);
   const universe = enumerateFkConstraintTriggerUniverse(expected);
-  assert.equal(expected.schema_version, "f3-full-catalog-v4");
+  assert.equal(expected.schema_version, "f3-full-catalog-v5");
   assert.ok(universe.total > 0, "v4 trigger universe nonempty");
   assert.equal(F3_FK_TRIGGER_UNIVERSE_BY_MIGRATION[FILE118].total, universe.total);
   const internals = expected.triggers.filter((row) => row.tgisinternal === true && row.constraint_association === true);
@@ -5404,4 +5484,418 @@ test("V4 genuine negatives: referenced-side FK triggers + fail-closed integrity 
     assert.equal(ids.includes(required), true, `missing ${required}`);
   }
   console.log(JSON.stringify({ publishedV4Negatives: records, universe }, null, 2));
+});
+
+test("Catalog-V5 reproduces trigger partitions and forbids relation-OID self-FK classification", () => {
+  assert.equal(F3_FULL_FINGERPRINT_SCHEMA_VERSION, "f3-full-catalog-v5");
+  assert.equal(INDEPENDENT_REFERENCE_SCHEMA_VERSION, "f3-full-catalog-v5");
+  assert.equal(MUST_REVERIFY_ON_17_6, true);
+  assert.doesNotMatch(CATALOG_FINGERPRINT_SQL, /WHEN con\.conrelid = t\.tgrelid THEN 'referencing_action'/);
+  assert.match(CATALOG_FINGERPRINT_SQL, /RI_FKey_check_ins/);
+  assert.match(CATALOG_FINGERPRINT_SQL, /RI_FKey_noaction_upd/);
+  assert.match(CATALOG_FINGERPRINT_SQL, /RI_FKey_restrict_del/);
+  assert.ok(Object.keys(PRIMARY_PG17_RI_ENFORCEMENT).includes("RI_FKey_check_ins"));
+  assert.ok(Object.keys(PRIMARY_PG17_RI_ENFORCEMENT).includes("RI_FKey_noaction_upd"));
+  const independentSrc = fs.readFileSync(path.join(root, INDEPENDENT_REFERENCE_MODULE_RELPATH), "utf8");
+  assert.match(independentSrc, /ri_fn_event_role/);
+  assert.doesNotMatch(independentSrc, /WHEN con\.conrelid = t\.tgrelid THEN 'referencing_action'/);
+  assert.doesNotMatch(independentSrc, /PRIMARY_PG17_RI_ENFORCEMENT/);
+  assert.match(independentSrc, /independentlyParseRiFunctionName/);
+  const reproduced = {};
+  for (const file of F3_FORWARD_FILES) {
+    const fp = getFrozenExpectedFingerprint(file);
+    const parts = reproduceTriggerPartitionsFromFingerprint(fp);
+    assert.equal(parts.ok, true, file);
+    const review = REPRODUCED_TRIGGER_PARTITION_EXPECTATIONS[file];
+    assert.equal(parts.total, review.total, file);
+    assert.equal(parts.internal_fk, review.internal_fk, file);
+    assert.equal(parts.ordinary_user, review.ordinary_user, file);
+    assert.equal(parts.user_defined_constraint, review.user_defined_constraint, file);
+    assert.equal(parts.referencing, review.referencing, file);
+    assert.equal(parts.referenced, review.referenced, file);
+    assert.equal(parts.internal_fk, parts.referencing + parts.referenced, file);
+    reproduced[file.slice(0, 5)] = parts;
+    const selfFk = fp.triggers.filter((row) => (
+      row.constraint_type === "f"
+      && row.referencing_schema === row.referenced_schema
+      && row.referencing_relation === row.referenced_relation
+    ));
+    for (const row of selfFk) {
+      if (row.function_name === "RI_FKey_noaction_upd" || row.function_name === "RI_FKey_restrict_del") {
+        assert.equal(row.action_role, "referenced_action", `${file} ${row.function_name}`);
+      }
+      if (row.function_name === "RI_FKey_check_ins" || row.function_name === "RI_FKey_check_upd") {
+        assert.equal(row.action_role, "referencing_action", `${file} ${row.function_name}`);
+      }
+    }
+  }
+  console.log(JSON.stringify({
+    reproducedTriggerPartitions: reproduced,
+    must_reverify_on_17_6: MUST_REVERIFY_ON_17_6,
+    v5_hashes: FROZEN_EXPECTED_FINGERPRINT_SHA256,
+  }, null, 2));
+});
+
+test("V5 self-FK / git / poison / chronology / manifest negatives publish observed counters", async () => {
+  const file119 = "00119_f3_01_core_ledger_foundation.sql";
+  const expected = getFrozenExpectedFingerprint(file119);
+  const records = [];
+  const publish = (record) => {
+    records.push(publishNegativeRecord(record));
+    return record;
+  };
+
+  const selfAction = expected.triggers.find((row) => (
+    row.function_name === "RI_FKey_noaction_upd"
+    && row.referencing_relation === row.referenced_relation
+  ));
+  const selfCheck = expected.triggers.find((row) => (
+    row.function_name === "RI_FKey_check_ins"
+    && row.referencing_relation === row.referenced_relation
+  ));
+  assert.ok(selfAction, "self-FK action trigger present on 00119");
+  assert.ok(selfCheck, "self-FK check trigger present on 00119");
+
+  publish(await recordFingerprintReject("V5-CHECK-INS-AS-REFED", "check_ins mislabeled referenced", (o) => {
+    o.triggers = o.triggers.map((row) => (
+      row.function_name === "RI_FKey_check_ins" && row.referencing_relation === row.referenced_relation
+        ? { ...row, action_role: "referenced_action" }
+        : row
+    ));
+  }, file119));
+  publish(await recordFingerprintReject("V5-CHECK-UPD-AS-REFED", "check_upd mislabeled referenced", (o) => {
+    o.triggers = o.triggers.map((row) => (
+      row.function_name === "RI_FKey_check_upd" && row.referencing_relation === row.referenced_relation
+        ? { ...row, action_role: "referenced_action" }
+        : row
+    ));
+  }, file119));
+  publish(await recordFingerprintReject("V5-NOACTION-UPD-AS-REFING", "noaction_upd mislabeled referencing", (o) => {
+    o.triggers = o.triggers.map((row) => (
+      row.function_name === "RI_FKey_noaction_upd" && row.referencing_relation === row.referenced_relation
+        ? { ...row, action_role: "referencing_action" }
+        : row
+    ));
+  }, file119));
+  publish(await recordFingerprintReject("V5-RESTRICT-DEL-AS-REFING", "restrict_del mislabeled referencing", (o) => {
+    o.triggers = o.triggers.map((row) => (
+      row.function_name === "RI_FKey_restrict_del" && row.referencing_relation === row.referenced_relation
+        ? { ...row, action_role: "referencing_action" }
+        : row
+    ));
+  }, file119));
+  publish(await recordFingerprintReject("V5-ROLES-SWAPPED-EQUAL-IDS", "roles swapped with equal relation IDs", (o) => {
+    o.triggers = o.triggers.map((row) => (
+      row.referencing_relation === row.referenced_relation && row.constraint_type === "f"
+        ? { ...row, action_role: row.action_role === "referenced_action" ? "referencing_action" : "referenced_action" }
+        : row
+    ));
+  }, file119));
+  publish(await recordFingerprintReject("V5-UNKNOWN-RI", "unknown RI function", (o) => {
+    o.triggers = o.triggers.map((row) => (
+      row === selfAction || (row.function_name === selfAction.function_name && row.constraint_name === selfAction.constraint_name && row.events === selfAction.events)
+        ? { ...row, function_name: "RI_FKey_unknown_fn" }
+        : row
+    ));
+  }, file119));
+  publish(await recordFingerprintReject("V5-RI-INCOMPAT-EVENT", "known RI + incompatible event", (o) => {
+    o.triggers = o.triggers.map((row) => (
+      row.function_name === "RI_FKey_check_ins" && row.events === "INSERT"
+        ? { ...row, events: "DELETE" }
+        : row
+    ));
+  }, file119));
+  const incompat = classifyPrimaryTriggerSemanticRole({
+    ...selfAction,
+    function_name: "RI_FKey_setnull_del",
+    events: "DELETE",
+    constraint_type: "f",
+    constraint_association: true,
+    tgisinternal: true,
+  }, { delete_action: "r" });
+  publish({
+    caseId: "V5-RI-INCOMPAT-ACTION",
+    name: "known RI + incompatible constraint action",
+    exactMutation: "RI_FKey_setnull_del with ON DELETE RESTRICT",
+    enforcementPath: "classifyPrimaryTriggerSemanticRole",
+    classification: incompat.reason || "incompatible_action",
+    failedGate: "ri_role_mapping",
+    dbPushCallsObserved: 0,
+    repairCallsObserved: 0,
+    continuationCallsObserved: 0,
+    orderedCallTrace: [],
+    result: incompat.ok ? "UNEXPECTED" : "rejected",
+  });
+  assert.equal(incompat.ok, false);
+  publish(await recordFingerprintReject("V5-MISSING-SELF-FK", "missing self-FK trigger", (o) => {
+    o.triggers = o.triggers.filter((row) => !(
+      row.function_name === selfAction.function_name
+      && row.constraint_name === selfAction.constraint_name
+      && row.events === selfAction.events
+    ));
+  }, file119));
+  publish(await recordFingerprintReject("V5-DUPLICATE-SELF-FK", "duplicate self-FK trigger", (o) => {
+    o.triggers = [...o.triggers, { ...selfAction }];
+  }, file119));
+  const multiply = reconcileTriggerPartitions([...expected.triggers, { ...selfAction }]);
+  publish({
+    caseId: "V5-MULTIPLY-CLASSIFIED",
+    name: "multiply classified trigger",
+    exactMutation: "duplicate identity in partition reconciler",
+    enforcementPath: "reconcileTriggerPartitions",
+    classification: multiply.reason || "multiply_classified",
+    failedGate: "trigger_partitions",
+    dbPushCallsObserved: 0,
+    repairCallsObserved: 0,
+    continuationCallsObserved: 0,
+    orderedCallTrace: [],
+    result: multiply.ok ? "UNEXPECTED" : "rejected",
+  });
+  assert.equal(multiply.ok, false);
+  publish(await recordFingerprintReject("V5-NO-SEMANTIC-ROLE", "no semantic role", (o) => {
+    o.triggers = o.triggers.map((row) => (
+      row.function_name === selfAction.function_name && row.events === selfAction.events
+        ? (() => { const next = { ...row }; delete next.action_role; return next; })()
+        : row
+    ));
+  }, file119));
+  const brokenTotals = reconcileTriggerPartitions(expected.triggers.map((row, i) => (
+    i === 0 ? { ...row, action_role: "constraint_other", tgisinternal: true, constraint_type: "f", constraint_association: true } : row
+  )));
+  publish({
+    caseId: "V5-CATEGORY-TOTALS",
+    name: "category totals do not reconcile via forced mis-role",
+    exactMutation: "internal FK forced to constraint_other",
+    enforcementPath: "reconcileTriggerPartitions",
+    classification: brokenTotals.ok ? "accepted" : (brokenTotals.reason || "totals"),
+    failedGate: "trigger_partitions",
+    dbPushCallsObserved: 0,
+    repairCallsObserved: 0,
+    continuationCallsObserved: 0,
+    orderedCallTrace: [],
+    result: brokenTotals.ok ? "UNEXPECTED" : "rejected",
+  });
+
+  const gitCases = [
+    ["V5-GIT-NONZERO", () => ({ status: 1, stdout: "", stderr: "fatal" }), "nonzero"],
+    ["V5-GIT-SPAWN-FAIL", () => { throw new Error("ENOENT git"); }, "spawn-fail"],
+    ["V5-GIT-TIMEOUT", () => ({ status: 0, stdout: "abc", timeout: true, killed: true }), "timeout"],
+    ["V5-GIT-MALFORMED", () => ({ status: 0, stdout: "not-a-sha" }), "malformed"],
+    ["V5-GIT-MISSING-BLOB", () => ({ status: 128, stdout: "", stderr: "fatal: path 'missing' does not exist" }), "missing blob"],
+    ["V5-GIT-AMBIGUOUS", () => ({ status: 128, stdout: "", stderr: "fatal: ambiguous argument 'HEAD'" }), "ambiguous revision"],
+  ];
+  for (const [caseId, runner, mutation] of gitCases) {
+    __installGitRunnerForTests(runner);
+    const verified = runVerifiedGit(["rev-parse", "HEAD"], { expectedSchema: "rev-parse" });
+    const gate = assertRecursiveClosureReadyForDb({
+      closure_complete: false,
+      git_verification_unavailable: true,
+      git_verification: verified,
+      missing: 0,
+      unresolved: 0,
+      runtime_read_missing: 0,
+      unexplained_exclusions: 0,
+      uncommitted_functional_diffs: 0,
+      hosted_tree_mismatches: 0,
+      files: [],
+    });
+    publish({
+      caseId,
+      name: `git ${mutation}`,
+      exactMutation: mutation,
+      enforcementPath: "runVerifiedGit/assertRecursiveClosureReadyForDb",
+      classification: verified.reason || gate.reason || GIT_VERIFICATION_UNAVAILABLE,
+      failedGate: "git_verification",
+      dbPushCallsObserved: gate.dbPushCalls,
+      repairCallsObserved: gate.repairCalls,
+      continuationCallsObserved: gate.continuationCalls,
+      orderedCallTrace: ["git"],
+      result: (!verified.ok && !gate.ok && gate.dbPushCalls === 0 && gate.repairCalls === 0) ? "rejected" : "UNEXPECTED",
+    });
+    assert.equal(verified.ok, false, caseId);
+    assert.equal(gate.ok, false, caseId);
+    assert.equal(gate.dbPushCalls, 0, caseId);
+    __resetGitRunnerForTests();
+  }
+
+  const poisonCases = [
+    ["V5-POISON-TARGET-NULL", { ...assembleFinalPoisonExactRow({ trigger_present: false, function_present: false, poisonPresent: false, target_identity: null }) }, "target null"],
+    ["V5-POISON-TARGET-MISMATCH", assembleFinalPoisonExactRow({ trigger_present: false, function_present: false, poisonPresent: false, target_identity: approvedPoisonTargetIdentity({ project_ref: "llbnliixczcqfftxpsmb" }) }), "target mismatch"],
+    ["V5-POISON-EXTRA-KEY", { ...assembleFinalPoisonExactRow({ trigger_present: false, function_present: false, poisonPresent: false, target_identity: approvedPoisonTargetIdentity() }), canary_present: true }, "extra key"],
+    ["V5-POISON-MISSING-KEY", { trigger_present: false, function_present: false, poisonPresent: false }, "missing key"],
+    ["V5-POISON-WRONG-TYPE", assembleFinalPoisonExactRow({ trigger_present: "false", function_present: false, poisonPresent: false, target_identity: approvedPoisonTargetIdentity() }), "wrong type"],
+  ];
+  for (const [caseId, row, mutation] of poisonCases) {
+    const evaled = evaluateFinalPoisonAbsence({ status: 0, stdout: JSON.stringify(row), stderr: "" });
+    publish({
+      caseId,
+      name: `final poison ${mutation}`,
+      exactMutation: mutation,
+      enforcementPath: "evaluateFinalPoisonAbsence",
+      classification: evaled.reason || FINAL_POISON_ABSENCE_HOLD,
+      failedGate: "final_poison_absence",
+      dbPushCallsObserved: 0,
+      repairCallsObserved: 0,
+      continuationCallsObserved: 0,
+      orderedCallTrace: ["evaluateFinalPoisonAbsence"],
+      result: (evaled.ok === false && evaled.parser_verdict !== "valid_json_exact_schema") ? "rejected" : "UNEXPECTED",
+    });
+    assert.equal(evaled.ok, false, caseId);
+    assert.notEqual(evaled.parser_verdict, "valid_json_exact_schema", caseId);
+  }
+  const subset = evaluateFinalPoisonAbsence({
+    status: 0,
+    stdout: JSON.stringify({
+      schema_version: FINAL_POISON_SCHEMA_VERSION,
+      trigger_present: false,
+      function_present: false,
+      poisonPresent: false,
+    }),
+    stderr: "",
+  });
+  assert.notEqual(subset.parser_verdict, "valid_json_exact_schema");
+  assert.equal(subset.ok, false);
+
+  const beforePoison = assertFinalInventoryChronology({
+    inventories: {
+      [INVENTORY_PHASES.FINAL]: labelInventoryCapture({
+        phase: INVENTORY_PHASES.FINAL,
+        body: { financial_private: true, financial_core: true, financial_ledger_epochs: true },
+      }),
+    },
+    historyRows: F3_FORWARD_FILES.map((file, i) => ({ version: String(i), name: file })),
+    recognition: ["manual_income"],
+    poisonPresent: false,
+    poisonVerified: true,
+    historyVerified: true,
+    capturedBeforePoison: true,
+    poisonSequence: 2,
+    historySequence: 3,
+    finalInventorySequence: 1,
+  });
+  publish({
+    caseId: "V5-INV-BEFORE-POISON",
+    name: "final inventory before poison",
+    exactMutation: "capturedBeforePoison",
+    enforcementPath: "assertFinalInventoryChronology",
+    classification: beforePoison.reason || "before_poison",
+    failedGate: "inventory_chronology",
+    dbPushCallsObserved: 0,
+    repairCallsObserved: 0,
+    continuationCallsObserved: 0,
+    orderedCallTrace: ["assertFinalInventoryChronology"],
+    result: beforePoison.ok ? "UNEXPECTED" : "rejected",
+  });
+  assert.equal(beforePoison.ok, false);
+  const beforeHistory = assertFinalInventoryChronology({
+    inventories: {
+      [INVENTORY_PHASES.FINAL]: labelInventoryCapture({
+        phase: INVENTORY_PHASES.FINAL,
+        body: { financial_private: true, financial_core: true, financial_ledger_epochs: true },
+      }),
+    },
+    historyRows: F3_FORWARD_FILES.map((file, i) => ({ version: String(i), name: file })),
+    recognition: ["manual_income"],
+    poisonPresent: false,
+    poisonVerified: true,
+    historyVerified: true,
+    capturedBeforeHistory: true,
+    poisonSequence: 1,
+    historySequence: 3,
+    finalInventorySequence: 2,
+  });
+  publish({
+    caseId: "V5-INV-BEFORE-HISTORY",
+    name: "final inventory before history",
+    exactMutation: "capturedBeforeHistory",
+    enforcementPath: "assertFinalInventoryChronology",
+    classification: beforeHistory.reason || "before_history",
+    failedGate: "inventory_chronology",
+    dbPushCallsObserved: 0,
+    repairCallsObserved: 0,
+    continuationCallsObserved: 0,
+    orderedCallTrace: ["assertFinalInventoryChronology"],
+    result: beforeHistory.ok ? "UNEXPECTED" : "rejected",
+  });
+  assert.equal(beforeHistory.ok, false);
+
+  const selfManifest = assertExecutableManifestNoSelfEntry({
+    artifact: "executable-manifest",
+    schema: "f3-executable-byte-manifest-v1",
+    self_entries: 1,
+    files: [{ path: EXECUTABLE_MANIFEST_FILENAME, sha256: "0".repeat(64), bytes: 1 }],
+  });
+  publish({
+    caseId: "V5-MANIFEST-SELF-ENTRY",
+    name: "manifest self-entry",
+    exactMutation: "executable-manifest lists itself",
+    enforcementPath: "assertExecutableManifestNoSelfEntry",
+    classification: selfManifest.reason || "self_entry",
+    failedGate: "executable_manifest",
+    dbPushCallsObserved: 0,
+    repairCallsObserved: 0,
+    continuationCallsObserved: 0,
+    orderedCallTrace: ["assertExecutableManifestNoSelfEntry"],
+    result: selfManifest.ok ? "UNEXPECTED" : "rejected",
+  });
+  assert.equal(selfManifest.ok, false);
+
+  const evidDir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-v5-idx-"));
+  const outPath = path.join(evidDir, "suite.out");
+  fs.writeFileSync(outPath, "ok 1 - placeholder\n");
+  const written = writeSuiteMetaForOutFile(outPath, { tests: [{ name: "placeholder", ok: true }] });
+  const execWritten = writeExecutableManifest(evidDir, [
+    { path: "suite.out", sha256: written.meta.sha256, bytes: written.meta.bytes },
+  ]);
+  writeEvidenceIndexAndChecksum(evidDir, [
+    { path: "suite.out", sha256: written.meta.sha256, bytes: written.meta.bytes },
+    { path: EXECUTABLE_MANIFEST_FILENAME, sha256: execWritten.sha256, bytes: execWritten.bytes },
+  ]);
+  fs.writeFileSync(outPath, "mutated after index\n");
+  const mutated = verifyEvidenceIndex(evidDir);
+  publish({
+    caseId: "V5-INDEX-MUTATED-ARTIFACT",
+    name: "index→mutated artifact",
+    exactMutation: "rewrite suite.out after detached index",
+    enforcementPath: "verifyEvidenceIndex",
+    classification: mutated.reason || "index_ne_committed",
+    failedGate: "evidence_index",
+    dbPushCallsObserved: 0,
+    repairCallsObserved: 0,
+    continuationCallsObserved: 0,
+    orderedCallTrace: ["verifyEvidenceIndex"],
+    result: mutated.ok ? "UNEXPECTED" : "rejected",
+  });
+  assert.equal(mutated.ok, false);
+  fs.rmSync(evidDir, { recursive: true, force: true });
+
+  for (const record of records) {
+    assert.equal(record.repairCallsObserved, 0, `${record.caseId} repairCallsObserved`);
+    assert.equal(record.dbPushCallsObserved, 0, `${record.caseId} dbPushCallsObserved`);
+    assert.equal(record.continuationCallsObserved, 0, `${record.caseId} continuationCallsObserved`);
+    assert.ok(Array.isArray(record.orderedCallTrace), `${record.caseId} trace`);
+    assert.notEqual(record.result, "UNEXPECTED", record.caseId);
+  }
+  const ids = records.map((row) => row.caseId);
+  for (const required of [
+    "V5-CHECK-INS-AS-REFED", "V5-CHECK-UPD-AS-REFED", "V5-NOACTION-UPD-AS-REFING",
+    "V5-RESTRICT-DEL-AS-REFING", "V5-ROLES-SWAPPED-EQUAL-IDS", "V5-UNKNOWN-RI",
+    "V5-RI-INCOMPAT-EVENT", "V5-RI-INCOMPAT-ACTION", "V5-MISSING-SELF-FK",
+    "V5-DUPLICATE-SELF-FK", "V5-MULTIPLY-CLASSIFIED", "V5-NO-SEMANTIC-ROLE",
+    "V5-CATEGORY-TOTALS", "V5-GIT-NONZERO", "V5-GIT-SPAWN-FAIL", "V5-GIT-TIMEOUT",
+    "V5-GIT-MALFORMED", "V5-GIT-MISSING-BLOB", "V5-GIT-AMBIGUOUS",
+    "V5-POISON-TARGET-NULL", "V5-POISON-TARGET-MISMATCH", "V5-POISON-EXTRA-KEY",
+    "V5-POISON-MISSING-KEY", "V5-POISON-WRONG-TYPE", "V5-INV-BEFORE-POISON",
+    "V5-INV-BEFORE-HISTORY", "V5-MANIFEST-SELF-ENTRY", "V5-INDEX-MUTATED-ARTIFACT",
+  ]) {
+    assert.equal(ids.includes(required), true, `missing ${required}`);
+  }
+  const independentPath = path.join(root, INDEPENDENT_REFERENCE_MODULE_RELPATH);
+  const independentSha = createHash("sha256").update(fs.readFileSync(independentPath)).digest("hex");
+  console.log(JSON.stringify({
+    publishedV5Negatives: records,
+    independent_reference_source_sha256: independentSha,
+    schema_version: F3_FULL_FINGERPRINT_SCHEMA_VERSION,
+    must_reverify_on_17_6: MUST_REVERIFY_ON_17_6,
+  }, null, 2));
 });

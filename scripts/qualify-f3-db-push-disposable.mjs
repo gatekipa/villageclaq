@@ -167,6 +167,9 @@ import {
   GIT_VERIFICATION_UNAVAILABLE,
   constructImmutableValidatedTargetFromConnection,
   IMMUTABLE_TARGET_HOLD,
+  runIsolatedPoisonPsqlQuery,
+  PSQL_POISON_QUERY_ARGV,
+  MUST_LOCAL_PSQL_PROOF_ON_17_6,
 } from "./lib/f3-db-push-repair-safety-gate.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -853,10 +856,8 @@ async function main() {
           cleanup: () =>
             runGatedRemoteSqlText(isolated.workdir, `remove-inject-${version}.sql`, REMOVE_HISTORY_INJECT_SQL),
           verifyPoisonAbsent: async () => {
-            const probe = await runDbQuery({
-              bin: cli.bin,
-              workdir: isolated.workdir,
-              help: queryHelp,
+            const probe = runIsolatedPoisonPsqlQuery({
+              frozenTarget: frozenTargetBuilt.target,
               sql: POISON_ABSENT_PROBE_SQL,
             });
             const preserved = preserveOriginalProcessStdout(probe);
@@ -1161,12 +1162,17 @@ async function main() {
       });
       evidence.migrationListAfter = listedAfter;
       let chronologySeq = 0;
-      const poisonFinal = await runDbQuery({
-        bin: cli.bin,
-        workdir: isolated.workdir,
-        help: queryHelp,
+      const poisonFinal = runIsolatedPoisonPsqlQuery({
+        frozenTarget: frozenTargetBuilt.target,
         sql: POISON_ABSENT_PROBE_SQL,
       });
+      evidence.poisonPsqlTransport = {
+        argv: poisonFinal.argv || [...PSQL_POISON_QUERY_ARGV],
+        psqlVersion: poisonFinal.psqlVersion || null,
+        envKeys: poisonFinal.envKeys || null,
+        transport: poisonFinal.transport || "isolated-psql",
+        must_local_psql_proof_on_17_6: MUST_LOCAL_PSQL_PROOF_ON_17_6,
+      };
       const poisonSeq = chronologySeq += 1;
       const preservedPoison = preserveOriginalProcessStdout(poisonFinal);
       evidence.finalPoisonProbe = evaluateFinalPoisonAbsence(

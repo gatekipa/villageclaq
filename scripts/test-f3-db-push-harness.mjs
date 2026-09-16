@@ -128,6 +128,20 @@ import {
   FINGERPRINT_FIELD_REGISTRY,
   F3_FULL_FINGERPRINT_SCHEMA_VERSION,
   SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION,
+  SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION_V2,
+  CATALOG_V3_00123_SUPERSESSION,
+  CATALOG_V3_00123_HASH_D692,
+  CATALOG_V3_00123_HASH_D802,
+  MUST_REVERIFY_ON_17_6,
+  REQUIRED_RUNTIME_READ_INPUTS,
+  assertRecursiveClosureReadyForDb,
+  evaluateFinalPoisonAbsence,
+  enumerateFkConstraintTriggerUniverse,
+  F3_FK_TRIGGER_UNIVERSE_BY_MIGRATION,
+  EXECUTABLE_MANIFEST_FILENAME,
+  FINAL_POISON_ABSENCE_HOLD,
+  RECURSIVE_CLOSURE_HOLD,
+  writeExecutableManifest,
   F3_FULL_FINGERPRINT_NESTED_KEYS,
   F3_FUNCTIONAL_RECURSIVE_CLOSURE,
   buildFunctionalRecursiveRuntimeClosure,
@@ -1517,14 +1531,18 @@ test("module-load frozen expected hashes are independent of observed and match t
   for (const file of F3_FORWARD_FILES) {
     assert.deepEqual(getFrozenExpectedFingerprint(file).recognition, ["manual_income"]);
   }
-  assert.deepEqual(recorded.sha256BeforeDb, {
-    "00118_f3_bounded_financial_epoch_foundation.sql": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9",
-    "00119_f3_01_core_ledger_foundation.sql": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589",
-    "00120_f3_02_secure_posting_idempotency.sql": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e",
-    "00121_f3_03_projection_read_proof.sql": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c",
-    "00122_f3_04_correction_reversal.sql": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146",
-    "00123_f3_05_opening_cash_command.sql": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
-  });
+  assert.deepEqual(recorded.sha256BeforeDb, { ...FROZEN_EXPECTED_FINGERPRINT_SHA256 });
+  assert.equal(
+    SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.f3_full_catalog_v3["00123_f3_05_opening_cash_command.sql"],
+    CATALOG_V3_00123_HASH_D692,
+  );
+  assert.equal(CATALOG_V3_00123_SUPERSESSION.occurrences.length, 2);
+  assert.equal(CATALOG_V3_00123_SUPERSESSION.occurrences[0].hash, CATALOG_V3_00123_HASH_D692);
+  assert.equal(CATALOG_V3_00123_SUPERSESSION.occurrences[1].hash, CATALOG_V3_00123_HASH_D802);
+  assert.equal(CATALOG_V3_00123_SUPERSESSION.do_not_claim_d802_founder_prose_only, true);
+  assert.equal(CATALOG_V3_00123_SUPERSESSION.both_superseded_by_v4, true);
+  assert.notEqual(recorded.sha256BeforeDb["00123_f3_05_opening_cash_command.sql"], CATALOG_V3_00123_HASH_D692);
+  assert.notEqual(recorded.sha256BeforeDb["00123_f3_05_opening_cash_command.sql"], CATALOG_V3_00123_HASH_D802);
   assert.equal(
     SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.js_sql_parser_shapes.reason,
     JS_SQL_PARSER_SUPERSEDED_REASON,
@@ -1561,7 +1579,7 @@ test("module-load frozen expected hashes are independent of observed and match t
     assert.notEqual(
       recorded.sha256BeforeDb[file],
       EXPECTED_FINGERPRINT_SEAL_PROVENANCE.hosted_observed_00118_forbidden,
-      `${file} v3 seal must not equal hosted 72af6699`,
+      `${file} v4 seal must not equal hosted 72af6699`,
     );
   }
   assert.notEqual(
@@ -1592,11 +1610,16 @@ test("module-load frozen expected hashes are independent of observed and match t
   );
   assert.equal(
     FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,
-    "abbfb0b6c08407710e3b4a74dec22ca2aabeeac7e04e8f200c0ac7f7c958fb92",
+    "5fd8fd857aa75932e18b8649a42b69502488ff16c8d7f882524a6460ddfa4164",
   );
   assert.equal(
     EXPECTED_FINGERPRINT_SEAL_PROVENANCE.catalog_sha256,
     FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,
+  );
+  assert.notEqual(
+    FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,
+    "abbfb0b6c08407710e3b4a74dec22ca2aabeeac7e04e8f200c0ac7f7c958fb92",
+    "V4 oracle catalog digest must supersede Catalog-V3 abbfb0b6",
   );
   assert.notEqual(
     FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,
@@ -1632,6 +1655,11 @@ test("module-load frozen expected hashes are independent of observed and match t
       recorded.sha256BeforeDb[file],
       SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.f3_full_catalog_v2[file],
       `${file} new seal must supersede f3-full-catalog-v2 hash`,
+    );
+    assert.notEqual(
+      recorded.sha256BeforeDb[file],
+      SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.f3_full_catalog_v3[file],
+      `${file} new seal must supersede f3-full-catalog-v3 hash`,
     );
   }
   assert.equal(
@@ -3202,14 +3230,7 @@ test("22 successful full captures equal sealed expected hashes; frozen expected 
   assert.equal(recorded.recordedBeforeDbAccess, true);
   assert.equal(recorded.independentOfObserved, true);
   assert.equal(recorded.populatedFromObserved, false);
-  const sealed = {
-    "00118_f3_bounded_financial_epoch_foundation.sql": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9",
-    "00119_f3_01_core_ledger_foundation.sql": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589",
-    "00120_f3_02_secure_posting_idempotency.sql": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e",
-    "00121_f3_03_projection_read_proof.sql": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c",
-    "00122_f3_04_correction_reversal.sql": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146",
-    "00123_f3_05_opening_cash_command.sql": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
-  };
+  const sealed = { ...FROZEN_EXPECTED_FINGERPRINT_SHA256 };
   for (const file of F3_FORWARD_FILES) {
     const frozen = captureFrozenExpectedFingerprint(file);
     assert.equal(frozen.sha256, sealed[file], file);
@@ -3294,11 +3315,14 @@ test("poison / post-repair / post-retry evaluators expose distinct HOLD strings"
 });
 
 test("expanded catalog fingerprint schema version and required keys are complete", () => {
-  assert.equal(F3_FULL_FINGERPRINT_SCHEMA_VERSION, "f3-full-catalog-v3");
-  assert.equal(SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION, "f3-full-catalog-v2");
-  assert.equal(INDEPENDENT_REFERENCE_SCHEMA_VERSION, "f3-full-catalog-v3");
+  assert.equal(F3_FULL_FINGERPRINT_SCHEMA_VERSION, "f3-full-catalog-v4");
+  assert.equal(SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION, "f3-full-catalog-v3");
+  assert.equal(SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION_V2, "f3-full-catalog-v2");
+  assert.equal(INDEPENDENT_REFERENCE_SCHEMA_VERSION, "f3-full-catalog-v4");
   assert.doesNotMatch(F3_FULL_FINGERPRINT_SCHEMA_VERSION, /f3-full-catalog-v1/);
   assert.doesNotMatch(F3_FULL_FINGERPRINT_SCHEMA_VERSION, /f3-full-catalog-v2$/);
+  assert.doesNotMatch(F3_FULL_FINGERPRINT_SCHEMA_VERSION, /f3-full-catalog-v3$/);
+  assert.equal(MUST_REVERIFY_ON_17_6, true);
   const required = [
     "schema_version", "schema", "schemas", "function_owner", "acl", "acls",
     "policy", "policies", "relations", "columns", "types", "views", "routines",
@@ -3897,13 +3921,23 @@ test("Phase B malformed or absent calibration evidence rejects before db push", 
 });
 
 function publishNegativeRecord(partial) {
+  const dbPushCalls = Number(partial.dbPushCalls ?? 0);
+  const repairCalls = Number(partial.repairCalls ?? 0);
+  const continuationCalls = Number(
+    partial.continuationCalls ?? (partial.continuation === true ? 1 : 0),
+  );
   return {
     caseId: partial.caseId,
+    name: partial.name || partial.caseId,
     exactMutation: partial.exactMutation,
+    enforcementPath: partial.enforcementPath || partial.failedGate,
+    expectedClassification: partial.expectedClassification || "rejected",
+    actualClassification: partial.actualClassification || partial.classification,
     classification: partial.classification,
     failedGate: partial.failedGate,
-    dbPushCalls: partial.dbPushCalls,
-    repairCalls: partial.repairCalls,
+    dbPushCalls,
+    repairCalls,
+    continuationCalls,
     cleanup: partial.cleanup,
     poisonVerification: partial.poisonVerification,
     continuation: partial.continuation,
@@ -3952,6 +3986,10 @@ async function recordFingerprintReject(caseId, exactMutation, mutate, file = FIL
     failedGate: (decided.gate?.failedGates || []).join(",") || "fingerprint_exact",
     dbPushCalls,
     repairCalls,
+    continuationCalls: decided.continuation === true ? 1 : 0,
+    enforcementPath: "runRepairSafetyThenMaybeRepair/fingerprintCompleteAndExact",
+    expectedClassification: "rejected",
+    actualClassification: exact.reason || decided.gate?.reason || "rejected",
     cleanup: cleanupCalls > 0 ? "ran" : "none",
     poisonVerification: poisonCalls > 0 ? "ran" : "none",
     continuation: decided.continuation === true,
@@ -3983,9 +4021,9 @@ test("independent collector source-contract: cannot import or invoke primary col
   assert.equal(F3_FUNCTIONAL_RECURSIVE_CLOSURE.independent_reference_source_sha256, recomputed);
 });
 
-test("f3-full-catalog-v3 trigger-state and column-ACL negatives forbid repair", async () => {
+test("f3-full-catalog-v4 trigger-state and column-ACL negatives forbid repair", async () => {
   const expected = getFrozenExpectedFingerprint(FILE118);
-  assert.equal(expected.schema_version, "f3-full-catalog-v3");
+  assert.equal(expected.schema_version, "f3-full-catalog-v4");
   assert.equal(F3_FULL_FINGERPRINT_NESTED_KEYS.triggers.includes("tgenabled"), true);
   assert.equal(F3_FULL_FINGERPRINT_NESTED_KEYS.columns.includes("attacl"), true);
   assert.ok(expected.triggers.every((row) => ["O", "D", "R", "A"].includes(row.tgenabled)));
@@ -4899,28 +4937,51 @@ test("C1-C14 genuine negatives: internal constraint-trigger + evidence-integrity
 
   const incompleteList = ["scripts/qualify-f3-db-push-disposable.mjs"];
   const recursive = buildFunctionalRecursiveRuntimeClosure();
+  const incompleteClosure = {
+    ...recursive,
+    files: incompleteList,
+    closure_complete: false,
+    missing: 1,
+    unresolved: 0,
+    runtime_read_missing: REQUIRED_RUNTIME_READ_INPUTS.length,
+    runtime_read_missing_paths: REQUIRED_RUNTIME_READ_INPUTS.map((item) => item.path),
+    unexplained_exclusions: 0,
+    uncommitted_functional_diffs: 0,
+    hosted_tree_mismatches: 0,
+  };
+  const c11gate = assertRecursiveClosureReadyForDb(incompleteClosure);
   const c11ok = recursive.closure_complete === true
     && recursive.missing === 0
     && recursive.unresolved === 0
+    && recursive.runtime_read_missing === 0
     && recursive.unexplained_exclusions === 0
     && recursive.files.length > incompleteList.length
     && F3_FORWARD_FILES.every((file) => recursive.files.includes(`supabase/migrations/${file}`))
+    && REQUIRED_RUNTIME_READ_INPUTS.every((item) => recursive.files.includes(item.path))
     && recursive.files.includes(INDEPENDENT_REFERENCE_MODULE_RELPATH)
-    && !Object.isFrozen(incompleteList);
+    && c11gate.ok === false
+    && c11gate.dbAccess === false
+    && c11gate.dbPushCalls === 0
+    && c11gate.repairCalls === 0;
   publish({
     caseId: "C11",
-    exactMutation: "incomplete recursive local dependency closure (hand list is not recursive)",
-    classification: c11ok ? "recursive_complete" : "incomplete_closure",
+    exactMutation: "incomplete recursive local dependency closure submitted to real enforcement gate",
+    enforcementPath: "assertRecursiveClosureReadyForDb",
+    expectedClassification: "rejected",
+    actualClassification: c11gate.reason || "incomplete_closure",
+    classification: c11ok ? "rejected-incomplete-closure" : "UNEXPECTED",
     failedGate: "recursive_runtime_closure",
-    dbPushCalls: 0,
-    repairCalls: 0,
-    continuationCalls: 0,
+    dbPushCalls: c11gate.dbPushCalls,
+    repairCalls: c11gate.repairCalls,
+    continuationCalls: c11gate.continuationCalls,
     cleanup: "n/a-closure",
     poisonVerification: "n/a-closure",
     continuation: false,
-    result: c11ok ? "rejected-hand-list" : "UNEXPECTED",
+    result: c11ok ? "rejected" : "UNEXPECTED",
   });
-  assert.equal(recursive.method, "recursive_static_and_deterministic_dynamic_imports");
+  assert.equal(recursive.method, "recursive_static_dynamic_and_runtime_filesystem_reads");
+  assert.equal(c11gate.ok, false);
+  assert.equal(c11gate.dbPushCalls, 0);
   assert.equal(c11ok, true);
 
   const premature = assertFinalInventoryChronology({
@@ -4982,11 +5043,14 @@ test("C1-C14 genuine negatives: internal constraint-trigger + evidence-integrity
   publish({
     caseId: "C14",
     exactMutation: "post-database evidence-write EISDIR must prevent PASS",
+    enforcementPath: "commitQualifyEvidenceOrHold",
+    expectedClassification: "rejected",
+    actualClassification: c14.code || "EISDIR",
     classification: c14.code || "EISDIR",
     failedGate: "evidence_write",
-    dbPushCalls: 0,
-    repairCalls: 0,
-    continuationCalls: 0,
+    dbPushCalls: Number(c14.dbPushCalls ?? 0),
+    repairCalls: Number(c14.repairCalls ?? 0),
+    continuationCalls: Number(c14.continuationCalls ?? 0),
     cleanup: "n/a-evidence",
     poisonVerification: "n/a-evidence",
     continuation: false,
@@ -4996,13 +5060,20 @@ test("C1-C14 genuine negatives: internal constraint-trigger + evidence-integrity
   assert.equal(c14.hold, true);
   assert.equal(c14.exitCode, 1);
   assert.equal(c14.status, "HOLD");
+  assert.equal(c14.dbPushCalls, 6);
   fs.rmSync(c14dir, { recursive: true, force: true });
 
   for (const record of outcomes) {
-    assert.equal(record.repairCalls, 0, `${record.caseId} repairCalls`);
-    assert.equal(record.dbPushCalls, 0, `${record.caseId} dbPushCalls`);
-    if (Object.prototype.hasOwnProperty.call(record, "continuationCalls")) {
+    if (record.caseId === "C14") {
+      assert.equal(record.dbPushCalls, 6, "C14 published dbPushCalls must be actual observed, not overwritten zeros");
+      assert.equal(record.repairCalls, 0, `${record.caseId} repairCalls`);
       assert.equal(record.continuationCalls, 0, `${record.caseId} continuationCalls`);
+    } else {
+      assert.equal(record.repairCalls, 0, `${record.caseId} repairCalls`);
+      assert.equal(record.dbPushCalls, 0, `${record.caseId} dbPushCalls`);
+      if (Object.prototype.hasOwnProperty.call(record, "continuationCalls")) {
+        assert.equal(record.continuationCalls, 0, `${record.caseId} continuationCalls`);
+      }
     }
     assert.notEqual(record.result, "UNEXPECTED", record.caseId);
     assert.notEqual(record.classification, "accepted", record.caseId);
@@ -5016,4 +5087,321 @@ test("C1-C14 genuine negatives: internal constraint-trigger + evidence-integrity
     schema_version: F3_FULL_FINGERPRINT_SCHEMA_VERSION,
     independent_reference_source_sha256: F3_FUNCTIONAL_RECURSIVE_CLOSURE.independent_reference_source_sha256,
   }, null, 2));
+});
+
+test("V4 genuine negatives: referenced-side FK triggers + fail-closed integrity with actual call counts", async () => {
+  const expected = getFrozenExpectedFingerprint(FILE118);
+  const universe = enumerateFkConstraintTriggerUniverse(expected);
+  assert.equal(expected.schema_version, "f3-full-catalog-v4");
+  assert.ok(universe.total > 0, "v4 trigger universe nonempty");
+  assert.equal(F3_FK_TRIGGER_UNIVERSE_BY_MIGRATION[FILE118].total, universe.total);
+  const internals = expected.triggers.filter((row) => row.tgisinternal === true && row.constraint_association === true);
+  const referenced = internals.filter((row) => row.action_role === "referenced_action");
+  const referencing = internals.filter((row) => row.action_role === "referencing_action");
+  const work = (referenced[0] || referencing[0] || expected.triggers[0]);
+  assert.ok(work, "v4 work trigger");
+
+  const records = [];
+  const publish = (record) => {
+    records.push(publishNegativeRecord(record));
+    return record;
+  };
+
+  const mutateIdx = expected.triggers.findIndex((row) => (
+    row.schema === work.schema
+    && row.relation === work.relation
+    && row.constraint_name === work.constraint_name
+    && row.action_role === work.action_role
+    && row.events === work.events
+  ));
+  const idx = mutateIdx >= 0 ? mutateIdx : 0;
+
+  publish(await recordFingerprintReject("V4-MISSING-REF-ACTION", "missing referenced-side action trigger", (o) => {
+    const i = o.triggers.findIndex((row) => row.action_role === "referenced_action");
+    o.triggers = o.triggers.filter((_, n) => n !== (i >= 0 ? i : idx));
+  }));
+  publish(await recordFingerprintReject("V4-EXTRA-REF-ACTION", "extra referenced-side action trigger", (o) => {
+    const base = o.triggers.find((row) => row.action_role === "referenced_action") || o.triggers[idx];
+    o.triggers = [...o.triggers, {
+      ...base,
+      constraint_name: `${base.constraint_name}_extra_ref`,
+      action_role: "referenced_action",
+      user_trigger_name: "",
+      user_definition: "",
+      tgisinternal: true,
+      constraint_association: true,
+    }];
+  }));
+  publish(await recordFingerprintReject("V4-TGENABLED-O-D", "tgenabled O→D", (o) => {
+    o.triggers = o.triggers.map((row, i) => (i === idx ? { ...row, tgenabled: "D" } : row));
+  }));
+  publish(await recordFingerprintReject("V4-TGENABLED-O-R", "tgenabled O→R", (o) => {
+    o.triggers = o.triggers.map((row, i) => (i === idx ? { ...row, tgenabled: "R" } : row));
+  }));
+  publish(await recordFingerprintReject("V4-TGENABLED-O-A", "tgenabled O→A", (o) => {
+    o.triggers = o.triggers.map((row, i) => (i === idx ? { ...row, tgenabled: "A" } : row));
+  }));
+  publish(await recordFingerprintReject("V4-TGDEFERRABLE", "tgdeferrable mismatch", (o) => {
+    o.triggers = o.triggers.map((row, i) => (i === idx ? { ...row, tgdeferrable: !row.tgdeferrable } : row));
+  }));
+  publish(await recordFingerprintReject("V4-TGINITDEFERRED", "tginitdeferred mismatch", (o) => {
+    o.triggers = o.triggers.map((row, i) => (i === idx ? { ...row, tginitdeferred: !row.tginitdeferred } : row));
+  }));
+  publish(await recordFingerprintReject("V4-REF-SWAP", "referencing/referenced swap", (o) => {
+    o.triggers = o.triggers.map((row, i) => (
+      i === idx
+        ? {
+          ...row,
+          referencing_schema: row.referenced_schema || row.schema,
+          referencing_relation: row.referenced_relation || row.relation,
+          referenced_schema: row.referencing_schema,
+          referenced_relation: row.referencing_relation,
+        }
+        : row
+    ));
+  }));
+  publish(await recordFingerprintReject("V4-OWNING-REASSOC", "trigger-owning reassociation", (o) => {
+    o.triggers = o.triggers.map((row, i) => (
+      i === idx ? { ...row, schema: "public", relation: "profiles" } : row
+    ));
+  }));
+  publish(await recordFingerprintReject("V4-FN-IDENTITY", "function identity mismatch", (o) => {
+    o.triggers = o.triggers.map((row, i) => (
+      i === idx
+        ? { ...row, function_schema: "pg_catalog", function_name: "forged_ri", function_identity_arguments: "oid" }
+        : row
+    ));
+  }));
+  publish(await recordFingerprintReject("V4-ACTION-ROLE", "action role mismatch", (o) => {
+    o.triggers = o.triggers.map((row, i) => (
+      i === idx
+        ? { ...row, action_role: row.action_role === "referenced_action" ? "referencing_action" : "referenced_action" }
+        : row
+    ));
+  }));
+  publish(await recordFingerprintReject("V4-DUPLICATE", "duplicate record", (o) => {
+    o.triggers = [...o.triggers, { ...o.triggers[idx] }];
+  }));
+  publish(await recordFingerprintReject("V4-MALFORMED", "malformed/partial trigger record", (o) => {
+    o.triggers = o.triggers.map((row, i) => {
+      if (i !== idx) return row;
+      const next = { ...row };
+      delete next.action_role;
+      delete next.tgdeferrable;
+      delete next.referencing_schema;
+      return next;
+    });
+  }));
+  publish(await recordFingerprintReject("V4-CONDEFER-SUBST", "constraint-level substituted for per-trigger", (o) => {
+    o.triggers = o.triggers.map((row, i) => {
+      if (i !== idx) return row;
+      const next = { ...row };
+      delete next.tgdeferrable;
+      delete next.tginitdeferred;
+      next.deferrable = row.condeferrable;
+      next.initially_deferred = row.condeferred;
+      return next;
+    });
+  }));
+
+  const incompleteClosure = {
+    files: ["scripts/qualify-f3-db-push-disposable.mjs"],
+    closure_complete: false,
+    missing: 4,
+    unresolved: 1,
+    runtime_read_missing: REQUIRED_RUNTIME_READ_INPUTS.length,
+    runtime_read_missing_paths: REQUIRED_RUNTIME_READ_INPUTS.map((item) => item.path),
+    unexplained_exclusions: 0,
+    uncommitted_functional_diffs: 0,
+    hosted_tree_mismatches: 0,
+  };
+  const incompleteGate = assertRecursiveClosureReadyForDb(incompleteClosure);
+  publish({
+    caseId: "V4-INCOMPLETE-CLOSURE",
+    name: "incomplete closure submitted to real gate",
+    exactMutation: "hand list missing runtime-read inputs and migrations",
+    enforcementPath: "assertRecursiveClosureReadyForDb",
+    expectedClassification: "rejected",
+    actualClassification: incompleteGate.reason || RECURSIVE_CLOSURE_HOLD,
+    classification: incompleteGate.reason || "incomplete_closure",
+    failedGate: "recursive_runtime_closure",
+    dbPushCalls: incompleteGate.dbPushCalls,
+    repairCalls: incompleteGate.repairCalls,
+    continuationCalls: incompleteGate.continuationCalls,
+    result: (!incompleteGate.ok && incompleteGate.dbPushCalls === 0) ? "rejected" : "UNEXPECTED",
+  });
+  assert.equal(incompleteGate.ok, false);
+  assert.equal(incompleteGate.dbPushCalls, 0);
+
+  const runtimeMissing = {
+    ...buildFunctionalRecursiveRuntimeClosure(),
+    closure_complete: false,
+    runtime_read_missing: 1,
+    runtime_read_missing_paths: ["src/lib/financial-f3-recognition.ts"],
+    files: buildFunctionalRecursiveRuntimeClosure().files.filter((rel) => rel !== "src/lib/financial-f3-recognition.ts"),
+  };
+  const runtimeGate = assertRecursiveClosureReadyForDb(runtimeMissing);
+  publish({
+    caseId: "V4-RUNTIME-READ-MISSING",
+    name: "runtime-read input missing from closure",
+    exactMutation: "drop src/lib/financial-f3-recognition.ts from submitted closure",
+    enforcementPath: "assertRecursiveClosureReadyForDb",
+    expectedClassification: "rejected",
+    actualClassification: runtimeGate.reason || "runtime_read_missing",
+    classification: runtimeGate.reason || "runtime_read_missing",
+    failedGate: "recursive_runtime_closure",
+    dbPushCalls: runtimeGate.dbPushCalls,
+    repairCalls: runtimeGate.repairCalls,
+    continuationCalls: runtimeGate.continuationCalls,
+    result: (!runtimeGate.ok && runtimeGate.dbPushCalls === 0) ? "rejected" : "UNEXPECTED",
+  });
+  assert.equal(runtimeGate.ok, false);
+
+  const poisonCases = [
+    ["V4-POISON-NONZERO", { status: 1, stdout: JSON.stringify({ trigger_present: false, function_present: false, poisonPresent: false }), stderr: "" }, "nonzero"],
+    ["V4-POISON-SQL", { status: 0, stdout: JSON.stringify({ trigger_present: false, function_present: false, poisonPresent: false }), stderr: "ERROR:  relation does not exist" }, "SQL error"],
+    ["V4-POISON-NONJSON", { status: 0, stdout: "not-json", stderr: "" }, "non-JSON"],
+    ["V4-POISON-MISSING-BOOL", { status: 0, stdout: JSON.stringify({ trigger_present: false, function_present: false }), stderr: "" }, "missing boolean"],
+    ["V4-POISON-PRESENT-TRUE", { status: 0, stdout: JSON.stringify({ trigger_present: false, function_present: false, poisonPresent: true }), stderr: "" }, "poisonPresent true"],
+  ];
+  for (const [caseId, probe, mutation] of poisonCases) {
+    const evaled = evaluateFinalPoisonAbsence(probe);
+    publish({
+      caseId,
+      name: `final poison ${mutation}`,
+      exactMutation: mutation,
+      enforcementPath: "evaluateFinalPoisonAbsence",
+      expectedClassification: "rejected",
+      actualClassification: evaled.reason || FINAL_POISON_ABSENCE_HOLD,
+      classification: evaled.reason || "poison",
+      failedGate: "final_poison_absence",
+      dbPushCalls: 0,
+      repairCalls: 0,
+      continuationCalls: 0,
+      result: (evaled.ok === false && evaled.absent === false) ? "rejected" : "UNEXPECTED",
+    });
+    assert.equal(evaled.ok, false, caseId);
+    assert.equal(evaled.absent, false, caseId);
+  }
+
+  const evidDir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-v4-evid-"));
+  const outPath = path.join(evidDir, "suite.out");
+  fs.writeFileSync(outPath, "ok 1 - placeholder\n");
+  const written = writeSuiteMetaForOutFile(outPath, { tests: [{ name: "placeholder", ok: true }] });
+  const execWritten = writeExecutableManifest(evidDir, [
+    { path: "suite.out", sha256: written.meta.sha256, bytes: written.meta.bytes },
+  ]);
+  const index = writeEvidenceIndexAndChecksum(evidDir, [
+    { path: "suite.out", sha256: written.meta.sha256, bytes: written.meta.bytes },
+    { path: EXECUTABLE_MANIFEST_FILENAME, sha256: execWritten.sha256, bytes: execWritten.bytes },
+  ]);
+  fs.writeFileSync(execWritten.abs, `${JSON.stringify({ artifact: "mutated" }, null, 2)}\n`);
+  const mutatedManifest = verifyEvidenceIndex(evidDir);
+  publish({
+    caseId: "V4-MANIFEST-MUTATED",
+    name: "executable manifest mutated after index",
+    exactMutation: "rewrite executable-manifest.json after detached index write",
+    enforcementPath: "verifyEvidenceIndex",
+    expectedClassification: "rejected",
+    actualClassification: mutatedManifest.reason || "manifest_mutated",
+    classification: mutatedManifest.reason || "manifest_mutated",
+    failedGate: "evidence_index",
+    dbPushCalls: 0,
+    repairCalls: 0,
+    continuationCalls: 0,
+    result: mutatedManifest.ok ? "UNEXPECTED" : "rejected",
+  });
+  assert.equal(mutatedManifest.ok, false);
+
+  fs.writeFileSync(execWritten.abs, `${JSON.stringify(execWritten.manifest, null, 2)}\n`);
+  const detached = structuredClone(index.index);
+  detached.artifacts = detached.artifacts.map((item) => (
+    item.path === "suite.out" ? { ...item, sha256: "2".repeat(64) } : item
+  ));
+  fs.writeFileSync(path.join(evidDir, EVIDENCE_INDEX_FILENAME), JSON.stringify(detached, null, 2));
+  const indexNe = verifyEvidenceIndex(evidDir);
+  publish({
+    caseId: "V4-INDEX-NE-COMMITTED",
+    name: "index entry ≠ committed",
+    exactMutation: "index suite.out sha256 rewritten after commit",
+    enforcementPath: "verifyEvidenceIndex",
+    expectedClassification: "rejected",
+    actualClassification: indexNe.reason || "index_ne_committed",
+    classification: indexNe.reason || "index_ne_committed",
+    failedGate: "evidence_index",
+    dbPushCalls: 0,
+    repairCalls: 0,
+    continuationCalls: 0,
+    result: indexNe.ok ? "UNEXPECTED" : "rejected",
+  });
+  assert.equal(indexNe.ok, false);
+  fs.rmSync(evidDir, { recursive: true, force: true });
+
+  const semanticRaw = JSON.stringify({
+    default_acl_canonical: [{ privilege_type: "EXECUTE", grantee: "anon", note: "super-secret-db-password" }],
+  });
+  const semanticSanitized = sanitizeEvidenceOutBytes(semanticRaw, ["super-secret-db-password"]);
+  const c10 = assertSanitizationPreservesSemanticFingerprint(semanticRaw, semanticSanitized);
+  publish({
+    caseId: "V4-SANITIZE-SEMANTIC",
+    name: "sanitization changes semantic fingerprint",
+    exactMutation: "REDACT privilege-adjacent secret inside default_acl_canonical",
+    enforcementPath: "assertSanitizationPreservesSemanticFingerprint",
+    expectedClassification: "rejected",
+    actualClassification: c10.code || "F3_SEMANTIC_SANITIZE",
+    classification: c10.code || "F3_SEMANTIC_SANITIZE",
+    failedGate: "evidence_sanitize",
+    dbPushCalls: 0,
+    repairCalls: 0,
+    continuationCalls: 0,
+    result: c10.ok ? "UNEXPECTED" : "rejected",
+  });
+  assert.equal(c10.ok, false);
+
+  const disagree = evaluateIndependentReferenceAgreement({
+    primary: expected,
+    independent: { ...expected, triggers: [] },
+  });
+  publish({
+    caseId: "V4-PRIMARY-REF-DISAGREE",
+    name: "V4 primary/reference disagreement",
+    exactMutation: "independent triggers emptied",
+    enforcementPath: "evaluateIndependentReferenceAgreement",
+    expectedClassification: "rejected",
+    actualClassification: disagree.reason || "independent_reference_disagreement",
+    classification: disagree.reason || "independent_reference_disagreement",
+    failedGate: "fingerprint_exact",
+    dbPushCalls: 0,
+    repairCalls: 0,
+    continuationCalls: 0,
+    result: disagree.ok ? "UNEXPECTED" : "rejected",
+  });
+  assert.equal(disagree.ok, false);
+
+  for (const record of records) {
+    assert.notEqual(record.result, "UNEXPECTED", record.caseId);
+    assert.equal(record.expectedClassification, "rejected", record.caseId);
+    assert.equal(typeof record.dbPushCalls, "number", `${record.caseId} actual dbPushCalls`);
+    assert.equal(typeof record.repairCalls, "number", `${record.caseId} actual repairCalls`);
+    assert.equal(typeof record.continuationCalls, "number", `${record.caseId} actual continuationCalls`);
+    if (["V4-INCOMPLETE-CLOSURE", "V4-RUNTIME-READ-MISSING"].includes(record.caseId)
+      || record.caseId.startsWith("V4-POISON")
+      || record.caseId.startsWith("V4-TGENABLED")
+      || record.failedGate === "fingerprint_exact") {
+      assert.equal(record.repairCalls, 0, `${record.caseId} no repair after failed gate`);
+    }
+  }
+  const ids = records.map((row) => row.caseId);
+  for (const required of [
+    "V4-MISSING-REF-ACTION", "V4-EXTRA-REF-ACTION", "V4-TGENABLED-O-D", "V4-TGENABLED-O-R",
+    "V4-TGENABLED-O-A", "V4-TGDEFERRABLE", "V4-TGINITDEFERRED", "V4-REF-SWAP",
+    "V4-OWNING-REASSOC", "V4-FN-IDENTITY", "V4-ACTION-ROLE", "V4-DUPLICATE",
+    "V4-MALFORMED", "V4-CONDEFER-SUBST", "V4-INCOMPLETE-CLOSURE", "V4-RUNTIME-READ-MISSING",
+    "V4-POISON-NONZERO", "V4-POISON-SQL", "V4-POISON-NONJSON", "V4-POISON-MISSING-BOOL",
+    "V4-POISON-PRESENT-TRUE", "V4-MANIFEST-MUTATED", "V4-INDEX-NE-COMMITTED",
+    "V4-SANITIZE-SEMANTIC", "V4-PRIMARY-REF-DISAGREE",
+  ]) {
+    assert.equal(ids.includes(required), true, `missing ${required}`);
+  }
+  console.log(JSON.stringify({ publishedV4Negatives: records, universe }, null, 2));
 });

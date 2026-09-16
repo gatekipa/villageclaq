@@ -1,0 +1,15 @@
+{
+  "artifact": "M3_F3_01_RESULTS_20260912",
+  "ticket": "F3-01",
+  "functional_sha": "a1e9311552a2698a8296e8f87eb1d000a5c259fe",
+  "migration": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql",
+  "depends_on": "00118_f3_bounded_financial_epoch_foundation.sql",
+  "suite": "scripts/test-financial-f3-foundation-db.mjs",
+  "result": "43/43 PASS",
+  "expected_change": "none — same 43/43 oracle as old tip; Cut 1 HGP 3-arg + group_positions join is SAFER OR UNCHANGED vs old stub HGP",
+  "notes": [
+    "Deny-by-default browser writes to posted truth",
+    "Append-only events/postings, balanced postings, custody/funds/categories, epoch bind",
+    "No CREATE OR REPLACE has_group_permission"
+  ]
+}

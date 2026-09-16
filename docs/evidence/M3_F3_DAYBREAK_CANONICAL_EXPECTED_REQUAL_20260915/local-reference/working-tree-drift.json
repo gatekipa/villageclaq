@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "functional_sha_marker": "2fcc65114d89f098dc5d0f7787a99cb08c643c21",
+  "three_scripts": {
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs": {
+      "sha256": "8d9a6182c214d111ca1cb5dc27cc071376b9c6e98b902f9fdc16fd83a3dd2258",
+      "match": true
+    },
+    "scripts/qualify-f3-db-push-disposable.mjs": {
+      "sha256": "8bd9e5b03aec83cf5185d2a398298b15ed88203a226690d4a85392063fdf8e97",
+      "match": true
+    },
+    "scripts/test-f3-db-push-harness.mjs": {
+      "sha256": "d3c08917af5b151d11e30bec4f3503c661d3e94f430ca7ffd91f6704c1265f2e",
+      "match": true
+    }
+  },
+  "note": "tarball extract; no git working tree; marker+script sha256 verify no drift"
+}

@@ -1,0 +1,93 @@
+{
+  "artifact": "prehosted-gate",
+  "functional_sha": "2fcc65114d89f098dc5d0f7787a99cb08c643c21",
+  "verdict": "CONTINUE",
+  "failed_checks": [],
+  "checks": {
+    "local_pg_version_compat": true,
+    "local_reference_isolation_proofs": true,
+    "source_derived_expected_equals_independent_reference_all_six": true,
+    "expected_hashes_sealed_before_hosted": true,
+    "structures_deep_frozen_module_load": true,
+    "npm_test_f3_db_push": true,
+    "suite_counts": {
+      "suite": "test:f3-db-push",
+      "tests": 113,
+      "pass": 112,
+      "fail": 0,
+      "skipped": 1,
+      "exit_ok": true,
+      "skip_documented": true,
+      "functional_sha": "2fcc65114d89f098dc5d0f7787a99cb08c643c21"
+    },
+    "recursive_runtime_closure_complete": true,
+    "closure_counts": {
+      "local_files": 50,
+      "missing": 0,
+      "unresolved": 0,
+      "unexplained_exclusions": 0,
+      "uncommitted_functional_diffs": 0,
+      "exclusions": 15,
+      "six_migrations": 6
+    },
+    "evidence_generation_integrity_and_suite_metadata_in_harness": true,
+    "cli_exactly_2_117_0": true,
+    "cli_path": "/workspace/f3-dbpush-qual/bin/supabase",
+    "cli_version": "2.117.0",
+    "migration_digests_exact": true,
+    "no_uncommitted_functional_drift": true,
+    "recognition_exact_manual_income": true,
+    "not_hosted_72af6699": true,
+    "pg_proof": {
+      "captured_at_utc": "2026-09-15T02:13:04.675257Z",
+      "container": "f3-reference-pg176",
+      "image": "postgres:17.6",
+      "listen": "127.0.0.1:55432",
+      "database": "f3_reference_oracle_20260915",
+      "version()": "PostgreSQL 17.6 (Debian 17.6-2.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+      "current_database": "f3_reference_oracle_20260915",
+      "server_version": "17.6 (Debian 17.6-2.pgdg13+1)",
+      "server_version_num": "170006",
+      "pg_engine": "17.6",
+      "isolation": {
+        "docker_publish": "127.0.0.1:55432->5432/tcp",
+        "connection_host_intended": "127.0.0.1",
+        "no_hosted_contact": true,
+        "database_prefix": "f3_reference_",
+        "ss_listen": "127.0.0.1:55432 only",
+        "host_17_11_on_5432_avoided": true,
+        "seal_admin_url_host_port": "127.0.0.1:55432",
+        "seal_database": "f3_reference_seal_20260915",
+        "preexisting_oracle_preserved": "f3_reference_oracle_20260915"
+      },
+      "status": "floor+00117 applied; ready_for_00118_seq",
+      "reseal_captured_at_utc": "2026-09-15T02:17:52.122174+00:00"
+    }
+  },
+  "builder_vs_reference_summary": {
+    "raw_keys": [
+      "00118_f3_bounded_financial_epoch_foundation.sql",
+      "00119_f3_01_core_ledger_foundation.sql",
+      "00120_f3_02_secure_posting_idempotency.sql",
+      "00121_f3_03_projection_read_proof.sql",
+      "00122_f3_04_correction_reversal.sql",
+      "00123_f3_05_opening_cash_command.sql"
+    ]
+  },
+  "new_expected_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "8299680fd5b3def52a981ae8c8ee097f29f13507b91d4f0799557236f1b5001c",
+    "00119_f3_01_core_ledger_foundation.sql": "0ee6c447ac89510f381abd30908b7fb5ba304537e60c577d6eedcc7835a7ed43",
+    "00120_f3_02_secure_posting_idempotency.sql": "13234a1e57a8c181da1a356ba1f236efc919efb6edb642062239499ff10d0ce9",
+    "00121_f3_03_projection_read_proof.sql": "b1693eda6e5e3944db092d800e037e366c9fd8e18723db962493b502c539cb30",
+    "00122_f3_04_correction_reversal.sql": "9add78f222edc0f933512f726f08ed92feed94432b9a9234c32e6952a1dfc00c",
+    "00123_f3_05_opening_cash_command.sql": "0234d2bf2374c8a681d186b8d77364b4b4db02eac76cebf786173d4a835f9547"
+  },
+  "absolute_bans_ack": {
+    "production_ref": "llbnliixczcqfftxpsmb",
+    "no_merge_deploy_delete_pause": true,
+    "no_daybreak_blue_astra": true,
+    "no_force_push": true,
+    "no_silent_patch_reseal_second_hosted": true,
+    "no_copy_hosted_observed_into_expected": true
+  }
+}

@@ -1,0 +1,544 @@
+{
+  "artifact": "platform-acl-envelope",
+  "phase": "A",
+  "sealed": true,
+  "provenance": "INDEPENDENT SUPABASE PLATFORM-ACL CALIBRATION \u2014 derived ONLY from disposable pg_default_acl + canary agreement",
+  "not_from_financial_ledger_epochs": true,
+  "not_from_hosted_fingerprint_72af6699": true,
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "creating_role": "postgres",
+  "public_schema_owner": "pg_database_owner",
+  "postgres": {
+    "server_version": "17.6",
+    "server_version_num": 170006
+  },
+  "default_acl_canonical": [
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "function",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "EXECUTE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "function",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "EXECUTE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "function",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "EXECUTE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "function",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "EXECUTE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "sequence",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "sequence",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "sequence",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "USAGE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "sequence",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "sequence",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "sequence",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "USAGE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "sequence",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "sequence",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "sequence",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "USAGE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "sequence",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "sequence",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "sequence",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "USAGE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "DELETE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "INSERT",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "MAINTAIN",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "REFERENCES",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "TRIGGER",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "DELETE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "INSERT",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "MAINTAIN",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "REFERENCES",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "TRIGGER",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "DELETE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "INSERT",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "MAINTAIN",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "REFERENCES",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "TRIGGER",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "DELETE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "INSERT",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "MAINTAIN",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "REFERENCES",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "TRIGGER",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": false
+    },
+    {
+      "creating_role": "postgres",
+      "schema_name": "public",
+      "object_class": "table",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    }
+  ],
+  "agreed_service_role_grants": {
+    "table": [
+      {
+        "object_class": "table",
+        "grantee": "service_role",
+        "grantor": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": false
+      },
+      {
+        "object_class": "table",
+        "grantee": "service_role",
+        "grantor": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": false
+      },
+      {
+        "object_class": "table",
+        "grantee": "service_role",
+        "grantor": "postgres",
+        "privilege_type": "MAINTAIN",
+        "is_grantable": false
+      },
+      {
+        "object_class": "table",
+        "grantee": "service_role",
+        "grantor": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": false
+      },
+      {
+        "object_class": "table",
+        "grantee": "service_role",
+        "grantor": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": false
+      },
+      {
+        "object_class": "table",
+        "grantee": "service_role",
+        "grantor": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": false
+      },
+      {
+        "object_class": "table",
+        "grantee": "service_role",
+        "grantor": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": false
+      },
+      {
+        "object_class": "table",
+        "grantee": "service_role",
+        "grantor": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": false
+      }
+    ],
+    "sequence": [
+      {
+        "object_class": "sequence",
+        "grantee": "service_role",
+        "grantor": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": false
+      },
+      {
+        "object_class": "sequence",
+        "grantee": "service_role",
+        "grantor": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": false
+      },
+      {
+        "object_class": "sequence",
+        "grantee": "service_role",
+        "grantor": "postgres",
+        "privilege_type": "USAGE",
+        "is_grantable": false
+      }
+    ]
+  },
+  "canary_agreement": {
+    "equal": true,
+    "sets_equal": true,
+    "canary": "public.__f3_acl_platform_canary_20260915",
+    "table_relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=[REDACTED]}",
+    "sequence_relacl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=[REDACTED]}",
+    "dropped": true
+  },
+  "digest_sha256": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "canonical_json_byte_length": 10222,
+  "sealed_at_iso": "2026-09-15T23:24:16.331Z",
+  "sealed_at_et": "9/15/2026, 7:24:16 PM ET"
+}

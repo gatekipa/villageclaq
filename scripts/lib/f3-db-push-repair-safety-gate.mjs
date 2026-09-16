@@ -8201,6 +8201,7 @@ export async function runRepairSafetyThenMaybeRepair({
   dbPush,
   continuation: continuationFn,
   frozenTarget,
+  frozenTargetResult,
 } = {}) {
   const spies = {
     repairCalls: 0,
@@ -8212,9 +8213,11 @@ export async function runRepairSafetyThenMaybeRepair({
     usedFallbackParser: false,
     reconstructedPoisonObject: false,
   };
-  const boundTarget = frozenTarget
-    ? assertFrozenTargetUnmutated(frozenTarget)
-    : constructImmutableValidatedTargetFromConnection({ source: "repair-safety-connection" });
+  const boundTarget = frozenTargetResult
+    ? frozenTargetResult
+    : frozenTarget
+      ? assertFrozenTargetUnmutated(frozenTarget)
+      : constructImmutableValidatedTargetFromConnection({ source: "repair-safety-connection" });
   const gate = evaluateRepairSafetyGate(gateInput);
   let cleanupResult = null;
   let cleanupError = null;

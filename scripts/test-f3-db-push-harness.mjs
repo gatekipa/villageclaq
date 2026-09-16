@@ -5911,19 +5911,24 @@ function exactProcess(overrides = {}) {
     const stdout = Object.prototype.hasOwnProperty.call(overrides, "stdout")
       ? overrides.stdout
       : JSON.stringify(row);
-    return {
+    const result = {
       status: Object.prototype.hasOwnProperty.call(overrides, "status") ? overrides.status : 0,
       stdout,
       stderr: Object.prototype.hasOwnProperty.call(overrides, "stderr") ? overrides.stderr : "",
-      signal: overrides.signal ?? null,
       timeout: overrides.timeout === true,
-      spawnError: overrides.spawnError,
-      queryError: overrides.queryError,
-      error: overrides.error,
-      reconstructed: overrides.reconstructed,
-      assembledFromExtractedFields: overrides.assembledFromExtractedFields,
-      originalStdout: overrides.originalStdout,
     };
+    if (overrides.signal != null) result.signal = overrides.signal;
+    if (overrides.spawnError != null) result.spawnError = overrides.spawnError;
+    if (overrides.queryError != null) result.queryError = overrides.queryError;
+    if (overrides.error != null) result.error = overrides.error;
+    if (overrides.reconstructed != null) result.reconstructed = overrides.reconstructed;
+    if (overrides.assembledFromExtractedFields != null) {
+      result.assembledFromExtractedFields = overrides.assembledFromExtractedFields;
+    }
+    if (Object.prototype.hasOwnProperty.call(overrides, "originalStdout")) {
+      result.originalStdout = overrides.originalStdout;
+    }
+    return result;
   }
   return originalPoisonProcessResult({ row: overrides.row || overrides });
 }
@@ -5931,6 +5936,7 @@ function exactProcess(overrides = {}) {
 async function runActualSpyPath({
   processResult,
   frozenTarget,
+  frozenTargetResult,
   gateExtra,
   cleanup,
 } = {}) {
@@ -5938,6 +5944,7 @@ async function runActualSpyPath({
   const decided = await runQualifyPoisonBoundPath({
     gateInput: authorizedGateInput(gateExtra || {}),
     frozenTarget,
+    frozenTargetResult,
     cleanup: cleanup || (() => provenCleanup()),
     verifyPoisonAbsent: () => processResult,
     repair: () => {
@@ -5997,7 +6004,10 @@ test("Daybreak original-stdout poison + connection-bound target: ACTUAL spies, f
       exactMutation,
       enforcementPath: "runQualifyPoisonBoundPath",
       classification: decided.poisonVerify?.reason || decided.gate?.hold || decided.targetBinding?.reason || "rejected",
-      failedGate: (decided.gate?.failedGates || []).join(",") || decided.poisonVerify?.parser_verdict || "poison",
+      failedGate: (decided.gate?.failedGates || []).join(",")
+        || decided.targetBinding?.parser_verdict
+        || decided.poisonVerify?.parser_verdict
+        || "poison",
       repairCalls: spies.repairCalls,
       dbPushCalls: spies.dbPushCalls,
       continuationCalls: spies.continuationCalls,
@@ -6116,7 +6126,7 @@ test("Daybreak original-stdout poison + connection-bound target: ACTUAL spies, f
   });
   assert.equal(wrongRef.ok, false);
   await publish("F3-N21-WRONG-REF", "wrong ref", () => runActualSpyPath({
-    frozenTarget: wrongRef.target || { __constructFailed: true, reason: wrongRef.reason },
+    frozenTargetResult: wrongRef,
     processResult: valid,
   }));
   const prodRef = constructImmutableValidatedTargetFromConnection({
@@ -6130,15 +6140,17 @@ test("Daybreak original-stdout poison + connection-bound target: ACTUAL spies, f
       host_classification: "approved_session_pooler",
     },
   });
+  assert.equal(prodRef.ok, false);
   await publish("F3-N22-PRODUCTION-REF", "production ref", () => runActualSpyPath({
-    frozenTarget: prodRef.target || { __constructFailed: true, reason: prodRef.reason },
+    frozenTargetResult: prodRef,
     processResult: valid,
   }));
   const wrongOrg = constructImmutableValidatedTargetFromConnection({
     org_id: "not-the-approved-org",
   });
+  assert.equal(wrongOrg.ok, false);
   await publish("F3-N23-WRONG-ORG", "wrong org", () => runActualSpyPath({
-    frozenTarget: wrongOrg.target || { __constructFailed: true, reason: wrongOrg.reason },
+    frozenTargetResult: wrongOrg,
     processResult: valid,
   }));
   const wrongHost = constructImmutableValidatedTargetFromConnection({
@@ -6152,8 +6164,9 @@ test("Daybreak original-stdout poison + connection-bound target: ACTUAL spies, f
       host_classification: "approved_session_pooler",
     },
   });
+  assert.equal(wrongHost.ok, false);
   await publish("F3-N24-WRONG-HOSTNAME", "wrong/aliased hostname", () => runActualSpyPath({
-    frozenTarget: wrongHost.target || { __constructFailed: true, reason: wrongHost.reason },
+    frozenTargetResult: wrongHost,
     processResult: valid,
   }));
   const wrongPooler = constructImmutableValidatedTargetFromConnection({
@@ -6167,8 +6180,9 @@ test("Daybreak original-stdout poison + connection-bound target: ACTUAL spies, f
       host_classification: "approved_session_pooler",
     },
   });
+  assert.equal(wrongPooler.ok, false);
   await publish("F3-N25-WRONG-POOLER", "unapproved pooler", () => runActualSpyPath({
-    frozenTarget: wrongPooler.target || { __constructFailed: true, reason: wrongPooler.reason },
+    frozenTargetResult: wrongPooler,
     processResult: valid,
   }));
   const wrongPort = constructImmutableValidatedTargetFromConnection({
@@ -6182,8 +6196,9 @@ test("Daybreak original-stdout poison + connection-bound target: ACTUAL spies, f
       host_classification: "approved_session_pooler",
     },
   });
+  assert.equal(wrongPort.ok, false);
   await publish("F3-N26-WRONG-PORT", "wrong port", () => runActualSpyPath({
-    frozenTarget: wrongPort.target || { __constructFailed: true, reason: wrongPort.reason },
+    frozenTargetResult: wrongPort,
     processResult: valid,
   }));
   const missingSsl = constructImmutableValidatedTargetFromConnection({
@@ -6197,8 +6212,9 @@ test("Daybreak original-stdout poison + connection-bound target: ACTUAL spies, f
       host_classification: "approved_session_pooler",
     },
   });
+  assert.equal(missingSsl.ok, false);
   await publish("F3-N27-MISSING-SSL", "missing SSL", () => runActualSpyPath({
-    frozenTarget: missingSsl.target || { __constructFailed: true, reason: missingSsl.reason },
+    frozenTargetResult: missingSsl,
     processResult: valid,
   }));
   await publish("F3-N28-POISON-PRESENT", "poison present", () => runActualSpyPath({

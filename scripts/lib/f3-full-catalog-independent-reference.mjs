@@ -11,13 +11,57 @@
  */
 import { createHash } from "node:crypto";
 
-export const INDEPENDENT_REFERENCE_SCHEMA_VERSION = "f3-full-catalog-v2";
+export const INDEPENDENT_REFERENCE_SCHEMA_VERSION = "f3-full-catalog-v3";
 export const INDEPENDENT_REFERENCE_MODULE_RELPATH =
   "scripts/lib/f3-full-catalog-independent-reference.mjs";
 export const INDEPENDENT_RECOGNITION = Object.freeze(["manual_income"]);
 
 const TGENABLED_STATES = Object.freeze(["O", "D", "R", "A"]);
+const TRIGGER_TIMINGS = Object.freeze(["BEFORE", "AFTER", "INSTEAD"]);
+const TRIGGER_LEVELS = Object.freeze(["ROW", "STATEMENT"]);
 const COLUMN_ACL_TUPLE_KEYS = Object.freeze(["grantor", "grantee", "privilege", "is_grantable"]);
+const TRIGGER_IDENTITY_SORT = Object.freeze([
+  "schema",
+  "relation",
+  "constraint_schema",
+  "constraint_name",
+  "constraint_type",
+  "referenced_schema",
+  "referenced_relation",
+  "function_schema",
+  "function_name",
+  "function_identity_arguments",
+  "timing",
+  "events",
+  "level",
+  "user_trigger_name",
+]);
+const INDEPENDENT_TRIGGER_FIELDS = Object.freeze([
+  "schema",
+  "relation",
+  "constraint_schema",
+  "constraint_name",
+  "constraint_type",
+  "referenced_schema",
+  "referenced_relation",
+  "function_schema",
+  "function_name",
+  "function_identity_arguments",
+  "timing",
+  "events",
+  "level",
+  "tgenabled",
+  "deferrable",
+  "initially_deferred",
+  "constraint_association",
+  "constraint_trigger",
+  "multiplicity",
+  "tgisinternal",
+  "user_trigger_name",
+  "user_definition",
+  "when_clause",
+  "update_columns",
+]);
 
 /**
  * Independent catalog SQL. CTE assembly — not the production
@@ -321,23 +365,88 @@ index_rows AS (
   JOIN rel_scope r ON r.oid = i.indrelid
   WHERE NOT i.indisprimary
 ),
+scoped_triggers AS (
+  SELECT
+    t.oid AS tgoid,
+    t.tgrelid,
+    t.tgfoid,
+    t.tgconstraint,
+    t.tgtype,
+    t.tgenabled,
+    t.tgisinternal,
+    t.tgdeferrable,
+    t.tginitdeferred,
+    t.tgname,
+    t.tgqual,
+    t.tgattr
+  FROM pg_trigger t
+  JOIN rel_scope r ON r.oid = t.tgrelid
+  WHERE (t.tgisinternal IS NOT TRUE OR t.tgconstraint <> 0)
+),
+constraint_enforcement_counts AS (
+  SELECT tgconstraint, count(*)::integer AS multiplicity
+  FROM scoped_triggers
+  WHERE tgconstraint <> 0
+  GROUP BY tgconstraint
+),
 trigger_rows AS (
   SELECT jsonb_build_object(
     'schema', r.nspname,
     'relation', r.relname,
-    'name', t.tgname,
-    'constraint_trigger', t.tgconstraint <> 0,
-    'timing_events', pg_get_triggerdef(t.oid),
-    'for_each', CASE WHEN (t.tgtype & 1) = 1 THEN 'row' ELSE 'statement' END,
-    'function_identity', format('%s(%s)', p.proname, pg_get_function_identity_arguments(p.oid)),
-    'definition', pg_get_triggerdef(t.oid),
-    'tgisinternal', t.tgisinternal,
-    'tgenabled', t.tgenabled::text
+    'constraint_schema', coalesce(cn.nspname, ''),
+    'constraint_name', coalesce(con.conname, ''),
+    'constraint_type', coalesce(con.contype::text, ''),
+    'referenced_schema', coalesce(refn.nspname, ''),
+    'referenced_relation', coalesce(refc.relname, ''),
+    'function_schema', pn.nspname,
+    'function_name', p.proname,
+    'function_identity_arguments', pg_get_function_identity_arguments(p.oid),
+    'timing', CASE
+      WHEN ((s.tgtype::integer & 2) = 2) THEN 'BEFORE'
+      WHEN ((s.tgtype::integer & 64) = 64) THEN 'INSTEAD'
+      ELSE 'AFTER'
+    END,
+    'events', concat_ws('+',
+      CASE WHEN ((s.tgtype::integer & 4) = 4) THEN 'INSERT' END,
+      CASE WHEN ((s.tgtype::integer & 8) = 8) THEN 'DELETE' END,
+      CASE WHEN ((s.tgtype::integer & 16) = 16) THEN 'UPDATE' END,
+      CASE WHEN ((s.tgtype::integer & 32) = 32) THEN 'TRUNCATE' END
+    ),
+    'level', CASE WHEN ((s.tgtype::integer & 1) = 1) THEN 'ROW' ELSE 'STATEMENT' END,
+    'tgenabled', s.tgenabled::text,
+    'deferrable', CASE
+      WHEN s.tgconstraint <> 0 THEN coalesce(con.condeferrable, s.tgdeferrable)
+      ELSE s.tgdeferrable
+    END,
+    'initially_deferred', CASE
+      WHEN s.tgconstraint <> 0 THEN coalesce(con.condeferred, s.tginitdeferred)
+      ELSE s.tginitdeferred
+    END,
+    'constraint_association', s.tgconstraint <> 0,
+    'constraint_trigger', s.tgconstraint <> 0,
+    'multiplicity', CASE
+      WHEN s.tgconstraint = 0 THEN 1
+      ELSE coalesce(cnt.multiplicity, 1)
+    END,
+    'tgisinternal', s.tgisinternal,
+    'user_trigger_name', CASE WHEN s.tgisinternal THEN '' ELSE s.tgname END,
+    'user_definition', CASE WHEN s.tgisinternal THEN '' ELSE pg_get_triggerdef(s.tgoid) END,
+    'when_clause', coalesce(pg_get_expr(s.tgqual, s.tgrelid), ''),
+    'update_columns', coalesce((
+      SELECT jsonb_agg(att.attname ORDER BY u.ord)
+      FROM unnest(s.tgattr) WITH ORDINALITY AS u(attnum, ord)
+      JOIN pg_attribute att ON att.attrelid = s.tgrelid AND att.attnum = u.attnum
+    ), '[]'::jsonb)
   ) AS rec
-  FROM pg_trigger t
-  JOIN rel_scope r ON r.oid = t.tgrelid
-  JOIN pg_proc p ON p.oid = t.tgfoid
-  WHERE NOT t.tgisinternal
+  FROM scoped_triggers s
+  JOIN rel_scope r ON r.oid = s.tgrelid
+  JOIN pg_proc p ON p.oid = s.tgfoid
+  JOIN pg_namespace pn ON pn.oid = p.pronamespace
+  LEFT JOIN pg_constraint con ON con.oid = s.tgconstraint AND s.tgconstraint <> 0
+  LEFT JOIN pg_namespace cn ON cn.oid = con.connamespace
+  LEFT JOIN pg_class refc ON refc.oid = con.confrelid AND con.confrelid <> 0
+  LEFT JOIN pg_namespace refn ON refn.oid = refc.relnamespace
+  LEFT JOIN constraint_enforcement_counts cnt ON cnt.tgconstraint = s.tgconstraint
 ),
 hgp_row AS (
   SELECT jsonb_build_object(
@@ -555,7 +664,7 @@ export function independentlyNormalizeCatalog(catalog) {
   out.rls = sortRecordSet(out.rls, ["schema", "relation"]);
   out.constraints = sortRecordSet(out.constraints, ["schema", "relation", "name", "contype"]);
   out.indexes = sortRecordSet(out.indexes, ["schema", "relation", "name"]);
-  out.triggers = sortRecordSet(out.triggers, ["schema", "relation", "name"]);
+  out.triggers = sortRecordSet(out.triggers, [...TRIGGER_IDENTITY_SORT]);
   if (Array.isArray(out.recognition)) {
     out.recognition = [...out.recognition].sort(compareScalars);
   }
@@ -572,18 +681,61 @@ export function assertIndependentTriggerCoverage(triggers) {
   if (!Array.isArray(triggers)) {
     return { ok: false, reason: "independent triggers must be an array" };
   }
+  const seen = new Set();
   for (const row of triggers) {
     if (!row || typeof row !== "object" || Array.isArray(row)) {
       return { ok: false, reason: "independent trigger record is not an object" };
     }
-    for (const field of ["schema", "relation", "name", "definition", "function_identity", "tgisinternal", "tgenabled"]) {
-      if (!Object.prototype.hasOwnProperty.call(row, field)) {
-        return { ok: false, reason: `independent trigger missing ${field}` };
-      }
+    const keys = Object.keys(row).sort();
+    const expected = [...INDEPENDENT_TRIGGER_FIELDS].sort();
+    if (keys.length !== expected.length || keys.some((key, i) => key !== expected[i])) {
+      return { ok: false, reason: "independent trigger keyset is not the v3 semantic contract" };
+    }
+    if (Object.prototype.hasOwnProperty.call(row, "oid") || Object.prototype.hasOwnProperty.call(row, "name")) {
+      return { ok: false, reason: "independent trigger must not fingerprint OIDs or generated names" };
     }
     if (!TGENABLED_STATES.includes(row.tgenabled)) {
       return { ok: false, reason: `independent tgenabled is not O/D/R/A: ${row.tgenabled}` };
     }
+    if (!TRIGGER_TIMINGS.includes(row.timing)) {
+      return { ok: false, reason: `independent trigger timing is not decoded: ${row.timing}` };
+    }
+    if (!TRIGGER_LEVELS.includes(row.level)) {
+      return { ok: false, reason: `independent trigger level is not decoded: ${row.level}` };
+    }
+    if (typeof row.function_schema !== "string" || typeof row.function_name !== "string"
+      || typeof row.function_identity_arguments !== "string") {
+      return { ok: false, reason: "independent trigger function identity is incomplete" };
+    }
+    if (typeof row.multiplicity !== "number" || !Number.isInteger(row.multiplicity) || row.multiplicity < 1) {
+      return { ok: false, reason: "independent trigger multiplicity is not a positive integer" };
+    }
+    if (typeof row.deferrable !== "boolean" || typeof row.initially_deferred !== "boolean") {
+      return { ok: false, reason: "independent trigger deferrability is not boolean" };
+    }
+    if (typeof row.constraint_association !== "boolean" || typeof row.constraint_trigger !== "boolean") {
+      return { ok: false, reason: "independent trigger constraint association is not boolean" };
+    }
+    if (!Array.isArray(row.update_columns)) {
+      return { ok: false, reason: "independent update_columns must preserve attnum order as an array" };
+    }
+    if (row.tgisinternal === true) {
+      if (row.user_trigger_name !== "" || row.user_definition !== "") {
+        return { ok: false, reason: "internal constraint trigger must omit generated name/definition" };
+      }
+      if (row.constraint_association !== true || row.constraint_name === "") {
+        return { ok: false, reason: "internal constraint trigger missing constraint association" };
+      }
+    }
+    const blob = JSON.stringify(row);
+    if (/RI_ConstraintTrigger/i.test(blob) || /"oid"\s*:/.test(blob)) {
+      return { ok: false, reason: "independent trigger embeds generated name or OID" };
+    }
+    const identity = JSON.stringify(TRIGGER_IDENTITY_SORT.map((field) => row[field]));
+    if (seen.has(identity)) {
+      return { ok: false, reason: "independent trigger semantic identity is duplicated" };
+    }
+    seen.add(identity);
   }
   return { ok: true };
 }

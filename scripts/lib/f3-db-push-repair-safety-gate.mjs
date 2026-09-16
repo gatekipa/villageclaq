@@ -2358,7 +2358,13 @@ export function buildEvidenceIndex({ artifacts = [], exclusions = EVIDENCE_INDEX
   const excluded = new Set(exclusions);
   const listed = [...artifacts]
     .map((item) => (typeof item === "string" ? { path: item } : item))
-    .filter((item) => item && item.path && !excluded.has(path.basename(item.path)))
+    .filter((item) => {
+      if (!item || !item.path) return false;
+      const rel = String(item.path).replace(/\\/g, "/");
+      // Exclude only the outer index/checksum at this root, not nested
+      // hosted/qualify-evidence or synthetic-evidence copies of the same basename.
+      return !excluded.has(rel);
+    })
     .sort((a, b) => String(a.path).localeCompare(String(b.path)));
   return {
     version: 1,
@@ -2431,7 +2437,7 @@ export function writeExecutableManifest(dir, artifacts = []) {
 
 export function writeEvidenceIndexAndChecksum(dir, artifacts = []) {
   const index = buildEvidenceIndex({ artifacts });
-  const names = (index.artifacts || []).map((item) => item.path);
+  const names = (index.artifacts || []).map((item) => String(item.path).replace(/\\/g, "/"));
   if (new Set(names).size !== names.length) {
     const err = new Error("HOLD: evidence-index contains a duplicate entry");
     err.code = "F3_EVIDENCE_INDEX_DUPLICATE";
@@ -2631,12 +2637,11 @@ export function verifyEvidenceIndex(dir) {
   if (parsed.self_hash === true) {
     return { ok: false, reason: "evidence-index.json must not self-hash" };
   }
-  const artifactPaths = (parsed.artifacts || []).map((item) => item.path || item);
+  const artifactPaths = (parsed.artifacts || []).map((item) => String(item.path || item).replace(/\\/g, "/"));
   if (new Set(artifactPaths).size !== artifactPaths.length) {
     return { ok: false, reason: "HOLD: evidence-index contains a duplicate entry" };
   }
-  const names = artifactPaths.map((rel) => path.basename(rel));
-  if (names.includes(EVIDENCE_INDEX_FILENAME) || names.includes(EVIDENCE_INDEX_CHECKSUM_FILENAME)) {
+  if (artifactPaths.includes(EVIDENCE_INDEX_FILENAME) || artifactPaths.includes(EVIDENCE_INDEX_CHECKSUM_FILENAME)) {
     return { ok: false, reason: "evidence-index lists itself or its detached checksum" };
   }
   const manifestAbs = path.join(dir, EXECUTABLE_MANIFEST_FILENAME);
@@ -2952,8 +2957,8 @@ export function writeQualifyEvidenceArtifacts({ dest, sanitizedJson, extraSecret
     throw err;
   }
   if ((outer.index.artifacts || []).some((item) => {
-    const name = path.basename(item.path || item);
-    return name === EVIDENCE_INDEX_FILENAME || name === EVIDENCE_INDEX_CHECKSUM_FILENAME;
+    const rel = String(item.path || item).replace(/\\/g, "/");
+    return rel === EVIDENCE_INDEX_FILENAME || rel === EVIDENCE_INDEX_CHECKSUM_FILENAME;
   })) {
     const err = new Error("HOLD: outer detached index contains a self-entry");
     err.code = "F3_EVIDENCE_INDEX_SELF_ENTRY";

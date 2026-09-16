@@ -186,6 +186,7 @@ import {
   evaluateRepairSafetyGate,
   commitOuterEvidenceTree,
   inferEvidenceRootFromDest,
+  writeDurableArtifactBytes,
 } from "./lib/f3-db-push-repair-safety-gate.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -330,6 +331,19 @@ export const F9_RUNNER_EVENT_SCHEMA_VERSION = "f3-runner-event-v1";
 export const F9_PRE_CONTINUATION_SCHEMA_VERSION = "f3-pre-continuation-record-v1";
 export const F9_RUNNER_EVENT_HOLD =
   "HOLD: F9 runner event/durable-pre-continuation record incomplete; no repair again; no continuation; no next migration";
+export const F10_CHECKPOINT_A_SCHEMA_VERSION = "f3-f10-checkpoint-a-v1";
+export const F10_CHECKPOINT_B_SCHEMA_VERSION = "f3-f10-checkpoint-b-v1";
+export const F10_CHECKPOINT_HOLD =
+  "HOLD: F10 complete durable checkpoint missing or unverified; no repair again; no retry; no continuation; no next migration";
+
+/**
+ * gateCalls measures only the qualify-level repair_gate_evaluated boundary:
+ * one increment immediately around the runner's evaluateRepairSafetyGate call
+ * per migration file. It does NOT count internal evaluateRepairSafetyGate
+ * invocations inside runRepairSafetyThenMaybeRepair.
+ */
+export const GATE_CALLS_BOUNDARY =
+  "qualify-level repair_gate_evaluated (not every evaluateRepairSafetyGate)";
 
 export const F9_REQUIRED_EVENT_TYPES = Object.freeze([
   "initial_db_push_started",
@@ -430,22 +444,36 @@ function sha256Utf8Qualify(text) {
 }
 
 export function encodeSanitizedProcessResult(result = {}) {
-  const hashedOut = hashOriginalStdout(result.stdout ?? result.originalStdout ?? "");
-  const hashedErr = hashOriginalStdout(result.stderr ?? "");
   const commandIdentity = result.commandIdentity
     ?? result.command_identity
     ?? result.command
     ?? result.rendered
     ?? (Array.isArray(result.argv) ? result.argv.join(" ") : null);
+  const argv = Array.isArray(result.argv)
+    ? result.argv.map((item) => String(sanitizeForLog(String(item ?? "")) ?? ""))
+    : null;
+  const stdoutBody = String(sanitizeForLog(String(result.stdout ?? result.originalStdout ?? "")) ?? "");
+  const stderrBody = String(sanitizeForLog(String(result.stderr ?? "")) ?? "");
+  const errorRaw = result.error ?? result.err ?? result.message ?? null;
+  const errorBody = errorRaw == null ? null : String(sanitizeForLog(String(errorRaw)) ?? "");
+  const hashedOut = hashOriginalStdout(stdoutBody);
+  const hashedErr = hashOriginalStdout(stderrBody);
+  const hashedError = hashOriginalStdout(errorBody ?? "");
   return {
-    commandIdentity: commandIdentity == null ? null : String(commandIdentity),
+    commandIdentity: commandIdentity == null ? null : String(sanitizeForLog(String(commandIdentity)) ?? ""),
+    argv,
     status: result.status ?? null,
     signal: result.signal ?? null,
     timeout: result.timeout === true,
+    stdout: stdoutBody,
+    stderr: stderrBody,
+    error: errorBody,
     stdoutByteLength: hashedOut.byteLength,
     stderrByteLength: hashedErr.byteLength,
+    errorByteLength: errorBody == null ? 0 : hashedError.byteLength,
     stdoutSha256: hashedOut.sha256,
     stderrSha256: hashedErr.sha256,
+    errorSha256: errorBody == null ? hashedError.sha256 : hashedError.sha256,
   };
 }
 
@@ -457,6 +485,9 @@ export function isCompleteProcessResult(result) {
   const command = result.commandIdentity ?? result.command_identity ?? result.command ?? result.rendered;
   if (command == null || String(command).trim() === "") return false;
   if (result.status == null || typeof result.status !== "number") return false;
+  if (!Object.prototype.hasOwnProperty.call(result, "stdout") || typeof result.stdout !== "string") return false;
+  if (!Object.prototype.hasOwnProperty.call(result, "stderr") || typeof result.stderr !== "string") return false;
+  if (!Object.prototype.hasOwnProperty.call(result, "error")) return false;
   const outSha = result.stdoutSha256 ?? result.stdout_sha256;
   const errSha = result.stderrSha256 ?? result.stderr_sha256;
   const outLen = result.stdoutByteLength ?? result.stdout_byte_length;
@@ -464,6 +495,10 @@ export function isCompleteProcessResult(result) {
   if (typeof outSha !== "string" || !/^[0-9a-f]{64}$/i.test(outSha)) return false;
   if (typeof errSha !== "string" || !/^[0-9a-f]{64}$/i.test(errSha)) return false;
   if (typeof outLen !== "number" || typeof errLen !== "number") return false;
+  const outHashed = hashOriginalStdout(result.stdout);
+  const errHashed = hashOriginalStdout(result.stderr);
+  if (outHashed.sha256 !== outSha || outHashed.byteLength !== outLen) return false;
+  if (errHashed.sha256 !== errSha || errHashed.byteLength !== errLen) return false;
   if (!Object.prototype.hasOwnProperty.call(result, "signal") && result.signal !== null) {
     if (result.signal === undefined) return false;
   }
@@ -819,6 +854,644 @@ export function evaluateF9ContinuationAuthorization({
     nextMigration: isLast ? null : true,
     inventedLaterContinuation: false,
   };
+}
+
+export function assertCheckpointAComplete(record) {
+  const fail = (reason) => ({
+    ok: false,
+    hold: F10_CHECKPOINT_HOLD,
+    allowRetry: false,
+    allowContinuation: false,
+    reason: `${F10_CHECKPOINT_HOLD}: ${reason}`,
+  });
+  if (record == null || typeof record !== "object" || Array.isArray(record)) {
+    return fail("checkpoint A missing");
+  }
+  if (record.schema_version !== F10_CHECKPOINT_A_SCHEMA_VERSION) {
+    return fail("checkpoint A schema_version");
+  }
+  if (record.checkpoint !== "A" || record.boundary !== "after_repair_before_retry") {
+    return fail("checkpoint A boundary");
+  }
+  if (!record.migrationIdentity || typeof record.migrationIdentity !== "object") {
+    return fail("checkpoint A migration identity");
+  }
+  if (!isCompleteProcessResult(record.repairProcessResult)) {
+    return fail("checkpoint A missing/incomplete sanitized repair command+process");
+  }
+  if (record.repairProcessResult.status !== 0) {
+    return fail("failed repair cannot persist as Checkpoint A for retry");
+  }
+  return { ok: true, record };
+}
+
+export function assertCheckpointBComplete(record) {
+  const fail = (reason) => ({
+    ok: false,
+    hold: F10_CHECKPOINT_HOLD,
+    allowContinuation: false,
+    continuationAuthorized: false,
+    reason: `${F10_CHECKPOINT_HOLD}: ${reason}`,
+  });
+  if (record == null || typeof record !== "object" || Array.isArray(record)) {
+    return fail("checkpoint B missing");
+  }
+  if (record.schema_version !== F10_CHECKPOINT_B_SCHEMA_VERSION) {
+    return fail("checkpoint B schema_version");
+  }
+  if (record.checkpoint !== "B" || record.boundary !== "after_retry_post_retry_before_continuation") {
+    return fail("checkpoint B boundary");
+  }
+  if (!isCompleteProcessResult(record.retryProcessResult)) {
+    return fail("checkpoint B missing/incomplete sanitized retry command+process");
+  }
+  if (record.retryProcessResult.status !== 0) {
+    return fail("failed retry cannot persist as Checkpoint B for continuation");
+  }
+  if (!record.postRetryProof || record.postRetryProof.ok !== true) {
+    return fail("checkpoint B missing post-retry proof");
+  }
+  const link = record.checkpointA;
+  if (!link || typeof link !== "object") {
+    return fail("checkpoint B missing authenticated link to A");
+  }
+  if (typeof link.sha256 !== "string" || !/^[0-9a-f]{64}$/i.test(link.sha256)) {
+    return fail("checkpoint B link to A missing sha256");
+  }
+  if (typeof link.bytes !== "number" || !link.dest) {
+    return fail("checkpoint B link to A missing dest/bytes");
+  }
+  return { ok: true, record };
+}
+
+export function persistF10Checkpoint({ dest, record, hooks = {}, assertComplete } = {}) {
+  const complete = assertComplete(record);
+  if (!complete.ok) {
+    return { ...complete, written: false, verified: false };
+  }
+  if (!dest) {
+    return {
+      ok: false,
+      hold: F10_CHECKPOINT_HOLD,
+      reason: `${F10_CHECKPOINT_HOLD}: durable dest missing`,
+      written: false,
+      verified: false,
+    };
+  }
+  const abs = path.resolve(dest);
+  const sanitized = sanitizeForLog(record);
+  const body = Buffer.from(`${JSON.stringify(sanitized, null, 2)}\n`, "utf8");
+  const durable = writeDurableArtifactBytes(abs, body, hooks);
+  if (!durable.ok || durable.verified !== true) {
+    return {
+      ok: false,
+      hold: F10_CHECKPOINT_HOLD,
+      reason: durable.reason || `${F10_CHECKPOINT_HOLD}: durable write not verified`,
+      written: durable.written === true,
+      verified: false,
+    };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(durable.buf.toString("utf8"));
+  } catch {
+    return {
+      ok: false,
+      hold: F10_CHECKPOINT_HOLD,
+      reason: `${F10_CHECKPOINT_HOLD}: durable reread is not JSON`,
+      written: true,
+      verified: false,
+    };
+  }
+  const rereadComplete = assertComplete(parsed);
+  if (!rereadComplete.ok) {
+    return { ...rereadComplete, written: true, verified: false };
+  }
+  return {
+    ok: true,
+    written: true,
+    verified: true,
+    dest: abs,
+    sha256: durable.sha256,
+    bytes: durable.bytes,
+    record: parsed,
+  };
+}
+
+export function persistCheckpointA({ dest, record, hooks = {} } = {}) {
+  return persistF10Checkpoint({ dest, record, hooks, assertComplete: assertCheckpointAComplete });
+}
+
+export function persistCheckpointB({ dest, record, hooks = {} } = {}) {
+  return persistF10Checkpoint({ dest, record, hooks, assertComplete: assertCheckpointBComplete });
+}
+
+export function verifyPersistedCheckpoint({ dest, assertComplete, expectedLink = null } = {}) {
+  if (!dest || !fs.existsSync(dest)) {
+    return {
+      ok: false,
+      hold: F10_CHECKPOINT_HOLD,
+      reason: `${F10_CHECKPOINT_HOLD}: persisted checkpoint missing`,
+      verified: false,
+    };
+  }
+  let buf;
+  try {
+    buf = fs.readFileSync(dest);
+  } catch (err) {
+    return {
+      ok: false,
+      hold: F10_CHECKPOINT_HOLD,
+      reason: `${F10_CHECKPOINT_HOLD}: ${err?.message || err}`,
+      verified: false,
+    };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(buf.toString("utf8"));
+  } catch {
+    return {
+      ok: false,
+      hold: F10_CHECKPOINT_HOLD,
+      reason: `${F10_CHECKPOINT_HOLD}: persisted checkpoint is not JSON`,
+      verified: false,
+    };
+  }
+  const complete = assertComplete(parsed);
+  if (!complete.ok) return { ...complete, verified: false };
+  const sha256 = createHash("sha256").update(buf).digest("hex");
+  const bytes = buf.byteLength;
+  if (expectedLink) {
+    if (expectedLink.sha256 && expectedLink.sha256 !== sha256) {
+      return {
+        ok: false,
+        hold: F10_CHECKPOINT_HOLD,
+        reason: `${F10_CHECKPOINT_HOLD}: checkpoint digest does not match authenticated link`,
+        verified: false,
+      };
+    }
+    if (expectedLink.bytes != null && expectedLink.bytes !== bytes) {
+      return {
+        ok: false,
+        hold: F10_CHECKPOINT_HOLD,
+        reason: `${F10_CHECKPOINT_HOLD}: checkpoint byte-length does not match authenticated link`,
+        verified: false,
+      };
+    }
+  }
+  return {
+    ok: true,
+    verified: true,
+    dest: path.resolve(dest),
+    sha256,
+    bytes,
+    record: parsed,
+  };
+}
+
+export function verifyPersistedCheckpointA(dest, expectedLink = null) {
+  return verifyPersistedCheckpoint({ dest, assertComplete: assertCheckpointAComplete, expectedLink });
+}
+
+export function verifyPersistedCheckpointB(dest, expectedLink = null) {
+  return verifyPersistedCheckpoint({ dest, assertComplete: assertCheckpointBComplete, expectedLink });
+}
+
+export function buildCheckpointARecord({
+  file,
+  version,
+  migrationSourceLabel = "F3_FORWARD",
+  repairProcessResult,
+  eventStream = [],
+  runnerCounters = {},
+} = {}) {
+  return {
+    schema_version: F10_CHECKPOINT_A_SCHEMA_VERSION,
+    checkpoint: "A",
+    boundary: "after_repair_before_retry",
+    migrationIdentity: { file, version, sourceLabel: migrationSourceLabel },
+    repairProcessResult: encodeSanitizedProcessResult(repairProcessResult),
+    eventStream,
+    runnerCounters: { ...runnerCounters },
+  };
+}
+
+export function buildCheckpointBRecord({
+  file,
+  version,
+  migrationSourceLabel = "F3_FORWARD",
+  retryProcessResult,
+  postRetryProof,
+  checkpointA,
+  eventStream = [],
+  runnerCounters = {},
+} = {}) {
+  return {
+    schema_version: F10_CHECKPOINT_B_SCHEMA_VERSION,
+    checkpoint: "B",
+    boundary: "after_retry_post_retry_before_continuation",
+    migrationIdentity: { file, version, sourceLabel: migrationSourceLabel },
+    retryProcessResult: encodeSanitizedProcessResult(retryProcessResult),
+    postRetryProof: postRetryProof || { ok: false },
+    checkpointA: checkpointA
+      ? { dest: checkpointA.dest, sha256: checkpointA.sha256, bytes: checkpointA.bytes }
+      : null,
+    eventStream,
+    runnerCounters: { ...runnerCounters },
+  };
+}
+
+export async function invokeRecordedOperation({
+  recorder,
+  counters,
+  counterKey = null,
+  eventPrefix,
+  phase,
+  commandIdentity,
+  invoke,
+  onAfterStarted = null,
+} = {}) {
+  if (counterKey) counters[counterKey] += 1;
+  recorder.record(`${eventPrefix}_started`, {
+    phase,
+    commandIdentity,
+  });
+  if (typeof onAfterStarted === "function") {
+    await onAfterStarted({
+      eventPrefix,
+      pendingStarted: true,
+      completed: false,
+      events: recorder.snapshot(),
+    });
+  }
+  let result;
+  let thrown = null;
+  try {
+    result = await Promise.resolve(invoke());
+  } catch (err) {
+    thrown = err;
+    result = {
+      commandIdentity,
+      status: 1,
+      stdout: "",
+      stderr: String(err?.message || err),
+      error: String(err?.message || err),
+      signal: null,
+      timeout: false,
+    };
+  }
+  const processResult = {
+    commandIdentity: result?.commandIdentity ?? result?.command ?? commandIdentity,
+    argv: result?.argv,
+    status: result?.status ?? 1,
+    stdout: result?.stdout ?? "",
+    stderr: result?.stderr ?? "",
+    error: result?.error ?? (thrown ? String(thrown.message || thrown) : null),
+    signal: result?.signal ?? null,
+    timeout: result?.timeout === true,
+  };
+  recorder.record(`${eventPrefix}_completed`, {
+    phase,
+    processResult,
+  });
+  return {
+    result,
+    processResult,
+    encoded: encodeSanitizedProcessResult(processResult),
+    thrown,
+    ok: thrown == null && processResult.status === 0,
+    failed: thrown != null || processResult.status !== 0,
+  };
+}
+
+/**
+ * Shared F10 orchestration: same path qualify uses for repair → A → retry →
+ * post-retry → B → continuation. Tests drive this via adapters/spies; it does
+ * not invent a trace from prepared results.
+ */
+export async function runF10RepairRetryContinuation({
+  file,
+  version,
+  destA,
+  destB,
+  migrationSourceLabel = "F3_FORWARD",
+  recorder = null,
+  counters = null,
+  adapters = {},
+  persistHooksA = {},
+  persistHooksB = {},
+  onAfterRepairStarted = null,
+  onAfterRetryStarted = null,
+  onAfterContinuationStarted = null,
+  completedRepair = null,
+} = {}) {
+  const runnerCounters = counters || createEmptyRunnerCounters();
+  const eventRecorder = recorder || createRunnerEventRecorder({
+    migrationSourceLabel,
+    migrationVersion: version,
+    migrationName: file,
+  });
+  const spies = {
+    repairCalls: 0,
+    retryCalls: 0,
+    continuationAuthorizationCalls: 0,
+    continuationCalls: 0,
+    continuationQueryCalls: 0,
+    checkpointAWrites: 0,
+    checkpointBWrites: 0,
+  };
+  const isLast = file === F3_FORWARD_FILES[F3_FORWARD_FILES.length - 1];
+  const fail = (reason, extra = {}) => ({
+    ok: false,
+    allowRetry: extra.allowRetry === true,
+    allowContinuation: false,
+    continuationAuthorized: false,
+    reason,
+    hold: extra.hold || F10_CHECKPOINT_HOLD,
+    events: eventRecorder.snapshot(),
+    counters: runnerCounters,
+    spies,
+    inventedLaterContinuation: false,
+    finalMigration: isLast,
+    nextMigration: null,
+    ...extra,
+  });
+
+  const repairFn = adapters.repair;
+  let repairOp;
+  if (completedRepair) {
+    const processResult = {
+      commandIdentity: completedRepair.commandIdentity
+        ?? completedRepair.command
+        ?? adapters.repairCommand
+        ?? "supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
+      argv: completedRepair.argv,
+      status: completedRepair.status ?? 1,
+      stdout: completedRepair.stdout ?? "",
+      stderr: completedRepair.stderr ?? "",
+      error: completedRepair.error ?? null,
+      signal: completedRepair.signal ?? null,
+      timeout: completedRepair.timeout === true,
+    };
+    repairOp = {
+      result: completedRepair,
+      processResult,
+      encoded: encodeSanitizedProcessResult(processResult),
+      thrown: null,
+      ok: processResult.status === 0,
+      failed: processResult.status !== 0,
+    };
+    spies.repairCalls += 1;
+  } else {
+    if (typeof repairFn !== "function") {
+      return fail(`${F10_CHECKPOINT_HOLD}: repair adapter missing`);
+    }
+    repairOp = await invokeRecordedOperation({
+      recorder: eventRecorder,
+      counters: runnerCounters,
+      counterKey: "repairCalls",
+      eventPrefix: "repair",
+      phase: "repair",
+      commandIdentity: adapters.repairCommand
+        || "supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
+      invoke: () => {
+        spies.repairCalls += 1;
+        return repairFn();
+      },
+      onAfterStarted: onAfterRepairStarted,
+    });
+  }
+  if (!repairOp.ok) {
+    return fail(
+      `${F10_CHECKPOINT_HOLD}: failed repair blocks retry+continuation`,
+      { allowRetry: false, repairOp, spies },
+    );
+  }
+
+  const checkpointARecord = buildCheckpointARecord({
+    file,
+    version,
+    migrationSourceLabel,
+    repairProcessResult: repairOp.processResult,
+    eventStream: eventRecorder.snapshot(),
+    runnerCounters,
+  });
+  spies.checkpointAWrites += 1;
+  const persistedA = persistCheckpointA({
+    dest: destA,
+    record: checkpointARecord,
+    hooks: persistHooksA,
+  });
+  if (!persistedA.ok || persistedA.verified !== true) {
+    return fail(persistedA.reason || `${F10_CHECKPOINT_HOLD}: Checkpoint A not verified`, {
+      persistA: persistedA,
+      repairOp,
+    });
+  }
+  eventRecorder.record("checkpoint_a_persisted", {
+    phase: "checkpoint_a",
+    process: {
+      commandIdentity: "atomic-checkpoint-a-write",
+      status: 0,
+      signal: null,
+      timeout: false,
+      stdoutByteLength: persistedA.bytes,
+      stderrByteLength: 0,
+      stdoutSha256: persistedA.sha256,
+      stderrSha256: sha256Utf8Qualify(""),
+    },
+  });
+
+  const verifiedA = verifyPersistedCheckpointA(destA, {
+    sha256: persistedA.sha256,
+    bytes: persistedA.bytes,
+  });
+  if (!verifiedA.ok) {
+    return fail(verifiedA.reason || `${F10_CHECKPOINT_HOLD}: Checkpoint A reread failed before retry`, {
+      persistA: persistedA,
+      verifiedA,
+      repairOp,
+    });
+  }
+
+  const postRepair = typeof adapters.postRepairVerify === "function"
+    ? await Promise.resolve(adapters.postRepairVerify(repairOp))
+    : { ok: true };
+  if (postRepair?.ok === false) {
+    return fail(postRepair.reason || `${F10_CHECKPOINT_HOLD}: post-repair verification failed`, {
+      persistA: persistedA,
+      repairOp,
+      postRepair,
+    });
+  }
+
+  const retryFn = adapters.retry;
+  if (typeof retryFn !== "function") {
+    return fail(`${F10_CHECKPOINT_HOLD}: retry adapter missing`, { persistA: persistedA });
+  }
+  const retryOp = await invokeRecordedOperation({
+    recorder: eventRecorder,
+    counters: runnerCounters,
+    counterKey: "retryDbPushCalls",
+    eventPrefix: "retry",
+    phase: "retry",
+    commandIdentity: adapters.retryCommand
+      || "supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault",
+    invoke: () => {
+      spies.retryCalls += 1;
+      return retryFn();
+    },
+    onAfterStarted: onAfterRetryStarted,
+  });
+  if (!retryOp.ok) {
+    return fail(
+      `${F10_CHECKPOINT_HOLD}: failed retry blocks continuation`,
+      { allowRetry: true, persistA: persistedA, repairOp, retryOp },
+    );
+  }
+  eventRecorder.record("post_retry_fingerprint_collected", { phase: "post_retry_fingerprint" });
+
+  const postRetry = typeof adapters.postRetryVerify === "function"
+    ? await Promise.resolve(adapters.postRetryVerify(retryOp))
+    : { ok: true };
+  if (postRetry?.ok === false) {
+    return fail(postRetry.reason || `${F10_CHECKPOINT_HOLD}: post-retry verification failed`, {
+      persistA: persistedA,
+      repairOp,
+      retryOp,
+      postRetry,
+    });
+  }
+
+  const checkpointBRecord = buildCheckpointBRecord({
+    file,
+    version,
+    migrationSourceLabel,
+    retryProcessResult: retryOp.processResult,
+    postRetryProof: { ok: true, ...(postRetry || {}) },
+    checkpointA: persistedA,
+    eventStream: eventRecorder.snapshot(),
+    runnerCounters,
+  });
+  spies.checkpointBWrites += 1;
+  const persistedB = persistCheckpointB({
+    dest: destB,
+    record: checkpointBRecord,
+    hooks: persistHooksB,
+  });
+  if (!persistedB.ok || persistedB.verified !== true) {
+    return fail(persistedB.reason || `${F10_CHECKPOINT_HOLD}: Checkpoint B not verified`, {
+      persistA: persistedA,
+      persistB: persistedB,
+      repairOp,
+      retryOp,
+    });
+  }
+  const stillA = verifyPersistedCheckpointA(destA, {
+    sha256: persistedA.sha256,
+    bytes: persistedA.bytes,
+  });
+  if (!stillA.ok) {
+    return fail(`${F10_CHECKPOINT_HOLD}: later write disguised Checkpoint A`, {
+      persistA: persistedA,
+      persistB: persistedB,
+    });
+  }
+  const verifiedB = verifyPersistedCheckpointB(destB, {
+    sha256: persistedB.sha256,
+    bytes: persistedB.bytes,
+  });
+  if (!verifiedB.ok) {
+    return fail(verifiedB.reason || `${F10_CHECKPOINT_HOLD}: Checkpoint B reread failed before continuation`, {
+      persistA: persistedA,
+      persistB: persistedB,
+      verifiedB,
+    });
+  }
+  eventRecorder.record("checkpoint_b_persisted", {
+    phase: "checkpoint_b",
+    process: {
+      commandIdentity: "atomic-checkpoint-b-write",
+      status: 0,
+      signal: null,
+      timeout: false,
+      stdoutByteLength: persistedB.bytes,
+      stderrByteLength: 0,
+      stdoutSha256: persistedB.sha256,
+      stderrSha256: sha256Utf8Qualify(""),
+    },
+  });
+
+  spies.continuationAuthorizationCalls += 1;
+  runnerCounters.continuationAuthorizationCalls += 1;
+  eventRecorder.record("continuation_authorized", { phase: "continuation_authorized" });
+
+  let continuationResult = null;
+  if (!isLast) {
+    runnerCounters.continuationCalls += 1;
+    spies.continuationCalls += 1;
+    eventRecorder.record("continuation_started", { phase: "continuation" });
+    if (typeof onAfterContinuationStarted === "function") {
+      await onAfterContinuationStarted({
+        pendingStarted: true,
+        completed: false,
+        events: eventRecorder.snapshot(),
+      });
+    }
+    if (typeof adapters.continuation === "function") {
+      spies.continuationQueryCalls += 1;
+      continuationResult = await Promise.resolve(adapters.continuation());
+      if (continuationResult?.ok === false) {
+        eventRecorder.record("continuation_completed", {
+          phase: "continuation",
+          processResult: {
+            commandIdentity: "continuation-query-validate",
+            status: 1,
+            stdout: "",
+            stderr: continuationResult.reason || "continuation failed",
+            error: continuationResult.reason || "continuation failed",
+            signal: null,
+            timeout: false,
+          },
+        });
+        return fail(continuationResult.reason || `${F10_CHECKPOINT_HOLD}: continuation queries/validation failed`, {
+          persistA: persistedA,
+          persistB: persistedB,
+          continuationResult,
+          allowRetry: true,
+        });
+      }
+    }
+    eventRecorder.record("continuation_completed", { phase: "continuation" });
+  }
+
+  return {
+    ok: true,
+    allowRetry: true,
+    allowContinuation: !isLast,
+    continuationAuthorized: true,
+    finalMigration: isLast,
+    nextMigration: isLast ? null : true,
+    inventedLaterContinuation: false,
+    events: eventRecorder.snapshot(),
+    counters: runnerCounters,
+    spies,
+    persistA: persistedA,
+    persistB: persistedB,
+    repairOp,
+    retryOp,
+    continuationResult,
+    expectedCounters: expectedRunnerCountersForFile(file),
+  };
+}
+
+function f10CheckpointDestFor(evidenceOut, file, version, kind) {
+  if (!evidenceOut) return null;
+  const absOut = path.resolve(root, evidenceOut);
+  return path.join(
+    path.dirname(absOut),
+    `f10-checkpoint-${kind}-${version}-${String(file).replace(/\.sql$/, "")}.json`,
+  );
 }
 
 function preContinuationDestFor(evidenceOut, file, version) {
@@ -1701,6 +2374,7 @@ async function main() {
           },
           repairGate: { input: gateInput },
         });
+        // gateCalls: qualify-level repair_gate_evaluated only (GATE_CALLS_BOUNDARY).
         runnerCounters.gateCalls += 1;
         evaluateRepairSafetyGate(gateInput);
         recordRunnerEvent("repair_gate_evaluated", { phase: "repair_gate" });
@@ -2005,6 +2679,60 @@ async function main() {
           });
           break;
         }
+        const destA = f10CheckpointDestFor(args.evidenceOut, file, version, "a")
+          || path.join(isolated.workdir, `f10-checkpoint-a-${version}-${String(file).replace(/\.sql$/, "")}.json`);
+        const destB = f10CheckpointDestFor(args.evidenceOut, file, version, "b")
+          || path.join(isolated.workdir, `f10-checkpoint-b-${version}-${String(file).replace(/\.sql$/, "")}.json`);
+        const persistA = persistCheckpointA({
+          dest: destA,
+          record: buildCheckpointARecord({
+            file,
+            version,
+            repairProcessResult: {
+              command: "supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
+              ...(decided.repair || {}),
+            },
+            eventStream: recorder.snapshot(),
+            runnerCounters,
+          }),
+        });
+        if (!persistA.ok || persistA.verified !== true) {
+          holdSequence(persistA.reason || F10_CHECKPOINT_HOLD, {
+            historyAfterRepair: rowsFromQuery(historyAfterRepair),
+            fingerprintAfterRepair,
+            postRepairFingerprintEval,
+          });
+          evidence.runnerEventStreams[file] = recorder.snapshot();
+          evidence.runnerCountersByFile[file] = { ...runnerCounters };
+          break;
+        }
+        recordRunnerEvent("checkpoint_a_persisted", {
+          phase: "checkpoint_a",
+          process: {
+            commandIdentity: "atomic-checkpoint-a-write",
+            status: 0,
+            signal: null,
+            timeout: false,
+            stdoutByteLength: persistA.bytes,
+            stderrByteLength: 0,
+            stdoutSha256: persistA.sha256,
+            stderrSha256: sha256Utf8Qualify(""),
+          },
+        });
+        const verifiedABeforeRetry = verifyPersistedCheckpointA(destA, {
+          sha256: persistA.sha256,
+          bytes: persistA.bytes,
+        });
+        if (!verifiedABeforeRetry.ok) {
+          holdSequence(verifiedABeforeRetry.reason || F10_CHECKPOINT_HOLD, {
+            historyAfterRepair: rowsFromQuery(historyAfterRepair),
+            fingerprintAfterRepair,
+            postRepairFingerprintEval,
+          });
+          evidence.runnerEventStreams[file] = recorder.snapshot();
+          evidence.runnerCountersByFile[file] = { ...runnerCounters };
+          break;
+        }
         const retryStaged = syncIsolatedMigrationsThrough(isolated, file);
         const historyBeforeRetry = await queryHistory();
         const retryPreflight = assertPrefixCompleteSinglePendingStaging({
@@ -2097,6 +2825,79 @@ async function main() {
           break;
         }
         recordRunnerEvent("post_retry_fingerprint_collected", { phase: "post_retry_fingerprint" });
+        const persistB = persistCheckpointB({
+          dest: destB,
+          record: buildCheckpointBRecord({
+            file,
+            version,
+            retryProcessResult: {
+              command: "supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault",
+              ...retry,
+            },
+            postRetryProof: {
+              ok: true,
+              fingerprint: postRetryFingerprintEval,
+              pending: retryPending,
+            },
+            checkpointA: persistA,
+            eventStream: recorder.snapshot(),
+            runnerCounters,
+          }),
+        });
+        if (!persistB.ok || persistB.verified !== true) {
+          holdSequence(persistB.reason || F10_CHECKPOINT_HOLD, {
+            historyAfterRepair: rowsFromQuery(historyAfterRepair),
+            fingerprintAfterRepair,
+            fingerprintAfterRetryNoPending,
+            postRepairFingerprintEval,
+            postRetryFingerprintEval,
+            retryStaged,
+            retryPreflight,
+            retry,
+          });
+          evidence.runnerEventStreams[file] = recorder.snapshot();
+          evidence.runnerCountersByFile[file] = { ...runnerCounters };
+          break;
+        }
+        const stillA = verifyPersistedCheckpointA(destA, {
+          sha256: persistA.sha256,
+          bytes: persistA.bytes,
+        });
+        const verifiedB = verifyPersistedCheckpointB(destB, {
+          sha256: persistB.sha256,
+          bytes: persistB.bytes,
+        });
+        if (!stillA.ok || !verifiedB.ok) {
+          holdSequence(
+            stillA.reason || verifiedB.reason || F10_CHECKPOINT_HOLD,
+            {
+              historyAfterRepair: rowsFromQuery(historyAfterRepair),
+              fingerprintAfterRepair,
+              fingerprintAfterRetryNoPending,
+              postRepairFingerprintEval,
+              postRetryFingerprintEval,
+              retryStaged,
+              retryPreflight,
+              retry,
+            },
+          );
+          evidence.runnerEventStreams[file] = recorder.snapshot();
+          evidence.runnerCountersByFile[file] = { ...runnerCounters };
+          break;
+        }
+        recordRunnerEvent("checkpoint_b_persisted", {
+          phase: "checkpoint_b",
+          process: {
+            commandIdentity: "atomic-checkpoint-b-write",
+            status: 0,
+            signal: null,
+            timeout: false,
+            stdoutByteLength: persistB.bytes,
+            stderrByteLength: 0,
+            stdoutSha256: persistB.sha256,
+            stderrSha256: sha256Utf8Qualify(""),
+          },
+        });
         const isLastFile = file === F3_FORWARD_FILES[F3_FORWARD_FILES.length - 1];
         let fingerprintAfterCleanContinuation = null;
         let postContinuationFingerprintEval = null;
@@ -2125,22 +2926,13 @@ async function main() {
         const retryProcessResult = encodeSanitizedProcessResult(retry);
         const poisonProcessResult = encodeSanitizedProcessResult({
           command: "isolated-psql poison-absent-probe",
-          status: authRecord.poisonAbsenceQuery?.status ?? null,
+          status: authRecord.poisonAbsenceQuery?.status ?? 0,
           signal: authRecord.poisonAbsenceQuery?.signal ?? null,
           timeout: authRecord.poisonAbsenceQuery?.timeout === true,
           stdout: "",
           stderr: "",
-          stdoutSha256: authRecord.poisonAbsenceQuery?.stdoutSha256,
-          stderrSha256: authRecord.poisonAbsenceQuery?.stderrSha256,
-          stdoutByteLength: authRecord.poisonAbsenceQuery?.stdoutByteLength,
-          stderrByteLength: authRecord.poisonAbsenceQuery?.stderrByteLength,
+          error: null,
         });
-        if (authRecord.poisonAbsenceQuery?.stdoutSha256) {
-          poisonProcessResult.stdoutSha256 = authRecord.poisonAbsenceQuery.stdoutSha256;
-          poisonProcessResult.stderrSha256 = authRecord.poisonAbsenceQuery.stderrSha256;
-          poisonProcessResult.stdoutByteLength = authRecord.poisonAbsenceQuery.stdoutByteLength;
-          poisonProcessResult.stderrByteLength = authRecord.poisonAbsenceQuery.stderrByteLength;
-        }
         const preContinuationRecord = {
           schema_version: F9_PRE_CONTINUATION_SCHEMA_VERSION,
           migrationIdentity: { file, version, sourceLabel: "F3_FORWARD", destName: timestampFilenameFor(file) },
@@ -2230,6 +3022,8 @@ async function main() {
           inventedLaterContinuation: false,
         };
         if (!isLastFile) {
+          runnerCounters.continuationCalls += 1;
+          recordRunnerEvent("continuation_started", { phase: "continuation" });
           const continuationQuery = await runDbQuery({
             bin: cli.bin,
             workdir: isolated.workdir,
@@ -2281,8 +3075,6 @@ async function main() {
             });
             break;
           }
-          runnerCounters.continuationCalls += 1;
-          recordRunnerEvent("continuation_started", { phase: "continuation" });
           recordRunnerEvent("continuation_completed", { phase: "continuation" });
         }
         evidence.runnerEventStreams[file] = recorder.snapshot();
@@ -2314,6 +3106,10 @@ async function main() {
             bytes: persisted.bytes,
             finalMigration: isLastFile,
             inventedLaterContinuation: false,
+          },
+          f10Checkpoints: {
+            A: { dest: persistA.dest, sha256: persistA.sha256, bytes: persistA.bytes },
+            B: { dest: persistB.dest, sha256: persistB.sha256, bytes: persistB.bytes },
           },
         });
       }

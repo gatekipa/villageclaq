@@ -222,7 +222,13 @@ import {
   writeEvidenceIndexAndChecksum,
   verifyEvidenceIndex,
   writeSuiteMetaForOutFile,
+  writeDurableArtifactBytes,
   writeQualifyEvidenceArtifacts,
+  packageF10LocalSuiteLog,
+  verifySuiteToLogBinding,
+  buildSuiteTransformationProvenance,
+  SUITE_META_PRODUCER_ID,
+  SUITE_TRANSFORM_ID,
   readFinalCommittedBytes,
   verifyQualifyEvidencePackaging,
   scanEvidenceBytesForLeaks,
@@ -295,6 +301,19 @@ import {
   persistPreContinuationRecord,
   evaluateF9ContinuationAuthorization,
   exerciseF9RunnerOrchestration,
+  F10_CHECKPOINT_A_SCHEMA_VERSION,
+  F10_CHECKPOINT_B_SCHEMA_VERSION,
+  F10_CHECKPOINT_HOLD,
+  GATE_CALLS_BOUNDARY,
+  assertCheckpointAComplete,
+  persistCheckpointA,
+  persistCheckpointB,
+  verifyPersistedCheckpointA,
+  verifyPersistedCheckpointB,
+  buildCheckpointARecord,
+  buildCheckpointBRecord,
+  invokeRecordedOperation,
+  runF10RepairRetryContinuation,
 } from "./qualify-f3-db-push-disposable.mjs";
 import { BOOTSTRAP_WITH_LOCAL_SHIM } from "./_f3_apply_current_main_floor.mjs";
 import {
@@ -7576,4 +7595,413 @@ test("F9 outer evidence index includes nested indexes and fails path/secret leak
   assert.equal(typeof listEvidenceTreeFiles, "function");
   assert.equal(typeof commitOuterEvidenceTree, "function");
   console.log(JSON.stringify({ publishedF9IntegrityNegatives: records }, null, 2));
+});
+
+function f10Process(command, status = 0, extra = {}) {
+  return {
+    command,
+    status,
+    stdout: extra.stdout ?? "",
+    stderr: extra.stderr ?? "",
+    error: extra.error ?? null,
+    signal: extra.signal ?? null,
+    timeout: extra.timeout === true,
+    argv: extra.argv,
+  };
+}
+
+function f10AdapterArgs(dir, extra = {}) {
+  const file = extra.file || FILE118;
+  const version = extra.version || PREASSIGNED_VERSIONS[file];
+  return {
+    file,
+    version,
+    destA: extra.destA || path.join(dir, `f10-a-${file.replace(/\.sql$/, "")}.json`),
+    destB: extra.destB || path.join(dir, `f10-b-${file.replace(/\.sql$/, "")}.json`),
+    adapters: {
+      repair: extra.repair || (() => f10Process(
+        "supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
+        extra.repairStatus ?? 0,
+        extra.repairExtra || {},
+      )),
+      retry: extra.retry || (() => f10Process(
+        "supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault",
+        extra.retryStatus ?? 0,
+        extra.retryExtra || {},
+      )),
+      postRetryVerify: extra.postRetryVerify || (() => ({ ok: true })),
+      continuation: extra.continuation || (() => ({ ok: true })),
+      ...extra.adapterOverrides,
+    },
+    persistHooksA: extra.persistHooksA || {},
+    persistHooksB: extra.persistHooksB || {},
+    onAfterRepairStarted: extra.onAfterRepairStarted,
+    onAfterRetryStarted: extra.onAfterRetryStarted,
+    onAfterContinuationStarted: extra.onAfterContinuationStarted,
+  };
+}
+
+test("F10 Checkpoint A is verified before retry and blocks incomplete/missing records", async () => {
+  const records = [];
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f10-ckpt-a-"));
+  const happy = await runF10RepairRetryContinuation(f10AdapterArgs(dir));
+  assert.equal(happy.ok, true);
+  assert.equal(happy.spies.retryCalls, 1);
+  assert.equal(happy.persistA.verified, true);
+  assert.equal(happy.persistA.record.schema_version, F10_CHECKPOINT_A_SCHEMA_VERSION);
+  assert.equal(isCompleteProcessResult(happy.persistA.record.repairProcessResult), true);
+  assert.match(happy.persistA.record.repairProcessResult.stdout, /^/);
+  assert.match(happy.persistA.record.repairProcessResult.stderr, /^/);
+  records.push({ caseId: "F10-A01-CHECKPOINT-A-VERIFIED-BEFORE-RETRY", result: "ok" });
+
+  const failedRepair = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "failed-repair-a.json"),
+    destB: path.join(dir, "failed-repair-b.json"),
+    repairStatus: 1,
+    repairExtra: { stderr: "repair failed", error: "repair failed" },
+  }));
+  assert.equal(failedRepair.ok, false);
+  assert.equal(failedRepair.spies.retryCalls, 0);
+  assert.equal(failedRepair.spies.continuationAuthorizationCalls, 0);
+  assert.equal(failedRepair.spies.continuationCalls, 0);
+  records.push({
+    caseId: "F10-A02-FAILED-REPAIR-RETRY-CALLS-0",
+    result: "rejected",
+    retryCalls: failedRepair.spies.retryCalls,
+  });
+
+  const missingA = assertCheckpointAComplete({
+    schema_version: F10_CHECKPOINT_A_SCHEMA_VERSION,
+    checkpoint: "A",
+    boundary: "after_repair_before_retry",
+    migrationIdentity: { file: FILE118, version: PREASSIGNED_VERSIONS[FILE118] },
+    repairProcessResult: { status: 0, command: "x" },
+  });
+  assert.equal(missingA.ok, false);
+  records.push({ caseId: "F10-A03-INCOMPLETE-CHECKPOINT-A-BLOCKS-RETRY", result: "rejected" });
+
+  const wrongA = persistCheckpointA({
+    dest: path.join(dir, "wrong-a.json"),
+    record: {
+      schema_version: "not-a-checkpoint",
+      checkpoint: "A",
+      boundary: "after_repair_before_retry",
+      migrationIdentity: { file: FILE118, version: "1" },
+      repairProcessResult: encodeSanitizedProcessResult(f10Process("cmd", 0)),
+    },
+  });
+  assert.equal(wrongA.ok, false);
+  assert.equal(verifyPersistedCheckpointA(path.join(dir, "no-such-a.json")).ok, false);
+  records.push({ caseId: "F10-A04-MISSING-WRONG-CHECKPOINT-A-CANNOT-AUTHORIZE", result: "rejected" });
+
+  fs.rmSync(dir, { recursive: true, force: true });
+  for (const required of [
+    "F10-A01-CHECKPOINT-A-VERIFIED-BEFORE-RETRY",
+    "F10-A02-FAILED-REPAIR-RETRY-CALLS-0",
+    "F10-A03-INCOMPLETE-CHECKPOINT-A-BLOCKS-RETRY",
+    "F10-A04-MISSING-WRONG-CHECKPOINT-A-CANNOT-AUTHORIZE",
+  ]) {
+    assert.equal(records.some((row) => row.caseId === required), true, required);
+  }
+  console.log(JSON.stringify({ publishedF10CheckpointA: records }, null, 2));
+});
+
+test("F10 Checkpoint B is verified before continuation auth/invoke", async () => {
+  const records = [];
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f10-ckpt-b-"));
+  const happy = await runF10RepairRetryContinuation(f10AdapterArgs(dir));
+  assert.equal(happy.ok, true);
+  assert.equal(happy.spies.continuationAuthorizationCalls, 1);
+  assert.equal(happy.spies.continuationCalls, 1);
+  assert.equal(happy.persistB.record.schema_version, F10_CHECKPOINT_B_SCHEMA_VERSION);
+  assert.equal(happy.persistB.record.checkpointA.sha256, happy.persistA.sha256);
+  assert.equal(verifyPersistedCheckpointA(happy.persistA.dest).ok, true);
+  records.push({ caseId: "F10-B01-CHECKPOINT-B-VERIFIED-BEFORE-CONTINUATION", result: "ok" });
+
+  const failB = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "fail-b-a.json"),
+    destB: path.join(dir, "fail-b-b.json"),
+    persistHooksB: { failWrite: true },
+  }));
+  assert.equal(failB.ok, false);
+  assert.equal(failB.spies.retryCalls, 1);
+  assert.equal(failB.spies.continuationAuthorizationCalls, 0);
+  assert.equal(failB.spies.continuationCalls, 0);
+  assert.equal(failB.spies.continuationQueryCalls, 0);
+  records.push({
+    caseId: "F10-B02-CHECKPOINT-B-FAILURE-NO-CONTINUATION-AUTH",
+    result: "rejected",
+    continuationAuthorizationCalls: failB.spies.continuationAuthorizationCalls,
+    continuationCalls: failB.spies.continuationCalls,
+  });
+
+  const last = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    file: FILE123,
+    destA: path.join(dir, "last-a.json"),
+    destB: path.join(dir, "last-b.json"),
+  }));
+  assert.equal(last.ok, true);
+  assert.equal(last.finalMigration, true);
+  assert.equal(last.spies.continuationAuthorizationCalls, 1);
+  assert.equal(last.spies.continuationCalls, 0);
+  assert.equal(last.counters.continuationAuthorizationCalls, 1);
+  assert.equal(last.counters.continuationCalls, 0);
+  assert.equal(last.callTrace?.includes("continuation_started") || last.events.some((e) => e.event_type === "continuation_started"), false);
+  records.push({ caseId: "F10-B03-00123-FINAL-SEMANTICS", result: "ok" });
+
+  fs.rmSync(dir, { recursive: true, force: true });
+  for (const required of [
+    "F10-B01-CHECKPOINT-B-VERIFIED-BEFORE-CONTINUATION",
+    "F10-B02-CHECKPOINT-B-FAILURE-NO-CONTINUATION-AUTH",
+    "F10-B03-00123-FINAL-SEMANTICS",
+  ]) {
+    assert.equal(records.some((row) => row.caseId === required), true, required);
+  }
+  console.log(JSON.stringify({ publishedF10CheckpointB: records }, null, 2));
+});
+
+test("F10 invoke boundaries record started before await and honest failures", async () => {
+  const records = [];
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f10-events-"));
+  let pendingRepair = null;
+  const happy = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    onAfterRepairStarted: ({ events }) => {
+      const types = events.map((event) => event.event_type);
+      pendingRepair = {
+        started: types.includes("repair_started"),
+        completed: types.includes("repair_completed"),
+      };
+    },
+  }));
+  assert.equal(happy.ok, true);
+  assert.equal(pendingRepair.started, true);
+  assert.equal(pendingRepair.completed, false);
+  const repairIdx = happy.events.findIndex((event) => event.event_type === "repair_started");
+  const repairDone = happy.events.findIndex((event) => event.event_type === "repair_completed");
+  assert.ok(repairIdx >= 0 && repairDone > repairIdx);
+  records.push({ caseId: "F10-E01-STARTED-BEFORE-COMPLETION", result: "ok" });
+
+  let pendingContinuation = null;
+  let continuationInvokedBeforeStart = false;
+  const cont = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "cont-a.json"),
+    destB: path.join(dir, "cont-b.json"),
+    continuation: () => {
+      continuationInvokedBeforeStart = pendingContinuation == null;
+      return { ok: true };
+    },
+    onAfterContinuationStarted: ({ events }) => {
+      const types = events.map((event) => event.event_type);
+      pendingContinuation = {
+        started: types.includes("continuation_started"),
+        completed: types.includes("continuation_completed"),
+        queries: types.includes("continuation_completed") ? "after" : "not-yet",
+      };
+    },
+  }));
+  assert.equal(cont.ok, true);
+  assert.equal(continuationInvokedBeforeStart, false);
+  assert.equal(pendingContinuation.started, true);
+  assert.equal(pendingContinuation.completed, false);
+  const started = cont.events.findIndex((event) => event.event_type === "continuation_started");
+  const completed = cont.events.findIndex((event) => event.event_type === "continuation_completed");
+  assert.ok(started >= 0 && completed > started);
+  records.push({ caseId: "F10-E02-CONTINUATION-STARTED-BEFORE-QUERIES", result: "ok" });
+
+  const rejected = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "rej-a.json"),
+    destB: path.join(dir, "rej-b.json"),
+    repair: () => {
+      throw new Error("injected repair throw");
+    },
+  }));
+  assert.equal(rejected.ok, false);
+  assert.equal(rejected.spies.retryCalls, 0);
+  assert.equal(rejected.events.some((event) => event.event_type === "repair_completed"), true);
+  assert.equal(rejected.events.find((event) => event.event_type === "repair_completed")?.process?.status, 1);
+  records.push({ caseId: "F10-E03-HONEST-FAILURE-STOPS-SUBSEQUENT", result: "rejected" });
+
+  assert.match(GATE_CALLS_BOUNDARY, /qualify-level repair_gate_evaluated/);
+  assert.match(GATE_CALLS_BOUNDARY, /not every evaluateRepairSafetyGate/);
+  records.push({ caseId: "F10-E04-GATECALLS-BOUNDARY-DOCUMENTED", result: "ok" });
+
+  fs.rmSync(dir, { recursive: true, force: true });
+  for (const required of [
+    "F10-E01-STARTED-BEFORE-COMPLETION",
+    "F10-E02-CONTINUATION-STARTED-BEFORE-QUERIES",
+    "F10-E03-HONEST-FAILURE-STOPS-SUBSEQUENT",
+    "F10-E04-GATECALLS-BOUNDARY-DOCUMENTED",
+  ]) {
+    assert.equal(records.some((row) => row.caseId === required), true, required);
+  }
+  console.log(JSON.stringify({ publishedF10Events: records }, null, 2));
+});
+
+test("F10 persistence failures at write/fsync/close/rename/reread/length/digest block next op", async () => {
+  const records = [];
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f10-persist-"));
+  const cases = [
+    ["failWrite", "F10-P01-WRITE-FAILURE-BLOCKS-RETRY"],
+    ["failFsync", "F10-P02-FSYNC-FAILURE-BLOCKS-RETRY"],
+    ["failClose", "F10-P03-CLOSE-FAILURE-BLOCKS-RETRY"],
+    ["failRename", "F10-P04-RENAME-FAILURE-BLOCKS-RETRY"],
+    ["failReread", "F10-P05-REREAD-FAILURE-BLOCKS-RETRY"],
+    ["failLength", "F10-P06-LENGTH-FAILURE-BLOCKS-RETRY"],
+    ["failDigest", "F10-P07-DIGEST-FAILURE-BLOCKS-RETRY"],
+  ];
+  const spyCounts = [];
+  for (const [hook, caseId] of cases) {
+    const result = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+      destA: path.join(dir, `${hook}-a.json`),
+      destB: path.join(dir, `${hook}-b.json`),
+      persistHooksA: { [hook]: true },
+    }));
+    assert.equal(result.ok, false, hook);
+    assert.equal(result.spies.retryCalls, 0, hook);
+    assert.equal(result.spies.continuationAuthorizationCalls, 0, hook);
+    spyCounts.push({ hook, retryCalls: result.spies.retryCalls, continuationCalls: result.spies.continuationCalls });
+    records.push({ caseId, result: "rejected", retryCalls: result.spies.retryCalls });
+  }
+
+  const bCases = [
+    ["failWrite", "F10-P08-B-WRITE-FAILURE-BLOCKS-CONTINUATION"],
+    ["failFsync", "F10-P09-B-FSYNC-FAILURE-BLOCKS-CONTINUATION"],
+    ["failClose", "F10-P10-B-CLOSE-FAILURE-BLOCKS-CONTINUATION"],
+    ["failRename", "F10-P11-B-RENAME-FAILURE-BLOCKS-CONTINUATION"],
+    ["failReread", "F10-P12-B-REREAD-FAILURE-BLOCKS-CONTINUATION"],
+    ["failLength", "F10-P13-B-LENGTH-FAILURE-BLOCKS-CONTINUATION"],
+    ["failDigest", "F10-P14-B-DIGEST-FAILURE-BLOCKS-CONTINUATION"],
+  ];
+  for (const [hook, caseId] of bCases) {
+    const result = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+      destA: path.join(dir, `b-${hook}-a.json`),
+      destB: path.join(dir, `b-${hook}-b.json`),
+      persistHooksB: { [hook]: true },
+    }));
+    assert.equal(result.ok, false, hook);
+    assert.equal(result.spies.retryCalls, 1, hook);
+    assert.equal(result.spies.continuationAuthorizationCalls, 0, hook);
+    assert.equal(result.spies.continuationCalls, 0, hook);
+    spyCounts.push({
+      hook: `B.${hook}`,
+      retryCalls: result.spies.retryCalls,
+      continuationAuthorizationCalls: result.spies.continuationAuthorizationCalls,
+      continuationCalls: result.spies.continuationCalls,
+    });
+    records.push({ caseId, result: "rejected", continuationAuthorizationCalls: 0 });
+  }
+
+  fs.rmSync(dir, { recursive: true, force: true });
+  assert.equal(records.length, 14);
+  console.log(JSON.stringify({ publishedF10Persistence: records, spyCounts }, null, 2));
+});
+
+test("F10 sanitized stdout/stderr/error survive encoding and durable reread", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f10-bodies-"));
+  const stdout = "ok-line\nunicode Δ café\nnewline-end\n";
+  const stderr = "warn:  role \"ubuntu\" does not exist\n";
+  const error = "ERROR:  encoded-body-survives";
+  const result = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    repairExtra: { stdout, stderr, error },
+  }));
+  assert.equal(result.ok, true);
+  const stored = result.persistA.record.repairProcessResult;
+  assert.equal(stored.stdout, stdout);
+  assert.equal(stored.stderr, stderr);
+  assert.equal(stored.error, error);
+  const reread = verifyPersistedCheckpointA(result.persistA.dest);
+  assert.equal(reread.ok, true);
+  assert.equal(reread.record.repairProcessResult.stdout, stdout);
+  assert.equal(reread.record.repairProcessResult.stderr, stderr);
+  assert.equal(reread.record.repairProcessResult.error, error);
+  const encoded = encodeSanitizedProcessResult({
+    command: "cmd",
+    status: 0,
+    stdout,
+    stderr,
+    error,
+    signal: null,
+    timeout: false,
+  });
+  assert.equal(isCompleteProcessResult(encoded), true);
+  fs.rmSync(dir, { recursive: true, force: true });
+  console.log(JSON.stringify({ caseId: "F10-R01-BODIES-SURVIVE-ENCODING", result: "ok" }, null, 2));
+});
+
+test("F10 suite-log pipeline binds metadata to committed bytes with provenance", () => {
+  const records = [];
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f10-suite-"));
+  const secret = "super-secret-db-password";
+  const rawOut = [
+    "# Subtest: f10 suite bind",
+    "ok 1 - f10 suite bind",
+    `  password: ${secret}`,
+    "  workdir: /workspace/machine-path",
+    "",
+  ].join("\n");
+  const packed = packageF10LocalSuiteLog({
+    destDir: dir,
+    suiteName: "test-f3-db-push",
+    rawOut,
+    tests: [{ name: "f10 suite bind", ok: true, output: rawOut }],
+    extraSecrets: [secret],
+  });
+  assert.equal(packed.ok, true);
+  const committed = fs.readFileSync(packed.outPath);
+  assert.equal(committed.includes(secret), false);
+  assert.equal(packed.meta.sha256, createHash("sha256").update(committed).digest("hex"));
+  assert.equal(packed.meta.bytes, committed.byteLength);
+  assert.equal(packed.transformation_provenance.producer, SUITE_META_PRODUCER_ID);
+  assert.equal(packed.transformation_provenance.transform, SUITE_TRANSFORM_ID);
+  assert.equal(packed.transformation_provenance.final_sha256, packed.meta.sha256);
+  assert.equal(packed.transformation_provenance.final_bytes, packed.meta.bytes);
+  assert.notEqual(packed.transformation_provenance.source_sha256, packed.meta.sha256);
+  assert.equal(packed.raw_not_committed, true);
+  const verified = verifySuiteToLogBinding({ outPath: packed.outPath, metaPath: packed.metaPath });
+  assert.equal(verified.ok, true);
+  records.push({ caseId: "F10-S01-SUITE-META-MATCHES-COMMITTED-BYTES", result: "ok" });
+
+  const standIn = buildSuiteMetaFromSanitizedOut({
+    sanitizedOut: Buffer.from(rawOut, "utf8"),
+    tests: [{ name: "stand-in", ok: true }],
+  });
+  assert.notEqual(standIn.sha256, packed.meta.sha256);
+  records.push({ caseId: "F10-S02-STANDIN-HASH-DISAGREES-WITH-COMMITTED", result: "ok" });
+
+  const provenance = packed.transformation_provenance;
+  assert.deepEqual(provenance.pipeline, [
+    "capture",
+    "sanitize",
+    "durable_write",
+    "reread",
+    "hash",
+    "suite_metadata",
+    "indexes",
+  ]);
+  assert.ok(provenance.transformations.includes("sanitizeEvidenceOutBytes"));
+  records.push({ caseId: "F10-S03-TRANSFORMATION-PROVENANCE-RECORDED", result: "ok" });
+
+  const suites = ["test-f3-db-push", "test-f3-recognition", "test-f3-oracles"];
+  for (const name of suites) {
+    const row = packageF10LocalSuiteLog({
+      destDir: path.join(dir, name),
+      suiteName: name,
+      rawOut: `# ${name}\nok 1 - ${name}\n`,
+      tests: [{ name, ok: true }],
+    });
+    assert.equal(row.ok, true, name);
+    assert.equal(verifySuiteToLogBinding({ outPath: row.outPath, metaPath: row.metaPath }).ok, true, name);
+  }
+  records.push({ caseId: "F10-S04-EVERY-SUITE-TO-LOG-BINDING-VERIFIED", result: "ok" });
+
+  fs.rmSync(dir, { recursive: true, force: true });
+  for (const required of [
+    "F10-S01-SUITE-META-MATCHES-COMMITTED-BYTES",
+    "F10-S02-STANDIN-HASH-DISAGREES-WITH-COMMITTED",
+    "F10-S03-TRANSFORMATION-PROVENANCE-RECORDED",
+    "F10-S04-EVERY-SUITE-TO-LOG-BINDING-VERIFIED",
+  ]) {
+    assert.equal(records.some((row) => row.caseId === required), true, required);
+  }
+  console.log(JSON.stringify({ publishedF10SuiteBinding: records }, null, 2));
 });

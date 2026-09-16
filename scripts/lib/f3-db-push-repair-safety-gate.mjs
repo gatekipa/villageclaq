@@ -2169,20 +2169,145 @@ export function readFinalCommittedBytes(abs) {
   };
 }
 
-function writeFinalArtifactBytes(abs, buf) {
+export const F10_DURABLE_WRITE_HOLD =
+  "HOLD: F10 durable artifact write failed verification";
+export const SUITE_META_PRODUCER_ID =
+  "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile";
+export const SUITE_TRANSFORM_ID =
+  "scripts/lib/f3-db-push-repair-safety-gate.mjs#sanitizeEvidenceOutBytes";
+export const SUITE_META_BUILDER_ID =
+  "scripts/lib/f3-db-push-repair-safety-gate.mjs#buildSuiteMetaFromSanitizedOut";
+export const SUITE_LOG_PIPELINE_STEPS = Object.freeze([
+  "capture",
+  "sanitize",
+  "durable_write",
+  "reread",
+  "hash",
+  "suite_metadata",
+  "indexes",
+]);
+
+/**
+ * Atomic durable persist: temp → write → fsync → close → rename → reread →
+ * byte-length + SHA. Later writes cannot disguise an earlier verified file.
+ */
+export function writeDurableArtifactBytes(abs, buf, hooks = {}) {
   const body = Buffer.isBuffer(buf) ? buf : Buffer.from(String(buf ?? ""), "utf8");
-  fs.mkdirSync(path.dirname(abs), { recursive: true });
-  fs.writeFileSync(abs, body);
-  const committed = readFinalCommittedBytes(abs);
-  if (!committed.ok) return committed;
-  if (Buffer.compare(committed.buf, body) !== 0) {
+  const expectedSha = sha256Bytes(body);
+  const tmp = `${abs}.tmp`;
+  try {
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    if (hooks.failWrite === true) {
+      throw new Error("injected durable write failure");
+    }
+    const fd = fs.openSync(tmp, "w");
+    try {
+      fs.writeSync(fd, body);
+      if (hooks.failFsync === true) {
+        throw new Error("injected durable fsync failure");
+      }
+      fs.fsyncSync(fd);
+    } finally {
+      if (hooks.failClose === true) {
+        try { fs.closeSync(fd); } catch { /* still fail the close contract */ }
+        throw new Error("injected durable close failure");
+      }
+      fs.closeSync(fd);
+    }
+    if (hooks.failRename === true) {
+      throw new Error("injected durable rename failure");
+    }
+    fs.renameSync(tmp, abs);
+    if (hooks.skipReread === true) {
+      return {
+        ok: false,
+        written: true,
+        verified: false,
+        abs,
+        reason: `${F10_DURABLE_WRITE_HOLD}: successful write without reread verification`,
+      };
+    }
+    if (hooks.failReread === true) {
+      return {
+        ok: false,
+        written: true,
+        verified: false,
+        abs,
+        reason: `${F10_DURABLE_WRITE_HOLD}: durable reread failed`,
+      };
+    }
+    const reread = hooks.rereadBytes ? hooks.rereadBytes(abs) : fs.readFileSync(abs);
+    if (!Buffer.isBuffer(reread) || reread.byteLength === 0 && body.byteLength !== 0) {
+      return {
+        ok: false,
+        written: true,
+        verified: false,
+        abs,
+        reason: `${F10_DURABLE_WRITE_HOLD}: durable reread failed`,
+      };
+    }
+    const sha256 = sha256Bytes(reread);
+    const bytes = reread.byteLength;
+    if (hooks.failLength === true || hooks.mismatchLength === true || bytes !== body.byteLength) {
+      return {
+        ok: false,
+        written: true,
+        verified: false,
+        abs,
+        reason: `${F10_DURABLE_WRITE_HOLD}: hash/length mismatch after reread`,
+        expected: { sha256: expectedSha, bytes: body.byteLength },
+        actual: { sha256, bytes },
+      };
+    }
+    if (hooks.failDigest === true || hooks.mismatchHash === true || sha256 !== expectedSha) {
+      return {
+        ok: false,
+        written: true,
+        verified: false,
+        abs,
+        reason: `${F10_DURABLE_WRITE_HOLD}: hash/length mismatch after reread`,
+        expected: { sha256: expectedSha, bytes: body.byteLength },
+        actual: { sha256, bytes },
+      };
+    }
+    if (Buffer.compare(reread, body) !== 0) {
+      return {
+        ok: false,
+        written: true,
+        verified: false,
+        abs,
+        reason: "HOLD: written artifact bytes mutated before re-read",
+      };
+    }
+    return {
+      ok: true,
+      written: true,
+      verified: true,
+      abs,
+      dest: abs,
+      buf: reread,
+      sha256,
+      bytes,
+      endsWithSingleLf: reread.byteLength > 0 && reread[reread.byteLength - 1] === 0x0a
+        && (reread.byteLength < 2 || reread[reread.byteLength - 2] !== 0x0a),
+      missingFinalNewline: reread.byteLength === 0 || reread[reread.byteLength - 1] !== 0x0a,
+      addedFinalNewline: reread.byteLength >= 2 && reread[reread.byteLength - 1] === 0x0a
+        && reread[reread.byteLength - 2] === 0x0a,
+    };
+  } catch (err) {
+    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch { /* leftover tmp is not a continue */ }
     return {
       ok: false,
-      reason: "HOLD: written artifact bytes mutated before re-read",
+      written: false,
+      verified: false,
       abs,
+      reason: `${F10_DURABLE_WRITE_HOLD}: ${err?.message || err}`,
     };
   }
-  return committed;
+}
+
+function writeFinalArtifactBytes(abs, buf, hooks = {}) {
+  return writeDurableArtifactBytes(abs, buf, hooks);
 }
 
 function writeFinalJsonArtifact(abs, value) {
@@ -2288,13 +2413,61 @@ export function extractExactPostgresError(text) {
   return null;
 }
 
-export function buildSuiteMetaFromSanitizedOut({ sanitizedOut, tests = [] } = {}) {
+export function describeSuiteTransformations(raw, sanitized, extraSecrets = []) {
+  const rawBuf = Buffer.isBuffer(raw) ? raw : Buffer.from(String(raw ?? ""), "utf8");
+  const sanBuf = Buffer.isBuffer(sanitized) ? sanitized : Buffer.from(String(sanitized ?? ""), "utf8");
+  const rawText = rawBuf.toString("utf8");
+  const sanText = sanBuf.toString("utf8");
+  const transformations = [];
+  if (Buffer.compare(rawBuf, sanBuf) === 0) {
+    transformations.push("identity_already_sanitized");
+    return transformations;
+  }
+  transformations.push("sanitizeEvidenceOutBytes");
+  const secrets = (extraSecrets || []).filter(Boolean).map(String);
+  if (secrets.some((secret) => rawText.includes(secret) && !sanText.includes(secret))) {
+    transformations.push("explicit_secret_redaction");
+  }
+  if (/postgres(?:\.[A-Za-z0-9]+)?:[^@\s]+@/.test(rawText)
+    && !/postgres(?:\.[A-Za-z0-9]+)?:[^@\s]+@/.test(sanText)) {
+    transformations.push("postgres_url_password_redaction");
+  }
+  if (MACHINE_ABS_PATH_RE.test(rawText) && !MACHINE_ABS_PATH_RE.test(sanText)) {
+    transformations.push("nonsemantic_absolute_path_sanitization");
+  }
+  return transformations;
+}
+
+export function buildSuiteTransformationProvenance({
+  raw,
+  sanitized,
+  extraSecrets = [],
+} = {}) {
+  const rawBuf = Buffer.isBuffer(raw) ? raw : Buffer.from(String(raw ?? ""), "utf8");
+  const sanBuf = Buffer.isBuffer(sanitized) ? sanitized : Buffer.from(String(sanitized ?? ""), "utf8");
+  return {
+    producer: SUITE_META_PRODUCER_ID,
+    builder: SUITE_META_BUILDER_ID,
+    transform: SUITE_TRANSFORM_ID,
+    source_sha256: sha256Bytes(rawBuf),
+    source_bytes: rawBuf.byteLength,
+    final_sha256: sha256Bytes(sanBuf),
+    final_bytes: sanBuf.byteLength,
+    transformations: describeSuiteTransformations(rawBuf, sanBuf, extraSecrets),
+    pipeline: [...SUITE_LOG_PIPELINE_STEPS],
+    durable_write: {
+      temp_fsync_close_atomic_rename_reread: true,
+    },
+  };
+}
+
+export function buildSuiteMetaFromSanitizedOut({ sanitizedOut, tests = [], provenance = null } = {}) {
   const bytes = Buffer.isBuffer(sanitizedOut)
     ? sanitizedOut
     : Buffer.from(String(sanitizedOut ?? ""), "utf8");
   const text = bytes.toString("utf8");
   const listed = Array.isArray(tests) ? tests : [];
-  return {
+  const meta = {
     sha256: sha256Bytes(bytes),
     bytes: bytes.byteLength,
     encoding: "utf8",
@@ -2311,18 +2484,22 @@ export function buildSuiteMetaFromSanitizedOut({ sanitizedOut, tests = [] } = {}
       };
     }),
   };
+  if (provenance) {
+    meta.transformation_provenance = provenance;
+  }
+  return meta;
 }
 
-export function writeSuiteMetaForOutFile(outPath, { tests = [], extraSecrets = [] } = {}) {
+export function writeSuiteMetaForOutFile(outPath, { tests = [], extraSecrets = [], hooks = {} } = {}) {
   const raw = fs.readFileSync(outPath);
+  const sourceSha = sha256Bytes(raw);
+  const sourceBytes = raw.byteLength;
   const sanitized = sanitizeEvidenceOutBytes(raw, extraSecrets);
-  if (Buffer.compare(raw, sanitized) !== 0) {
-    const rewritten = writeFinalArtifactBytes(outPath, sanitized);
-    if (!rewritten.ok) {
-      const err = new Error(rewritten.reason);
-      err.code = "F3_SUITE_OUT_REWRITE";
-      throw err;
-    }
+  const rewritten = writeDurableArtifactBytes(outPath, sanitized, hooks.out || {});
+  if (!rewritten.ok) {
+    const err = new Error(rewritten.reason);
+    err.code = "F3_SUITE_OUT_REWRITE";
+    throw err;
   }
   const committedOut = readFinalCommittedBytes(outPath);
   if (!committedOut.ok) {
@@ -2330,10 +2507,34 @@ export function writeSuiteMetaForOutFile(outPath, { tests = [], extraSecrets = [
     err.code = "F3_SUITE_OUT_REREAD";
     throw err;
   }
+  if (committedOut.sha256 !== rewritten.sha256 || committedOut.bytes !== rewritten.bytes) {
+    const err = new Error("HOLD: suite output hashed before final committed bytes");
+    err.code = "F3_SUITE_OUT_HASH_BEFORE_COMMIT";
+    throw err;
+  }
+  const provenance = buildSuiteTransformationProvenance({
+    raw,
+    sanitized: committedOut.buf,
+    extraSecrets,
+  });
+  provenance.durable_write = {
+    ...provenance.durable_write,
+    verified: rewritten.verified === true,
+  };
+  provenance.source_sha256 = sourceSha;
+  provenance.source_bytes = sourceBytes;
+  provenance.final_sha256 = committedOut.sha256;
+  provenance.final_bytes = committedOut.bytes;
   const meta = buildSuiteMetaFromSanitizedOut({
     sanitizedOut: committedOut.buf,
     tests,
+    provenance,
   });
+  if (meta.sha256 !== committedOut.sha256 || meta.bytes !== committedOut.bytes) {
+    const err = new Error("HOLD: suite metadata hashed a stand-in instead of committed log bytes");
+    err.code = "F3_SUITE_META_STANDIN_HASH";
+    throw err;
+  }
   const metaPath = outPath.endsWith(".out")
     ? `${outPath.slice(0, -4)}.meta.json`
     : `${outPath}.meta.json`;
@@ -2351,7 +2552,52 @@ export function writeSuiteMetaForOutFile(outPath, { tests = [], extraSecrets = [
     outBytes: committedOut.bytes,
     metaFileSha256: writtenMeta.sha256,
     metaFileBytes: writtenMeta.bytes,
+    transformation_provenance: provenance,
+    sourceSha256: sourceSha,
+    sourceBytes,
   };
+}
+
+/**
+ * F10 local-only suite-log packager. Capture raw → sanitize → durable write →
+ * reread → hash → suite metadata. Does not commit sensitive raw inputs.
+ */
+export function packageF10LocalSuiteLog({
+  destDir,
+  suiteName,
+  rawOut,
+  tests = [],
+  extraSecrets = [],
+} = {}) {
+  if (!destDir || !suiteName) {
+    return { ok: false, reason: "HOLD: F10 suite-log package missing destDir/suiteName" };
+  }
+  fs.mkdirSync(destDir, { recursive: true });
+  const outPath = path.join(destDir, `${suiteName}.out`);
+  const rawBuf = Buffer.isBuffer(rawOut) ? rawOut : Buffer.from(String(rawOut ?? ""), "utf8");
+  fs.writeFileSync(outPath, rawBuf);
+  const written = writeSuiteMetaForOutFile(outPath, { tests, extraSecrets });
+  const verify = verifyCommittedSuiteEvidence({ outPath, metaPath: written.metaPath });
+  if (!verify.ok) {
+    return { ...verify, outPath, metaPath: written.metaPath };
+  }
+  const committed = readFinalCommittedBytes(outPath);
+  return {
+    ok: true,
+    suiteName,
+    outPath,
+    metaPath: written.metaPath,
+    outSha256: committed.sha256,
+    outBytes: committed.bytes,
+    meta: written.meta,
+    transformation_provenance: written.transformation_provenance,
+    verify,
+    raw_not_committed: Buffer.compare(rawBuf, committed.buf) !== 0,
+  };
+}
+
+export function verifySuiteToLogBinding({ outPath, metaPath } = {}) {
+  return verifyCommittedSuiteEvidence({ outPath, metaPath });
 }
 
 export function buildEvidenceIndex({ artifacts = [], exclusions = EVIDENCE_INDEX_EXCLUSIONS } = {}) {
@@ -3068,8 +3314,21 @@ export function verifyCommittedSuiteEvidence({ outPath, metaPath } = {}) {
   } catch {
     return { ok: false, reason: "HOLD: suite metadata is not JSON", code: "F3_SUITE_META_JSON" };
   }
+  const committed = readFinalCommittedBytes(outPath);
+  if (!committed.ok) {
+    return { ok: false, reason: committed.reason, code: "F3_SUITE_OUT_REREAD" };
+  }
   const actualSha = sha256Bytes(sanitized);
   const actualBytes = sanitized.byteLength;
+  if (committed.sha256 !== actualSha || committed.bytes !== actualBytes) {
+    return {
+      ok: false,
+      reason: "HOLD: committed suite output bytes disagree with sanitized re-read",
+      code: "F3_SUITE_COMMITTED_SANITIZE_DRIFT",
+      expected: { sha256: committed.sha256, bytes: committed.bytes },
+      actual: { sha256: actualSha, bytes: actualBytes },
+    };
+  }
   if (meta.sha256 !== actualSha || meta.bytes !== actualBytes) {
     return {
       ok: false,
@@ -3079,7 +3338,26 @@ export function verifyCommittedSuiteEvidence({ outPath, metaPath } = {}) {
       actual: { sha256: actualSha, bytes: actualBytes },
     };
   }
-  return { ok: true, sha256: actualSha, bytes: actualBytes, meta };
+  const provenance = meta.transformation_provenance;
+  if (provenance) {
+    if (provenance.final_sha256 !== committed.sha256 || provenance.final_bytes !== committed.bytes) {
+      return {
+        ok: false,
+        reason: "HOLD: suite transformation provenance final digest disagrees with committed log bytes",
+        code: "F3_SUITE_PROVENANCE_MISMATCH",
+        expected: { sha256: provenance.final_sha256, bytes: provenance.final_bytes },
+        actual: { sha256: committed.sha256, bytes: committed.bytes },
+      };
+    }
+    if (provenance.producer !== SUITE_META_PRODUCER_ID || provenance.transform !== SUITE_TRANSFORM_ID) {
+      return {
+        ok: false,
+        reason: "HOLD: suite transformation provenance producer/transform identity mismatch",
+        code: "F3_SUITE_PROVENANCE_IDENTITY",
+      };
+    }
+  }
+  return { ok: true, sha256: actualSha, bytes: actualBytes, meta, committed };
 }
 
 export function assertSanitizationPreservesSemanticFingerprint(raw, sanitized = null) {

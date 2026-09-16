@@ -145,6 +145,7 @@ import {
   writeQualifyEvidenceArtifacts,
   F3_FULL_FINGERPRINT_SCHEMA_VERSION,
   EXPECTED_FINGERPRINT_SEAL_PROVENANCE,
+  F3_FUNCTIONAL_RECURSIVE_CLOSURE,
   SEALED_PLATFORM_ACL_ENVELOPE_DIGEST,
   evaluatePlatformAclCalibration,
   authorizeDbPushAfterPlatformAclCalibration,
@@ -331,6 +332,15 @@ async function main() {
       schema_version: F3_FULL_FINGERPRINT_SCHEMA_VERSION,
       sealedPlatformAclEnvelopeDigest: SEALED_PLATFORM_ACL_ENVELOPE_DIGEST,
       platformAclCalibration,
+      independentAgrees: sealed.independentAgrees === true,
+      stageComparisons: sealed.stageComparisons || null,
+      primaryStructured: sealed.primaryStructured || null,
+      independentStructured: sealed.independentStructured || null,
+      independentReferenceModule: F3_FUNCTIONAL_RECURSIVE_CLOSURE.independent_reference_module,
+      independentReferenceSourceSha256: F3_FUNCTIONAL_RECURSIVE_CLOSURE.independent_reference_source_sha256,
+      recursiveClosureSha256: F3_FUNCTIONAL_RECURSIVE_CLOSURE.closure_sha256,
+      serverVersion: sealed.serverVersion || null,
+      mustReverifyOn176: sealed.mustReverifyOn176 === true,
     };
     const json = JSON.stringify(sanitizeForLog(payload), null, 2);
     console.log(json);

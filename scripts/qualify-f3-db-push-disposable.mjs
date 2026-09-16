@@ -150,6 +150,13 @@ import {
   evaluatePlatformAclCalibration,
   authorizeDbPushAfterPlatformAclCalibration,
   PLATFORM_ACL_CALIBRATION_HOLD,
+  assertEvidenceOutFileContract,
+  commitQualifyEvidenceOrHold,
+  EVIDENCE_OUT_FILE_CONTRACT,
+  EVIDENCE_WRITE_HOLD,
+  INVENTORY_PHASES,
+  labelInventoryCapture,
+  assertFinalInventoryChronology,
 } from "./lib/f3-db-push-repair-safety-gate.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -290,11 +297,55 @@ function objectsPresentFromProbe(result) {
   return true;
 }
 
+function emitAndExit(payload, { evidenceOut = null, exitCode = 1 } = {}) {
+  const json = JSON.stringify(sanitizeForLog(payload), null, 2);
+  console.log(json);
+  if (evidenceOut) {
+    const written = commitQualifyEvidenceOrHold({
+      dest: path.resolve(root, evidenceOut),
+      payload: json,
+    });
+    if (!written.ok) {
+      const hold = {
+        ...payload,
+        status: "HOLD",
+        verdict: FILE_BASED_RUNNER_VERDICTS.HOLD,
+        ok: false,
+        reason: written.reason || EVIDENCE_WRITE_HOLD,
+        evidenceWrite: written,
+        fingerprint_exact: false,
+      };
+      console.log(JSON.stringify(sanitizeForLog(hold), null, 2));
+      process.exit(written.exitCode || 1);
+    }
+  }
+  process.exit(exitCode);
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  const evidenceOutGate = assertEvidenceOutFileContract(
+    args.evidenceOut ? path.resolve(root, args.evidenceOut) : null,
+  );
+  if (!evidenceOutGate.ok) {
+    emitAndExit({
+      status: "HOLD",
+      verdict: FILE_BASED_RUNNER_VERDICTS.HOLD,
+      ok: false,
+      reason: evidenceOutGate.reason || EVIDENCE_OUT_FILE_CONTRACT,
+      evidenceOutGate,
+      productionContacted: false,
+      dbAccess: false,
+      dbPushCalls: 0,
+      repairCalls: 0,
+      continuationCalls: 0,
+      fingerprint_exact: false,
+      failedGate: "evidence_out_contract",
+    }, { evidenceOut: null, exitCode: 1 });
+  }
   const platformAclCalibration = authorizeDbPushAfterPlatformAclCalibration();
   if (!platformAclCalibration.ok) {
-    const payload = {
+    emitAndExit({
       status: "HOLD",
       verdict: FILE_BASED_RUNNER_VERDICTS.HOLD,
       ok: false,
@@ -303,19 +354,11 @@ async function main() {
       platformAclCalibration,
       sealedPlatformAclEnvelopeDigest: SEALED_PLATFORM_ACL_ENVELOPE_DIGEST,
       productionContacted: false,
+      dbAccess: false,
       dbPushCalls: 0,
       repairCalls: 0,
       fingerprint_exact: false,
-    };
-    const json = JSON.stringify(sanitizeForLog(payload), null, 2);
-    console.log(json);
-    if (args.evidenceOut) {
-      writeQualifyEvidenceArtifacts({
-        dest: path.resolve(root, args.evidenceOut),
-        sanitizedJson: json,
-      });
-    }
-    process.exit(1);
+    }, { evidenceOut: args.evidenceOut, exitCode: 1 });
   }
   if (args.sealFromLocalOracle) {
     const sealed = await sealExpectedFingerprintsFromLocalOracle();
@@ -342,24 +385,13 @@ async function main() {
       serverVersion: sealed.serverVersion || null,
       mustReverifyOn176: sealed.mustReverifyOn176 === true,
     };
-    const json = JSON.stringify(sanitizeForLog(payload), null, 2);
-    console.log(json);
-    if (args.evidenceOut) {
-      writeQualifyEvidenceArtifacts({
-        dest: path.resolve(root, args.evidenceOut),
-        sanitizedJson: json,
-      });
-    }
-    process.exit(sealed.ok === true ? 0 : sealed.status === "NOT_RUN" ? 2 : 1);
+    emitAndExit(payload, {
+      evidenceOut: args.evidenceOut,
+      exitCode: sealed.ok === true ? 0 : sealed.status === "NOT_RUN" ? 2 : 1,
+    });
   }
   if (!dbPushGatesSatisfiedFromEnv()) {
-    const payload = chiefRunbook();
-    console.log(JSON.stringify(payload, null, 2));
-    if (args.evidenceOut) {
-      fs.mkdirSync(path.dirname(path.resolve(root, args.evidenceOut)), { recursive: true });
-      fs.writeFileSync(path.resolve(root, args.evidenceOut), JSON.stringify(payload, null, 2));
-    }
-    process.exit(2);
+    emitAndExit(chiefRunbook(), { evidenceOut: args.evidenceOut, exitCode: 2 });
   }
 
   assertDbPushGates({ optIn: true });
@@ -386,6 +418,20 @@ async function main() {
     identity: null,
     inventoryBefore: null,
     inventoryCapture: null,
+    inventories: {
+      [INVENTORY_PHASES.BEFORE_RESET]: null,
+      [INVENTORY_PHASES.CLEAN_BASELINE]: null,
+      [INVENTORY_PHASES.AFTER_FLOOR]: null,
+      [INVENTORY_PHASES.AFTER_FAILED_HISTORY]: {},
+      [INVENTORY_PHASES.AFTER_REPAIR]: {},
+      [INVENTORY_PHASES.AFTER_RETRY]: {},
+      [INVENTORY_PHASES.AFTER_CONTINUATION]: {},
+      [INVENTORY_PHASES.FINAL]: null,
+    },
+    inventoryChronology: {
+      do_not_call_pre_floor_final: true,
+      final_label: INVENTORY_PHASES.FINAL,
+    },
     wipe: null,
     cleanup: null,
     floor: null,
@@ -472,6 +518,10 @@ async function main() {
       sql: INVENTORY_SQL,
     });
     evidence.inventoryBefore = { status: inventory.status, body: inventoryFromQuery(inventory.stdout) };
+    evidence.inventories[INVENTORY_PHASES.BEFORE_RESET] = labelInventoryCapture({
+      phase: INVENTORY_PHASES.BEFORE_RESET,
+      body: inventoryFromQuery(inventory.stdout),
+    });
     const columns = await runDbQuery({
       bin: cli.bin,
       workdir: isolated.workdir,
@@ -497,6 +547,10 @@ async function main() {
       sql: INVENTORY_CAPTURE_SQL,
     });
     evidence.inventoryCapture = { status: captured.status, body: inventoryFromQuery(captured.stdout) };
+    evidence.inventories[INVENTORY_PHASES.CLEAN_BASELINE] = labelInventoryCapture({
+      phase: INVENTORY_PHASES.CLEAN_BASELINE,
+      body: inventoryFromQuery(captured.stdout),
+    });
     let floorMode;
     try {
       floorMode = resolveHostedFloorMode(args.floorMode);
@@ -590,6 +644,16 @@ async function main() {
         fingerprint: { status: fingerprint.status, body: inventoryFromQuery(fingerprint.stdout) },
         gateQuery: { status: gateQuery.status },
       };
+      const afterFloorInv = await runDbQuery({
+        bin: cli.bin,
+        workdir: isolated.workdir,
+        help: queryHelp,
+        sql: INVENTORY_CAPTURE_SQL,
+      });
+      evidence.inventories[INVENTORY_PHASES.AFTER_FLOOR] = labelInventoryCapture({
+        phase: INVENTORY_PHASES.AFTER_FLOOR,
+        body: inventoryFromQuery(afterFloorInv.stdout),
+      });
       if (!installed.installed || !installed.exact) {
         evidence.status = "HOLD";
         evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
@@ -686,6 +750,17 @@ async function main() {
           { expected: expectedFingerprint },
         );
         const fingerprintObserved = fingerprintAfterCommitFailedHistory.fingerprint;
+        const afterFailedHistoryInv = await runDbQuery({
+          bin: cli.bin,
+          workdir: isolated.workdir,
+          help: queryHelp,
+          sql: INVENTORY_CAPTURE_SQL,
+        });
+        evidence.inventories[INVENTORY_PHASES.AFTER_FAILED_HISTORY][file] = labelInventoryCapture({
+          phase: INVENTORY_PHASES.AFTER_FAILED_HISTORY,
+          file,
+          body: inventoryFromQuery(afterFailedHistoryInv.stdout),
+        });
         assertExpectedFingerprintImmutable(file);
         const fingerprint = {
           expected: expectedFingerprint,
@@ -869,6 +944,17 @@ async function main() {
           expected: expectedFingerprint,
           preRepairObserved: fingerprintObserved,
         });
+        const afterRepairInv = await runDbQuery({
+          bin: cli.bin,
+          workdir: isolated.workdir,
+          help: queryHelp,
+          sql: INVENTORY_CAPTURE_SQL,
+        });
+        evidence.inventories[INVENTORY_PHASES.AFTER_REPAIR][file] = labelInventoryCapture({
+          phase: INVENTORY_PHASES.AFTER_REPAIR,
+          file,
+          body: inventoryFromQuery(afterRepairInv.stdout),
+        });
         if (!postRepairFingerprintEval.ok) {
           holdSequence(postRepairFingerprintEval.hold || POST_REPAIR_FULL_FINGERPRINT_HOLD, {
             historyAfterRepair: rowsFromQuery(historyAfterRepair),
@@ -915,6 +1001,17 @@ async function main() {
           expected: expectedFingerprint,
           preRepairObserved: fingerprintObserved,
           postRepairObserved: fingerprintAfterRepair.fingerprint,
+        });
+        const afterRetryInv = await runDbQuery({
+          bin: cli.bin,
+          workdir: isolated.workdir,
+          help: queryHelp,
+          sql: INVENTORY_CAPTURE_SQL,
+        });
+        evidence.inventories[INVENTORY_PHASES.AFTER_RETRY][file] = labelInventoryCapture({
+          phase: INVENTORY_PHASES.AFTER_RETRY,
+          file,
+          body: inventoryFromQuery(afterRetryInv.stdout),
         });
         const retryPending = Array.isArray(retryPreflight?.pending) ? retryPreflight.pending : [];
         if (!postRetryFingerprintEval.ok || retryPending.length > 0) {
@@ -964,6 +1061,17 @@ async function main() {
             preRepairObserved: fingerprintObserved,
             postRepairObserved: fingerprintAfterRepair.fingerprint,
           });
+          const afterContInv = await runDbQuery({
+            bin: cli.bin,
+            workdir: isolated.workdir,
+            help: queryHelp,
+            sql: INVENTORY_CAPTURE_SQL,
+          });
+          evidence.inventories[INVENTORY_PHASES.AFTER_CONTINUATION][file] = labelInventoryCapture({
+            phase: INVENTORY_PHASES.AFTER_CONTINUATION,
+            file,
+            body: inventoryFromQuery(afterContInv.stdout),
+          });
           if (!postContinuationFingerprintEval.ok) {
             holdSequence(postContinuationFingerprintEval.hold || POST_CONTINUATION_FULL_FINGERPRINT_HOLD, {
               historyAfterRepair: rowsFromQuery(historyAfterRepair),
@@ -1003,14 +1111,49 @@ async function main() {
         help: listHelp,
       });
       evidence.migrationListAfter = listedAfter;
+      const finalInv = await runDbQuery({
+        bin: cli.bin,
+        workdir: isolated.workdir,
+        help: queryHelp,
+        sql: INVENTORY_CAPTURE_SQL,
+      });
+      const poisonFinal = await runDbQuery({
+        bin: cli.bin,
+        workdir: isolated.workdir,
+        help: queryHelp,
+        sql: POISON_ABSENT_PROBE_SQL,
+      });
+      const historyFinal = await runDbQuery({
+        bin: cli.bin,
+        workdir: isolated.workdir,
+        help: queryHelp,
+        sql: READ_SCHEMA_MIGRATIONS_SQL,
+      });
+      const poisonBody = inventoryFromQuery(poisonFinal.stdout) || {};
       if (args.sequenceF3 && evidence.sequence.length === F3_FORWARD_FILES.length) {
-        evidence.status = FILE_BASED_RUNNER_VERDICTS.QUALIFICATION_PASS;
-        evidence.verdict = FILE_BASED_RUNNER_VERDICTS.QUALIFICATION_PASS;
-        evidence.claims.dbPush =
-          "FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION; prior MECHANICS PASS SUPERSEDED; not production PASS; not clean replay PASS; not merge/deploy auth";
-        evidence.claims.mechanicsPass = "SUPERSEDED";
-        evidence.claims.productionApproval = "NOT CLAIMED";
-        evidence.floorLabel = QUALIFICATION_FLOOR_LABEL;
+        evidence.inventories[INVENTORY_PHASES.FINAL] = labelInventoryCapture({
+          phase: INVENTORY_PHASES.FINAL,
+          body: inventoryFromQuery(finalInv.stdout),
+        });
+        evidence.finalInventoryChronology = assertFinalInventoryChronology({
+          inventories: evidence.inventories,
+          historyRows: rowsFromQuery(historyFinal),
+          recognition: evidence.recognition,
+          poisonPresent: poisonBody.trigger_present === true || poisonBody.function_present === true,
+        });
+        if (!evidence.finalInventoryChronology?.ok) {
+          evidence.status = "HOLD";
+          evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+          evidence.limitation = evidence.finalInventoryChronology?.reason || "HOLD: FINAL inventory chronology failed";
+        } else {
+          evidence.status = FILE_BASED_RUNNER_VERDICTS.QUALIFICATION_PASS;
+          evidence.verdict = FILE_BASED_RUNNER_VERDICTS.QUALIFICATION_PASS;
+          evidence.claims.dbPush =
+            "FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION; prior MECHANICS PASS SUPERSEDED; not production PASS; not clean replay PASS; not merge/deploy auth";
+          evidence.claims.mechanicsPass = "SUPERSEDED";
+          evidence.claims.productionApproval = "NOT CLAIMED";
+          evidence.floorLabel = QUALIFICATION_FLOOR_LABEL;
+        }
       } else if (!args.sequenceF3) {
         evidence.status = "GATED_SCAFFOLDING_READY — hosted sequence not requested";
         evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
@@ -1024,13 +1167,38 @@ async function main() {
   }
 
   evidence.fingerprintSchemaVersion = F3_FULL_FINGERPRINT_SCHEMA_VERSION;
+  evidence.recursiveRuntimeClosure = {
+    sha256: F3_FUNCTIONAL_RECURSIVE_CLOSURE.closure_sha256,
+    missing: F3_FUNCTIONAL_RECURSIVE_CLOSURE.missing,
+    unresolved: F3_FUNCTIONAL_RECURSIVE_CLOSURE.unresolved,
+    unexplained_exclusions: F3_FUNCTIONAL_RECURSIVE_CLOSURE.unexplained_exclusions,
+    uncommitted_functional_diffs: F3_FUNCTIONAL_RECURSIVE_CLOSURE.uncommitted_functional_diffs,
+    hosted_tree_mismatches: F3_FUNCTIONAL_RECURSIVE_CLOSURE.hosted_tree_mismatches,
+    closure_complete: F3_FUNCTIONAL_RECURSIVE_CLOSURE.closure_complete,
+    independent_reference_source_sha256: F3_FUNCTIONAL_RECURSIVE_CLOSURE.independent_reference_source_sha256,
+  };
   const json = JSON.stringify(sanitizeForLog(evidence), null, 2);
   console.log(json);
   if (args.evidenceOut) {
-    writeQualifyEvidenceArtifacts({
+    const written = commitQualifyEvidenceOrHold({
       dest: path.resolve(root, args.evidenceOut),
-      sanitizedJson: json,
+      payload: json,
     });
+    if (!written.ok) {
+      evidence.status = "HOLD";
+      evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+      evidence.ok = false;
+      evidence.reason = written.reason || EVIDENCE_WRITE_HOLD;
+      evidence.evidenceWrite = written;
+      evidence.fingerprint_exact = false;
+      console.log(JSON.stringify(sanitizeForLog({
+        status: "HOLD",
+        verdict: FILE_BASED_RUNNER_VERDICTS.HOLD,
+        reason: written.reason || EVIDENCE_WRITE_HOLD,
+        evidenceWrite: written,
+      }), null, 2));
+      process.exit(1);
+    }
   }
   if (String(evidence.verdict) === FILE_BASED_RUNNER_VERDICTS.BLOCKED || evidence.status === "NOT_RUN") {
     process.exit(2);

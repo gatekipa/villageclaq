@@ -1,0 +1,63 @@
+{
+  "artifact": "M3_F3_ATOMICITY_RESULTS_20260913",
+  "date": "2026-09-13",
+  "verdict": "ATOMICITY REMEDIATION PASS",
+  "functional_sha": "fc3d4ff8cb59ad09abdc07033cbfd20cec75e585",
+  "supersedes": {
+    "functional_sha": "bb0c918201f4114303404a3498f312d9679c36cd",
+    "evidence_tip": "a983157cbc3507f925f5889d23ac2a1be90e2a2d",
+    "premature_commit_digests": {
+      "00118": "e382fb033cf7f51a321cb2c84590d9375b49ec49d400f763ea4e08fe9d9d6697",
+      "00119": "be20b1197ea5e971888357f05127ee8e4358af69ef6d63169b4c0fd560ad6269",
+      "00120": "de8359d1d289933cf4d4f7d5970b2126e4e49373fe35b8fdfc7bbf89964bd499",
+      "00121": "620f807c6119cc1ea14ef586b0b624350410bb513ef2c87fa96ec32bd0b29195",
+      "00122": "ea5daf5031170badc407aecbbc71af51b16b6dd38d08aee9caca7ec9f259b2e8",
+      "00123": "f710844800794a5afaa9ae8adb7a143d14b0abc10d458b33947c87bbacae3191"
+    }
+  },
+  "pr83": {
+    "changed": false,
+    "authorized_tip": "a293f5958b31548ccec7591b653eff2857ae9a90",
+    "generated_sql_header_historical_cite": "a178068384290b37ec6c17b02428b399d52ddd10",
+    "astra_ux_criteria_edited": false
+  },
+  "suite": "scripts/test-financial-f3-migration-atomicity.mjs",
+  "result": "14/14 PASS",
+  "fresh": true,
+  "apply_path": "psql -f via applyForwardMigration + supabase_migrations.schema_migrations recorded only after successful file apply",
+  "ledger_executed": true,
+  "postgres": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+  "production_url_used": false,
+  "transaction_boundary": {
+    "00118": { "begin": 71, "hgp_post": 214, "reset_role": 281, "commit": 283, "after_commit": "" },
+    "00119": { "begin": 72, "hgp_post": 772, "reset_role": 839, "commit": 841, "after_commit": "" },
+    "00120": { "begin": 65, "hgp_post": 501, "reset_role": 568, "commit": 570, "after_commit": "" },
+    "00121": { "begin": 65, "hgp_post": 721, "reset_role": 788, "commit": 790, "after_commit": "" },
+    "00122": { "begin": 64, "hgp_post": 641, "reset_role": 708, "commit": 710, "after_commit": "" },
+    "00123": { "begin": 64, "hgp_post": 325, "reset_role": 392, "commit": 394, "after_commit": "" }
+  },
+  "new_digests": {
+    "00118": "517774fd883ecc8c8ba7d2e287c7245a1289b21623c839f594b0801611968f3c",
+    "00119": "9b09a733ed848e2a88a894db0815bd0f33f86335b58f7c9cd58845b6607d785d",
+    "00120": "4b870418ea15160a7aec0e6df707d9c8a3afc435f2d8bd1c861e0af7c47eb505",
+    "00121": "568ae0b15b1b6e6c0a7effd9e9b5644a294cc22d76dbbf0e6714a28888825cf5",
+    "00122": "fd2c6e8729d1c7983421804b5f028edd16170c9f9056c8db2f3994f4dff8bdf9",
+    "00123": "848b7cbe7e4e20e2e284d88f9954be0be8ffdfe4fc6d7c649e536d0c09aab699"
+  },
+  "injections": [
+    { "migration": "00118", "site": "hgp_post", "failed": true, "residual_f3_objects": 0, "ledger_advanced": false, "session": "ubuntu", "clean_retry": true },
+    { "migration": "00118", "site": "owner_pin", "failed": true, "residual_f3_objects": 0, "ledger_advanced": false, "session": "ubuntu", "clean_retry": true },
+    { "migration": "00118", "site": "grant_revoke", "failed": true, "residual_f3_objects": 0, "ledger_advanced": false, "session": "ubuntu", "clean_retry": true },
+    { "migration": "00118", "site": "role_check", "failed": true, "residual_f3_objects": 0, "ledger_advanced": false, "session": "ubuntu", "clean_retry": true },
+    { "migration": "00119", "site": "hgp_post", "failed": true, "pre_fingerprint_unchanged": true, "failed_version_recorded": false, "session": "ubuntu", "clean_retry": true },
+    { "migration": "00120", "site": "hgp_post", "failed": true, "pre_fingerprint_unchanged": true, "failed_version_recorded": false, "session": "ubuntu", "clean_retry": true },
+    { "migration": "00120", "site": "grant_revoke", "failed": true, "pre_fingerprint_unchanged": true, "failed_version_recorded": false, "session": "ubuntu", "clean_retry": true },
+    { "migration": "00120", "site": "role_check", "failed": true, "pre_fingerprint_unchanged": true, "failed_version_recorded": false, "session": "ubuntu", "clean_retry": true },
+    { "migration": "00121", "site": "hgp_post", "failed": true, "pre_fingerprint_unchanged": true, "failed_version_recorded": false, "session": "ubuntu", "clean_retry": true },
+    { "migration": "00122", "site": "hgp_post", "failed": true, "pre_fingerprint_unchanged": true, "failed_version_recorded": false, "session": "ubuntu", "clean_retry": true },
+    { "migration": "00123", "site": "hgp_post", "failed": true, "pre_fingerprint_unchanged": true, "failed_version_recorded": false, "session": "ubuntu", "clean_retry": true }
+  ],
+  "recognition_allowlist": ["manual_income"],
+  "semantics_or_ux_changed": false,
+  "production_changed": false
+}

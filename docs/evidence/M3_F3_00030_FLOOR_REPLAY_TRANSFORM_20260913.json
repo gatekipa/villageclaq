@@ -1,0 +1,15 @@
+{
+  "artifact": "M3_F3_00030_FLOOR_REPLAY_TRANSFORM_20260913",
+  "label": "historical disposable floor reconstruction — NOT production migration correction, NOT candidate runner; do NOT claim byte-identical historical replay",
+  "repo_00030_modified": false,
+  "original_sha256": "366ee277f8d659d4194340ebbcb93f4191e0ee64820d391999938596474f669f",
+  "transformed_sha256": "f4223e8a33f6b9dc367057ca638ae52d795b01a6796325f760db6f63849854e5",
+  "unnest_count": 14,
+  "replacement": "get_user_group_ids()",
+  "other_textual_change": false,
+  "local_00030_alone_without_shim": "PASS",
+  "shim_created": false,
+  "justification": "00048 documents historical defect; 00014 returns SETOF uuid",
+  "authorized_file": "00030_enterprise_branches_committees.sql",
+  "00057_outside_authorization": true
+}

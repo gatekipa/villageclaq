@@ -1,0 +1,142 @@
+{
+  "status": "HOLD",
+  "verdict": "HOLD",
+  "limitation": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+  "functional_sha": "2fcc65114d89f098dc5d0f7787a99cb08c643c21",
+  "recognition": [
+    "manual_income"
+  ],
+  "fingerprintSchemaVersion": "f3-full-catalog-v1",
+  "cli": {
+    "available": true,
+    "bin": "supabase",
+    "status": 0,
+    "text": "2.117.0",
+    "version": "2.117.0",
+    "pinned": "2.117.0",
+    "matchesPin": true
+  },
+  "floor": {
+    "label": "DOCUMENTED QUALIFICATION FIXTURE \u2014 NOT A CLEAN 00001\u201300117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+    "mode": "stub-live-pin",
+    "installed": true,
+    "exact": true,
+    "authority": "hosted default: stub+live-pin qualification floor via gated disposable psql -f (STUB_CORE_SQL + REGRESSION_SLICE_SQL + CUT2_QUEUE_SLICE_SQL + Cut 3 live has_group_permission + 00115 enqueue extract + remoteFloorOwnershipAndAclSql + exact unmodified 00117 bytes). Isolated db-push workdir only has 00118\u201300123. Earlier production history intentionally not reproduced. Do not invent 00117 history rows. NOT Management API, NOT db push for 00117, NOT 00001\u201300116 replay, NOT 00030/00057 transforms, NOT production-equivalent.",
+    "productionEquivalent": false,
+    "cleanReplay00001_00117": false
+  },
+  "expectedFingerprintsBeforeDb": {
+    "recordedBeforeDbAccess": true,
+    "independentOfObserved": true,
+    "constructedOffline": true,
+    "sha256BeforeDb": {
+      "00118_f3_bounded_financial_epoch_foundation.sql": "8299680fd5b3def52a981ae8c8ee097f29f13507b91d4f0799557236f1b5001c",
+      "00119_f3_01_core_ledger_foundation.sql": "0ee6c447ac89510f381abd30908b7fb5ba304537e60c577d6eedcc7835a7ed43",
+      "00120_f3_02_secure_posting_idempotency.sql": "13234a1e57a8c181da1a356ba1f236efc919efb6edb642062239499ff10d0ce9",
+      "00121_f3_03_projection_read_proof.sql": "b1693eda6e5e3944db092d800e037e366c9fd8e18723db962493b502c539cb30",
+      "00122_f3_04_correction_reversal.sql": "9add78f222edc0f933512f726f08ed92feed94432b9a9234c32e6952a1dfc00c",
+      "00123_f3_05_opening_cash_command.sql": "0234d2bf2374c8a681d186b8d77364b4b4db02eac76cebf786173d4a835f9547"
+    }
+  },
+  "preDbPushGates_ok": true,
+  "sequence": [
+    {
+      "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+      "version": "20260913173000",
+      "digest": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+      "classification": {
+        "nonzeroExit": true,
+        "historyFailed": true,
+        "historyInsertMentioned": true,
+        "targetVersionPresent": false,
+        "targetVersionAbsent": true,
+        "sqlCommitted": true,
+        "rolledBack": false,
+        "split": "POST_COMMIT_HISTORY_FAILURE",
+        "knownFilenameVersion": "20260913173000",
+        "repairAuthorizedByFilenameVersion": true
+      },
+      "repairAttempted": false,
+      "repairSafety": {
+        "ok": false,
+        "failedGates": [
+          "fingerprint_exact"
+        ],
+        "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+        "repairAuthorized": false,
+        "gates": [
+          {
+            "id": "authorized_file",
+            "ok": true
+          },
+          {
+            "id": "disposable_identity",
+            "ok": true
+          },
+          {
+            "id": "production_rejected",
+            "ok": true
+          },
+          {
+            "id": "cli_pin",
+            "ok": true
+          },
+          {
+            "id": "staged_prefix_complete",
+            "ok": true
+          },
+          {
+            "id": "inject_installed_exact_version",
+            "ok": true
+          },
+          {
+            "id": "nonzero_exit",
+            "ok": true
+          },
+          {
+            "id": "target_inject_marker",
+            "ok": true
+          },
+          {
+            "id": "no_unrelated_sql_error",
+            "ok": true
+          },
+          {
+            "id": "target_history_absent",
+            "ok": true
+          },
+          {
+            "id": "expected_objects",
+            "ok": true
+          },
+          {
+            "id": "security_postconditions",
+            "ok": true
+          },
+          {
+            "id": "fingerprint_exact",
+            "ok": false
+          },
+          {
+            "id": "sql_digest",
+            "ok": true
+          }
+        ]
+      },
+      "fingerprint_expected_sha256": "8299680fd5b3def52a981ae8c8ee097f29f13507b91d4f0799557236f1b5001c",
+      "fingerprint_observed_sha256": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+      "diffsVsExpected": {
+        "comparable": true,
+        "equal": false,
+        "changedKeys": [
+          "acl",
+          "acls",
+          "relations"
+        ],
+        "missingKeys": [],
+        "extraKeys": []
+      },
+      "fingerprintAfterPoisonCleanup_sha256": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+{
+  "warning": "WARNING: disposable proves prefix-complete staging for F3 qualification history only. Before any production db push, a separately authorized read-only production preflight must prove every production-recorded migration has an authoritative local timestamp file, frozen SQL digest, and order. Empty placeholders and guessed history are forbidden. Do not invent production migrations.",
+  "stagingInvariant": "PREFIX-COMPLETE, SINGLE-PENDING"
+}

@@ -1,0 +1,72 @@
+{"id":"N1","title":"Multi-argument ACL identity remains complete","accepted":true,"fingerprint_exact":true,"repairCalls":0}
+{"id":"N2","title":"Overloads remain distinct","repairCalls":0,"failedGates":["fingerprint_exact"],"fingerprint_exact":false}
+{"id":"N2","title":"Overloads remain distinct","accepted":true,"fingerprint_exact":true,"repairCalls":0}
+{"id":"N3","title":"Record-order-only ACL difference accepted","accepted":true,"fingerprint_exact":true,"repairCalls":0}
+{"id":"N4","title":"Truncated identity rejected","repairCalls":0,"failedGates":["fingerprint_exact"],"fingerprint_exact":false}
+{"id":"N5","title":"Same ACL count different object pairing rejected","repairCalls":0,"failedGates":["fingerprint_exact"],"fingerprint_exact":false}
+{"id":"N6","title":"Wrong grantee/grantor/privilege/grantability rejected","repairCalls":0,"failedGates":["fingerprint_exact"],"fingerprint_exact":false}
+{"id":"N7","title":"Missing/extra/duplicate ACL rejected","repairCalls":0,"failedGates":["fingerprint_exact"],"fingerprint_exact":false}
+{"id":"N8","title":"Malformed/nonzero probe rejected","repairCalls":0,"failedGates":["expected_objects","security_postconditions"],"fingerprint_exact":false}
+{"id":"N9","title":"Fingerprint mismatch rejected","repairCalls":0,"failedGates":["fingerprint_exact"],"fingerprint_exact":false}
+{"id":"N10","title":"Cleanup failure rejected","repairCalls":0,"failedGates":[],"fingerprint_exact":false}
+{"id":"N11","title":"Poison remains rejected","repairCalls":0,"failedGates":[],"fingerprint_exact":false}
+{"id":"N12","title":"Staging-prefix mismatch rejected","dbPushCalls":0,"repairCalls":0}
+{"id":"N13","title":"timestamptz lookup resolves to frozen canonical timestamp with time zone identity","accepted":true,"fingerprint_exact":true,"repairCalls":0}
+{"id":"N14","title":"Multi-arg retained; overloads remain distinct","accepted":true,"fingerprint_exact":true,"repairCalls":0}
+{"id":"N15","title":"Argument order changes rejected","repairCalls":0,"failedGates":["expected_objects","security_postconditions"]}
+{"id":"N16","title":"Missing argument rejected","repairCalls":0,"failedGates":["expected_objects","security_postconditions"]}
+{"id":"N17","title":"Extra argument rejected","repairCalls":0,"failedGates":["expected_objects","security_postconditions"]}
+{"id":"N18","title":"Similar-type (timestamp vs timestamptz) rejected","repairCalls":0,"failedGates":["expected_objects","security_postconditions"]}
+{"id":"N19","title":"lookup alias timestamptz in identity_arguments rejected","repairCalls":0,"failedGates":["expected_objects","security_postconditions"]}
+{"id":"N20","title":"Unresolved signature rejected","repairCalls":0,"failedGates":["expected_objects","security_postconditions"]}
+{"id":"N21","title":"Malformed non-JSON probe rejected","repairCalls":0,"failedGates":["expected_objects","security_postconditions"]}
+{"id":"N22","title":"Truncated identity rejected (object-probe)","repairCalls":0,"failedGates":["expected_objects","security_postconditions"]}
+{"id":"N23","title":"Same object count different identity pairing rejected","repairCalls":0,"failedGates":["expected_objects","security_postconditions"]}
+{"id":"N24","title":"Duplicate structured records rejected","repairCalls":0,"failedGates":["expected_objects","security_postconditions"]}
+{"id":"FC1","repairCalls":0,"hold":"HOLD: post-repair full fingerprint capture missing, partial, malformed, or unequal; retry not spawned; no continuation"}
+{"id":"FC2","repairCalls":0,"collector_ok":false}
+{"id":"FC3","repairCalls":0,"hold":"HOLD: post-repair full fingerprint capture missing, partial, malformed, or unequal; retry not spawned; no continuation"}
+{"id":"FC4","repairCalls":0,"hold":"HOLD: post-retry full fingerprint capture missing, partial, malformed, or unequal; no continuation"}
+{
+  "accepted": [
+    "N1",
+    "N2",
+    "N3",
+    "N13",
+    "N14"
+  ],
+  "rejected": [
+    "N4",
+    "N5",
+    "N6",
+    "N7",
+    "N8",
+    "N9",
+    "N10",
+    "N11",
+    "N12",
+    "N15",
+    "N16",
+    "N17",
+    "N18",
+    "N19",
+    "N20",
+    "N21",
+    "N22",
+    "N23",
+    "N24",
+    "FC1",
+    "FC2",
+    "FC3",
+    "FC4"
+  ],
+  "fingerprint_capture_rejected": [
+    "FC1",
+    "FC2",
+    "FC3",
+    "FC4"
+  ],
+  "all_repairCalls_zero": true,
+  "all_staging_dbPushCalls_zero": true,
+  "case_count": 28
+}

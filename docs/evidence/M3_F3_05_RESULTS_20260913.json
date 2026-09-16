@@ -1,0 +1,19 @@
+{
+  "artifact": "M3_F3_05_RESULTS_20260913",
+  "ticket": "F3-05",
+  "date": "2026-09-13",
+  "functional_sha": "fc3d4ff8cb59ad09abdc07033cbfd20cec75e585",
+  "supersedes": {
+    "artifact": "M3_F3_05_RESULTS_20260912",
+    "old_functional_sha": "a1e9311552a2698a8296e8f87eb1d000a5c259fe"
+  },
+  "migration": "supabase/migrations/00123_f3_05_opening_cash_command.sql",
+  "migration_sha256": "848b7cbe7e4e20e2e284d88f9954be0be8ffdfe4fc6d7c649e536d0c09aab699",
+  "db_suite": "scripts/test-financial-f3-opening-db.mjs",
+  "db_result": "31/31 PASS",
+  "astra_suite": "tests/finance/f3-05/opening-oracle.test.mjs",
+  "astra_result": "118/118 PASS",
+  "fresh": true,
+  "product_ux": "HIDDEN — command only; no F3-06/F3-07 opening UI",
+  "change": "transaction boundary only"
+}

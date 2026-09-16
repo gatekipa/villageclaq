@@ -1,0 +1,8 @@
+{
+  "artifact": "phase-d-failure-classification",
+  "functional_sha": "c59afad411a07838688aeb5583ab179683f25a7f",
+  "verdict": "PASS",
+  "stop_reason": null,
+  "all_six_pass": true,
+  "exit_code": 0
+}

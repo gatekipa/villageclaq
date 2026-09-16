@@ -1,0 +1,13 @@
+{
+  "name": "test-s0-cut1-active-authorization",
+  "command": "npm run test:s0-cut1-active-authorization",
+  "startedAt": "2026-09-14T21:33:08Z",
+  "endedAt": "2026-09-14T21:33:09Z",
+  "exit": 0,
+  "pass": 11,
+  "fail": 0,
+  "skip": 0,
+  "log": "<redacted-path>",
+  "sha256": "b13dfece77b81e47a7b67b2b723df6bfc3e3cb845361bcaa268fe64e4f452884",
+  "bytes": 2605
+}

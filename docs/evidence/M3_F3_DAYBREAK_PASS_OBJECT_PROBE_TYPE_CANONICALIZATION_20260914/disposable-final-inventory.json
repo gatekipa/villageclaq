@@ -1,0 +1,118 @@
+{
+  "artifact": "disposable-final-inventory",
+  "functional_sha": "7d18aacaa163f9738be16be80489654b048e2150",
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "name": "villageclaq-f3-management-api-disposable-20260913",
+  "organizationId": "eyztkzkprpmlmcabrfef",
+  "not_production": true,
+  "history_rows": [
+    {
+      "version": "20260913173000",
+      "name": "f3_bounded_financial_epoch_foundation"
+    },
+    {
+      "version": "20260913173001",
+      "name": "f3_01_core_ledger_foundation"
+    },
+    {
+      "version": "20260913173002",
+      "name": "f3_02_secure_posting_idempotency"
+    },
+    {
+      "version": "20260913173003",
+      "name": "f3_03_projection_read_proof"
+    },
+    {
+      "version": "20260913173004",
+      "name": "f3_04_correction_reversal"
+    },
+    {
+      "version": "20260913173005",
+      "name": "f3_05_opening_cash_command"
+    }
+  ],
+  "history_count": 6,
+  "classification": {
+    "verdict": "HOLD",
+    "reason": "HOLD: disposable inventory contains objects not demonstrably from the failed floor"
+  },
+  "inventory_summary": {
+    "public_tables_count": 37,
+    "f3_schemas": [],
+    "schema_migrations_count": 0
+  },
+  "poison_absent": {
+    "ok": true,
+    "absent": true,
+    "row": {
+      "function_present": false,
+      "trigger_present": false
+    }
+  },
+  "live_object_probe_00121": {
+    "status": 0,
+    "row": {
+      "p0": {
+        "identity_arguments": "p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_as_of_exclusive timestamp with time zone",
+        "object_name": "get_financial_projection_bundle",
+        "object_type": "routine",
+        "prokind": "f",
+        "schema": "public"
+      },
+      "p1": {
+        "identity_arguments": "p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer, p_limit integer",
+        "object_name": "get_financial_cashbook",
+        "object_type": "routine",
+        "prokind": "f",
+        "schema": "public"
+      }
+    },
+    "expected_descriptors": [
+      {
+        "object_type": "routine",
+        "schema": "public",
+        "object_name": "get_financial_projection_bundle",
+        "prokind": "f",
+        "identity_arguments": "p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_as_of_exclusive timestamp with time zone"
+      },
+      {
+        "object_type": "routine",
+        "schema": "public",
+        "object_name": "get_financial_cashbook",
+        "prokind": "f",
+        "identity_arguments": "p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer, p_limit integer"
+      }
+    ]
+  },
+  "f3_schemas_live": [
+    "financial_core",
+    "financial_private"
+  ],
+  "history_versions": [
+    {
+      "version": "20260913173000",
+      "name": "f3_bounded_financial_epoch_foundation"
+    },
+    {
+      "version": "20260913173001",
+      "name": "f3_01_core_ledger_foundation"
+    },
+    {
+      "version": "20260913173002",
+      "name": "f3_02_secure_posting_idempotency"
+    },
+    {
+      "version": "20260913173003",
+      "name": "f3_03_projection_read_proof"
+    },
+    {
+      "version": "20260913173004",
+      "name": "f3_04_correction_reversal"
+    },
+    {
+      "version": "20260913173005",
+      "name": "f3_05_opening_cash_command"
+    }
+  ],
+  "financial_core_tables": 3
+}

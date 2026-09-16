@@ -1,0 +1,9 @@
+{
+  "schema_version": "f3-full-catalog-v3",
+  "independent_module_sha": "cd5cd020788d7c8e77b4f08a6418cf76fac15dc7570ba20f52ec73d0c6dc0f5c",
+  "envelope_digest": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "envelope_bytes": 10222,
+  "recognition": [
+    "manual_income"
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "schema_version": "f3-full-catalog-v5",
+  "independent_module_sha": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+  "envelope": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "partitions_required_reproduced": true,
+  "self_fk_ri_roles_via_function": true
+}

@@ -1,0 +1,26 @@
+{
+  "artifact": "canonicalization-field-registry",
+  "functional_sha": "7d18aacaa163f9738be16be80489654b048e2150",
+  "object_probe_identity_fields": [
+    "object_type",
+    "schema",
+    "object_name",
+    "prokind",
+    "identity_arguments"
+  ],
+  "acl_identity_fields": [
+    "object_type",
+    "schema",
+    "object_name",
+    "prokind",
+    "identity_arguments",
+    "grantee",
+    "grantor",
+    "privilege",
+    "grantable"
+  ],
+  "type_alias_policy": {
+    "lookup": "timestamptz allowed in to_regprocedure literal",
+    "identity_arguments": "must equal pg_get_function_identity_arguments catalog text (timestamp with time zone)"
+  }
+}

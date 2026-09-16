@@ -1,0 +1,16 @@
+{
+  "label": "oracle_seal",
+  "database": "f3_reference_platform_seal_20260915",
+  "container": "f3-reference-pg176",
+  "listen": "127.0.0.1:55432",
+  "proof": {
+    "server_version": "17.6 (Debian 17.6-2.pgdg13+1)",
+    "server_version_num": "170006",
+    "current_database": "f3_reference_platform_seal_20260915",
+    "host": "127.0.0.1",
+    "port": 55432
+  },
+  "note": "Fresh f3_reference_* DB on SAME 17.6 container; platform ACL envelope + stub+live-pin floor + 00117 + 00118-23",
+  "preexisting_oracle_untouched": "f3_reference_oracle_20260915",
+  "host_17_11_on_5432_avoided": true
+}

@@ -1,0 +1,10 @@
+{
+  "artifact": "cleanup-proof",
+  "phase": "A",
+  "captured_at_iso": "2026-09-15T23:23:53.285Z",
+  "drop_statement": "DROP TABLE IF EXISTS public.__f3_acl_platform_canary_20260915 CASCADE",
+  "table_absent": true,
+  "related_public_objects": [],
+  "any_canary_objects_remain": false,
+  "all_canary_objects_absent": true
+}

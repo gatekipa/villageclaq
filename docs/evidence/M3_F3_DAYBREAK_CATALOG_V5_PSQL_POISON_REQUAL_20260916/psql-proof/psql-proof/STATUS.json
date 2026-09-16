@@ -1,0 +1,119 @@
+{
+  "verdict": "CONTINUE",
+  "captured_at_et": "9/16/2026, 11:58:09 AM EDT",
+  "tip_sha": "19e997dfadd9f6a8bc1a221a7edb5f6e8ec02d80",
+  "host_psql_client": "psql (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+  "container_psql": "psql (PostgreSQL) 17.6 (Debian 17.6-2.pgdg13+1)",
+  "server_version": "17.6 (Debian 17.6-2.pgdg13+1)",
+  "exact_command": {
+    "argv_flags": [
+      "-X",
+      "-q",
+      "-t",
+      "-A",
+      "-w",
+      "-v",
+      "ON_ERROR_STOP=1"
+    ],
+    "full_form": "psql -X -q -t -A -w -v ON_ERROR_STOP=1 -c <POISON_ABSENT_PROBE_SQL>",
+    "password_on_argv": false,
+    "env_keys_present": [
+      "HOME",
+      "PATH",
+      "PGCONNECT_TIMEOUT",
+      "PGDATABASE",
+      "PGHOST",
+      "PGPASSWORD",
+      "PGPORT",
+      "PGSSLMODE",
+      "PGUSER"
+    ]
+  },
+  "process": {
+    "exit_status": 0,
+    "signal": null,
+    "timeout": false,
+    "spawnError": null
+  },
+  "stderr": {
+    "byte_length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "exact_zero_bytes": true
+  },
+  "stdout": {
+    "byte_length": 200,
+    "sha256": "11efee8db8172d031b58dd6e694464473cafa48ebed638fb7be96becf8aeaf6d",
+    "BEFORE_parse": true,
+    "actual_utf8": "{\"schema_version\" : \"f3-poison-envelope-v1\", \"poisonPresent\" : false, \"current_database\" : \"f3_reference_oracle_20260915\", \"current_user\" : \"f3_ref_oracle\", \"probe_marker\" : \"f3_poison_absent_probe\"}\n",
+    "head_hex": "7b22736368656d615f76657273696f6e22203a202266332d706f69736f6e2d656e76656c6f70652d7631222c2022706f",
+    "tail_hex": "5f616273656e745f70726f6265227d0a",
+    "last_byte": 10,
+    "contains_cr": false,
+    "note_json_spacing": "PostgreSQL json_build_object()::text emits spaces around ':' and after ',' — parser accepts; not reconstruction"
+  },
+  "framing": {
+    "ok": true,
+    "details": {
+      "ok": true,
+      "duplicateKeys": false,
+      "payloadStart": 0,
+      "payloadEnd": 199,
+      "framingLfStart": 199,
+      "framingLfEnd": 200,
+      "payloadByteLength": 199
+    },
+    "assumed_lf_only_contract": {
+      "encoding": "utf-8",
+      "requiredSuffix": "\n",
+      "requiredSuffixByte": 10,
+      "allowCrlf": false,
+      "allowMissingLf": false,
+      "allowLeadingWhitespace": false,
+      "allowTrailingSpace": false,
+      "allowExtraLf": false,
+      "allowPrefix": false,
+      "allowSecondObject": false,
+      "description": "UTF-8; exactly one JSON object; exactly one trailing LF (0x0A); no other bytes"
+    },
+    "matches_assumed_lf_only": true
+  },
+  "parser": {
+    "preserve_ok": true,
+    "contract_ok": true,
+    "parse_ok": true,
+    "envelope_ok": true,
+    "duplicate_key_safe": true,
+    "reconstructed": false
+  },
+  "frozen_local_connection_metadata": {
+    "host_classification": "local_loopback_oracle",
+    "connection_hostname": "127.0.0.1",
+    "connection_port": 55432,
+    "connection_database": "f3_reference_oracle_20260915",
+    "connection_username": "f3_ref_oracle",
+    "expected_live_database": "f3_reference_oracle_20260915",
+    "expected_live_role": "f3_ref_oracle",
+    "container": "f3-reference-pg176",
+    "credential_source": "file:/tmp/f3-reference-local.env",
+    "ssl_required": false,
+    "sslmode": "disable",
+    "production_ref_rejected": true,
+    "source": "local-oracle-connection-metadata"
+  },
+  "live_bind": {
+    "ok": true,
+    "live": {
+      "current_database": "f3_reference_oracle_20260915",
+      "current_user": "f3_ref_oracle",
+      "provenance": "original_query_output"
+    },
+    "expected_database": "f3_reference_oracle_20260915",
+    "expected_user": "f3_ref_oracle"
+  },
+  "repair_gate_envelope_shape": {
+    "ok": true,
+    "poisonPresent": false,
+    "schema_version": "f3-poison-envelope-v1"
+  },
+  "hold_reason": null
+}

@@ -1,0 +1,12 @@
+{
+  "closure_complete": true,
+  "git_verification": {
+    "ok": true,
+    "porcelain_empty": true,
+    "head": "19e997dfadd9f6a8bc1a221a7edb5f6e8ec02d80"
+  },
+  "hosted_tree_mismatches": 0,
+  "uncommitted_functional_diffs": 0,
+  "F6_in_HOLD_ancestry": true,
+  "tip_vs_HOLD_commits": 1
+}

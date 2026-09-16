@@ -1,0 +1,15 @@
+{
+  "source": "independent local postgres:17.6 reseal (f3-reference-pg176)",
+  "not_from_hosted_observed": true,
+  "forbidden_hosted_00118": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+  "sealed_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "8299680fd5b3def52a981ae8c8ee097f29f13507b91d4f0799557236f1b5001c",
+    "00119_f3_01_core_ledger_foundation.sql": "0ee6c447ac89510f381abd30908b7fb5ba304537e60c577d6eedcc7835a7ed43",
+    "00120_f3_02_secure_posting_idempotency.sql": "13234a1e57a8c181da1a356ba1f236efc919efb6edb642062239499ff10d0ce9",
+    "00121_f3_03_projection_read_proof.sql": "b1693eda6e5e3944db092d800e037e366c9fd8e18723db962493b502c539cb30",
+    "00122_f3_04_correction_reversal.sql": "9add78f222edc0f933512f726f08ed92feed94432b9a9234c32e6952a1dfc00c",
+    "00123_f3_05_opening_cash_command.sql": "0234d2bf2374c8a681d186b8d77364b4b4db02eac76cebf786173d4a835f9547"
+  },
+  "tip_source_sha": "41055f2f0a66626c1fb3719b3b20e6fcdde9025c",
+  "functional_tip": "2fcc65114d89f098dc5d0f7787a99cb08c643c21"
+}

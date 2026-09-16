@@ -1,0 +1,43 @@
+{
+  "local_17_6_proof": {
+    "stdoutSha256": "11efee8db8172d031b58dd6e694464473cafa48ebed638fb7be96becf8aeaf6d",
+    "stdoutByteLength": 200,
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrByteLength": 0,
+    "note": "Chief local docker postgres:17.6 via host psql 17.11; LF-only framing"
+  },
+  "hosted_final_poison_probe": {
+    "stdoutSha256": "b13be10ffcd515af2b0e34b54400484c7bf7715ae6d786ff585c661551f70d02",
+    "stdoutByteLength": 175,
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrByteLength": 0
+  },
+  "mid_sequence_note": "Per-step poisonFingerprintEval.ok=true for all six; durable original stdout/stderr sha preserved for final probe and local proof (qualify evidence stores final probe raw).",
+  "transport": {
+    "argv": [
+      "-X",
+      "-q",
+      "-t",
+      "-A",
+      "-w",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-c",
+      "\nSELECT json_build_object(\n  'schema_version', 'f3-poison-envelope-v1',\n  'poisonPresent', (\n    EXISTS (\n      SELECT 1\n      FROM pg_trigger t\n      JOIN pg_class c ON c.oid = t.tgrelid\n      JOIN pg_namespace n ON n.oid = c.relnamespace\n      WHERE t.tgname = 'trg_f3_dbpush_fail_target_history'\n        AND n.nspname = 'supabase_migrations'\n        AND NOT t.tgisinternal\n    )\n    OR to_regprocedure('supabase_migrations.f3_dbpush_fail_target_history()') IS NOT NULL\n  ),\n  'current_database', current_database(),\n  'current_user', current_user,\n  'probe_marker', 'f3_poison_absent_probe'\n)::text;\n"
+    ],
+    "psqlVersion": "psql (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+    "envKeys": [
+      "HOME",
+      "PATH",
+      "PGCONNECT_TIMEOUT",
+      "PGDATABASE",
+      "PGHOST",
+      "PGPASSWORD",
+      "PGPORT",
+      "PGSSLMODE",
+      "PGUSER"
+    ],
+    "transport": "isolated-psql",
+    "must_local_psql_proof_on_17_6": true
+  }
+}

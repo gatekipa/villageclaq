@@ -1,0 +1,11 @@
+{
+  "suite": "test-m2-static-security",
+  "exit_code": 0,
+  "classification": "PASS",
+  "tests": 9,
+  "pass": 9,
+  "fail": 0,
+  "skipped": 0,
+  "sha256": "2584046d5e0fcdd38ebfd295b43c075d7ae9c13c8d9987db0d4353456d21b095",
+  "bytes": 1916
+}

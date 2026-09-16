@@ -1,0 +1,7 @@
+{
+  "policy": "credentials/tokens/connection URLs/API keys/absolute machine paths ONLY; never role names, service_role ACL grantee, grantors, owners, schema/object identities, migration versions/names/digests, privileges, policy expressions, definitions, types, catalog fields, fingerprint values",
+  "semantic_changed": 0,
+  "qualify_meta_sanitized_before_hash": true,
+  "secret_scan_password_token_absent": true,
+  "note": "Hosted qualify-result.json.meta.json reports sanitized_before_hash=true; no semantic REDACTED in ACL envelope; no password/token/ghp/jwt/production ref in qualify-result.json"
+}

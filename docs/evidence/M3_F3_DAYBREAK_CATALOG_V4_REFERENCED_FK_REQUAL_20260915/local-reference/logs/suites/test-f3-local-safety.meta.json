@@ -1,0 +1,11 @@
+{
+  "suite": "test-f3-local-safety",
+  "exit_code": 0,
+  "classification": "PASS",
+  "tests": 45,
+  "pass": 45,
+  "fail": 0,
+  "skipped": 0,
+  "sha256": "192c6e20cd7f7b1fd2803b96f09a57562538230d7c6ccf83ec1e6e5309f688f5",
+  "bytes": 10223
+}

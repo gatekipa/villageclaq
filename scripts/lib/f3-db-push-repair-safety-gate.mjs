@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import {
   APPROVED_DISPOSABLE_HOST,
   APPROVED_DISPOSABLE_ORG_ID,
+  APPROVED_DISPOSABLE_POOLER_USER,
   APPROVED_DISPOSABLE_PROJECT_NAME,
   APPROVED_DISPOSABLE_PROJECT_REF,
   CLI_PIN,
@@ -61,7 +62,8 @@ export const PRODUCTION_HISTORY_LIMITATION_WARNING =
  * set, nested key contracts, types, and shapes. Prior ten-field hashes
  * are SUPERSEDED.
  */
-export const F3_FULL_FINGERPRINT_SCHEMA_VERSION = "f3-full-catalog-v4";
+export const F3_FULL_FINGERPRINT_SCHEMA_VERSION = "f3-full-catalog-v5";
+export const SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION_V4 = "f3-full-catalog-v4";
 export const SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION = "f3-full-catalog-v3";
 export const SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION_V2 = "f3-full-catalog-v2";
 export const SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION_V1 = "f3-full-catalog-v1";
@@ -1090,9 +1092,54 @@ SELECT jsonb_build_object(
         'level', CASE WHEN (t.tgtype & 1) = 1 THEN 'ROW' ELSE 'STATEMENT' END,
         'action_role', CASE
           WHEN t.tgconstraint = 0 THEN 'user'
-          WHEN con.conrelid = t.tgrelid THEN 'referencing_action'
-          WHEN con.confrelid <> 0 AND con.confrelid = t.tgrelid THEN 'referenced_action'
-          ELSE 'constraint_other'
+          WHEN con.contype IS NOT NULL AND con.contype <> 'f' THEN 'constraint_other'
+          WHEN p.proname = 'RI_FKey_check_ins'
+            AND (t.tgtype & 4) = 4 AND (t.tgtype & 8) = 0 AND (t.tgtype & 16) = 0 AND (t.tgtype & 32) = 0
+            THEN 'referencing_action'
+          WHEN p.proname = 'RI_FKey_check_upd'
+            AND (t.tgtype & 16) = 16 AND (t.tgtype & 4) = 0 AND (t.tgtype & 8) = 0 AND (t.tgtype & 32) = 0
+            THEN 'referencing_action'
+          WHEN p.proname = 'RI_FKey_noaction_del'
+            AND (t.tgtype & 8) = 8 AND (t.tgtype & 4) = 0 AND (t.tgtype & 16) = 0 AND (t.tgtype & 32) = 0
+            AND con.confdeltype = 'a'
+            THEN 'referenced_action'
+          WHEN p.proname = 'RI_FKey_noaction_upd'
+            AND (t.tgtype & 16) = 16 AND (t.tgtype & 4) = 0 AND (t.tgtype & 8) = 0 AND (t.tgtype & 32) = 0
+            AND con.confupdtype = 'a'
+            THEN 'referenced_action'
+          WHEN p.proname = 'RI_FKey_restrict_del'
+            AND (t.tgtype & 8) = 8 AND (t.tgtype & 4) = 0 AND (t.tgtype & 16) = 0 AND (t.tgtype & 32) = 0
+            AND con.confdeltype = 'r'
+            THEN 'referenced_action'
+          WHEN p.proname = 'RI_FKey_restrict_upd'
+            AND (t.tgtype & 16) = 16 AND (t.tgtype & 4) = 0 AND (t.tgtype & 8) = 0 AND (t.tgtype & 32) = 0
+            AND con.confupdtype = 'r'
+            THEN 'referenced_action'
+          WHEN p.proname = 'RI_FKey_cascade_del'
+            AND (t.tgtype & 8) = 8 AND (t.tgtype & 4) = 0 AND (t.tgtype & 16) = 0 AND (t.tgtype & 32) = 0
+            AND con.confdeltype = 'c'
+            THEN 'referenced_action'
+          WHEN p.proname = 'RI_FKey_cascade_upd'
+            AND (t.tgtype & 16) = 16 AND (t.tgtype & 4) = 0 AND (t.tgtype & 8) = 0 AND (t.tgtype & 32) = 0
+            AND con.confupdtype = 'c'
+            THEN 'referenced_action'
+          WHEN p.proname = 'RI_FKey_setnull_del'
+            AND (t.tgtype & 8) = 8 AND (t.tgtype & 4) = 0 AND (t.tgtype & 16) = 0 AND (t.tgtype & 32) = 0
+            AND con.confdeltype = 'n'
+            THEN 'referenced_action'
+          WHEN p.proname = 'RI_FKey_setnull_upd'
+            AND (t.tgtype & 16) = 16 AND (t.tgtype & 4) = 0 AND (t.tgtype & 8) = 0 AND (t.tgtype & 32) = 0
+            AND con.confupdtype = 'n'
+            THEN 'referenced_action'
+          WHEN p.proname = 'RI_FKey_setdefault_del'
+            AND (t.tgtype & 8) = 8 AND (t.tgtype & 4) = 0 AND (t.tgtype & 16) = 0 AND (t.tgtype & 32) = 0
+            AND con.confdeltype = 'd'
+            THEN 'referenced_action'
+          WHEN p.proname = 'RI_FKey_setdefault_upd'
+            AND (t.tgtype & 16) = 16 AND (t.tgtype & 4) = 0 AND (t.tgtype & 8) = 0 AND (t.tgtype & 32) = 0
+            AND con.confupdtype = 'd'
+            THEN 'referenced_action'
+          ELSE NULL
         END,
         'tgenabled', t.tgenabled::text,
         'tgdeferrable', t.tgdeferrable,
@@ -2173,25 +2220,49 @@ export function buildEvidenceIndex({ artifacts = [], exclusions = EVIDENCE_INDEX
   };
 }
 
+export const EXECUTABLE_BYTE_MANIFEST_FILENAME = "executable-byte-manifest.json";
+
 export function buildExecutableManifest({ artifacts = [] } = {}) {
+  const selfNames = new Set([
+    EXECUTABLE_MANIFEST_FILENAME,
+    EXECUTABLE_BYTE_MANIFEST_FILENAME,
+  ]);
   const files = [...artifacts]
     .map((item) => (typeof item === "string" ? { path: item } : item))
-    .filter((item) => item && item.path)
+    .filter((item) => item && item.path && !selfNames.has(path.basename(item.path)))
     .sort((a, b) => String(a.path).localeCompare(String(b.path)))
     .map((item) => ({
       path: item.path,
       sha256: item.sha256 || null,
       bytes: item.bytes ?? null,
     }));
+  const selfEntries = files.filter((item) => selfNames.has(path.basename(item.path))).length;
   return {
     artifact: "executable-manifest",
-    schema: "f3-executable-manifest-v1",
+    schema: "f3-executable-byte-manifest-v1",
+    self_entries: selfEntries,
     files,
   };
 }
 
+export function assertExecutableManifestNoSelfEntry(manifest) {
+  const files = Array.isArray(manifest?.files) ? manifest.files : [];
+  const selfNames = new Set([EXECUTABLE_MANIFEST_FILENAME, EXECUTABLE_BYTE_MANIFEST_FILENAME]);
+  const selfEntries = files.filter((item) => selfNames.has(path.basename(item?.path || item))).length;
+  if (selfEntries !== 0 || manifest?.self_entries !== 0) {
+    return { ok: false, reason: "HOLD: executable-byte-manifest contains a self-entry", self_entries: selfEntries };
+  }
+  return { ok: true, self_entries: 0 };
+}
+
 export function writeExecutableManifest(dir, artifacts = []) {
   const manifest = buildExecutableManifest({ artifacts });
+  const selfCheck = assertExecutableManifestNoSelfEntry(manifest);
+  if (!selfCheck.ok) {
+    const err = new Error(selfCheck.reason);
+    err.code = "F3_EXECUTABLE_MANIFEST_SELF_ENTRY";
+    throw err;
+  }
   const abs = path.join(dir, EXECUTABLE_MANIFEST_FILENAME);
   const body = `${JSON.stringify(manifest, null, 2)}\n`;
   fs.writeFileSync(abs, body);
@@ -2201,6 +2272,7 @@ export function writeExecutableManifest(dir, artifacts = []) {
     sha256: sha256Utf8(body),
     bytes: Buffer.byteLength(body),
     manifest,
+    self_entries: 0,
   };
 }
 
@@ -2242,6 +2314,20 @@ export function verifyEvidenceIndex(dir) {
   if (names.includes(EVIDENCE_INDEX_FILENAME) || names.includes(EVIDENCE_INDEX_CHECKSUM_FILENAME)) {
     return { ok: false, reason: "evidence-index lists itself or its detached checksum" };
   }
+  const manifestAbs = path.join(dir, EXECUTABLE_MANIFEST_FILENAME);
+  let manifestSelfEntries = 0;
+  if (fs.existsSync(manifestAbs)) {
+    try {
+      const manifest = JSON.parse(fs.readFileSync(manifestAbs, "utf8"));
+      const selfCheck = assertExecutableManifestNoSelfEntry(manifest);
+      if (!selfCheck.ok) {
+        return { ok: false, reason: selfCheck.reason, self_entries: selfCheck.self_entries };
+      }
+      manifestSelfEntries = selfCheck.self_entries;
+    } catch {
+      return { ok: false, reason: "executable-manifest.json is not JSON" };
+    }
+  }
   let hashMismatches = 0;
   let byteMismatches = 0;
   let missing = 0;
@@ -2270,10 +2356,12 @@ export function verifyEvidenceIndex(dir) {
   }
   const total = (parsed.artifacts || []).length;
   const verified = total - missing - broken - hashMismatches - byteMismatches;
-  if (missing || broken || hashMismatches || byteMismatches || redactedDigest) {
+  if (missing || broken || hashMismatches || byteMismatches || redactedDigest || manifestSelfEntries !== 0) {
     return {
       ok: false,
-      reason: "evidence-index independent verify failed",
+      reason: manifestSelfEntries !== 0
+        ? "executable-byte-manifest contains a self-entry"
+        : "evidence-index independent verify failed",
       verified,
       total,
       hashMismatches,
@@ -2281,6 +2369,7 @@ export function verifyEvidenceIndex(dir) {
       missing,
       broken,
       redactedDigest,
+      self_entries: manifestSelfEntries,
       sha256: actual,
       index: parsed,
     };
@@ -2296,6 +2385,7 @@ export function verifyEvidenceIndex(dir) {
     missing: 0,
     broken: 0,
     redactedDigest: 0,
+    self_entries: 0,
   };
 }
 
@@ -2575,6 +2665,13 @@ export function assertFinalInventoryChronology({
   historyRows = [],
   recognition = [],
   poisonPresent = null,
+  poisonVerified = false,
+  historyVerified = false,
+  poisonSequence = null,
+  historySequence = null,
+  finalInventorySequence = null,
+  capturedBeforePoison = false,
+  capturedBeforeHistory = false,
 } = {}) {
   if (inventories[INVENTORY_PHASES.BEFORE_RESET]?.is_final === true
     || inventories[INVENTORY_PHASES.CLEAN_BASELINE]?.is_final === true
@@ -2583,6 +2680,36 @@ export function assertFinalInventoryChronology({
       ok: false,
       reason: "HOLD: purported final inventory captured before final DB state",
       code: "F3_INVENTORY_PREMATURE_FINAL",
+    };
+  }
+  if (capturedBeforePoison === true
+    || (finalInventorySequence != null && poisonSequence != null && finalInventorySequence <= poisonSequence)) {
+    return {
+      ok: false,
+      reason: "HOLD: FINAL inventory captured before strict poison verification",
+      code: "F3_INVENTORY_BEFORE_POISON",
+    };
+  }
+  if (capturedBeforeHistory === true
+    || (finalInventorySequence != null && historySequence != null && finalInventorySequence <= historySequence)) {
+    return {
+      ok: false,
+      reason: "HOLD: FINAL inventory captured before final history query",
+      code: "F3_INVENTORY_BEFORE_HISTORY",
+    };
+  }
+  if (poisonVerified !== true || poisonPresent !== false) {
+    return {
+      ok: false,
+      reason: "HOLD: FINAL inventory requires proven poison absence first",
+      code: "F3_INVENTORY_POISON_NOT_PROVEN",
+    };
+  }
+  if (historyVerified !== true) {
+    return {
+      ok: false,
+      reason: "HOLD: FINAL inventory requires verified six-row F3 history first",
+      code: "F3_INVENTORY_HISTORY_NOT_PROVEN",
     };
   }
   const finalInv = inventories[INVENTORY_PHASES.FINAL];
@@ -3069,6 +3196,122 @@ function gitBlobSha1(buf) {
   return createHash("sha1").update(Buffer.concat([header, buf])).digest("hex");
 }
 
+export const GIT_VERIFICATION_UNAVAILABLE =
+  "HOLD: GIT_VERIFICATION_UNAVAILABLE";
+
+const DEFAULT_GIT_TIMEOUT_MS = 15_000;
+let gitRunnerForTests = null;
+
+export function __installGitRunnerForTests(fn) {
+  gitRunnerForTests = typeof fn === "function" ? fn : null;
+}
+
+export function __resetGitRunnerForTests() {
+  gitRunnerForTests = null;
+}
+
+function gitFailClosed(reason, extra = {}) {
+  return {
+    ok: false,
+    reason: `${GIT_VERIFICATION_UNAVAILABLE}: ${reason}`,
+    code: "GIT_VERIFICATION_UNAVAILABLE",
+    closure_complete: false,
+    dbPushCalls: 0,
+    repairCalls: 0,
+    continuationCalls: 0,
+    dbAccess: false,
+    ...extra,
+  };
+}
+
+export function runVerifiedGit(args, options = {}) {
+  const argv = Array.isArray(args) ? args : [];
+  const timeout = Number.isFinite(options.timeoutMs) ? options.timeoutMs : DEFAULT_GIT_TIMEOUT_MS;
+  const encoding = options.encoding || "utf8";
+  const expectedSchema = options.expectedSchema || null;
+  let result;
+  try {
+    if (gitRunnerForTests) {
+      result = gitRunnerForTests(argv, { cwd: options.cwd || repoRoot, encoding, timeout, ...options });
+    } else {
+      result = spawnSync("git", argv, {
+        cwd: options.cwd || repoRoot,
+        encoding,
+        timeout,
+        maxBuffer: options.maxBuffer || 16 * 1024 * 1024,
+      });
+    }
+  } catch (err) {
+    return gitFailClosed(`spawn failed: ${err?.message || err}`, { spawnFailed: true });
+  }
+  if (result == null || typeof result !== "object") {
+    return gitFailClosed("spawn returned no result object", { spawnFailed: true });
+  }
+  if (result.error) {
+    return gitFailClosed(`spawn failed: ${result.error.message || result.error}`, { spawnFailed: true });
+  }
+  if (result.signal || result.signalCode) {
+    return gitFailClosed(`signaled ${result.signal || result.signalCode}`, { signal: result.signal || result.signalCode });
+  }
+  if (result.killed === true || result.timeout === true || result.timedOut === true) {
+    return gitFailClosed("timeout", { timeout: true });
+  }
+  if (!Object.prototype.hasOwnProperty.call(result, "status") || result.status !== 0) {
+    return gitFailClosed(`nonzero status ${result.status}`, { status: result.status });
+  }
+  const stdout = result.stdout;
+  if (expectedSchema === "porcelain") {
+    if (typeof stdout !== "string") {
+      return gitFailClosed("malformed porcelain stdout", { malformed: true });
+    }
+  }
+  if (expectedSchema === "rev-parse") {
+    const text = Buffer.isBuffer(stdout) ? stdout.toString("utf8") : String(stdout || "");
+    if (!/^[0-9a-f]{40,64}\s*$/.test(text.trim())) {
+      return gitFailClosed("malformed rev-parse stdout", { malformed: true });
+    }
+  }
+  if (expectedSchema === "cat-file-blob") {
+    if (stdout == null) {
+      return gitFailClosed("missing blob stdout", { missingBlob: true });
+    }
+  }
+  if (expectedSchema === "object-exists") {
+    const text = Buffer.isBuffer(stdout) ? stdout.toString("utf8") : String(stdout || "");
+    if (!/^(blob|tree|commit|tag)\s*$/.test(text.trim())) {
+      return gitFailClosed("object does not exist or unexpected type", { missingBlob: true });
+    }
+  }
+  return {
+    ok: true,
+    status: 0,
+    stdout,
+    stderr: result.stderr || "",
+    args: argv,
+  };
+}
+
+export function verifyGitBlobIdentity({ relPath, bytes, worktreeSha256 } = {}) {
+  if (!relPath || bytes == null) {
+    return gitFailClosed("blob identity inputs missing");
+  }
+  const exists = runVerifiedGit(["cat-file", "-t", `HEAD:${relPath}`], { expectedSchema: "object-exists" });
+  if (!exists.ok) return exists;
+  const shown = runVerifiedGit(["show", `HEAD:${relPath}`], { encoding: "buffer", expectedSchema: "cat-file-blob" });
+  if (!shown.ok) return shown;
+  const headBytes = Buffer.isBuffer(shown.stdout) ? shown.stdout : Buffer.from(String(shown.stdout || ""), "utf8");
+  const worktree = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
+  if (gitBlobSha1(headBytes) !== gitBlobSha1(worktree) && sha256BytesOf(headBytes) !== sha256BytesOf(worktree)) {
+    return {
+      ok: true,
+      mismatch: true,
+      headSha256: sha256BytesOf(headBytes),
+      worktreeSha256: worktreeSha256 || sha256BytesOf(worktree),
+    };
+  }
+  return { ok: true, mismatch: false, headSha256: sha256BytesOf(headBytes) };
+}
+
 function packageVersionForSpecifier(specifier, pkgJson) {
   const name = specifier.startsWith("@")
     ? specifier.split("/").slice(0, 2).join("/")
@@ -3288,17 +3531,29 @@ export function buildFunctionalRecursiveRuntimeClosure({
 
   let uncommitted_functional_diffs = 0;
   let hosted_tree_mismatches = 0;
+  let git_verification = { ok: true };
+  const rev = runVerifiedGit(["rev-parse", "HEAD"], { expectedSchema: "rev-parse" });
+  if (!rev.ok) {
+    git_verification = rev;
+  }
   for (const rel of local.keys()) {
-    const status = spawnSync("git", ["status", "--porcelain", "--", rel], {
-      cwd: repoRoot,
-      encoding: "utf8",
-    });
-    if (status.status === 0 && String(status.stdout || "").trim()) uncommitted_functional_diffs += 1;
-    const show = spawnSync("git", ["show", `HEAD:${rel}`], { cwd: repoRoot, encoding: "buffer" });
-    if (show.status === 0 && show.stdout) {
-      const headSha = sha256BytesOf(show.stdout);
-      if (headSha !== local.get(rel).sha256) hosted_tree_mismatches += 1;
+    if (!git_verification.ok) break;
+    const status = runVerifiedGit(["status", "--porcelain", "--", rel], { expectedSchema: "porcelain" });
+    if (!status.ok) {
+      git_verification = status;
+      break;
     }
+    if (String(status.stdout || "").trim()) uncommitted_functional_diffs += 1;
+    const blob = verifyGitBlobIdentity({
+      relPath: rel,
+      bytes: fs.readFileSync(path.join(repoRoot, rel)),
+      worktreeSha256: local.get(rel).sha256,
+    });
+    if (!blob.ok) {
+      git_verification = blob;
+      break;
+    }
+    if (blob.mismatch) hosted_tree_mismatches += 1;
   }
 
   const files = [...local.keys()].sort();
@@ -3312,7 +3567,9 @@ export function buildFunctionalRecursiveRuntimeClosure({
   const runtime_read_missing_paths = runtimeReadRequired.filter((rel) => !files.includes(rel));
   const runtime_read_missing = runtime_read_missing_paths.length
     + missing.filter((item) => item.kind === "filesystem").length;
-  const closure_complete = missing.length === 0
+  const gitOk = git_verification.ok === true;
+  const closure_complete = gitOk
+    && missing.length === 0
     && unresolved.length === 0
     && runtime_read_missing === 0
     && unexplained_exclusions === 0
@@ -3325,6 +3582,8 @@ export function buildFunctionalRecursiveRuntimeClosure({
     schema: "f3-recursive-runtime-closure-v2",
     entrypoint,
     method: "recursive_static_dynamic_and_runtime_filesystem_reads",
+    git_verification: gitOk ? { ok: true } : git_verification,
+    git_verification_unavailable: gitOk ? false : true,
     files,
     local: files.map((rel) => local.get(rel)),
     non_local: nonLocal.sort((a, b) => String(a.specifier).localeCompare(String(b.specifier))),
@@ -3376,7 +3635,11 @@ export function assertRecursiveClosureReadyForDb(closure = F3_FUNCTIONAL_RECURSI
   const requiredReads = (closure?.required_runtime_read_inputs || REQUIRED_RUNTIME_READ_INPUTS)
     .map((item) => item.path);
   const runtimeReadAbsent = requiredReads.filter((rel) => !files.includes(rel));
-  const ok = closure?.closure_complete === true
+  const gitUnavailable = closure?.git_verification_unavailable === true
+    || closure?.git_verification?.ok === false
+    || closure?.code === "GIT_VERIFICATION_UNAVAILABLE";
+  const ok = !gitUnavailable
+    && closure?.closure_complete === true
     && missing === 0
     && unresolved === 0
     && runtime_read_missing === 0
@@ -3391,8 +3654,10 @@ export function assertRecursiveClosureReadyForDb(closure = F3_FUNCTIONAL_RECURSI
       dbPushCalls: 0,
       repairCalls: 0,
       continuationCalls: 0,
-      reason: RECURSIVE_CLOSURE_HOLD,
-      failedGate: "recursive_runtime_closure",
+      reason: gitUnavailable ? GIT_VERIFICATION_UNAVAILABLE : RECURSIVE_CLOSURE_HOLD,
+      code: gitUnavailable ? "GIT_VERIFICATION_UNAVAILABLE" : undefined,
+      failedGate: gitUnavailable ? "git_verification" : "recursive_runtime_closure",
+      closure_complete: false,
       missing,
       unresolved,
       runtime_read_missing: runtime_read_missing + runtimeReadAbsent.length,
@@ -4313,7 +4578,10 @@ function nestedKeyContractErrors(fingerprint) {
           errors.push("constraint-level defer must not substitute for per-trigger flags");
         }
         if (!["user", "referencing_action", "referenced_action", "constraint_other"].includes(record.action_role)) {
-          errors.push("trigger action_role is not a v4 FK-enforcement role");
+          errors.push("trigger action_role is not a v5 RI-enforcement role");
+        }
+        if (record.action_role == null || record.action_role === "") {
+          errors.push("trigger action_role missing; unknown/ambiguous RI mapping holds closed");
         }
         if (typeof record.referencing_schema !== "string" || typeof record.referencing_relation !== "string") {
           errors.push("trigger referencing association missing");
@@ -4542,8 +4810,18 @@ export const SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256 = Object.freeze({
     "00122_f3_04_correction_reversal.sql": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
     "00123_f3_05_opening_cash_command.sql": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa",
   }),
+  f3_full_catalog_v4: Object.freeze({
+    reason: "SUPERSEDED: f3-full-catalog-v4 classified self-FK RI triggers by conrelid/confrelid/tgrelid equality, mislabeling referenced-side RI_FKey_noaction_upd/RI_FKey_restrict_del as referencing_action. Replaced by f3-full-catalog-v5 RI-function + event/action mapping.",
+    schema_version: SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION_V4,
+    "00118_f3_bounded_financial_epoch_foundation.sql": "92140cbe453f5edc47d7d85c022adfeb69212fff18ebfbff09dd588918756c94",
+    "00119_f3_01_core_ledger_foundation.sql": "647e0174fcd0ed47a5281aad66dd2e056b1ae69c603b670c2fe6aea66e685109",
+    "00120_f3_02_secure_posting_idempotency.sql": "8ab365c03f6340d42676f5f7c06bca9e0386e7bcdd5d9d18d34d2726123b050a",
+    "00121_f3_03_projection_read_proof.sql": "9c02198e6e277590cf5c514704314a719d5323ae547623edd630f6c5591b1dc6",
+    "00122_f3_04_correction_reversal.sql": "41fd34c976ed48f7a9d1ce6a154a2dba16d37487cffb364693bbae2046cbc31c",
+    "00123_f3_05_opening_cash_command.sql": "a1eb6ba2741c8337bea35553f3d8b128e0ca83d1db014bd67342187b59cb78b6",
+  }),
   f3_full_catalog_v3: Object.freeze({
-    reason: "SUPERSEDED: f3-full-catalog-v3 omitted referenced-side FK internal constraint triggers (public.profiles/groups/organizations) and substituted constraint-level defer flags for per-trigger tgdeferrable/tginitdeferred. Replaced by f3-full-catalog-v4.",
+    reason: "SUPERSEDED: f3-full-catalog-v3 omitted referenced-side FK internal constraint triggers (public.profiles/groups/organizations) and substituted constraint-level defer flags for per-trigger tgdeferrable/tginitdeferred. Replaced by f3-full-catalog-v4, then f3-full-catalog-v5.",
     schema_version: SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION,
     "00118_f3_bounded_financial_epoch_foundation.sql": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9",
     "00119_f3_01_core_ledger_foundation.sql": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589",
@@ -4565,45 +4843,234 @@ export const CATALOG_V3_00123_HASH_D692 =
 export const CATALOG_V3_00123_HASH_D802 =
   "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d802703b4e8ead41";
 
+function catalogV3Occurrence({
+  token,
+  hash,
+  path,
+  role,
+  kind,
+  why_non_authoritative,
+} = {}) {
+  return Object.freeze({
+    token,
+    hash,
+    path,
+    role,
+    kind,
+    executable: kind === "executable",
+    evidence: kind === "evidence",
+    log: kind === "log",
+    prose: kind === "prose",
+    why_non_authoritative,
+    v5_superseding_hash_file: "00123_f3_05_opening_cash_command.sql",
+    v5_superseding_schema: F3_FULL_FINGERPRINT_SCHEMA_VERSION,
+  });
+}
+
 export const CATALOG_V3_00123_SUPERSESSION = Object.freeze({
   schema_version: SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION,
   superseded_by: F3_FULL_FINGERPRINT_SCHEMA_VERSION,
+  previously_superseded_by: SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION_V4,
   migration: "00123_f3_05_opening_cash_command.sql",
   prior_evidence_dirs_unmodified: true,
   do_not_claim_d802_founder_prose_only: true,
+  both_superseded_by_v4: true,
+  both_superseded_by_v5: true,
   occurrences: Object.freeze([
-    Object.freeze({
+    catalogV3Occurrence({
       token: "d692",
       hash: CATALOG_V3_00123_HASH_D692,
-      sources: Object.freeze([
-        "FROZEN_EXPECTED_FINGERPRINT_SHA256 tip E3 a0c71ad",
-        "scripts/test-f3-db-push-harness.mjs recorded.sha256BeforeDb",
-        "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/tip-embedded-hashes.json",
-        "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/hosted/STATUS.json",
-        "PR #98 body / cloud-agent transcript (tip/17.6)",
-      ]),
+      path: "scripts/lib/f3-db-push-repair-safety-gate.mjs SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.f3_full_catalog_v3",
+      role: "expected_constant",
+      kind: "executable",
+      why_non_authoritative: "Catalog-V3 tip-embedded 00123 hash; omitted referenced-side FK triggers; superseded by V4 then V5",
     }),
-    Object.freeze({
+    catalogV3Occurrence({
+      token: "d692",
+      hash: CATALOG_V3_00123_HASH_D692,
+      path: "scripts/test-f3-db-push-harness.mjs recorded.sha256BeforeDb historical assert",
+      role: "test_fixture",
+      kind: "executable",
+      why_non_authoritative: "Historical V3 seal assertion; not a V5 expected pin",
+    }),
+    catalogV3Occurrence({
+      token: "d692",
+      hash: CATALOG_V3_00123_HASH_D692,
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/tip-embedded-hashes.json",
+      role: "local_17_6",
+      kind: "evidence",
+      why_non_authoritative: "V3 local 17.6 tip-embedded seal; prior evidence dir unmodified",
+    }),
+    catalogV3Occurrence({
+      token: "d692",
+      hash: CATALOG_V3_00123_HASH_D692,
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/independent-hashes.json",
+      role: "local_17_6",
+      kind: "evidence",
+      why_non_authoritative: "V3 independent collector hash; superseded schema",
+    }),
+    catalogV3Occurrence({
+      token: "d692",
+      hash: CATALOG_V3_00123_HASH_D692,
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/comparisons/00123_f3_05_opening_cash_command.sql.json",
+      role: "comparison",
+      kind: "evidence",
+      why_non_authoritative: "V3 primary≡independent comparison artifact",
+    }),
+    catalogV3Occurrence({
+      token: "d692",
+      hash: CATALOG_V3_00123_HASH_D692,
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/comparisons/stage-comparisons.json",
+      role: "comparison",
+      kind: "evidence",
+      why_non_authoritative: "V3 stage comparison rollup",
+    }),
+    catalogV3Occurrence({
+      token: "d692",
+      hash: CATALOG_V3_00123_HASH_D692,
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/logs/seal.log",
+      role: "seal_log",
+      kind: "log",
+      why_non_authoritative: "V3 seal.log transcript; not V5 authority",
+    }),
+    catalogV3Occurrence({
+      token: "d692",
+      hash: CATALOG_V3_00123_HASH_D692,
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/verify-complete.json",
+      role: "verify_complete",
+      kind: "evidence",
+      why_non_authoritative: "V3 verify-complete.json",
+    }),
+    catalogV3Occurrence({
+      token: "d692",
+      hash: CATALOG_V3_00123_HASH_D692,
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/builder-vs-reference.json",
+      role: "builder_vs_reference",
+      kind: "evidence",
+      why_non_authoritative: "V3 builder/primary/reference/seal hashes",
+    }),
+    catalogV3Occurrence({
+      token: "d692",
+      hash: CATALOG_V3_00123_HASH_D692,
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/STATUS.json",
+      role: "status_derived",
+      kind: "evidence",
+      why_non_authoritative: "V3 STATUS tip_embedded_and_17_6_recompute / pr98_body",
+    }),
+    catalogV3Occurrence({
+      token: "d692",
+      hash: CATALOG_V3_00123_HASH_D692,
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/prehhosted/phase-local-STATUS.json",
+      role: "status_derived",
+      kind: "evidence",
+      why_non_authoritative: "V3 prehhosted STATUS tip/17.6/PR #98",
+    }),
+    catalogV3Occurrence({
+      token: "d692",
+      hash: CATALOG_V3_00123_HASH_D692,
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/hosted/STATUS.json",
+      role: "hosted",
+      kind: "evidence",
+      why_non_authoritative: "V3 hosted STATUS; never a V5 expected pin",
+    }),
+    catalogV3Occurrence({
+      token: "d692",
+      hash: CATALOG_V3_00123_HASH_D692,
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/hosted/qualify-evidence/qualify-result.json",
+      role: "hosted",
+      kind: "evidence",
+      why_non_authoritative: "V3 hosted qualify-result observed/expected hashes",
+    }),
+    catalogV3Occurrence({
+      token: "d692",
+      hash: CATALOG_V3_00123_HASH_D692,
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/hosted/per-migration-proof.json",
+      role: "hosted",
+      kind: "evidence",
+      why_non_authoritative: "V3 hosted per-migration proof",
+    }),
+    catalogV3Occurrence({
+      token: "d692",
+      hash: CATALOG_V3_00123_HASH_D692,
+      path: "PR #98 body / cloud-agent transcript (tip/17.6)",
+      role: "pr98_related",
+      kind: "prose",
+      why_non_authoritative: "PR #98 Catalog-V3 prose; sibling branch not a V5 runtime dependency",
+    }),
+    catalogV3Occurrence({
       token: "d802",
       hash: CATALOG_V3_00123_HASH_D802,
-      sources: Object.freeze([
-        "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/cloud-agent-v3-expected-hashes.json",
-        "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/STATUS.json founder_brief_listed",
-        "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/prehhosted/phase-local-STATUS.json founder_brief_listed",
-        "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/builder-vs-reference.json cloud_agent_v3_sha256",
-      ]),
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/cloud-agent-v3-expected-hashes.json",
+      role: "cloud_agent_hashes",
+      kind: "evidence",
+      why_non_authoritative: "Recorded Catalog-V3 cloud-agent expected hash; not founder-prose-only; superseded",
+    }),
+    catalogV3Occurrence({
+      token: "d802",
+      hash: CATALOG_V3_00123_HASH_D802,
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/STATUS.json founder_brief_listed",
+      role: "status_derived",
+      kind: "evidence",
+      why_non_authoritative: "V3 STATUS founder_brief_listed d802; recorded occurrence, not V5 authority",
+    }),
+    catalogV3Occurrence({
+      token: "d802",
+      hash: CATALOG_V3_00123_HASH_D802,
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/prehhosted/phase-local-STATUS.json founder_brief_listed",
+      role: "status_derived",
+      kind: "evidence",
+      why_non_authoritative: "V3 prehhosted founder_brief_listed d802",
+    }),
+    catalogV3Occurrence({
+      token: "d802",
+      hash: CATALOG_V3_00123_HASH_D802,
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/builder-vs-reference.json cloud_agent_v3_sha256",
+      role: "cloud_agent_hashes",
+      kind: "evidence",
+      why_non_authoritative: "V3 builder-vs-reference cloud_agent_v3_sha256",
+    }),
+    catalogV3Occurrence({
+      token: "d802",
+      hash: CATALOG_V3_00123_HASH_D802,
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/verify-complete.json",
+      role: "verify_complete",
+      kind: "evidence",
+      why_non_authoritative: "V3 verify-complete listed d802 as cloud-agent expected",
+    }),
+    catalogV3Occurrence({
+      token: "d802",
+      hash: CATALOG_V3_00123_HASH_D802,
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/logs/seal.log",
+      role: "seal_log",
+      kind: "log",
+      why_non_authoritative: "V3 seal.log records d802 as cloud-agent expected",
+    }),
+    catalogV3Occurrence({
+      token: "d802",
+      hash: CATALOG_V3_00123_HASH_D802,
+      path: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V4_REFERENCED_FK_REQUAL_20260915/local-reference/d692-d802-supersession.json",
+      role: "v4_supersession_inventory",
+      kind: "evidence",
+      why_non_authoritative: "V4 additive inventory of V3 hashes; prior evidence unmodified",
+    }),
+    catalogV3Occurrence({
+      token: "d802",
+      hash: CATALOG_V3_00123_HASH_D802,
+      path: "PR #98-related cloud-agent expected hashes",
+      role: "pr98_related",
+      kind: "prose",
+      why_non_authoritative: "PR #98-related recorded d802 occurrence; not V5 authority",
     }),
   ]),
-  both_superseded_by_v4: true,
 });
 
 export const FROZEN_EXPECTED_FINGERPRINT_SHA256 = Object.freeze({
-  "00118_f3_bounded_financial_epoch_foundation.sql": "92140cbe453f5edc47d7d85c022adfeb69212fff18ebfbff09dd588918756c94",
-  "00119_f3_01_core_ledger_foundation.sql": "647e0174fcd0ed47a5281aad66dd2e056b1ae69c603b670c2fe6aea66e685109",
-  "00120_f3_02_secure_posting_idempotency.sql": "8ab365c03f6340d42676f5f7c06bca9e0386e7bcdd5d9d18d34d2726123b050a",
-  "00121_f3_03_projection_read_proof.sql": "9c02198e6e277590cf5c514704314a719d5323ae547623edd630f6c5591b1dc6",
-  "00122_f3_04_correction_reversal.sql": "41fd34c976ed48f7a9d1ce6a154a2dba16d37487cffb364693bbae2046cbc31c",
-  "00123_f3_05_opening_cash_command.sql": "a1eb6ba2741c8337bea35553f3d8b128e0ca83d1db014bd67342187b59cb78b6",
+  "00118_f3_bounded_financial_epoch_foundation.sql": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d",
+  "00119_f3_01_core_ledger_foundation.sql": "5e03111ffb34be3ed76a714370c93e70210a9741a25ac7b9158a9a9ad22f12f4",
+  "00120_f3_02_secure_posting_idempotency.sql": "35eba6966d2c077a9467f09adc6c85306b951c9d8388ee758a60d924c05ae51a",
+  "00121_f3_03_projection_read_proof.sql": "8f65797949d8c5afb7dfa99b8020da52385347099b2a5b9be5148b253e76bde6",
+  "00122_f3_04_correction_reversal.sql": "6e3240759aec64d4692422aac006b4fb865e3039832be84efea86b39c0253175",
+  "00123_f3_05_opening_cash_command.sql": "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34",
 });
 
 
@@ -4676,9 +5143,318 @@ export const FK_TRIGGER_ACTION_ROLES = Object.freeze([
   "constraint_other",
 ]);
 
+/**
+ * Primary PG 17.6 RI enforcement contract. Explicit function →
+ * role + compatible event + compatible constraint action.
+ * Not relation-OID equality. Unknown function / pairing → HOLD.
+ * This table is not copied into the independent collector.
+ */
+export const PRIMARY_PG17_RI_ENFORCEMENT = Object.freeze({
+  RI_FKey_check_ins: Object.freeze({
+    semantic_role: "referencing_action",
+    events: Object.freeze(["INSERT"]),
+    kind: "check",
+  }),
+  RI_FKey_check_upd: Object.freeze({
+    semantic_role: "referencing_action",
+    events: Object.freeze(["UPDATE"]),
+    kind: "check",
+  }),
+  RI_FKey_noaction_del: Object.freeze({
+    semantic_role: "referenced_action",
+    events: Object.freeze(["DELETE"]),
+    kind: "action",
+    delete_action: "a",
+  }),
+  RI_FKey_noaction_upd: Object.freeze({
+    semantic_role: "referenced_action",
+    events: Object.freeze(["UPDATE"]),
+    kind: "action",
+    update_action: "a",
+  }),
+  RI_FKey_restrict_del: Object.freeze({
+    semantic_role: "referenced_action",
+    events: Object.freeze(["DELETE"]),
+    kind: "action",
+    delete_action: "r",
+  }),
+  RI_FKey_restrict_upd: Object.freeze({
+    semantic_role: "referenced_action",
+    events: Object.freeze(["UPDATE"]),
+    kind: "action",
+    update_action: "r",
+  }),
+  RI_FKey_cascade_del: Object.freeze({
+    semantic_role: "referenced_action",
+    events: Object.freeze(["DELETE"]),
+    kind: "action",
+    delete_action: "c",
+  }),
+  RI_FKey_cascade_upd: Object.freeze({
+    semantic_role: "referenced_action",
+    events: Object.freeze(["UPDATE"]),
+    kind: "action",
+    update_action: "c",
+  }),
+  RI_FKey_setnull_del: Object.freeze({
+    semantic_role: "referenced_action",
+    events: Object.freeze(["DELETE"]),
+    kind: "action",
+    delete_action: "n",
+  }),
+  RI_FKey_setnull_upd: Object.freeze({
+    semantic_role: "referenced_action",
+    events: Object.freeze(["UPDATE"]),
+    kind: "action",
+    update_action: "n",
+  }),
+  RI_FKey_setdefault_del: Object.freeze({
+    semantic_role: "referenced_action",
+    events: Object.freeze(["DELETE"]),
+    kind: "action",
+    delete_action: "d",
+  }),
+  RI_FKey_setdefault_upd: Object.freeze({
+    semantic_role: "referenced_action",
+    events: Object.freeze(["UPDATE"]),
+    kind: "action",
+    update_action: "d",
+  }),
+});
+
+export const TRIGGER_TOP_LEVEL_CATEGORIES = Object.freeze([
+  "internal_fk",
+  "ordinary_user",
+  "user_defined_constraint",
+  "explicitly_named_other",
+]);
+
+const CONSTRAINT_ACTION_FROM_TEXT = Object.freeze({
+  "NO ACTION": "a",
+  RESTRICT: "r",
+  CASCADE: "c",
+  "SET NULL": "n",
+  "SET DEFAULT": "d",
+});
+
+export function constraintActionsFromDefinition(definition) {
+  const text = String(definition || "");
+  const map = {
+    "NO ACTION": "a",
+    RESTRICT: "r",
+    CASCADE: "c",
+    "SET NULL": "n",
+    "SET DEFAULT": "d",
+  };
+  const del = /ON DELETE (NO ACTION|RESTRICT|CASCADE|SET NULL|SET DEFAULT)/i.exec(text);
+  const upd = /ON UPDATE (NO ACTION|RESTRICT|CASCADE|SET NULL|SET DEFAULT)/i.exec(text);
+  return {
+    delete_action: del ? map[del[1].toUpperCase()] : null,
+    update_action: upd ? map[upd[1].toUpperCase()] : null,
+  };
+}
+
+function primaryConstraintHintFor(row, constraints = []) {
+  if (row && row.delete_action) return { delete_action: row.delete_action, update_action: row.update_action || null };
+  if (row && row.update_action) return { delete_action: row.delete_action || null, update_action: row.update_action };
+  if (!row?.constraint_name || !Array.isArray(constraints)) return {};
+  const match = constraints.find((item) => (
+    item?.name === row.constraint_name
+    && (!row.constraint_schema || !item.schema || item.schema === row.constraint_schema)
+  ));
+  if (!match || typeof match.definition !== "string") return {};
+  return constraintActionsFromDefinition(match.definition);
+}
+
+function primaryRiEnforcementTable() {
+  return {
+    RI_FKey_check_ins: { semantic_role: "referencing_action", events: ["INSERT"], kind: "check" },
+    RI_FKey_check_upd: { semantic_role: "referencing_action", events: ["UPDATE"], kind: "check" },
+    RI_FKey_noaction_del: { semantic_role: "referenced_action", events: ["DELETE"], kind: "action", delete_action: "a" },
+    RI_FKey_noaction_upd: { semantic_role: "referenced_action", events: ["UPDATE"], kind: "action", update_action: "a" },
+    RI_FKey_restrict_del: { semantic_role: "referenced_action", events: ["DELETE"], kind: "action", delete_action: "r" },
+    RI_FKey_restrict_upd: { semantic_role: "referenced_action", events: ["UPDATE"], kind: "action", update_action: "r" },
+    RI_FKey_cascade_del: { semantic_role: "referenced_action", events: ["DELETE"], kind: "action", delete_action: "c" },
+    RI_FKey_cascade_upd: { semantic_role: "referenced_action", events: ["UPDATE"], kind: "action", update_action: "c" },
+    RI_FKey_setnull_del: { semantic_role: "referenced_action", events: ["DELETE"], kind: "action", delete_action: "n" },
+    RI_FKey_setnull_upd: { semantic_role: "referenced_action", events: ["UPDATE"], kind: "action", update_action: "n" },
+    RI_FKey_setdefault_del: { semantic_role: "referenced_action", events: ["DELETE"], kind: "action", delete_action: "d" },
+    RI_FKey_setdefault_upd: { semantic_role: "referenced_action", events: ["UPDATE"], kind: "action", update_action: "d" },
+  };
+}
+
+export function classifyPrimaryTriggerSemanticRole(row, constraintHint = {}) {
+  if (!row || typeof row !== "object" || Array.isArray(row)) {
+    return { ok: false, reason: "HOLD: trigger row is not an object" };
+  }
+  const associated = row.constraint_association === true;
+  const internal = row.tgisinternal === true;
+  const constraintType = String(row.constraint_type || "");
+  const events = String(row.events || "");
+  const functionName = String(row.function_name || "");
+  if (!associated) {
+    if (internal) {
+      return { ok: false, reason: "HOLD: internal trigger missing constraint association" };
+    }
+    return { ok: true, action_role: "user", category: "ordinary_user" };
+  }
+  if (constraintType && constraintType !== "f") {
+    if (Object.prototype.hasOwnProperty.call(primaryRiEnforcementTable(), functionName)) {
+      return { ok: false, reason: `HOLD: RI function ${functionName} on non-FK constraint` };
+    }
+    return {
+      ok: true,
+      action_role: "constraint_other",
+      category: internal ? "explicitly_named_other" : "user_defined_constraint",
+    };
+  }
+  const contract = primaryRiEnforcementTable()[functionName];
+  if (!contract) {
+    if (/^RI_/i.test(functionName)) {
+      return { ok: false, reason: `HOLD: unknown RI function ${functionName}` };
+    }
+    return { ok: false, reason: `HOLD: FK trigger function is not a classified RI function: ${functionName}` };
+  }
+  if (!contract.events.includes(events)) {
+    return { ok: false, reason: `HOLD: known RI ${functionName} incompatible with event ${events}` };
+  }
+  if (contract.kind === "check") {
+    return { ok: true, action_role: "referencing_action", category: "internal_fk" };
+  }
+  const hint = constraintHint || {};
+  if (contract.delete_action && hint.delete_action && hint.delete_action !== contract.delete_action) {
+    return { ok: false, reason: `HOLD: known RI ${functionName} incompatible with constraint action ${hint.delete_action}` };
+  }
+  if (contract.update_action && hint.update_action && hint.update_action !== contract.update_action) {
+    return { ok: false, reason: `HOLD: known RI ${functionName} incompatible with constraint action ${hint.update_action}` };
+  }
+  return { ok: true, action_role: "referenced_action", category: "internal_fk" };
+}
+
+export function applyPrimaryCatalogTriggerRoles(catalog) {
+  if (!catalog || typeof catalog !== "object" || Array.isArray(catalog)) {
+    return { ok: false, reason: "HOLD: catalog missing for RI role classification" };
+  }
+  const triggers = Array.isArray(catalog.triggers) ? catalog.triggers : null;
+  if (!triggers) return { ok: false, reason: "HOLD: triggers must be an array" };
+  const next = [];
+  for (const row of triggers) {
+    const classified = classifyPrimaryTriggerSemanticRole(row, primaryConstraintHintFor(row, catalog.constraints));
+    if (!classified.ok) return classified;
+    next.push({ ...row, action_role: classified.action_role });
+  }
+  return { ok: true, catalog: { ...catalog, triggers: next }, triggers: next };
+}
+
+export function reconcileTriggerPartitions(triggers) {
+  if (!Array.isArray(triggers)) {
+    return { ok: false, reason: "HOLD: trigger partitions require an array" };
+  }
+  const tallies = {
+    total: triggers.length,
+    internal_fk: 0,
+    ordinary_user: 0,
+    user_defined_constraint: 0,
+    explicitly_named_other: 0,
+    referencing: 0,
+    referenced: 0,
+    unknown: 0,
+  };
+  const seen = new Set();
+  for (const row of triggers) {
+    const classified = classifyPrimaryTriggerSemanticRole(row);
+    if (!classified.ok) {
+      return { ok: false, reason: classified.reason, unknown: 1, ...tallies };
+    }
+    if (!classified.action_role) {
+      return { ok: false, reason: "HOLD: trigger has no semantic role", ...tallies };
+    }
+    if (row.action_role == null || row.action_role === "") {
+      return { ok: false, reason: "HOLD: trigger has no semantic role", ...tallies };
+    }
+    if (row.action_role !== classified.action_role) {
+      return {
+        ok: false,
+        reason: "HOLD: declared semantic role contradicts RI classification; category totals do not reconcile",
+        ...tallies,
+      };
+    }
+    const internalFkFlags = row.tgisinternal === true && row.constraint_association === true && String(row.constraint_type || "") === "f";
+    if (internalFkFlags && classified.category !== "internal_fk") {
+      return { ok: false, reason: "HOLD: internal FK multiply classified", ...tallies };
+    }
+    if (internalFkFlags && classified.action_role === "constraint_other") {
+      return { ok: false, reason: "HOLD: internal FK total != referencing + referenced", ...tallies };
+    }
+    const identity = JSON.stringify([
+      row.schema, row.relation, row.constraint_name, row.function_name,
+      row.function_identity_arguments, row.events, row.timing, row.level,
+      classified.action_role,
+    ]);
+    if (seen.has(identity)) {
+      return { ok: false, reason: "HOLD: trigger multiply classified", ...tallies };
+    }
+    seen.add(identity);
+    if (!["internal_fk", "ordinary_user", "user_defined_constraint", "explicitly_named_other"].includes(classified.category)) {
+      return { ok: false, reason: `HOLD: unknown trigger category ${classified.category}`, ...tallies };
+    }
+    tallies[classified.category] += 1;
+    if (classified.category === "internal_fk") {
+      if (classified.action_role === "referencing_action") tallies.referencing += 1;
+      else if (classified.action_role === "referenced_action") tallies.referenced += 1;
+      else return { ok: false, reason: "HOLD: internal FK missing referencing/referenced role", ...tallies };
+    }
+  }
+  const categorySum = tallies.internal_fk + tallies.ordinary_user
+    + tallies.user_defined_constraint + tallies.explicitly_named_other;
+  if (categorySum !== tallies.total) {
+    return { ok: false, reason: "HOLD: trigger category totals do not reconcile", ...tallies };
+  }
+  if (tallies.internal_fk !== tallies.referencing + tallies.referenced) {
+    return { ok: false, reason: "HOLD: internal FK total != referencing + referenced", ...tallies };
+  }
+  return {
+    ok: true,
+    total: tallies.total,
+    internal_fk: tallies.internal_fk,
+    ordinary_user: tallies.ordinary_user,
+    user_defined_constraint: tallies.user_defined_constraint,
+    explicitly_named_other: tallies.explicitly_named_other,
+    referencing: tallies.referencing,
+    referenced: tallies.referenced,
+    internal_fk_total: tallies.internal_fk,
+  };
+}
+
+export const REPRODUCED_TRIGGER_PARTITION_EXPECTATIONS = Object.freeze({
+  "00118_f3_bounded_financial_epoch_foundation.sql": Object.freeze({
+    total: 21, internal_fk: 20, ordinary_user: 1, user_defined_constraint: 0, referencing: 10, referenced: 10,
+  }),
+  "00119_f3_01_core_ledger_foundation.sql": Object.freeze({
+    total: 101, internal_fk: 92, ordinary_user: 7, user_defined_constraint: 2, referencing: 46, referenced: 46,
+  }),
+  "00120_f3_02_secure_posting_idempotency.sql": Object.freeze({
+    total: 108, internal_fk: 96, ordinary_user: 9, user_defined_constraint: 3, referencing: 48, referenced: 48,
+  }),
+  "00121_f3_03_projection_read_proof.sql": Object.freeze({
+    total: 108, internal_fk: 96, ordinary_user: 9, user_defined_constraint: 3, referencing: 48, referenced: 48,
+  }),
+  "00122_f3_04_correction_reversal.sql": Object.freeze({
+    total: 131, internal_fk: 116, ordinary_user: 11, user_defined_constraint: 4, referencing: 58, referenced: 58,
+  }),
+  "00123_f3_05_opening_cash_command.sql": Object.freeze({
+    total: 140, internal_fk: 124, ordinary_user: 12, user_defined_constraint: 4, referencing: 62, referenced: 62,
+  }),
+});
+
+export function reproduceTriggerPartitionsFromFingerprint(fingerprint) {
+  return reconcileTriggerPartitions(fingerprint?.triggers);
+}
+
 export function enumerateFkConstraintTriggerUniverse(fingerprint) {
   const triggers = Array.isArray(fingerprint?.triggers) ? fingerprint.triggers : [];
-  const internal = triggers.filter((row) => row?.tgisinternal === true && row?.constraint_association === true);
+  const partitions = reconcileTriggerPartitions(triggers);
+  const internal = triggers.filter((row) => row?.tgisinternal === true && row?.constraint_association === true && row?.constraint_type === "f");
   const referencing = internal.filter((row) => row.action_role === "referencing_action");
   const referenced = internal.filter((row) => row.action_role === "referenced_action");
   const user = triggers.filter((row) => row.action_role === "user");
@@ -4690,9 +5466,14 @@ export function enumerateFkConstraintTriggerUniverse(fingerprint) {
     migration_file: fingerprint?.migration_file || null,
     total: triggers.length,
     internal_constraint: internal.length,
+    internal_fk: partitions.internal_fk,
+    ordinary_user: partitions.ordinary_user,
+    user_defined_constraint: partitions.user_defined_constraint,
     referencing_action: referencing.length,
     referenced_action: referenced.length,
     user: user.length,
+    partitions,
+    partitions_ok: partitions.ok === true,
     referenced_side_relations: referencedSideRelations,
     records: internal.map((row) => ({
       owning: `${row.schema}.${row.relation}`,
@@ -4802,6 +5583,17 @@ export function buildIndependentObservedFingerprint(file, catalogInventory) {
   observed.migration_name = frozenMigrationName(file);
   observed.migration_digest = FROZEN_DIGESTS[file];
   observed.recognition = [...RECOGNITION_ALLOWLIST];
+  if (Array.isArray(observed.triggers)) {
+    const classified = applyPrimaryCatalogTriggerRoles(observed);
+    if (!classified.ok) {
+      throw new Error(classified.reason || "HOLD: primary RI role classification failed");
+    }
+    observed.triggers = classified.triggers;
+    const partitions = reconcileTriggerPartitions(observed.triggers);
+    if (!partitions.ok) {
+      throw new Error(partitions.reason || "HOLD: trigger partitions do not reconcile");
+    }
+  }
   return observed;
 }
 
@@ -5557,11 +6349,34 @@ SELECT jsonb_build_object(
 export const FINAL_POISON_ABSENCE_HOLD =
   "HOLD: final poison verification failed closed; poison absence not proven; repair/retry/continuation/final PASS forbidden";
 
+export const FINAL_POISON_SCHEMA_VERSION = "f3-final-poison-v1";
+
 export const FINAL_POISON_REQUIRED_KEYS = Object.freeze([
+  "schema_version",
   "trigger_present",
   "function_present",
   "poisonPresent",
+  "target_identity",
 ]);
+
+export const FINAL_POISON_TARGET_IDENTITY_KEYS = Object.freeze([
+  "project_ref",
+  "project_name",
+  "org_id",
+  "hostname",
+  "database_name",
+  "user",
+  "connection_mode",
+  "pooler_identity",
+  "qualification_run_id",
+  "evidence_schema_version",
+]);
+
+export const APPROVED_POISON_TARGET_IDENTITY = Object.freeze({
+  project_ref: APPROVED_DISPOSABLE_PROJECT_REF,
+  project_name: APPROVED_DISPOSABLE_PROJECT_NAME,
+  org_id: APPROVED_DISPOSABLE_ORG_ID,
+});
 
 const SQL_FAILURE_LINE = /(?:^|[\s:])(?:ERROR|FATAL|PANIC):/i;
 const ENVELOPE_ALLOWED_KEYS = Object.freeze(["rows", "advisory", "warning"]);
@@ -6052,13 +6867,32 @@ export function evaluateFinalPoisonAbsence(result) {
   }
   const keys = Object.keys(row).sort();
   const required = [...FINAL_POISON_REQUIRED_KEYS].sort();
-  if (!required.every((key) => keys.includes(key))) {
-    return fail("final poison probe missing required boolean keys");
+  if (keys.length !== required.length || keys.some((key, i) => key !== required[i])) {
+    const extra = keys.filter((key) => !required.includes(key));
+    const missing = required.filter((key) => !keys.includes(key));
+    const verdict = extra.length || missing.length
+      ? (keys.length < required.length && extra.length === 0
+        ? "required_key_subset"
+        : "keyset_mismatch")
+      : "keyset_mismatch";
+    return fail(
+      extra.length
+        ? `final poison probe extra key ${extra[0]}`
+        : "final poison probe missing required keys",
+      { parser_verdict: verdict, extraKeys: extra, missingKeys: missing },
+    );
   }
-  for (const key of FINAL_POISON_REQUIRED_KEYS) {
+  if (row.schema_version !== FINAL_POISON_SCHEMA_VERSION) {
+    return fail("final poison probe unknown schema version", { parser_verdict: "unknown_schema_version" });
+  }
+  for (const key of ["trigger_present", "function_present", "poisonPresent"]) {
     if (typeof row[key] !== "boolean") {
-      return fail(`final poison probe ${key} is not an explicit boolean`);
+      return fail(`final poison probe ${key} is not an explicit boolean`, { parser_verdict: "wrong_type" });
     }
+  }
+  const targetEval = evaluatePoisonTargetIdentity(row.target_identity);
+  if (!targetEval.ok) {
+    return fail(targetEval.reason, { parser_verdict: targetEval.parser_verdict || "target_identity" });
   }
   if (row.poisonPresent !== false || row.trigger_present !== false || row.function_present !== false) {
     return fail("poisonPresent true or poison objects remain", { poisonPresent: row.poisonPresent });
@@ -6070,7 +6904,99 @@ export function evaluateFinalPoisonAbsence(result) {
     parser_verdict: "valid_json_exact_schema",
     poison_absence_verdict: "proven_absent",
     row,
+    target_identity: targetEval.target_identity,
     raw,
+  };
+}
+
+export function evaluatePoisonTargetIdentity(target) {
+  if (target == null) {
+    return {
+      ok: false,
+      reason: "HOLD: poison target_identity is null",
+      parser_verdict: "target_identity_null",
+    };
+  }
+  if (typeof target !== "object" || Array.isArray(target)) {
+    return {
+      ok: false,
+      reason: "HOLD: poison target_identity is not an object",
+      parser_verdict: "wrong_type",
+    };
+  }
+  const keys = Object.keys(target).sort();
+  const required = [...FINAL_POISON_TARGET_IDENTITY_KEYS].sort();
+  if (keys.length !== required.length || keys.some((key, i) => key !== required[i])) {
+    return {
+      ok: false,
+      reason: "HOLD: poison target_identity keyset mismatch",
+      parser_verdict: "target_identity_keyset",
+    };
+  }
+  for (const key of FINAL_POISON_TARGET_IDENTITY_KEYS) {
+    if (target[key] == null || target[key] === "") {
+      return {
+        ok: false,
+        reason: `HOLD: poison target_identity.${key} is null or empty`,
+        parser_verdict: "target_identity_null",
+      };
+    }
+    if (typeof target[key] !== "string") {
+      return {
+        ok: false,
+        reason: `HOLD: poison target_identity.${key} is not a string`,
+        parser_verdict: "wrong_type",
+      };
+    }
+  }
+  if (target.project_ref !== APPROVED_DISPOSABLE_PROJECT_REF
+    || target.project_name !== APPROVED_DISPOSABLE_PROJECT_NAME
+    || target.org_id !== APPROVED_DISPOSABLE_ORG_ID) {
+    return {
+      ok: false,
+      reason: "HOLD: poison target_identity does not match approved disposable",
+      parser_verdict: "target_identity_mismatch",
+    };
+  }
+  return { ok: true, target_identity: target };
+}
+
+export function bindPoisonTargetIdentity({
+  live = {},
+  qualificationRunId = "",
+  hostname = APPROVED_DISPOSABLE_HOST,
+  connectionMode = "session_pooler",
+  poolerIdentity = APPROVED_DISPOSABLE_POOLER_USER,
+} = {}) {
+  const bound = {
+    project_ref: APPROVED_DISPOSABLE_PROJECT_REF,
+    project_name: APPROVED_DISPOSABLE_PROJECT_NAME,
+    org_id: APPROVED_DISPOSABLE_ORG_ID,
+    hostname: String(live.hostname || hostname || ""),
+    database_name: String(live.current_database || live.database_name || ""),
+    user: String(live.current_user || live.user || ""),
+    connection_mode: String(live.connection_mode || connectionMode || ""),
+    pooler_identity: String(live.pooler_identity || poolerIdentity || ""),
+    qualification_run_id: String(live.qualification_run_id || qualificationRunId || ""),
+    evidence_schema_version: F3_FULL_FINGERPRINT_SCHEMA_VERSION,
+  };
+  const checked = evaluatePoisonTargetIdentity(bound);
+  if (!checked.ok) return { ok: false, ...checked, target_identity: bound };
+  return { ok: true, target_identity: bound };
+}
+
+export function assembleFinalPoisonExactRow({
+  trigger_present,
+  function_present,
+  poisonPresent,
+  target_identity,
+} = {}) {
+  return {
+    schema_version: FINAL_POISON_SCHEMA_VERSION,
+    trigger_present,
+    function_present,
+    poisonPresent,
+    target_identity,
   };
 }
 

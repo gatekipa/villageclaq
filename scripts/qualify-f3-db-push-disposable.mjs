@@ -157,6 +157,12 @@ import {
   INVENTORY_PHASES,
   labelInventoryCapture,
   assertFinalInventoryChronology,
+  assertRecursiveClosureReadyForDb,
+  evaluateFinalPoisonAbsence,
+  FINAL_POISON_ABSENCE_HOLD,
+  RECURSIVE_CLOSURE_HOLD,
+  MUST_REVERIFY_ON_17_6,
+  CATALOG_V3_00123_SUPERSESSION,
 } from "./lib/f3-db-push-repair-safety-gate.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -342,6 +348,24 @@ async function main() {
       fingerprint_exact: false,
       failedGate: "evidence_out_contract",
     }, { evidenceOut: null, exitCode: 1 });
+  }
+  const recursiveClosureGate = assertRecursiveClosureReadyForDb(F3_FUNCTIONAL_RECURSIVE_CLOSURE);
+  if (!recursiveClosureGate.ok) {
+    emitAndExit({
+      status: "HOLD",
+      verdict: FILE_BASED_RUNNER_VERDICTS.HOLD,
+      ok: false,
+      reason: recursiveClosureGate.reason || RECURSIVE_CLOSURE_HOLD,
+      recursiveClosureGate,
+      recursiveRuntimeClosure: F3_FUNCTIONAL_RECURSIVE_CLOSURE,
+      productionContacted: false,
+      dbAccess: false,
+      dbPushCalls: 0,
+      repairCalls: 0,
+      continuationCalls: 0,
+      fingerprint_exact: false,
+      failedGate: "recursive_runtime_closure",
+    }, { evidenceOut: args.evidenceOut, exitCode: 1 });
   }
   const platformAclCalibration = authorizeDbPushAfterPlatformAclCalibration();
   if (!platformAclCalibration.ok) {
@@ -1130,7 +1154,14 @@ async function main() {
         sql: READ_SCHEMA_MIGRATIONS_SQL,
       });
       const poisonBody = inventoryFromQuery(poisonFinal.stdout) || {};
+      evidence.finalPoisonProbe = evaluateFinalPoisonAbsence(poisonFinal);
       if (args.sequenceF3 && evidence.sequence.length === F3_FORWARD_FILES.length) {
+        if (!evidence.finalPoisonProbe?.ok || evidence.finalPoisonProbe.poisonPresent !== false) {
+          evidence.status = "HOLD";
+          evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+          evidence.limitation = evidence.finalPoisonProbe?.reason || FINAL_POISON_ABSENCE_HOLD;
+          evidence.claims.dbPush = FINAL_POISON_ABSENCE_HOLD;
+        } else {
         evidence.inventories[INVENTORY_PHASES.FINAL] = labelInventoryCapture({
           phase: INVENTORY_PHASES.FINAL,
           body: inventoryFromQuery(finalInv.stdout),
@@ -1139,7 +1170,7 @@ async function main() {
           inventories: evidence.inventories,
           historyRows: rowsFromQuery(historyFinal),
           recognition: evidence.recognition,
-          poisonPresent: poisonBody.trigger_present === true || poisonBody.function_present === true,
+          poisonPresent: evidence.finalPoisonProbe.poisonPresent,
         });
         if (!evidence.finalInventoryChronology?.ok) {
           evidence.status = "HOLD";
@@ -1154,6 +1185,7 @@ async function main() {
           evidence.claims.productionApproval = "NOT CLAIMED";
           evidence.floorLabel = QUALIFICATION_FLOOR_LABEL;
         }
+        }
       } else if (!args.sequenceF3) {
         evidence.status = "GATED_SCAFFOLDING_READY — hosted sequence not requested";
         evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
@@ -1167,15 +1199,19 @@ async function main() {
   }
 
   evidence.fingerprintSchemaVersion = F3_FULL_FINGERPRINT_SCHEMA_VERSION;
+  evidence.mustReverifyOn176 = MUST_REVERIFY_ON_17_6 === true;
+  evidence.catalogV3_00123Supersession = CATALOG_V3_00123_SUPERSESSION;
   evidence.recursiveRuntimeClosure = {
     sha256: F3_FUNCTIONAL_RECURSIVE_CLOSURE.closure_sha256,
     missing: F3_FUNCTIONAL_RECURSIVE_CLOSURE.missing,
     unresolved: F3_FUNCTIONAL_RECURSIVE_CLOSURE.unresolved,
+    runtime_read_missing: F3_FUNCTIONAL_RECURSIVE_CLOSURE.runtime_read_missing,
     unexplained_exclusions: F3_FUNCTIONAL_RECURSIVE_CLOSURE.unexplained_exclusions,
     uncommitted_functional_diffs: F3_FUNCTIONAL_RECURSIVE_CLOSURE.uncommitted_functional_diffs,
     hosted_tree_mismatches: F3_FUNCTIONAL_RECURSIVE_CLOSURE.hosted_tree_mismatches,
     closure_complete: F3_FUNCTIONAL_RECURSIVE_CLOSURE.closure_complete,
     independent_reference_source_sha256: F3_FUNCTIONAL_RECURSIVE_CLOSURE.independent_reference_source_sha256,
+    required_runtime_read_inputs: F3_FUNCTIONAL_RECURSIVE_CLOSURE.required_runtime_read_inputs,
   };
   const json = JSON.stringify(sanitizeForLog(evidence), null, 2);
   console.log(json);

@@ -1,0 +1,8 @@
+{
+  "artifact": "phase-d-failure-classification",
+  "functional_sha": "7d18aacaa163f9738be16be80489654b048e2150",
+  "verdict": "PASS",
+  "stop_at": null,
+  "all_six_migrations": "PASS",
+  "silent_patch_or_rerun": false
+}

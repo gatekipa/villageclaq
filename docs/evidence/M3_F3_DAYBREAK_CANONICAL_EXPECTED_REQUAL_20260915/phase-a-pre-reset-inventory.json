@@ -1,0 +1,1565 @@
+{
+  "functional_sha": "2fcc65114d89f098dc5d0f7787a99cb08c643c21",
+  "inventory": {
+    "schemas": [
+      "auth",
+      "extensions",
+      "financial_private",
+      "graphql",
+      "graphql_public",
+      "information_schema",
+      "pg_catalog",
+      "pg_toast",
+      "pgbouncer",
+      "public",
+      "realtime",
+      "storage",
+      "supabase_migrations",
+      "vault"
+    ],
+    "public_types": [
+      "notification_channel"
+    ],
+    "public_views": [],
+    "public_tables": [
+      "announcements",
+      "contribution_obligations",
+      "elections",
+      "events",
+      "financial_ledger_epochs",
+      "fines",
+      "group_positions",
+      "group_subscriptions",
+      "groups",
+      "hosting_assignments",
+      "hosting_rosters",
+      "hosting_swap_requests",
+      "invitations",
+      "loans",
+      "meeting_minutes",
+      "member_transfers",
+      "memberships",
+      "notification_policies",
+      "notification_policy_occurrences",
+      "notification_policy_triggers",
+      "notifications_queue",
+      "organizations",
+      "payment_obligation_applications",
+      "payments",
+      "position_assignments",
+      "position_permissions",
+      "profiles",
+      "projects",
+      "relief_claims",
+      "relief_enrollments",
+      "relief_plans",
+      "relief_remittances"
+    ],
+    "exchange_rates": false,
+    "financial_core": false,
+    "recognition_pin": "manual_income",
+    "storage_buckets": [],
+    "public_functions": [
+      {
+        "name": "cash_dist",
+        "identity": "public.cash_dist(money, money)"
+      },
+      {
+        "name": "compute_member_standing",
+        "identity": "public.compute_member_standing(p_membership_id uuid)"
+      },
+      {
+        "name": "date_dist",
+        "identity": "public.date_dist(date, date)"
+      },
+      {
+        "name": "enqueue_outbound_notification",
+        "identity": "public.enqueue_outbound_notification(p_notification_type text, p_domain_object_id uuid, p_channel notification_channel, p_recipient_membership_id uuid, p_locale text)"
+      },
+      {
+        "name": "execute_member_transfer",
+        "identity": "public.execute_member_transfer(p_payload jsonb)"
+      },
+      {
+        "name": "float4_dist",
+        "identity": "public.float4_dist(real, real)"
+      },
+      {
+        "name": "float8_dist",
+        "identity": "public.float8_dist(double precision, double precision)"
+      },
+      {
+        "name": "gbt_bit_compress",
+        "identity": "public.gbt_bit_compress(internal)"
+      },
+      {
+        "name": "gbt_bit_consistent",
+        "identity": "public.gbt_bit_consistent(internal, bit, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_bit_penalty",
+        "identity": "public.gbt_bit_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_bit_picksplit",
+        "identity": "public.gbt_bit_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_bit_same",
+        "identity": "public.gbt_bit_same(gbtreekey_var, gbtreekey_var, internal)"
+      },
+      {
+        "name": "gbt_bit_union",
+        "identity": "public.gbt_bit_union(internal, internal)"
+      },
+      {
+        "name": "gbt_bool_compress",
+        "identity": "public.gbt_bool_compress(internal)"
+      },
+      {
+        "name": "gbt_bool_consistent",
+        "identity": "public.gbt_bool_consistent(internal, boolean, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_bool_fetch",
+        "identity": "public.gbt_bool_fetch(internal)"
+      },
+      {
+        "name": "gbt_bool_penalty",
+        "identity": "public.gbt_bool_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_bool_picksplit",
+        "identity": "public.gbt_bool_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_bool_same",
+        "identity": "public.gbt_bool_same(gbtreekey2, gbtreekey2, internal)"
+      },
+      {
+        "name": "gbt_bool_union",
+        "identity": "public.gbt_bool_union(internal, internal)"
+      },
+      {
+        "name": "gbt_bpchar_compress",
+        "identity": "public.gbt_bpchar_compress(internal)"
+      },
+      {
+        "name": "gbt_bpchar_consistent",
+        "identity": "public.gbt_bpchar_consistent(internal, character, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_bytea_compress",
+        "identity": "public.gbt_bytea_compress(internal)"
+      },
+      {
+        "name": "gbt_bytea_consistent",
+        "identity": "public.gbt_bytea_consistent(internal, bytea, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_bytea_penalty",
+        "identity": "public.gbt_bytea_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_bytea_picksplit",
+        "identity": "public.gbt_bytea_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_bytea_same",
+        "identity": "public.gbt_bytea_same(gbtreekey_var, gbtreekey_var, internal)"
+      },
+      {
+        "name": "gbt_bytea_union",
+        "identity": "public.gbt_bytea_union(internal, internal)"
+      },
+      {
+        "name": "gbt_cash_compress",
+        "identity": "public.gbt_cash_compress(internal)"
+      },
+      {
+        "name": "gbt_cash_consistent",
+        "identity": "public.gbt_cash_consistent(internal, money, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_cash_distance",
+        "identity": "public.gbt_cash_distance(internal, money, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_cash_fetch",
+        "identity": "public.gbt_cash_fetch(internal)"
+      },
+      {
+        "name": "gbt_cash_penalty",
+        "identity": "public.gbt_cash_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_cash_picksplit",
+        "identity": "public.gbt_cash_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_cash_same",
+        "identity": "public.gbt_cash_same(gbtreekey16, gbtreekey16, internal)"
+      },
+      {
+        "name": "gbt_cash_union",
+        "identity": "public.gbt_cash_union(internal, internal)"
+      },
+      {
+        "name": "gbt_date_compress",
+        "identity": "public.gbt_date_compress(internal)"
+      },
+      {
+        "name": "gbt_date_consistent",
+        "identity": "public.gbt_date_consistent(internal, date, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_date_distance",
+        "identity": "public.gbt_date_distance(internal, date, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_date_fetch",
+        "identity": "public.gbt_date_fetch(internal)"
+      },
+      {
+        "name": "gbt_date_penalty",
+        "identity": "public.gbt_date_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_date_picksplit",
+        "identity": "public.gbt_date_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_date_same",
+        "identity": "public.gbt_date_same(gbtreekey8, gbtreekey8, internal)"
+      },
+      {
+        "name": "gbt_date_union",
+        "identity": "public.gbt_date_union(internal, internal)"
+      },
+      {
+        "name": "gbt_decompress",
+        "identity": "public.gbt_decompress(internal)"
+      },
+      {
+        "name": "gbt_enum_compress",
+        "identity": "public.gbt_enum_compress(internal)"
+      },
+      {
+        "name": "gbt_enum_consistent",
+        "identity": "public.gbt_enum_consistent(internal, anyenum, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_enum_fetch",
+        "identity": "public.gbt_enum_fetch(internal)"
+      },
+      {
+        "name": "gbt_enum_penalty",
+        "identity": "public.gbt_enum_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_enum_picksplit",
+        "identity": "public.gbt_enum_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_enum_same",
+        "identity": "public.gbt_enum_same(gbtreekey8, gbtreekey8, internal)"
+      },
+      {
+        "name": "gbt_enum_union",
+        "identity": "public.gbt_enum_union(internal, internal)"
+      },
+      {
+        "name": "gbt_float4_compress",
+        "identity": "public.gbt_float4_compress(internal)"
+      },
+      {
+        "name": "gbt_float4_consistent",
+        "identity": "public.gbt_float4_consistent(internal, real, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_float4_distance",
+        "identity": "public.gbt_float4_distance(internal, real, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_float4_fetch",
+        "identity": "public.gbt_float4_fetch(internal)"
+      },
+      {
+        "name": "gbt_float4_penalty",
+        "identity": "public.gbt_float4_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_float4_picksplit",
+        "identity": "public.gbt_float4_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_float4_same",
+        "identity": "public.gbt_float4_same(gbtreekey8, gbtreekey8, internal)"
+      },
+      {
+        "name": "gbt_float4_union",
+        "identity": "public.gbt_float4_union(internal, internal)"
+      },
+      {
+        "name": "gbt_float8_compress",
+        "identity": "public.gbt_float8_compress(internal)"
+      },
+      {
+        "name": "gbt_float8_consistent",
+        "identity": "public.gbt_float8_consistent(internal, double precision, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_float8_distance",
+        "identity": "public.gbt_float8_distance(internal, double precision, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_float8_fetch",
+        "identity": "public.gbt_float8_fetch(internal)"
+      },
+      {
+        "name": "gbt_float8_penalty",
+        "identity": "public.gbt_float8_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_float8_picksplit",
+        "identity": "public.gbt_float8_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_float8_same",
+        "identity": "public.gbt_float8_same(gbtreekey16, gbtreekey16, internal)"
+      },
+      {
+        "name": "gbt_float8_union",
+        "identity": "public.gbt_float8_union(internal, internal)"
+      },
+      {
+        "name": "gbt_inet_compress",
+        "identity": "public.gbt_inet_compress(internal)"
+      },
+      {
+        "name": "gbt_inet_consistent",
+        "identity": "public.gbt_inet_consistent(internal, inet, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_inet_penalty",
+        "identity": "public.gbt_inet_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_inet_picksplit",
+        "identity": "public.gbt_inet_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_inet_same",
+        "identity": "public.gbt_inet_same(gbtreekey16, gbtreekey16, internal)"
+      },
+      {
+        "name": "gbt_inet_union",
+        "identity": "public.gbt_inet_union(internal, internal)"
+      },
+      {
+        "name": "gbt_int2_compress",
+        "identity": "public.gbt_int2_compress(internal)"
+      },
+      {
+        "name": "gbt_int2_consistent",
+        "identity": "public.gbt_int2_consistent(internal, smallint, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_int2_distance",
+        "identity": "public.gbt_int2_distance(internal, smallint, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_int2_fetch",
+        "identity": "public.gbt_int2_fetch(internal)"
+      },
+      {
+        "name": "gbt_int2_penalty",
+        "identity": "public.gbt_int2_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_int2_picksplit",
+        "identity": "public.gbt_int2_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_int2_same",
+        "identity": "public.gbt_int2_same(gbtreekey4, gbtreekey4, internal)"
+      },
+      {
+        "name": "gbt_int2_union",
+        "identity": "public.gbt_int2_union(internal, internal)"
+      },
+      {
+        "name": "gbt_int4_compress",
+        "identity": "public.gbt_int4_compress(internal)"
+      },
+      {
+        "name": "gbt_int4_consistent",
+        "identity": "public.gbt_int4_consistent(internal, integer, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_int4_distance",
+        "identity": "public.gbt_int4_distance(internal, integer, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_int4_fetch",
+        "identity": "public.gbt_int4_fetch(internal)"
+      },
+      {
+        "name": "gbt_int4_penalty",
+        "identity": "public.gbt_int4_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_int4_picksplit",
+        "identity": "public.gbt_int4_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_int4_same",
+        "identity": "public.gbt_int4_same(gbtreekey8, gbtreekey8, internal)"
+      },
+      {
+        "name": "gbt_int4_union",
+        "identity": "public.gbt_int4_union(internal, internal)"
+      },
+      {
+        "name": "gbt_int8_compress",
+        "identity": "public.gbt_int8_compress(internal)"
+      },
+      {
+        "name": "gbt_int8_consistent",
+        "identity": "public.gbt_int8_consistent(internal, bigint, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_int8_distance",
+        "identity": "public.gbt_int8_distance(internal, bigint, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_int8_fetch",
+        "identity": "public.gbt_int8_fetch(internal)"
+      },
+      {
+        "name": "gbt_int8_penalty",
+        "identity": "public.gbt_int8_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_int8_picksplit",
+        "identity": "public.gbt_int8_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_int8_same",
+        "identity": "public.gbt_int8_same(gbtreekey16, gbtreekey16, internal)"
+      },
+      {
+        "name": "gbt_int8_union",
+        "identity": "public.gbt_int8_union(internal, internal)"
+      },
+      {
+        "name": "gbt_intv_compress",
+        "identity": "public.gbt_intv_compress(internal)"
+      },
+      {
+        "name": "gbt_intv_consistent",
+        "identity": "public.gbt_intv_consistent(internal, interval, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_intv_decompress",
+        "identity": "public.gbt_intv_decompress(internal)"
+      },
+      {
+        "name": "gbt_intv_distance",
+        "identity": "public.gbt_intv_distance(internal, interval, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_intv_fetch",
+        "identity": "public.gbt_intv_fetch(internal)"
+      },
+      {
+        "name": "gbt_intv_penalty",
+        "identity": "public.gbt_intv_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_intv_picksplit",
+        "identity": "public.gbt_intv_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_intv_same",
+        "identity": "public.gbt_intv_same(gbtreekey32, gbtreekey32, internal)"
+      },
+      {
+        "name": "gbt_intv_union",
+        "identity": "public.gbt_intv_union(internal, internal)"
+      },
+      {
+        "name": "gbt_macad8_compress",
+        "identity": "public.gbt_macad8_compress(internal)"
+      },
+      {
+        "name": "gbt_macad8_consistent",
+        "identity": "public.gbt_macad8_consistent(internal, macaddr8, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_macad8_fetch",
+        "identity": "public.gbt_macad8_fetch(internal)"
+      },
+      {
+        "name": "gbt_macad8_penalty",
+        "identity": "public.gbt_macad8_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_macad8_picksplit",
+        "identity": "public.gbt_macad8_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_macad8_same",
+        "identity": "public.gbt_macad8_same(gbtreekey16, gbtreekey16, internal)"
+      },
+      {
+        "name": "gbt_macad8_union",
+        "identity": "public.gbt_macad8_union(internal, internal)"
+      },
+      {
+        "name": "gbt_macad_compress",
+        "identity": "public.gbt_macad_compress(internal)"
+      },
+      {
+        "name": "gbt_macad_consistent",
+        "identity": "public.gbt_macad_consistent(internal, macaddr, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_macad_fetch",
+        "identity": "public.gbt_macad_fetch(internal)"
+      },
+      {
+        "name": "gbt_macad_penalty",
+        "identity": "public.gbt_macad_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_macad_picksplit",
+        "identity": "public.gbt_macad_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_macad_same",
+        "identity": "public.gbt_macad_same(gbtreekey16, gbtreekey16, internal)"
+      },
+      {
+        "name": "gbt_macad_union",
+        "identity": "public.gbt_macad_union(internal, internal)"
+      },
+      {
+        "name": "gbt_numeric_compress",
+        "identity": "public.gbt_numeric_compress(internal)"
+      },
+      {
+        "name": "gbt_numeric_consistent",
+        "identity": "public.gbt_numeric_consistent(internal, numeric, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_numeric_penalty",
+        "identity": "public.gbt_numeric_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_numeric_picksplit",
+        "identity": "public.gbt_numeric_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_numeric_same",
+        "identity": "public.gbt_numeric_same(gbtreekey_var, gbtreekey_var, internal)"
+      },
+      {
+        "name": "gbt_numeric_union",
+        "identity": "public.gbt_numeric_union(internal, internal)"
+      },
+      {
+        "name": "gbt_oid_compress",
+        "identity": "public.gbt_oid_compress(internal)"
+      },
+      {
+        "name": "gbt_oid_consistent",
+        "identity": "public.gbt_oid_consistent(internal, oid, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_oid_distance",
+        "identity": "public.gbt_oid_distance(internal, oid, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_oid_fetch",
+        "identity": "public.gbt_oid_fetch(internal)"
+      },
+      {
+        "name": "gbt_oid_penalty",
+        "identity": "public.gbt_oid_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_oid_picksplit",
+        "identity": "public.gbt_oid_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_oid_same",
+        "identity": "public.gbt_oid_same(gbtreekey8, gbtreekey8, internal)"
+      },
+      {
+        "name": "gbt_oid_union",
+        "identity": "public.gbt_oid_union(internal, internal)"
+      },
+      {
+        "name": "gbt_text_compress",
+        "identity": "public.gbt_text_compress(internal)"
+      },
+      {
+        "name": "gbt_text_consistent",
+        "identity": "public.gbt_text_consistent(internal, text, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_text_penalty",
+        "identity": "public.gbt_text_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_text_picksplit",
+        "identity": "public.gbt_text_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_text_same",
+        "identity": "public.gbt_text_same(gbtreekey_var, gbtreekey_var, internal)"
+      },
+      {
+        "name": "gbt_text_union",
+        "identity": "public.gbt_text_union(internal, internal)"
+      },
+      {
+        "name": "gbt_time_compress",
+        "identity": "public.gbt_time_compress(internal)"
+      },
+      {
+        "name": "gbt_time_consistent",
+        "identity": "public.gbt_time_consistent(internal, time without time zone, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_time_distance",
+        "identity": "public.gbt_time_distance(internal, time without time zone, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_time_fetch",
+        "identity": "public.gbt_time_fetch(internal)"
+      },
+      {
+        "name": "gbt_time_penalty",
+        "identity": "public.gbt_time_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_time_picksplit",
+        "identity": "public.gbt_time_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_time_same",
+        "identity": "public.gbt_time_same(gbtreekey16, gbtreekey16, internal)"
+      },
+      {
+        "name": "gbt_time_union",
+        "identity": "public.gbt_time_union(internal, internal)"
+      },
+      {
+        "name": "gbt_timetz_compress",
+        "identity": "public.gbt_timetz_compress(internal)"
+      },
+      {
+        "name": "gbt_timetz_consistent",
+        "identity": "public.gbt_timetz_consistent(internal, time with time zone, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_ts_compress",
+        "identity": "public.gbt_ts_compress(internal)"
+      },
+      {
+        "name": "gbt_ts_consistent",
+        "identity": "public.gbt_ts_consistent(internal, timestamp without time zone, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_ts_distance",
+        "identity": "public.gbt_ts_distance(internal, timestamp without time zone, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_ts_fetch",
+        "identity": "public.gbt_ts_fetch(internal)"
+      },
+      {
+        "name": "gbt_ts_penalty",
+        "identity": "public.gbt_ts_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_ts_picksplit",
+        "identity": "public.gbt_ts_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_ts_same",
+        "identity": "public.gbt_ts_same(gbtreekey16, gbtreekey16, internal)"
+      },
+      {
+        "name": "gbt_ts_union",
+        "identity": "public.gbt_ts_union(internal, internal)"
+      },
+      {
+        "name": "gbt_tstz_compress",
+        "identity": "public.gbt_tstz_compress(internal)"
+      },
+      {
+        "name": "gbt_tstz_consistent",
+        "identity": "public.gbt_tstz_consistent(internal, timestamp with time zone, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_tstz_distance",
+        "identity": "public.gbt_tstz_distance(internal, timestamp with time zone, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_uuid_compress",
+        "identity": "public.gbt_uuid_compress(internal)"
+      },
+      {
+        "name": "gbt_uuid_consistent",
+        "identity": "public.gbt_uuid_consistent(internal, uuid, smallint, oid, internal)"
+      },
+      {
+        "name": "gbt_uuid_fetch",
+        "identity": "public.gbt_uuid_fetch(internal)"
+      },
+      {
+        "name": "gbt_uuid_penalty",
+        "identity": "public.gbt_uuid_penalty(internal, internal, internal)"
+      },
+      {
+        "name": "gbt_uuid_picksplit",
+        "identity": "public.gbt_uuid_picksplit(internal, internal)"
+      },
+      {
+        "name": "gbt_uuid_same",
+        "identity": "public.gbt_uuid_same(gbtreekey32, gbtreekey32, internal)"
+      },
+      {
+        "name": "gbt_uuid_union",
+        "identity": "public.gbt_uuid_union(internal, internal)"
+      },
+      {
+        "name": "gbt_var_decompress",
+        "identity": "public.gbt_var_decompress(internal)"
+      },
+      {
+        "name": "gbt_var_fetch",
+        "identity": "public.gbt_var_fetch(internal)"
+      },
+      {
+        "name": "gbtreekey16_in",
+        "identity": "public.gbtreekey16_in(cstring)"
+      },
+      {
+        "name": "gbtreekey16_out",
+        "identity": "public.gbtreekey16_out(gbtreekey16)"
+      },
+      {
+        "name": "gbtreekey2_in",
+        "identity": "public.gbtreekey2_in(cstring)"
+      },
+      {
+        "name": "gbtreekey2_out",
+        "identity": "public.gbtreekey2_out(gbtreekey2)"
+      },
+      {
+        "name": "gbtreekey32_in",
+        "identity": "public.gbtreekey32_in(cstring)"
+      },
+      {
+        "name": "gbtreekey32_out",
+        "identity": "public.gbtreekey32_out(gbtreekey32)"
+      },
+      {
+        "name": "gbtreekey4_in",
+        "identity": "public.gbtreekey4_in(cstring)"
+      },
+      {
+        "name": "gbtreekey4_out",
+        "identity": "public.gbtreekey4_out(gbtreekey4)"
+      },
+      {
+        "name": "gbtreekey8_in",
+        "identity": "public.gbtreekey8_in(cstring)"
+      },
+      {
+        "name": "gbtreekey8_out",
+        "identity": "public.gbtreekey8_out(gbtreekey8)"
+      },
+      {
+        "name": "gbtreekey_var_in",
+        "identity": "public.gbtreekey_var_in(cstring)"
+      },
+      {
+        "name": "gbtreekey_var_out",
+        "identity": "public.gbtreekey_var_out(gbtreekey_var)"
+      },
+      {
+        "name": "has_group_permission",
+        "identity": "public.has_group_permission(gid uuid, perm_key text, uid uuid)"
+      },
+      {
+        "name": "int2_dist",
+        "identity": "public.int2_dist(smallint, smallint)"
+      },
+      {
+        "name": "int4_dist",
+        "identity": "public.int4_dist(integer, integer)"
+      },
+      {
+        "name": "int8_dist",
+        "identity": "public.int8_dist(bigint, bigint)"
+      },
+      {
+        "name": "interval_dist",
+        "identity": "public.interval_dist(interval, interval)"
+      },
+      {
+        "name": "m2_is_valid_iana_timezone",
+        "identity": "public.m2_is_valid_iana_timezone(tz text)"
+      },
+      {
+        "name": "notification_policy_set_updated_at",
+        "identity": "public.notification_policy_set_updated_at()"
+      },
+      {
+        "name": "oid_dist",
+        "identity": "public.oid_dist(oid, oid)"
+      },
+      {
+        "name": "request_member_transfer",
+        "identity": "public.request_member_transfer(p_payload jsonb)"
+      },
+      {
+        "name": "time_dist",
+        "identity": "public.time_dist(time without time zone, time without time zone)"
+      },
+      {
+        "name": "ts_dist",
+        "identity": "public.ts_dist(timestamp without time zone, timestamp without time zone)"
+      },
+      {
+        "name": "tstz_dist",
+        "identity": "public.tstz_dist(timestamp with time zone, timestamp with time zone)"
+      },
+      {
+        "name": "uuid_generate_v5",
+        "identity": "public.uuid_generate_v5(namespace uuid, name text)"
+      }
+    ],
+    "storage_policies": [],
+    "unnest_uuid_shim": false,
+    "financial_private": true,
+    "groups_group_level": false,
+    "schema_migrations_rows": 0,
+    "financial_ledger_epochs": true,
+    "schema_migrations_present": true,
+    "organizations_base_country": false,
+    "auth_handle_new_user_trigger": false,
+    "committees_budget_allocation": false
+  },
+  "classification": {
+    "verdict": "HOLD",
+    "reason": "HOLD: disposable inventory contains objects not demonstrably from the failed floor",
+    "failedPresent": true,
+    "cleanBaseline": false,
+    "leftoverOk": true,
+    "historyRows": 0,
+    "failedTables": [
+      "announcements",
+      "contribution_obligations",
+      "elections",
+      "events",
+      "fines",
+      "group_positions",
+      "groups",
+      "hosting_assignments",
+      "hosting_rosters",
+      "hosting_swap_requests",
+      "invitations",
+      "meeting_minutes",
+      "member_transfers",
+      "memberships",
+      "notifications_queue",
+      "organizations",
+      "payments",
+      "position_assignments",
+      "position_permissions",
+      "profiles",
+      "projects",
+      "relief_claims",
+      "relief_enrollments",
+      "relief_plans"
+    ],
+    "extraTables": [
+      "financial_ledger_epochs",
+      "group_subscriptions",
+      "loans",
+      "notification_policies",
+      "notification_policy_occurrences",
+      "notification_policy_triggers",
+      "payment_obligation_applications",
+      "relief_remittances"
+    ],
+    "failedTypes": [
+      "notification_channel"
+    ],
+    "extraTypes": [],
+    "failedFunctions": [],
+    "extraFunctions": [
+      "cash_dist",
+      "compute_member_standing",
+      "date_dist",
+      "enqueue_outbound_notification",
+      "execute_member_transfer",
+      "float4_dist",
+      "float8_dist",
+      "gbt_bit_compress",
+      "gbt_bit_consistent",
+      "gbt_bit_penalty",
+      "gbt_bit_picksplit",
+      "gbt_bit_same",
+      "gbt_bit_union",
+      "gbt_bool_compress",
+      "gbt_bool_consistent",
+      "gbt_bool_fetch",
+      "gbt_bool_penalty",
+      "gbt_bool_picksplit",
+      "gbt_bool_same",
+      "gbt_bool_union",
+      "gbt_bpchar_compress",
+      "gbt_bpchar_consistent",
+      "gbt_bytea_compress",
+      "gbt_bytea_consistent",
+      "gbt_bytea_penalty",
+      "gbt_bytea_picksplit",
+      "gbt_bytea_same",
+      "gbt_bytea_union",
+      "gbt_cash_compress",
+      "gbt_cash_consistent",
+      "gbt_cash_distance",
+      "gbt_cash_fetch",
+      "gbt_cash_penalty",
+      "gbt_cash_picksplit",
+      "gbt_cash_same",
+      "gbt_cash_union",
+      "gbt_date_compress",
+      "gbt_date_consistent",
+      "gbt_date_distance",
+      "gbt_date_fetch",
+      "gbt_date_penalty",
+      "gbt_date_picksplit",
+      "gbt_date_same",
+      "gbt_date_union",
+      "gbt_decompress",
+      "gbt_enum_compress",
+      "gbt_enum_consistent",
+      "gbt_enum_fetch",
+      "gbt_enum_penalty",
+      "gbt_enum_picksplit",
+      "gbt_enum_same",
+      "gbt_enum_union",
+      "gbt_float4_compress",
+      "gbt_float4_consistent",
+      "gbt_float4_distance",
+      "gbt_float4_fetch",
+      "gbt_float4_penalty",
+      "gbt_float4_picksplit",
+      "gbt_float4_same",
+      "gbt_float4_union",
+      "gbt_float8_compress",
+      "gbt_float8_consistent",
+      "gbt_float8_distance",
+      "gbt_float8_fetch",
+      "gbt_float8_penalty",
+      "gbt_float8_picksplit",
+      "gbt_float8_same",
+      "gbt_float8_union",
+      "gbt_inet_compress",
+      "gbt_inet_consistent",
+      "gbt_inet_penalty",
+      "gbt_inet_picksplit",
+      "gbt_inet_same",
+      "gbt_inet_union",
+      "gbt_int2_compress",
+      "gbt_int2_consistent",
+      "gbt_int2_distance",
+      "gbt_int2_fetch",
+      "gbt_int2_penalty",
+      "gbt_int2_picksplit",
+      "gbt_int2_same",
+      "gbt_int2_union",
+      "gbt_int4_compress",
+      "gbt_int4_consistent",
+      "gbt_int4_distance",
+      "gbt_int4_fetch",
+      "gbt_int4_penalty",
+      "gbt_int4_picksplit",
+      "gbt_int4_same",
+      "gbt_int4_union",
+      "gbt_int8_compress",
+      "gbt_int8_consistent",
+      "gbt_int8_distance",
+      "gbt_int8_fetch",
+      "gbt_int8_penalty",
+      "gbt_int8_picksplit",
+      "gbt_int8_same",
+      "gbt_int8_union",
+      "gbt_intv_compress",
+      "gbt_intv_consistent",
+      "gbt_intv_decompress",
+      "gbt_intv_distance",
+      "gbt_intv_fetch",
+      "gbt_intv_penalty",
+      "gbt_intv_picksplit",
+      "gbt_intv_same",
+      "gbt_intv_union",
+      "gbt_macad8_compress",
+      "gbt_macad8_consistent",
+      "gbt_macad8_fetch",
+      "gbt_macad8_penalty",
+      "gbt_macad8_picksplit",
+      "gbt_macad8_same",
+      "gbt_macad8_union",
+      "gbt_macad_compress",
+      "gbt_macad_consistent",
+      "gbt_macad_fetch",
+      "gbt_macad_penalty",
+      "gbt_macad_picksplit",
+      "gbt_macad_same",
+      "gbt_macad_union",
+      "gbt_numeric_compress",
+      "gbt_numeric_consistent",
+      "gbt_numeric_penalty",
+      "gbt_numeric_picksplit",
+      "gbt_numeric_same",
+      "gbt_numeric_union",
+      "gbt_oid_compress",
+      "gbt_oid_consistent",
+      "gbt_oid_distance",
+      "gbt_oid_fetch",
+      "gbt_oid_penalty",
+      "gbt_oid_picksplit",
+      "gbt_oid_same",
+      "gbt_oid_union",
+      "gbt_text_compress",
+      "gbt_text_consistent",
+      "gbt_text_penalty",
+      "gbt_text_picksplit",
+      "gbt_text_same",
+      "gbt_text_union",
+      "gbt_time_compress",
+      "gbt_time_consistent",
+      "gbt_time_distance",
+      "gbt_time_fetch",
+      "gbt_time_penalty",
+      "gbt_time_picksplit",
+      "gbt_time_same",
+      "gbt_time_union",
+      "gbt_timetz_compress",
+      "gbt_timetz_consistent",
+      "gbt_ts_compress",
+      "gbt_ts_consistent",
+      "gbt_ts_distance",
+      "gbt_ts_fetch",
+      "gbt_ts_penalty",
+      "gbt_ts_picksplit",
+      "gbt_ts_same",
+      "gbt_ts_union",
+      "gbt_tstz_compress",
+      "gbt_tstz_consistent",
+      "gbt_tstz_distance",
+      "gbt_uuid_compress",
+      "gbt_uuid_consistent",
+      "gbt_uuid_fetch",
+      "gbt_uuid_penalty",
+      "gbt_uuid_picksplit",
+      "gbt_uuid_same",
+      "gbt_uuid_union",
+      "gbt_var_decompress",
+      "gbt_var_fetch",
+      "gbtreekey16_in",
+      "gbtreekey16_out",
+      "gbtreekey2_in",
+      "gbtreekey2_out",
+      "gbtreekey32_in",
+      "gbtreekey32_out",
+      "gbtreekey4_in",
+      "gbtreekey4_out",
+      "gbtreekey8_in",
+      "gbtreekey8_out",
+      "gbtreekey_var_in",
+      "gbtreekey_var_out",
+      "has_group_permission",
+      "int2_dist",
+      "int4_dist",
+      "int8_dist",
+      "interval_dist",
+      "m2_is_valid_iana_timezone",
+      "notification_policy_set_updated_at",
+      "oid_dist",
+      "request_member_transfer",
+      "time_dist",
+      "ts_dist",
+      "tstz_dist",
+      "uuid_generate_v5"
+    ],
+    "failedStoragePolicies": [],
+    "extraStoragePolicies": [],
+    "extraStoragePoliciesPreserved": [],
+    "incompleteWipeStoragePolicies": [],
+    "incompleteWipeBuckets": [],
+    "publicFailedPresent": true,
+    "unnestShim": false,
+    "authTrigger": false,
+    "financialPresent": true,
+    "ambiguous": [
+      {
+        "kind": "public_table",
+        "names": [
+          "financial_ledger_epochs",
+          "group_subscriptions",
+          "loans",
+          "notification_policies",
+          "notification_policy_occurrences",
+          "notification_policy_triggers",
+          "payment_obligation_applications",
+          "relief_remittances"
+        ]
+      },
+      {
+        "kind": "public_function",
+        "names": [
+          "cash_dist",
+          "compute_member_standing",
+          "date_dist",
+          "enqueue_outbound_notification",
+          "execute_member_transfer",
+          "float4_dist",
+          "float8_dist",
+          "gbt_bit_compress",
+          "gbt_bit_consistent",
+          "gbt_bit_penalty",
+          "gbt_bit_picksplit",
+          "gbt_bit_same",
+          "gbt_bit_union",
+          "gbt_bool_compress",
+          "gbt_bool_consistent",
+          "gbt_bool_fetch",
+          "gbt_bool_penalty",
+          "gbt_bool_picksplit",
+          "gbt_bool_same",
+          "gbt_bool_union",
+          "gbt_bpchar_compress",
+          "gbt_bpchar_consistent",
+          "gbt_bytea_compress",
+          "gbt_bytea_consistent",
+          "gbt_bytea_penalty",
+          "gbt_bytea_picksplit",
+          "gbt_bytea_same",
+          "gbt_bytea_union",
+          "gbt_cash_compress",
+          "gbt_cash_consistent",
+          "gbt_cash_distance",
+          "gbt_cash_fetch",
+          "gbt_cash_penalty",
+          "gbt_cash_picksplit",
+          "gbt_cash_same",
+          "gbt_cash_union",
+          "gbt_date_compress",
+          "gbt_date_consistent",
+          "gbt_date_distance",
+          "gbt_date_fetch",
+          "gbt_date_penalty",
+          "gbt_date_picksplit",
+          "gbt_date_same",
+          "gbt_date_union",
+          "gbt_decompress",
+          "gbt_enum_compress",
+          "gbt_enum_consistent",
+          "gbt_enum_fetch",
+          "gbt_enum_penalty",
+          "gbt_enum_picksplit",
+          "gbt_enum_same",
+          "gbt_enum_union",
+          "gbt_float4_compress",
+          "gbt_float4_consistent",
+          "gbt_float4_distance",
+          "gbt_float4_fetch",
+          "gbt_float4_penalty",
+          "gbt_float4_picksplit",
+          "gbt_float4_same",
+          "gbt_float4_union",
+          "gbt_float8_compress",
+          "gbt_float8_consistent",
+          "gbt_float8_distance",
+          "gbt_float8_fetch",
+          "gbt_float8_penalty",
+          "gbt_float8_picksplit",
+          "gbt_float8_same",
+          "gbt_float8_union",
+          "gbt_inet_compress",
+          "gbt_inet_consistent",
+          "gbt_inet_penalty",
+          "gbt_inet_picksplit",
+          "gbt_inet_same",
+          "gbt_inet_union",
+          "gbt_int2_compress",
+          "gbt_int2_consistent",
+          "gbt_int2_distance",
+          "gbt_int2_fetch",
+          "gbt_int2_penalty",
+          "gbt_int2_picksplit",
+          "gbt_int2_same",
+          "gbt_int2_union",
+          "gbt_int4_compress",
+          "gbt_int4_consistent",
+          "gbt_int4_distance",
+          "gbt_int4_fetch",
+          "gbt_int4_penalty",
+          "gbt_int4_picksplit",
+          "gbt_int4_same",
+          "gbt_int4_union",
+          "gbt_int8_compress",
+          "gbt_int8_consistent",
+          "gbt_int8_distance",
+          "gbt_int8_fetch",
+          "gbt_int8_penalty",
+          "gbt_int8_picksplit",
+          "gbt_int8_same",
+          "gbt_int8_union",
+          "gbt_intv_compress",
+          "gbt_intv_consistent",
+          "gbt_intv_decompress",
+          "gbt_intv_distance",
+          "gbt_intv_fetch",
+          "gbt_intv_penalty",
+          "gbt_intv_picksplit",
+          "gbt_intv_same",
+          "gbt_intv_union",
+          "gbt_macad8_compress",
+          "gbt_macad8_consistent",
+          "gbt_macad8_fetch",
+          "gbt_macad8_penalty",
+          "gbt_macad8_picksplit",
+          "gbt_macad8_same",
+          "gbt_macad8_union",
+          "gbt_macad_compress",
+          "gbt_macad_consistent",
+          "gbt_macad_fetch",
+          "gbt_macad_penalty",
+          "gbt_macad_picksplit",
+          "gbt_macad_same",
+          "gbt_macad_union",
+          "gbt_numeric_compress",
+          "gbt_numeric_consistent",
+          "gbt_numeric_penalty",
+          "gbt_numeric_picksplit",
+          "gbt_numeric_same",
+          "gbt_numeric_union",
+          "gbt_oid_compress",
+          "gbt_oid_consistent",
+          "gbt_oid_distance",
+          "gbt_oid_fetch",
+          "gbt_oid_penalty",
+          "gbt_oid_picksplit",
+          "gbt_oid_same",
+          "gbt_oid_union",
+          "gbt_text_compress",
+          "gbt_text_consistent",
+          "gbt_text_penalty",
+          "gbt_text_picksplit",
+          "gbt_text_same",
+          "gbt_text_union",
+          "gbt_time_compress",
+          "gbt_time_consistent",
+          "gbt_time_distance",
+          "gbt_time_fetch",
+          "gbt_time_penalty",
+          "gbt_time_picksplit",
+          "gbt_time_same",
+          "gbt_time_union",
+          "gbt_timetz_compress",
+          "gbt_timetz_consistent",
+          "gbt_ts_compress",
+          "gbt_ts_consistent",
+          "gbt_ts_distance",
+          "gbt_ts_fetch",
+          "gbt_ts_penalty",
+          "gbt_ts_picksplit",
+          "gbt_ts_same",
+          "gbt_ts_union",
+          "gbt_tstz_compress",
+          "gbt_tstz_consistent",
+          "gbt_tstz_distance",
+          "gbt_uuid_compress",
+          "gbt_uuid_consistent",
+          "gbt_uuid_fetch",
+          "gbt_uuid_penalty",
+          "gbt_uuid_picksplit",
+          "gbt_uuid_same",
+          "gbt_uuid_union",
+          "gbt_var_decompress",
+          "gbt_var_fetch",
+          "gbtreekey16_in",
+          "gbtreekey16_out",
+          "gbtreekey2_in",
+          "gbtreekey2_out",
+          "gbtreekey32_in",
+          "gbtreekey32_out",
+          "gbtreekey4_in",
+          "gbtreekey4_out",
+          "gbtreekey8_in",
+          "gbtreekey8_out",
+          "gbtreekey_var_in",
+          "gbtreekey_var_out",
+          "has_group_permission",
+          "int2_dist",
+          "int4_dist",
+          "int8_dist",
+          "interval_dist",
+          "m2_is_valid_iana_timezone",
+          "notification_policy_set_updated_at",
+          "oid_dist",
+          "request_member_transfer",
+          "time_dist",
+          "ts_dist",
+          "tstz_dist",
+          "uuid_generate_v5"
+        ]
+      },
+      {
+        "kind": "financial_object",
+        "names": [
+          "financial_*"
+        ]
+      }
+    ],
+    "storageBucketsUntouched": true,
+    "recognition": [
+      "manual_income"
+    ]
+  },
+  "ambiguous_objects": [
+    {
+      "kind": "public_table",
+      "names": [
+        "financial_ledger_epochs",
+        "group_subscriptions",
+        "loans",
+        "notification_policies",
+        "notification_policy_occurrences",
+        "notification_policy_triggers",
+        "payment_obligation_applications",
+        "relief_remittances"
+      ]
+    },
+    {
+      "kind": "public_function",
+      "names": [
+        "cash_dist",
+        "compute_member_standing",
+        "date_dist",
+        "enqueue_outbound_notification",
+        "execute_member_transfer",
+        "float4_dist",
+        "float8_dist",
+        "gbt_bit_compress",
+        "gbt_bit_consistent",
+        "gbt_bit_penalty",
+        "gbt_bit_picksplit",
+        "gbt_bit_same",
+        "gbt_bit_union",
+        "gbt_bool_compress",
+        "gbt_bool_consistent",
+        "gbt_bool_fetch",
+        "gbt_bool_penalty",
+        "gbt_bool_picksplit",
+        "gbt_bool_same",
+        "gbt_bool_union",
+        "gbt_bpchar_compress",
+        "gbt_bpchar_consistent",
+        "gbt_bytea_compress",
+        "gbt_bytea_consistent",
+        "gbt_bytea_penalty",
+        "gbt_bytea_picksplit",
+        "gbt_bytea_same",
+        "gbt_bytea_union",
+        "gbt_cash_compress",
+        "gbt_cash_consistent",
+        "gbt_cash_distance",
+        "gbt_cash_fetch",
+        "gbt_cash_penalty",
+        "gbt_cash_picksplit",
+        "gbt_cash_same",
+        "gbt_cash_union",
+        "gbt_date_compress",
+        "gbt_date_consistent",
+        "gbt_date_distance",
+        "gbt_date_fetch",
+        "gbt_date_penalty",
+        "gbt_date_picksplit",
+        "gbt_date_same",
+        "gbt_date_union",
+        "gbt_decompress",
+        "gbt_enum_compress",
+        "gbt_enum_consistent",
+        "gbt_enum_fetch",
+        "gbt_enum_penalty",
+        "gbt_enum_picksplit",
+        "gbt_enum_same",
+        "gbt_enum_union",
+        "gbt_float4_compress",
+        "gbt_float4_consistent",
+        "gbt_float4_distance",
+        "gbt_float4_fetch",
+        "gbt_float4_penalty",
+        "gbt_float4_picksplit",
+        "gbt_float4_same",
+        "gbt_float4_union",
+        "gbt_float8_compress",
+        "gbt_float8_consistent",
+        "gbt_float8_distance",
+        "gbt_float8_fetch",
+        "gbt_float8_penalty",
+        "gbt_float8_picksplit",
+        "gbt_float8_same",
+        "gbt_float8_union",
+        "gbt_inet_compress",
+        "gbt_inet_consistent",
+        "gbt_inet_penalty",
+        "gbt_inet_picksplit",
+        "gbt_inet_same",
+        "gbt_inet_union",
+        "gbt_int2_compress",
+        "gbt_int2_consistent",
+        "gbt_int2_distance",
+        "gbt_int2_fetch",
+        "gbt_int2_penalty",
+        "gbt_int2_picksplit",
+        "gbt_int2_same",
+        "gbt_int2_union",
+        "gbt_int4_compress",
+        "gbt_int4_consistent",
+        "gbt_int4_distance",
+        "gbt_int4_fetch",
+        "gbt_int4_penalty",
+        "gbt_int4_picksplit",
+        "gbt_int4_same",
+        "gbt_int4_union",
+        "gbt_int8_compress",
+        "gbt_int8_consistent",
+        "gbt_int8_distance",
+        "gbt_int8_fetch",
+        "gbt_int8_penalty",
+        "gbt_int8_picksplit",
+        "gbt_int8_same",
+        "gbt_int8_union",
+        "gbt_intv_compress",
+        "gbt_intv_consistent",
+        "gbt_intv_decompress",
+        "gbt_intv_distance",
+        "gbt_intv_fetch",
+        "gbt_intv_penalty",
+        "gbt_intv_picksplit",
+        "gbt_intv_same",
+        "gbt_intv_union",
+        "gbt_macad8_compress",
+        "gbt_macad8_consistent",
+        "gbt_macad8_fetch",
+        "gbt_macad8_penalty",
+        "gbt_macad8_picksplit",
+        "gbt_macad8_same",
+        "gbt_macad8_union",
+        "gbt_macad_compress",
+        "gbt_macad_consistent",
+        "gbt_macad_fetch",
+        "gbt_macad_penalty",
+        "gbt_macad_picksplit",
+        "gbt_macad_same",
+        "gbt_macad_union",
+        "gbt_numeric_compress",
+        "gbt_numeric_consistent",
+        "gbt_numeric_penalty",
+        "gbt_numeric_picksplit",
+        "gbt_numeric_same",
+        "gbt_numeric_union",
+        "gbt_oid_compress",
+        "gbt_oid_consistent",
+        "gbt_oid_distance",
+        "gbt_oid_fetch",
+        "gbt_oid_penalty",
+        "gbt_oid_picksplit",
+        "gbt_oid_same",
+        "gbt_oid_union",
+        "gbt_text_compress",
+        "gbt_text_consistent",
+        "gbt_text_penalty",
+        "gbt_text_picksplit",
+        "gbt_text_same",
+        "gbt_text_union",
+        "gbt_time_compress",
+        "gbt_time_consistent",
+        "gbt_time_distance",
+        "gbt_time_fetch",
+        "gbt_time_penalty",
+        "gbt_time_picksplit",
+        "gbt_time_same",
+        "gbt_time_union",
+        "gbt_timetz_compress",
+        "gbt_timetz_consistent",
+        "gbt_ts_compress",
+        "gbt_ts_consistent",
+        "gbt_ts_distance",
+        "gbt_ts_fetch",
+        "gbt_ts_penalty",
+        "gbt_ts_picksplit",
+        "gbt_ts_same",
+        "gbt_ts_union",
+        "gbt_tstz_compress",
+        "gbt_tstz_consistent",
+        "gbt_tstz_distance",
+        "gbt_uuid_compress",
+        "gbt_uuid_consistent",
+        "gbt_uuid_fetch",
+        "gbt_uuid_penalty",
+        "gbt_uuid_picksplit",
+        "gbt_uuid_same",
+        "gbt_uuid_union",
+        "gbt_var_decompress",
+        "gbt_var_fetch",
+        "gbtreekey16_in",
+        "gbtreekey16_out",
+        "gbtreekey2_in",
+        "gbtreekey2_out",
+        "gbtreekey32_in",
+        "gbtreekey32_out",
+        "gbtreekey4_in",
+        "gbtreekey4_out",
+        "gbtreekey8_in",
+        "gbtreekey8_out",
+        "gbtreekey_var_in",
+        "gbtreekey_var_out",
+        "has_group_permission",
+        "int2_dist",
+        "int4_dist",
+        "int8_dist",
+        "interval_dist",
+        "m2_is_valid_iana_timezone",
+        "notification_policy_set_updated_at",
+        "oid_dist",
+        "request_member_transfer",
+        "time_dist",
+        "ts_dist",
+        "tstz_dist",
+        "uuid_generate_v5"
+      ]
+    },
+    {
+      "kind": "financial_object",
+      "names": [
+        "financial_*"
+      ]
+    }
+  ],
+  "ambiguous_count": 3,
+  "note": "Pre-reset inventory for restart-from-00118; ambiguous expected if prior F3/floor residue present. Reset authorizes DROP SCHEMA financial_core/financial_private + floor residue + six history deletes."
+}

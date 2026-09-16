@@ -1,0 +1,11 @@
+{
+  "verdict": "DAYBREAK HOLD \u2014 00121 object-probe type alias",
+  "functional_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315",
+  "qualification_pass": false,
+  "00118_00120": "PASS",
+  "00121": "STOP before repair \u2014 expected_objects/security_postconditions",
+  "00122_00123": "NOT_RUN",
+  "root_cause": "object_probe_type_alias_mismatch",
+  "NOT_acl_truncation": true,
+  "tip_modified": false
+}

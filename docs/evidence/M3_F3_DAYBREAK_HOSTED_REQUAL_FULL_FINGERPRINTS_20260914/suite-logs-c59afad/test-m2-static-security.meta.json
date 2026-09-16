@@ -1,0 +1,13 @@
+{
+  "name": "test-m2-static-security",
+  "command": "npm run test:m2-static-security",
+  "startedAt": "2026-09-14T21:33:08Z",
+  "endedAt": "2026-09-14T21:33:08Z",
+  "exit": 0,
+  "pass": 9,
+  "fail": 0,
+  "skip": 0,
+  "log": "<redacted-path>",
+  "sha256": "6c111902db5e4f55a30a946414c9fde97d6321126e5a99100d02d821c407c921",
+  "bytes": 2086
+}

@@ -6342,7 +6342,9 @@ SELECT jsonb_build_object(
         AND NOT t.tgisinternal
     )
     OR to_regprocedure('${POISON_FUNCTION_REGPROCEDURE}') IS NOT NULL
-  )
+  ),
+  'current_database', current_database(),
+  'current_user', current_user
 );
 `;
 

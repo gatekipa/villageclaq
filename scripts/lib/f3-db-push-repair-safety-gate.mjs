@@ -2190,6 +2190,26 @@ function writeFinalJsonArtifact(abs, value) {
   return writeFinalArtifactBytes(abs, body);
 }
 
+const MACHINE_ABS_PATH_RE = /\/(?:workspace|tmp|home|opt|Users|var|usr)\/[^\s"'\\]+/g;
+const SECRET_LIKE_RE = /postgres(?:\.[A-Za-z0-9]+)?:[^@\s"']+@|(?:sbp_|sb_secret_|sb_publishable_)[A-Za-z0-9._-]+|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9._-]+/gi;
+
+export function sanitizeNonsemanticEvidencePaths(text) {
+  return String(text ?? "").replace(MACHINE_ABS_PATH_RE, "[SANITIZED_ABS_PATH]");
+}
+
+export function scanEvidenceBytesForLeaks(buf) {
+  const text = Buffer.isBuffer(buf) ? buf.toString("utf8") : String(buf ?? "");
+  const paths = text.match(MACHINE_ABS_PATH_RE) || [];
+  const secrets = (text.match(SECRET_LIKE_RE) || []).filter((hit) => !hit.includes("[REDACTED]"));
+  return {
+    absolute_path_leaks: paths.length,
+    secret_scan: secrets.length ? "dirty" : "clean",
+    ok: paths.length === 0 && secrets.length === 0,
+    paths,
+    secretHits: secrets.length,
+  };
+}
+
 export function sanitizeEvidenceOutBytes(raw, extraSecrets = []) {
   const secrets = extraSecrets.filter(Boolean).map(String);
   const input = Buffer.isBuffer(raw) ? raw : Buffer.from(String(raw ?? ""), "utf8");
@@ -2202,7 +2222,44 @@ export function sanitizeEvidenceOutBytes(raw, extraSecrets = []) {
     /postgres(?:\.[A-Za-z0-9]+)?:[^@\s]+@/g,
     "postgres:[REDACTED]@",
   );
+  text = sanitizeNonsemanticEvidencePaths(text);
   return Buffer.from(text, "utf8");
+}
+
+export function listEvidenceTreeFiles(dir) {
+  if (!dir || !fs.existsSync(dir)) return [];
+  const out = [];
+  const walk = (current, rel) => {
+    let entries;
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const ent of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      const childRel = rel ? `${rel}/${ent.name}` : ent.name;
+      const childAbs = path.join(current, ent.name);
+      if (ent.isDirectory()) walk(childAbs, childRel);
+      else if (ent.isFile()) out.push(childRel.replace(/\\/g, "/"));
+    }
+  };
+  walk(dir, "");
+  return out;
+}
+
+export function inferEvidenceRootFromDest(dest) {
+  if (!dest) return null;
+  const abs = path.resolve(dest);
+  const parts = abs.split(path.sep);
+  for (let i = 0; i < parts.length; i += 1) {
+    if (parts[i] === "synthetic-evidence") {
+      return parts.slice(0, i).join(path.sep) || path.sep;
+    }
+    if (parts[i] === "qualify-evidence" && i > 0 && (parts[i - 1] === "hosted" || parts[i - 1] === "phase-c")) {
+      return parts.slice(0, i - 1).join(path.sep) || path.sep;
+    }
+  }
+  return null;
 }
 
 export function extractExactPostgresError(text) {
@@ -2407,6 +2464,140 @@ export function writeEvidenceIndexAndChecksum(dir, artifacts = []) {
     sha256: written.sha256,
     bytes: written.bytes,
   };
+}
+
+export function verifyOuterEvidencePackaging(root) {
+  if (!root || !fs.existsSync(root)) {
+    return { ok: false, reason: "HOLD: outer evidence root missing" };
+  }
+  const independent = verifyEvidenceIndex(root);
+  if (!independent.ok) {
+    return { ...independent, hold: QUALIFY_EVIDENCE_PACKAGING_HOLD };
+  }
+  const indexed = new Map((independent.index.artifacts || []).map((item) => [item.path, item]));
+  if (indexed.has(EVIDENCE_INDEX_FILENAME) || indexed.has(EVIDENCE_INDEX_CHECKSUM_FILENAME)) {
+    return { ok: false, reason: "HOLD: outer detached index contains a self-entry" };
+  }
+  const present = listEvidenceTreeFiles(root);
+  for (const rel of present) {
+    const base = path.posix.basename(rel);
+    if (rel === EVIDENCE_INDEX_FILENAME || rel === EVIDENCE_INDEX_CHECKSUM_FILENAME) continue;
+    if (!indexed.has(rel)) {
+      if (FOUNDER_REPORT_BASENAME_RE.test(base)) {
+        return { ok: false, reason: `HOLD: extra unindexed founder report ${rel}` };
+      }
+      return { ok: false, reason: `HOLD: unindexed evidence artifact ${rel}` };
+    }
+    const committed = readFinalCommittedBytes(path.join(root, rel));
+    if (!committed.ok) {
+      return { ok: false, reason: `HOLD: broken reference ${rel}` };
+    }
+    const item = indexed.get(rel);
+    if (item.sha256 && item.sha256 !== committed.sha256) {
+      return { ok: false, reason: `HOLD: wrong digest for ${rel}` };
+    }
+    if (item.bytes != null && item.bytes !== committed.bytes) {
+      return { ok: false, reason: `HOLD: wrong byte length for ${rel}` };
+    }
+    const leaks = scanEvidenceBytesForLeaks(committed.buf);
+    if (!leaks.ok) {
+      return {
+        ok: false,
+        reason: leaks.absolute_path_leaks
+          ? `HOLD: absolute_path_leaks=${leaks.absolute_path_leaks}`
+          : "HOLD: secret_scan=dirty",
+        absolute_path_leaks: leaks.absolute_path_leaks,
+        secret_scan: leaks.secret_scan,
+      };
+    }
+  }
+  for (const rel of indexed.keys()) {
+    if (!present.includes(rel)) {
+      return { ok: false, reason: `HOLD: broken reference ${rel}` };
+    }
+  }
+  return {
+    ok: true,
+    index: independent.index,
+    sha256: independent.sha256,
+    absolute_path_leaks: 0,
+    secret_scan: "clean",
+  };
+}
+
+/**
+ * Outer evidence-tree packager. Nested indexes/checksums are ordinary
+ * indexed artifacts. Only the outer index and its detached checksum are
+ * excluded. Packaging-only; does not change repair-gate acceptance.
+ */
+export function writeOuterEvidenceIndexAndChecksum(root) {
+  if (!root || !fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
+    return { ok: false, reason: "HOLD: outer evidence root must be a directory" };
+  }
+  const present = listEvidenceTreeFiles(root).filter((rel) => (
+    rel !== EVIDENCE_INDEX_FILENAME && rel !== EVIDENCE_INDEX_CHECKSUM_FILENAME
+  ));
+  const artifacts = [];
+  for (const rel of present) {
+    const committed = readFinalCommittedBytes(path.join(root, rel));
+    if (!committed.ok) {
+      return { ok: false, reason: committed.reason || `HOLD: cannot re-read ${rel}` };
+    }
+    const leaks = scanEvidenceBytesForLeaks(committed.buf);
+    if (!leaks.ok) {
+      return {
+        ok: false,
+        reason: leaks.absolute_path_leaks
+          ? `HOLD: absolute_path_leaks=${leaks.absolute_path_leaks}`
+          : "HOLD: secret_scan=dirty",
+        absolute_path_leaks: leaks.absolute_path_leaks,
+        secret_scan: leaks.secret_scan,
+        path: rel,
+      };
+    }
+    artifacts.push({ path: rel, sha256: committed.sha256, bytes: committed.bytes });
+  }
+  const requiredNested = [
+    "hosted/qualify-evidence/evidence-index.json",
+    "hosted/qualify-evidence/evidence-index.sha256",
+    "synthetic-evidence/evidence-index.json",
+    "synthetic-evidence/evidence-index.sha256",
+  ].filter((rel) => present.includes(rel) || fs.existsSync(path.join(root, rel)));
+  for (const rel of requiredNested) {
+    if (!artifacts.some((item) => item.path === rel)) {
+      return { ok: false, reason: `HOLD: nested index/checksum not indexed ${rel}` };
+    }
+  }
+  const written = writeEvidenceIndexAndChecksum(root, artifacts);
+  const reread = readFinalCommittedBytes(written.indexPath);
+  if (!reread.ok || reread.sha256 !== written.sha256) {
+    return { ok: false, reason: "HOLD: outer evidence-index reread failed" };
+  }
+  const checksumReread = readFinalCommittedBytes(written.checksumPath);
+  if (!checksumReread.ok) {
+    return { ok: false, reason: "HOLD: outer evidence-index.sha256 reread failed" };
+  }
+  const verified = verifyOuterEvidencePackaging(root);
+  if (!verified.ok) return verified;
+  return {
+    ok: true,
+    ...written,
+    absolute_path_leaks: 0,
+    secret_scan: "clean",
+    artifacts,
+  };
+}
+
+export function commitOuterEvidenceTree(root) {
+  try {
+    return writeOuterEvidenceIndexAndChecksum(root);
+  } catch (err) {
+    return {
+      ok: false,
+      hold: true,
+      reason: `${QUALIFY_EVIDENCE_PACKAGING_HOLD}: ${err?.message || err}`,
+    };
+  }
 }
 
 export function verifyEvidenceIndex(dir) {
@@ -2641,6 +2832,16 @@ export function writeQualifyEvidenceArtifacts({ dest, sanitizedJson, extraSecret
     err.code = "F3_EVIDENCE_SEMANTIC_SANITIZE";
     throw err;
   }
+  const destLeaks = scanEvidenceBytesForLeaks(sanitized);
+  if (!destLeaks.ok) {
+    const err = new Error(
+      destLeaks.absolute_path_leaks
+        ? `HOLD: absolute_path_leaks=${destLeaks.absolute_path_leaks}`
+        : "HOLD: secret_scan=dirty",
+    );
+    err.code = "F3_EVIDENCE_LEAK_SCAN";
+    throw err;
+  }
   // 3. Write final artifact bytes.
   const writtenOut = writeFinalArtifactBytes(abs, sanitized);
   if (!writtenOut.ok) {
@@ -2703,6 +2904,35 @@ export function writeQualifyEvidenceArtifacts({ dest, sanitizedJson, extraSecret
     sha256: manifestCommitted.sha256,
     bytes: manifestCommitted.bytes,
   });
+  const extraNames = listEvidenceDirFiles(dir).filter((name) => (
+    !EVIDENCE_INDEX_EXCLUSIONS.includes(name)
+    && !name.endsWith(".tmp")
+    && !finalizedArtifacts.some((item) => item.path === name)
+  ));
+  for (const name of extraNames) {
+    const extraAbs = path.join(dir, name);
+    const extraCommitted = readFinalCommittedBytes(extraAbs);
+    if (!extraCommitted.ok) {
+      const err = new Error(extraCommitted.reason || `HOLD: extra artifact unreadable ${name}`);
+      err.code = "F3_EVIDENCE_EXTRA_REREAD";
+      throw err;
+    }
+    const extraLeaks = scanEvidenceBytesForLeaks(extraCommitted.buf);
+    if (!extraLeaks.ok) {
+      const err = new Error(
+        extraLeaks.absolute_path_leaks
+          ? `HOLD: absolute_path_leaks=${extraLeaks.absolute_path_leaks}`
+          : "HOLD: secret_scan=dirty",
+      );
+      err.code = "F3_EVIDENCE_LEAK_SCAN";
+      throw err;
+    }
+    finalizedArtifacts.push({
+      path: name,
+      sha256: extraCommitted.sha256,
+      bytes: extraCommitted.bytes,
+    });
+  }
   // 7. Finalize the nested index from final artifact bytes.
   const index = writeEvidenceIndexAndChecksum(dir, finalizedArtifacts);
   // 8. Re-read and verify every nested entry.

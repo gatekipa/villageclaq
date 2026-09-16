@@ -225,6 +225,12 @@ import {
   writeQualifyEvidenceArtifacts,
   readFinalCommittedBytes,
   verifyQualifyEvidencePackaging,
+  scanEvidenceBytesForLeaks,
+  listEvidenceTreeFiles,
+  inferEvidenceRootFromDest,
+  writeOuterEvidenceIndexAndChecksum,
+  verifyOuterEvidencePackaging,
+  commitOuterEvidenceTree,
   exactPoisonEnvelopeFromOriginal,
   createRepairAuthorizationRecord,
   assertRepairAuthorizationPreRepairComplete,
@@ -268,6 +274,28 @@ import {
   PSQL_POISON_STDOUT_FRAMING_CONTRACT,
 } from "./lib/f3-db-push-query-parse.mjs";
 import { runLocalPsqlPoisonProof } from "../docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_PSQL_POISON_REQUAL_20260916/psql-proof/psql-proof/run-local-psql-poison-proof.mjs";
+import {
+  F9_RUNNER_EVENT_SCHEMA_VERSION,
+  F9_PRE_CONTINUATION_SCHEMA_VERSION,
+  F9_RUNNER_EVENT_HOLD,
+  F9_ACTUAL_EVENT_ORDER_BEFORE_REPAIR,
+  F9_ACTUAL_EVENT_ORDER_BEFORE_RETRY,
+  F9_ACTUAL_EVENT_ORDER_BEFORE_AUTHORIZE,
+  F9_ACTUAL_EVENT_ORDER_WITH_CONTINUATION,
+  F9_FINAL_MIGRATION_EVENT_ORDER,
+  createEmptyRunnerCounters,
+  expectedRunnerCountersForFile,
+  encodeSanitizedProcessResult,
+  isCompleteProcessResult,
+  createRunnerEventRecorder,
+  assertRunnerEventsAllowRepair,
+  assertRunnerEventsAllowRetry,
+  assertRunnerEventsAllowContinuation,
+  assertPreContinuationRecordComplete,
+  persistPreContinuationRecord,
+  evaluateF9ContinuationAuthorization,
+  exerciseF9RunnerOrchestration,
+} from "./qualify-f3-db-push-disposable.mjs";
 import { BOOTSTRAP_WITH_LOCAL_SHIM } from "./_f3_apply_current_main_floor.mjs";
 import {
   FLOOR_HOLD_IF_INEXACT,
@@ -7236,4 +7264,316 @@ test("F8 local-proof helper invokes the actual gate with injected spawn", async 
     localProofNegatives: negatives,
     must_local_psql_proof_on_17_6: MUST_LOCAL_PSQL_PROOF_ON_17_6,
   }, null, 2));
+});
+
+const FILE123 = "00123_f3_05_opening_cash_command.sql";
+
+function f9Process(command, status = 0, stderr = "") {
+  return {
+    command,
+    status,
+    stdout: "",
+    stderr,
+    signal: null,
+    timeout: false,
+  };
+}
+
+function f9OrchestrationArgs(dir, extra = {}) {
+  const file = extra.file || FILE118;
+  const version = extra.version || PREASSIGNED_VERSIONS[file];
+  return {
+    file,
+    version,
+    dest: extra.dest || path.join(dir, `pre-continuation-${file.replace(/\.sql$/, "")}.json`),
+    initialPush: extra.initialPush || f9Process("supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault", 1, "ERROR: history inject"),
+    cleanup: extra.cleanup || f9Process("gated-remote-sql-text remove-history-inject", 0),
+    poison: extra.poison || f9Process("isolated-psql poison-absent-probe", 0),
+    repair: extra.repair || f9Process("supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes", 0),
+    retry: extra.retry || f9Process("supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault", 0),
+    ...extra.rest,
+  };
+}
+
+test("F9 runner event order comes from actual calls and blocks missing/reordered streams", async () => {
+  const qualifySrc = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
+  assert.match(qualifySrc, /createRunnerEventRecorder/);
+  assert.match(qualifySrc, /persistPreContinuationRecord/);
+  assert.match(qualifySrc, /fsyncSync/);
+  assert.match(qualifySrc, /renameSync/);
+  assert.equal(F9_RUNNER_EVENT_SCHEMA_VERSION, "f3-runner-event-v1");
+  assert.equal(F9_PRE_CONTINUATION_SCHEMA_VERSION, "f3-pre-continuation-record-v1");
+  assert.match(qualifySrc, /recordRunnerEvent\("continuation_authorized"/);
+
+  const records = [];
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f9-events-"));
+  const happy = await exerciseF9RunnerOrchestration(f9OrchestrationArgs(dir));
+  assert.equal(happy.ok, true);
+  assert.deepEqual(happy.callTrace, happy.events.map((event) => event.event_type));
+  assert.deepEqual(happy.callTrace, [...F9_ACTUAL_EVENT_ORDER_WITH_CONTINUATION]);
+  assert.equal(happy.events.every((event) => event.schema_version === F9_RUNNER_EVENT_SCHEMA_VERSION), true);
+  records.push({ caseId: "F9-E01-EVENT-ORDER-FROM-ACTUAL-CALLS", result: "ok" });
+
+  const missingRepair = await exerciseF9RunnerOrchestration(f9OrchestrationArgs(dir, {
+    dest: path.join(dir, "missing-repair.json"),
+    rest: { omitEvent: "target_binding_verified" },
+  }));
+  const spliced = createRunnerEventRecorder({
+    migrationSourceLabel: "F3_FORWARD",
+    migrationVersion: "20260913173000",
+    migrationName: FILE118,
+    targetBindingId: "approved-disposable",
+  });
+  for (const name of F9_ACTUAL_EVENT_ORDER_BEFORE_REPAIR.filter((n) => n !== "cleanup_completed")) {
+    spliced.record(name);
+  }
+  const missingBlocksRepair = assertRunnerEventsAllowRepair(spliced.snapshot());
+  assert.equal(missingBlocksRepair.ok, false);
+  assert.equal(missingBlocksRepair.allowRepair, false);
+  records.push({ caseId: "F9-E02-MISSING-EVENT-BLOCKS-REPAIR", result: "rejected" });
+
+  const missingCont = await exerciseF9RunnerOrchestration(f9OrchestrationArgs(dir, {
+    dest: path.join(dir, "missing-cont.json"),
+    rest: { omitEvent: "pre_continuation_record_persisted" },
+  }));
+  assert.equal(missingCont.ok, false);
+  assert.equal(missingCont.allowContinuation, false);
+  assert.match(missingCont.reason, /F9/);
+  records.push({ caseId: "F9-E03-MISSING-EVENT-BLOCKS-CONTINUATION", result: "rejected" });
+
+  const reordered = await exerciseF9RunnerOrchestration(f9OrchestrationArgs(dir, {
+    dest: path.join(dir, "reordered.json"),
+    rest: { reorderPair: ["repair_started", "repair_completed"] },
+  }));
+  assert.equal(reordered.ok, false);
+  assert.equal(reordered.allowContinuation, false);
+  records.push({ caseId: "F9-E04-REORDERED-EVENT-BLOCKS-CONTINUATION", result: "rejected" });
+
+  fs.rmSync(dir, { recursive: true, force: true });
+  const ids = records.map((row) => row.caseId);
+  for (const required of [
+    "F9-E01-EVENT-ORDER-FROM-ACTUAL-CALLS",
+    "F9-E02-MISSING-EVENT-BLOCKS-REPAIR",
+    "F9-E03-MISSING-EVENT-BLOCKS-CONTINUATION",
+    "F9-E04-REORDERED-EVENT-BLOCKS-CONTINUATION",
+  ]) {
+    assert.equal(ids.includes(required), true, `missing ${required}`);
+  }
+  assert.equal(missingRepair.ok === false || missingBlocksRepair.ok === false, true);
+  console.log(JSON.stringify({ publishedF9EventNegatives: records }, null, 2));
+});
+
+test("F9 failed/abbreviated repair-retry and durable-write negatives block continuation", async () => {
+  const records = [];
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f9-durable-"));
+
+  const failedRepair = await exerciseF9RunnerOrchestration(f9OrchestrationArgs(dir, {
+    dest: path.join(dir, "failed-repair.json"),
+    repair: f9Process("supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes", 1, "repair failed"),
+  }));
+  assert.equal(failedRepair.ok, false);
+  assert.equal(failedRepair.allowRetry, false);
+  assert.equal(failedRepair.allowContinuation, false);
+  assert.equal(failedRepair.callTrace.includes("retry_started"), false);
+  assert.equal(failedRepair.callTrace.includes("continuation_authorized"), false);
+  records.push({ caseId: "F9-R01-FAILED-REPAIR-BLOCKS-RETRY-CONTINUATION", result: "rejected" });
+
+  const failedRetry = await exerciseF9RunnerOrchestration(f9OrchestrationArgs(dir, {
+    dest: path.join(dir, "failed-retry.json"),
+    retry: f9Process("supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault", 1, "retry failed"),
+  }));
+  assert.equal(failedRetry.ok, false);
+  assert.equal(failedRetry.allowContinuation, false);
+  assert.equal(failedRetry.callTrace.includes("continuation_authorized"), false);
+  records.push({ caseId: "F9-R02-FAILED-RETRY-BLOCKS-CONTINUATION", result: "rejected" });
+
+  const happy = await exerciseF9RunnerOrchestration(f9OrchestrationArgs(dir, {
+    dest: path.join(dir, "complete.json"),
+  }));
+  const missingRepairProc = assertPreContinuationRecordComplete({
+    ...happy.preContinuationRecord,
+    repairProcessResult: null,
+  });
+  assert.equal(missingRepairProc.ok, false);
+  assert.equal(missingRepairProc.allowContinuation, false);
+  records.push({ caseId: "F9-R03-MISSING-REPAIR-PROCESS-RESULT-BLOCKS-CONTINUATION", result: "rejected" });
+
+  const abbreviatedRepair = assertPreContinuationRecordComplete({
+    ...happy.preContinuationRecord,
+    repairProcessResult: { status: 0, repairCalls: 1, callbackOrder: ["cleanup", "verify", "repair"] },
+  });
+  assert.equal(abbreviatedRepair.ok, false);
+  records.push({ caseId: "F9-R04-ABBREVIATED-REPAIR-PROCESS-RESULT-BLOCKS-CONTINUATION", result: "rejected" });
+
+  const missingRetryProc = assertPreContinuationRecordComplete({
+    ...happy.preContinuationRecord,
+    retryProcessResult: null,
+  });
+  assert.equal(missingRetryProc.ok, false);
+  records.push({ caseId: "F9-R05-MISSING-RETRY-PROCESS-RESULT-BLOCKS-CONTINUATION", result: "rejected" });
+
+  const abbreviatedRetry = assertPreContinuationRecordComplete({
+    ...happy.preContinuationRecord,
+    retryProcessResult: { status: 0, staged: ["x"] },
+  });
+  assert.equal(abbreviatedRetry.ok, false);
+  records.push({ caseId: "F9-R06-ABBREVIATED-RETRY-PROCESS-RESULT-BLOCKS-CONTINUATION", result: "rejected" });
+
+  const failWrite = await exerciseF9RunnerOrchestration(f9OrchestrationArgs(dir, {
+    dest: path.join(dir, "fail-write.json"),
+    rest: { hooks: { failWrite: true } },
+  }));
+  assert.equal(failWrite.ok, false);
+  assert.equal(failWrite.allowContinuation, false);
+  records.push({ caseId: "F9-D01-FAILED-DURABLE-WRITE-BLOCKS-CONTINUATION", result: "rejected" });
+
+  const noReread = await exerciseF9RunnerOrchestration(f9OrchestrationArgs(dir, {
+    dest: path.join(dir, "no-reread.json"),
+    rest: { hooks: { skipReread: true } },
+  }));
+  assert.equal(noReread.ok, false);
+  assert.match(noReread.reason, /reread/);
+  records.push({ caseId: "F9-D02-WRITE-WITHOUT-REREAD-BLOCKS-CONTINUATION", result: "rejected" });
+
+  const mismatch = await exerciseF9RunnerOrchestration(f9OrchestrationArgs(dir, {
+    dest: path.join(dir, "mismatch.json"),
+    rest: { hooks: { mismatchHash: true } },
+  }));
+  assert.equal(mismatch.ok, false);
+  assert.match(mismatch.reason, /hash\/length mismatch/);
+  records.push({ caseId: "F9-D03-HASH-LENGTH-MISMATCH-BLOCKS-CONTINUATION", result: "rejected" });
+
+  fs.rmSync(dir, { recursive: true, force: true });
+  const ids = records.map((row) => row.caseId);
+  for (const required of [
+    "F9-R01-FAILED-REPAIR-BLOCKS-RETRY-CONTINUATION",
+    "F9-R02-FAILED-RETRY-BLOCKS-CONTINUATION",
+    "F9-R03-MISSING-REPAIR-PROCESS-RESULT-BLOCKS-CONTINUATION",
+    "F9-R04-ABBREVIATED-REPAIR-PROCESS-RESULT-BLOCKS-CONTINUATION",
+    "F9-R05-MISSING-RETRY-PROCESS-RESULT-BLOCKS-CONTINUATION",
+    "F9-R06-ABBREVIATED-RETRY-PROCESS-RESULT-BLOCKS-CONTINUATION",
+    "F9-D01-FAILED-DURABLE-WRITE-BLOCKS-CONTINUATION",
+    "F9-D02-WRITE-WITHOUT-REREAD-BLOCKS-CONTINUATION",
+    "F9-D03-HASH-LENGTH-MISMATCH-BLOCKS-CONTINUATION",
+  ]) {
+    assert.equal(ids.includes(required), true, `missing ${required}`);
+  }
+  console.log(JSON.stringify({ publishedF9DurableNegatives: records }, null, 2));
+});
+
+test("F9 runner counters stay distinct from gate counters and 00123 final semantics stay honest", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f9-counters-"));
+  const happy118 = await exerciseF9RunnerOrchestration(f9OrchestrationArgs(dir));
+  assert.deepEqual(happy118.counters, expectedRunnerCountersForFile(FILE118));
+  assert.notDeepEqual(happy118.counters, happy118.preContinuationRecord.gateCounters);
+  assert.equal(happy118.preContinuationRecord.gateCounters.dbPushCalls, 0);
+  assert.equal(happy118.preContinuationRecord.gateCounters.continuationCalls, 0);
+  assert.equal(happy118.counters.retryDbPushCalls, 1);
+  assert.equal(happy118.counters.continuationCalls, 1);
+  assert.equal(happy118.counters === happy118.preContinuationRecord.gateCounters, false);
+  const substituted = assertPreContinuationRecordComplete({
+    ...happy118.preContinuationRecord,
+    runnerCounters: happy118.preContinuationRecord.gateCounters,
+  });
+  assert.equal(substituted.ok, false);
+  console.log(JSON.stringify({ caseId: "F9-C01-RUNNER-AND-GATE-COUNTERS-NOT-SUBSTITUTABLE", result: "rejected" }, null, 2));
+
+  const last = await exerciseF9RunnerOrchestration(f9OrchestrationArgs(dir, {
+    file: FILE123,
+    dest: path.join(dir, "final-00123.json"),
+  }));
+  assert.equal(last.ok, true);
+  assert.equal(last.finalMigration, true);
+  assert.equal(last.nextMigration, null);
+  assert.equal(last.inventedLaterContinuation, false);
+  assert.equal(last.counters.continuationCalls, 0);
+  assert.equal(last.counters.continuationAuthorizationCalls, 1);
+  assert.deepEqual(last.events.map((event) => event.event_type), [...F9_FINAL_MIGRATION_EVENT_ORDER]);
+  assert.equal(last.callTrace.includes("continuation_started"), false);
+  assert.equal(last.callTrace.includes("continuation_completed"), false);
+  const invented = assertRunnerEventsAllowContinuation(
+    [...last.events, { event_type: "continuation_started" }, { event_type: "continuation_completed" }],
+    { finalMigration: true },
+  );
+  assert.equal(invented.ok, false);
+  console.log(JSON.stringify({ caseId: "F9-C02-00123-FINAL-SEMANTICS-HONEST", result: "ok" }, null, 2));
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("F9 outer evidence index includes nested indexes and fails path/secret leakage", () => {
+  const records = [];
+  const packRoot = (label) => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), `f3-f9-pack-${label}-`));
+    const hostedDest = path.join(rootDir, "hosted", "qualify-evidence", "qualify-result.json");
+    const syntheticDest = path.join(rootDir, "synthetic-evidence", "qualify-result.json");
+    writeQualifyEvidenceArtifacts({
+      dest: hostedDest,
+      sanitizedJson: JSON.stringify({ status: "HOLD", recognition: ["manual_income"] }, null, 2),
+    });
+    writeQualifyEvidenceArtifacts({
+      dest: syntheticDest,
+      sanitizedJson: JSON.stringify({ status: "HOLD", recognition: ["manual_income"], suite: "synthetic" }, null, 2),
+    });
+    fs.writeFileSync(path.join(rootDir, "frozen-expected-v5-hashes.json"), `${JSON.stringify({ ok: true }, null, 2)}\n`);
+    return rootDir;
+  };
+
+  const happyRoot = packRoot("ok");
+  assert.equal(inferEvidenceRootFromDest(path.join(happyRoot, "hosted/qualify-evidence/qualify-result.json")), happyRoot);
+  const outer = writeOuterEvidenceIndexAndChecksum(happyRoot);
+  assert.equal(outer.ok, true, outer.reason);
+  const indexed = (outer.index.artifacts || []).map((item) => item.path);
+  for (const rel of [
+    "hosted/qualify-evidence/evidence-index.json",
+    "hosted/qualify-evidence/evidence-index.sha256",
+    "synthetic-evidence/evidence-index.json",
+    "synthetic-evidence/evidence-index.sha256",
+  ]) {
+    assert.equal(indexed.includes(rel), true, rel);
+  }
+  assert.equal(indexed.includes("evidence-index.json"), false);
+  assert.equal(outer.absolute_path_leaks, 0);
+  assert.equal(outer.secret_scan, "clean");
+  records.push({ caseId: "F9-I03-NESTED-INDEXES-IN-OUTER-INDEX", result: "ok" });
+
+  const leakRoot = packRoot("leak");
+  fs.writeFileSync(path.join(leakRoot, "hosted", "note.json"), `${JSON.stringify({ workdir: "/workspace/machine-path" }, null, 2)}\n`);
+  const leak = writeOuterEvidenceIndexAndChecksum(leakRoot);
+  assert.equal(leak.ok, false);
+  assert.match(String(leak.reason), /absolute_path_leaks/);
+  records.push({ caseId: "F9-I01-ABSOLUTE-PATH-LEAKAGE-FAILS-PACKAGING", result: "rejected" });
+
+  const secretRoot = packRoot("secret");
+  fs.writeFileSync(path.join(secretRoot, "hosted", "secret.json"), `${JSON.stringify({ url: "postgres.jkorwnwwmdeflfntxntl:super-secret-db-password@host" }, null, 2)}\n`);
+  const secret = writeOuterEvidenceIndexAndChecksum(secretRoot);
+  assert.equal(secret.ok, false);
+  assert.match(String(secret.reason), /secret_scan/);
+  records.push({ caseId: "F9-I02-SECRET-LIKE-VALUES-FAIL-PACKAGING", result: "rejected" });
+
+  const founderRoot = packRoot("founder");
+  writeOuterEvidenceIndexAndChecksum(founderRoot);
+  fs.writeFileSync(path.join(founderRoot, "founder-K-checklist.json"), "{}\n");
+  const founder = verifyOuterEvidencePackaging(founderRoot);
+  assert.equal(founder.ok, false);
+  assert.match(String(founder.reason), /unindexed founder report/);
+  records.push({ caseId: "F9-I04-UNINDEXED-FOUNDER-REPORT", result: "rejected" });
+
+  fs.rmSync(happyRoot, { recursive: true, force: true });
+  fs.rmSync(leakRoot, { recursive: true, force: true });
+  fs.rmSync(secretRoot, { recursive: true, force: true });
+  fs.rmSync(founderRoot, { recursive: true, force: true });
+
+  const ids = records.map((row) => row.caseId);
+  for (const required of [
+    "F9-I01-ABSOLUTE-PATH-LEAKAGE-FAILS-PACKAGING",
+    "F9-I02-SECRET-LIKE-VALUES-FAIL-PACKAGING",
+    "F9-I03-NESTED-INDEXES-IN-OUTER-INDEX",
+    "F9-I04-UNINDEXED-FOUNDER-REPORT",
+  ]) {
+    assert.equal(ids.includes(required), true, `missing ${required}`);
+  }
+  assert.equal(typeof scanEvidenceBytesForLeaks, "function");
+  assert.equal(typeof listEvidenceTreeFiles, "function");
+  assert.equal(typeof commitOuterEvidenceTree, "function");
+  console.log(JSON.stringify({ publishedF9IntegrityNegatives: records }, null, 2));
 });

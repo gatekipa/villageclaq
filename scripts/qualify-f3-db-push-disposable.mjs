@@ -17,6 +17,7 @@
  * If env is absent: exit 2 NOT_RUN with a Chief runbook (no child process
  * that can reach a database).
  */
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -182,6 +183,9 @@ import {
   encodeIsolatedPsqlProcessBytes,
   encodeTargetBindingFieldComparisons,
   REPAIR_AUTHORIZATION_HOLD,
+  evaluateRepairSafetyGate,
+  commitOuterEvidenceTree,
+  inferEvidenceRootFromDest,
 } from "./lib/f3-db-push-repair-safety-gate.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -322,41 +326,793 @@ function objectsPresentFromProbe(result) {
   return true;
 }
 
-function durableWriteRepairAuthorization(evidence, record, evidenceOut) {
+export const F9_RUNNER_EVENT_SCHEMA_VERSION = "f3-runner-event-v1";
+export const F9_PRE_CONTINUATION_SCHEMA_VERSION = "f3-pre-continuation-record-v1";
+export const F9_RUNNER_EVENT_HOLD =
+  "HOLD: F9 runner event/durable-pre-continuation record incomplete; no repair again; no continuation; no next migration";
+
+export const F9_REQUIRED_EVENT_TYPES = Object.freeze([
+  "initial_db_push_started",
+  "initial_db_push_completed",
+  "post_commit_history_failure_classified",
+  "fingerprint_collected",
+  "cleanup_started",
+  "cleanup_completed",
+  "poison_probe_started",
+  "poison_probe_completed",
+  "target_binding_verified",
+  "repair_gate_evaluated",
+  "repair_started",
+  "repair_completed",
+  "pre_continuation_record_persisted",
+  "retry_started",
+  "retry_completed",
+  "post_retry_fingerprint_collected",
+  "continuation_authorized",
+  "continuation_started",
+  "continuation_completed",
+]);
+
+/** Actual execution order recorded at call boundaries — not synthesized afterward. */
+export const F9_ACTUAL_EVENT_ORDER_BEFORE_REPAIR = Object.freeze([
+  "initial_db_push_started",
+  "initial_db_push_completed",
+  "post_commit_history_failure_classified",
+  "fingerprint_collected",
+  "repair_gate_evaluated",
+  "cleanup_started",
+  "cleanup_completed",
+  "poison_probe_started",
+  "poison_probe_completed",
+  "target_binding_verified",
+]);
+
+export const F9_ACTUAL_EVENT_ORDER_BEFORE_RETRY = Object.freeze([
+  ...F9_ACTUAL_EVENT_ORDER_BEFORE_REPAIR,
+  "repair_started",
+  "repair_completed",
+]);
+
+export const F9_ACTUAL_EVENT_ORDER_BEFORE_AUTHORIZE = Object.freeze([
+  ...F9_ACTUAL_EVENT_ORDER_BEFORE_RETRY,
+  "retry_started",
+  "retry_completed",
+  "post_retry_fingerprint_collected",
+  "pre_continuation_record_persisted",
+]);
+
+export const F9_ACTUAL_EVENT_ORDER_BEFORE_CONTINUATION = Object.freeze([
+  ...F9_ACTUAL_EVENT_ORDER_BEFORE_AUTHORIZE,
+  "continuation_authorized",
+]);
+
+export const F9_ACTUAL_EVENT_ORDER_WITH_CONTINUATION = Object.freeze([
+  ...F9_ACTUAL_EVENT_ORDER_BEFORE_CONTINUATION,
+  "continuation_started",
+  "continuation_completed",
+]);
+
+export const F9_FINAL_MIGRATION_EVENT_ORDER = Object.freeze([
+  ...F9_ACTUAL_EVENT_ORDER_BEFORE_CONTINUATION,
+]);
+
+export function createEmptyRunnerCounters() {
+  return {
+    initialDbPushCalls: 0,
+    gateCalls: 0,
+    cleanupCalls: 0,
+    poisonProbeCalls: 0,
+    repairCalls: 0,
+    retryDbPushCalls: 0,
+    continuationAuthorizationCalls: 0,
+    continuationCalls: 0,
+    durableRecordWrites: 0,
+  };
+}
+
+export function expectedRunnerCountersForFile(file) {
+  const isLast = file === F3_FORWARD_FILES[F3_FORWARD_FILES.length - 1];
+  return {
+    initialDbPushCalls: 1,
+    gateCalls: 1,
+    cleanupCalls: 1,
+    poisonProbeCalls: 1,
+    repairCalls: 1,
+    retryDbPushCalls: 1,
+    continuationAuthorizationCalls: 1,
+    continuationCalls: isLast ? 0 : 1,
+    durableRecordWrites: 1,
+  };
+}
+
+function sha256Utf8Qualify(text) {
+  return createHash("sha256").update(String(text ?? ""), "utf8").digest("hex");
+}
+
+export function encodeSanitizedProcessResult(result = {}) {
+  const hashedOut = hashOriginalStdout(result.stdout ?? result.originalStdout ?? "");
+  const hashedErr = hashOriginalStdout(result.stderr ?? "");
+  const commandIdentity = result.commandIdentity
+    ?? result.command_identity
+    ?? result.command
+    ?? result.rendered
+    ?? (Array.isArray(result.argv) ? result.argv.join(" ") : null);
+  return {
+    commandIdentity: commandIdentity == null ? null : String(commandIdentity),
+    status: result.status ?? null,
+    signal: result.signal ?? null,
+    timeout: result.timeout === true,
+    stdoutByteLength: hashedOut.byteLength,
+    stderrByteLength: hashedErr.byteLength,
+    stdoutSha256: hashedOut.sha256,
+    stderrSha256: hashedErr.sha256,
+  };
+}
+
+export function isCompleteProcessResult(result) {
+  if (result == null || typeof result !== "object" || Array.isArray(result)) return false;
+  if (result.summaryOnly === true || result.abbreviated === true || result.reconstructed === true) {
+    return false;
+  }
+  const command = result.commandIdentity ?? result.command_identity ?? result.command ?? result.rendered;
+  if (command == null || String(command).trim() === "") return false;
+  if (result.status == null || typeof result.status !== "number") return false;
+  const outSha = result.stdoutSha256 ?? result.stdout_sha256;
+  const errSha = result.stderrSha256 ?? result.stderr_sha256;
+  const outLen = result.stdoutByteLength ?? result.stdout_byte_length;
+  const errLen = result.stderrByteLength ?? result.stderr_byte_length;
+  if (typeof outSha !== "string" || !/^[0-9a-f]{64}$/i.test(outSha)) return false;
+  if (typeof errSha !== "string" || !/^[0-9a-f]{64}$/i.test(errSha)) return false;
+  if (typeof outLen !== "number" || typeof errLen !== "number") return false;
+  if (!Object.prototype.hasOwnProperty.call(result, "signal") && result.signal !== null) {
+    if (result.signal === undefined) return false;
+  }
+  if (result.timeout === undefined) return false;
+  return true;
+}
+
+function eventTypesOf(events) {
+  return (Array.isArray(events) ? events : []).map((event) => event?.event_type || event?.eventType || event);
+}
+
+function isExactEventOrder(events, required) {
+  const types = eventTypesOf(events);
+  if (types.length !== required.length) return false;
+  return required.every((name, i) => types[i] === name);
+}
+
+function isEventSubsequence(events, required) {
+  const types = eventTypesOf(events);
+  let i = 0;
+  for (const name of types) {
+    if (name === required[i]) i += 1;
+    if (i === required.length) return true;
+  }
+  return i === required.length;
+}
+
+function eventsHaveReorderOrDuplicate(events, required) {
+  const types = eventTypesOf(events).filter((name) => required.includes(name));
+  const seen = new Set();
+  let lastIdx = -1;
+  for (const name of types) {
+    if (seen.has(name)) return true;
+    const idx = required.indexOf(name);
+    if (idx < lastIdx) return true;
+    seen.add(name);
+    lastIdx = idx;
+  }
+  return false;
+}
+
+export function createRunnerEventRecorder({
+  migrationSourceLabel = "F3_FORWARD",
+  migrationVersion = null,
+  migrationName = null,
+  targetBindingId = null,
+} = {}) {
+  const events = [];
+  let sequence = 0;
+  return {
+    schema_version: F9_RUNNER_EVENT_SCHEMA_VERSION,
+    events,
+    record(eventType, extra = {}) {
+      sequence += 1;
+      const process = extra.process
+        || (extra.processResult ? encodeSanitizedProcessResult(extra.processResult) : null);
+      const event = {
+        schema_version: F9_RUNNER_EVENT_SCHEMA_VERSION,
+        migration_source_label: migrationSourceLabel,
+        timestamp_migration_version: migrationVersion,
+        timestamp_migration_name: migrationName,
+        sequence,
+        utc_timestamp: extra.utc_timestamp || new Date().toISOString(),
+        phase: extra.phase || eventType,
+        event_type: eventType,
+        command_identity: extra.command_identity ?? extra.commandIdentity ?? process?.commandIdentity ?? null,
+        process,
+        target_binding_id: extra.target_binding_id ?? extra.targetBindingId ?? targetBindingId,
+        runner_counters: { ...(extra.runner_counters || extra.counters || {}) },
+      };
+      events.push(event);
+      return event;
+    },
+    snapshot() {
+      return events.map((event) => ({ ...event, runner_counters: { ...event.runner_counters } }));
+    },
+  };
+}
+
+export function assertRunnerEventsAllowRepair(events) {
+  if (!isEventSubsequence(events, F9_ACTUAL_EVENT_ORDER_BEFORE_REPAIR)
+    || eventsHaveReorderOrDuplicate(events, F9_ACTUAL_EVENT_ORDER_BEFORE_REPAIR)) {
+    return {
+      ok: false,
+      allowRepair: false,
+      allowRetry: false,
+      allowContinuation: false,
+      hold: F9_RUNNER_EVENT_HOLD,
+      reason: `${F9_RUNNER_EVENT_HOLD}: missing or reordered events before repair`,
+    };
+  }
+  return { ok: true, allowRepair: true };
+}
+
+export function assertRunnerEventsAllowRetry(events) {
+  const pre = assertRunnerEventsAllowRepair(events);
+  if (!pre.ok) return { ...pre, allowRetry: false };
+  if (!isEventSubsequence(events, F9_ACTUAL_EVENT_ORDER_BEFORE_RETRY)
+    || eventsHaveReorderOrDuplicate(events, F9_ACTUAL_EVENT_ORDER_BEFORE_RETRY)) {
+    return {
+      ok: false,
+      allowRepair: true,
+      allowRetry: false,
+      allowContinuation: false,
+      hold: F9_RUNNER_EVENT_HOLD,
+      reason: `${F9_RUNNER_EVENT_HOLD}: missing or reordered events before retry`,
+    };
+  }
+  return { ok: true, allowRepair: true, allowRetry: true };
+}
+
+export function assertRunnerEventsAllowAuthorize(events) {
+  const required = F9_ACTUAL_EVENT_ORDER_BEFORE_AUTHORIZE;
+  if (!isEventSubsequence(events, required) || eventsHaveReorderOrDuplicate(events, required)) {
+    return {
+      ok: false,
+      allowContinuation: false,
+      continuationAuthorized: false,
+      hold: F9_RUNNER_EVENT_HOLD,
+      reason: `${F9_RUNNER_EVENT_HOLD}: missing or reordered events before continuation authorization`,
+    };
+  }
+  return { ok: true };
+}
+
+export function assertRunnerEventsAllowContinuation(events, { finalMigration = false } = {}) {
+  const pre = assertRunnerEventsAllowAuthorize(events);
+  if (!pre.ok) return pre;
+  const required = F9_ACTUAL_EVENT_ORDER_BEFORE_CONTINUATION;
+  const types = eventTypesOf(events);
+  if (finalMigration) {
+    if (types.includes("continuation_started") || types.includes("continuation_completed")) {
+      return {
+        ok: false,
+        allowContinuation: false,
+        hold: F9_RUNNER_EVENT_HOLD,
+        reason: `${F9_RUNNER_EVENT_HOLD}: 00123 final semantics must not invent a later migration continuation`,
+      };
+    }
+    if (!types.includes("continuation_authorized")) {
+      return {
+        ok: false,
+        allowContinuation: false,
+        hold: F9_RUNNER_EVENT_HOLD,
+        reason: `${F9_RUNNER_EVENT_HOLD}: continuation_authorized missing for final migration`,
+      };
+    }
+    return { ok: true, allowContinuation: false, finalMigration: true, inventedLaterContinuation: false };
+  }
+  if (!isEventSubsequence(events, required) || eventsHaveReorderOrDuplicate(events, required)) {
+    return {
+      ok: false,
+      allowContinuation: false,
+      hold: F9_RUNNER_EVENT_HOLD,
+      reason: `${F9_RUNNER_EVENT_HOLD}: missing or reordered events before continuation`,
+    };
+  }
+  return { ok: true, allowContinuation: true, finalMigration: false };
+}
+
+export function assertPreContinuationRecordComplete(record) {
+  const fail = (reason) => ({
+    ok: false,
+    hold: F9_RUNNER_EVENT_HOLD,
+    allowContinuation: false,
+    reason: `${F9_RUNNER_EVENT_HOLD}: ${reason}`,
+  });
+  if (record == null || typeof record !== "object" || Array.isArray(record)) {
+    return fail("record missing");
+  }
+  if (record.schema_version !== F9_PRE_CONTINUATION_SCHEMA_VERSION) {
+    return fail("schema_version");
+  }
+  if (!isCompleteProcessResult(record.repairProcessResult)) {
+    return fail("missing/abbreviated repair process result");
+  }
+  if (!isCompleteProcessResult(record.retryProcessResult)) {
+    return fail("missing/abbreviated retry process result");
+  }
+  if (record.repairProcessResult?.status !== 0) {
+    return fail("failed repair blocks retry+continuation");
+  }
+  if (record.retryProcessResult?.status !== 0) {
+    return fail("failed retry blocks continuation");
+  }
+  const poison = record.poisonProcessResult || record.originalPoison;
+  if (poison == null || typeof poison !== "object") {
+    return fail("original poison stdout/stderr metadata+binding missing");
+  }
+  if (!record.targetBinding || typeof record.targetBinding !== "object") {
+    return fail("poison target-binding missing");
+  }
+  if (!record.runnerCounters || typeof record.runnerCounters !== "object") {
+    return fail("runner-level counters missing");
+  }
+  const gateCounters = record.gateCounters || record.repairGateCounters || null;
+  if (gateCounters && record.runnerCounters === gateCounters) {
+    return fail("runner-level and gate-level counters cannot be substituted");
+  }
+  if (Array.isArray(record.callbackOrder) && !Array.isArray(record.eventStream)) {
+    return fail("callbackOrder is not an actual event trace");
+  }
+  if (!Array.isArray(record.eventStream) || record.eventStream.length === 0) {
+    return fail("actual event stream missing");
+  }
+  const auth = record.repairAuthorization
+    ? assertRepairAuthorizationComplete(record.repairAuthorization)
+    : { ok: true };
+  if (auth.ok === false) {
+    return fail(auth.reason || "repair-authorization incomplete");
+  }
+  return { ok: true, record };
+}
+
+export function persistPreContinuationRecord({
+  dest,
+  record,
+  hooks = {},
+} = {}) {
+  const complete = assertPreContinuationRecordComplete(record);
+  if (!complete.ok) {
+    return { ...complete, written: false, continuationAuthorized: false };
+  }
+  if (!dest) {
+    return {
+      ok: false,
+      hold: F9_RUNNER_EVENT_HOLD,
+      reason: `${F9_RUNNER_EVENT_HOLD}: durable dest missing`,
+      written: false,
+      continuationAuthorized: false,
+    };
+  }
+  const abs = path.resolve(dest);
+  if (fs.existsSync(abs) && fs.statSync(abs).isDirectory()) {
+    return {
+      ok: false,
+      hold: F9_RUNNER_EVENT_HOLD,
+      reason: `${F9_RUNNER_EVENT_HOLD}: durable dest must be a file path`,
+      written: false,
+      continuationAuthorized: false,
+    };
+  }
+  const sanitized = sanitizeForLog(record);
+  const body = Buffer.from(`${JSON.stringify(sanitized, null, 2)}\n`, "utf8");
+  const tmp = `${abs}.tmp`;
+  try {
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    if (hooks.failWrite === true) {
+      throw new Error("injected durable write failure");
+    }
+    const fd = fs.openSync(tmp, "w");
+    fs.writeSync(fd, body);
+    fs.fsyncSync(fd);
+    fs.closeSync(fd);
+    if (hooks.failFlush === true) {
+      throw new Error("injected durable flush failure");
+    }
+    fs.renameSync(tmp, abs);
+    if (hooks.skipReread === true) {
+      return {
+        ok: false,
+        hold: F9_RUNNER_EVENT_HOLD,
+        reason: `${F9_RUNNER_EVENT_HOLD}: successful write without reread verification`,
+        written: true,
+        verified: false,
+        continuationAuthorized: false,
+      };
+    }
+    const reread = hooks.rereadBytes ? hooks.rereadBytes(abs) : fs.readFileSync(abs);
+    if (!Buffer.isBuffer(reread) || reread.byteLength === 0) {
+      return {
+        ok: false,
+        hold: F9_RUNNER_EVENT_HOLD,
+        reason: `${F9_RUNNER_EVENT_HOLD}: durable reread failed`,
+        written: true,
+        verified: false,
+        continuationAuthorized: false,
+      };
+    }
+    const sha256 = createHash("sha256").update(reread).digest("hex");
+    const bytes = reread.byteLength;
+    const expectedSha = createHash("sha256").update(body).digest("hex");
+    if (hooks.mismatchHash === true || sha256 !== expectedSha || bytes !== body.byteLength) {
+      return {
+        ok: false,
+        hold: F9_RUNNER_EVENT_HOLD,
+        reason: `${F9_RUNNER_EVENT_HOLD}: hash/length mismatch after reread`,
+        written: true,
+        verified: false,
+        continuationAuthorized: false,
+        expected: { sha256: expectedSha, bytes: body.byteLength },
+        actual: { sha256, bytes },
+      };
+    }
+    return {
+      ok: true,
+      written: true,
+      verified: true,
+      dest: abs,
+      sha256,
+      bytes,
+      record: sanitized,
+      continuationAuthorized: false,
+    };
+  } catch (err) {
+    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch { /* leftover tmp is not a continue */ }
+    return {
+      ok: false,
+      hold: F9_RUNNER_EVENT_HOLD,
+      reason: `${F9_RUNNER_EVENT_HOLD}: ${err?.message || err}`,
+      written: false,
+      continuationAuthorized: false,
+    };
+  }
+}
+
+export function evaluateF9ContinuationAuthorization({
+  events,
+  record,
+  persistResult,
+  file,
+} = {}) {
+  const isLast = file === F3_FORWARD_FILES[F3_FORWARD_FILES.length - 1];
+  const complete = assertPreContinuationRecordComplete(record);
+  if (!complete.ok) return { ...complete, continuationAuthorized: false };
+  if (!persistResult?.ok || persistResult.verified !== true) {
+    return {
+      ok: false,
+      hold: F9_RUNNER_EVENT_HOLD,
+      reason: persistResult?.reason || `${F9_RUNNER_EVENT_HOLD}: durable write not verified`,
+      continuationAuthorized: false,
+      allowContinuation: false,
+    };
+  }
+  const order = assertRunnerEventsAllowAuthorize(events);
+  if (!order.ok) return { ...order, continuationAuthorized: false };
+  const types = eventTypesOf(events);
+  if (isLast && (types.includes("continuation_started") || types.includes("continuation_completed"))) {
+    return {
+      ok: false,
+      hold: F9_RUNNER_EVENT_HOLD,
+      reason: `${F9_RUNNER_EVENT_HOLD}: 00123 final semantics must not invent a later migration continuation`,
+      continuationAuthorized: false,
+      allowContinuation: false,
+      inventedLaterContinuation: true,
+    };
+  }
+  return {
+    ok: true,
+    continuationAuthorized: true,
+    allowContinuation: isLast ? false : true,
+    finalMigration: isLast,
+    nextMigration: isLast ? null : true,
+    inventedLaterContinuation: false,
+  };
+}
+
+function preContinuationDestFor(evidenceOut, file, version) {
+  if (!evidenceOut) return null;
+  const absOut = path.resolve(root, evidenceOut);
+  return path.join(
+    path.dirname(absOut),
+    `pre-continuation-${version}-${String(file).replace(/\.sql$/, "")}.json`,
+  );
+}
+
+function durableWriteRepairAuthorization(evidence, record, evidenceOut, extras = {}) {
   const complete = writeRepairAuthorizationRecord({ record });
-  if (!complete.ok) return complete;
+  if (!complete.ok) return { ...complete, continuationAuthorized: false };
   evidence.repairAuthorizationRecords = Array.isArray(evidence.repairAuthorizationRecords)
     ? evidence.repairAuthorizationRecords
     : [];
   record.writtenBeforeNextMigration = true;
-  evidence.repairAuthorizationRecords.push(record);
-  if (!evidenceOut) {
-    return { ok: true, written: false, record };
-  }
-  const dest = path.resolve(root, evidenceOut);
-  fs.mkdirSync(path.dirname(dest), { recursive: true });
-  const body = JSON.stringify(sanitizeForLog(evidence), null, 2);
-  fs.writeFileSync(dest, body);
-  const reread = fs.readFileSync(dest);
-  if (!reread.byteLength || reread.toString("utf8") !== body) {
+  const f9Record = extras.preContinuationRecord || null;
+  const dest = extras.dest || preContinuationDestFor(evidenceOut, record?.migrationIdentity?.file, record?.migrationIdentity?.version);
+  if (!f9Record) {
     return {
       ok: false,
-      hold: REPAIR_AUTHORIZATION_HOLD,
-      reason: `${REPAIR_AUTHORIZATION_HOLD}: durable evidence-out re-read failed`,
-      repairCalls: 0,
+      hold: F9_RUNNER_EVENT_HOLD,
+      reason: `${F9_RUNNER_EVENT_HOLD}: pre-continuation record missing complete repair/retry process result`,
+      written: false,
+      continuationAuthorized: false,
     };
   }
-  return { ok: true, written: true, record, dest };
+  const persisted = persistPreContinuationRecord({ dest, record: f9Record });
+  if (!persisted.ok) return persisted;
+  evidence.repairAuthorizationRecords.push(record);
+  evidence.preContinuationRecords = Array.isArray(evidence.preContinuationRecords)
+    ? evidence.preContinuationRecords
+    : [];
+  evidence.preContinuationRecords.push({
+    dest: persisted.dest,
+    sha256: persisted.sha256,
+    bytes: persisted.bytes,
+    file: record?.migrationIdentity?.file,
+  });
+  return { ...persisted, record };
+}
+
+export async function exerciseF9RunnerOrchestration({
+  file,
+  version,
+  dest,
+  migrationSourceLabel = "F3_FORWARD",
+  targetBindingId = "approved-disposable",
+  initialPush,
+  cleanup,
+  poison,
+  repair,
+  retry,
+  poisonBinding = { ok: true, live: { current_database: "postgres" } },
+  hooks = {},
+  omitEvent = null,
+  reorderPair = null,
+  skipPersist = false,
+} = {}) {
+  const counters = createEmptyRunnerCounters();
+  const recorder = createRunnerEventRecorder({
+    migrationSourceLabel,
+    migrationVersion: version,
+    migrationName: file,
+    targetBindingId,
+  });
+  const callTrace = [];
+  const mark = (eventType, extra) => {
+    callTrace.push(eventType);
+    return recorder.record(eventType, { ...extra, counters: { ...counters } });
+  };
+  const isLast = file === F3_FORWARD_FILES[F3_FORWARD_FILES.length - 1];
+
+  counters.initialDbPushCalls += 1;
+  mark("initial_db_push_started", { processResult: initialPush, phase: "initial_db_push" });
+  mark("initial_db_push_completed", { processResult: initialPush, phase: "initial_db_push" });
+  mark("post_commit_history_failure_classified", { phase: "classify" });
+  mark("fingerprint_collected", { phase: "fingerprint" });
+
+  counters.gateCalls += 1;
+  mark("repair_gate_evaluated", { phase: "repair_gate" });
+
+  counters.cleanupCalls += 1;
+  mark("cleanup_started", { processResult: cleanup, phase: "cleanup" });
+  mark("cleanup_completed", { processResult: cleanup, phase: "cleanup" });
+
+  counters.poisonProbeCalls += 1;
+  mark("poison_probe_started", { processResult: poison, phase: "poison_probe" });
+  mark("poison_probe_completed", { processResult: poison, phase: "poison_probe" });
+  mark("target_binding_verified", { phase: "target_binding" });
+
+  const allowRepair = assertRunnerEventsAllowRepair(recorder.snapshot());
+  if (!allowRepair.ok || hooks.failRepair === true || (repair && repair.status !== 0)) {
+    if (hooks.failRepair === true || (repair && repair.status !== 0)) {
+      counters.repairCalls += 1;
+      mark("repair_started", { processResult: repair, phase: "repair" });
+      mark("repair_completed", { processResult: repair, phase: "repair" });
+    }
+    return {
+      ok: false,
+      allowRepair: false,
+      allowRetry: false,
+      allowContinuation: false,
+      reason: allowRepair.reason || `${F9_RUNNER_EVENT_HOLD}: failed repair blocks retry+continuation`,
+      events: recorder.snapshot(),
+      callTrace,
+      counters,
+      inventedLaterContinuation: false,
+    };
+  }
+
+  counters.repairCalls += 1;
+  mark("repair_started", { processResult: repair, phase: "repair" });
+  mark("repair_completed", { processResult: repair, phase: "repair" });
+
+  const allowRetry = assertRunnerEventsAllowRetry(recorder.snapshot());
+  if (!allowRetry.ok || hooks.failRetry === true || (retry && retry.status !== 0)) {
+    if (hooks.failRetry === true || (retry && retry.status !== 0)) {
+      counters.retryDbPushCalls += 1;
+      mark("retry_started", { processResult: retry, phase: "retry" });
+      mark("retry_completed", { processResult: retry, phase: "retry" });
+    }
+    return {
+      ok: false,
+      allowRepair: true,
+      allowRetry: false,
+      allowContinuation: false,
+      reason: allowRetry.reason || `${F9_RUNNER_EVENT_HOLD}: failed retry blocks continuation`,
+      events: recorder.snapshot(),
+      callTrace,
+      counters,
+      inventedLaterContinuation: false,
+    };
+  }
+
+  counters.retryDbPushCalls += 1;
+  mark("retry_started", { processResult: retry, phase: "retry" });
+  mark("retry_completed", { processResult: retry, phase: "retry" });
+  mark("post_retry_fingerprint_collected", { phase: "post_retry_fingerprint" });
+
+  const repairProcessResult = encodeSanitizedProcessResult(repair);
+  const retryProcessResult = encodeSanitizedProcessResult(retry);
+  const poisonProcessResult = encodeSanitizedProcessResult(poison);
+  const preContinuationRecord = {
+    schema_version: F9_PRE_CONTINUATION_SCHEMA_VERSION,
+    migrationIdentity: { file, version, sourceLabel: migrationSourceLabel },
+    repairProcessResult,
+    retryProcessResult,
+    poisonProcessResult,
+    originalPoison: poisonProcessResult,
+    targetBinding: poisonBinding,
+    runnerCounters: { ...counters },
+    gateCounters: { repairCalls: 1, cleanupCalls: 1, verifyCalls: 1, dbPushCalls: 0, continuationCalls: 0 },
+    eventStream: recorder.snapshot(),
+    finalMigration: isLast,
+    nextMigration: isLast ? null : true,
+    inventedLaterContinuation: false,
+  };
+
+  let persistResult;
+  if (skipPersist) {
+    persistResult = { ok: false, verified: false, reason: `${F9_RUNNER_EVENT_HOLD}: durable dest missing` };
+  } else {
+    persistResult = persistPreContinuationRecord({
+      dest,
+      record: preContinuationRecord,
+      hooks,
+    });
+  }
+  if (!persistResult.ok) {
+    return {
+      ok: false,
+      allowRepair: true,
+      allowRetry: true,
+      allowContinuation: false,
+      continuationAuthorized: false,
+      reason: persistResult.reason,
+      events: recorder.snapshot(),
+      callTrace,
+      counters,
+      persistResult,
+      preContinuationRecord,
+      inventedLaterContinuation: false,
+    };
+  }
+  counters.durableRecordWrites += 1;
+  mark("pre_continuation_record_persisted", {
+    phase: "pre_continuation",
+    process: {
+      commandIdentity: "atomic-pre-continuation-write",
+      status: 0,
+      signal: null,
+      timeout: false,
+      stdoutByteLength: persistResult.bytes,
+      stderrByteLength: 0,
+      stdoutSha256: persistResult.sha256,
+      stderrSha256: sha256Utf8Qualify(""),
+    },
+  });
+
+  let eventsForAuth = recorder.snapshot();
+  if (omitEvent) {
+    eventsForAuth = eventsForAuth.filter((event) => event.event_type !== omitEvent);
+  }
+  if (reorderPair && Array.isArray(reorderPair) && reorderPair.length === 2) {
+    const copy = eventsForAuth.map((event) => ({ ...event }));
+    const a = copy.findIndex((event) => event.event_type === reorderPair[0]);
+    const b = copy.findIndex((event) => event.event_type === reorderPair[1]);
+    if (a >= 0 && b >= 0) {
+      const tmp = copy[a];
+      copy[a] = copy[b];
+      copy[b] = tmp;
+    }
+    eventsForAuth = copy;
+  }
+
+  const authorized = evaluateF9ContinuationAuthorization({
+    events: eventsForAuth,
+    record: { ...preContinuationRecord, eventStream: eventsForAuth },
+    persistResult,
+    file,
+  });
+  if (!authorized.ok || authorized.continuationAuthorized !== true) {
+    return {
+      ok: false,
+      allowContinuation: false,
+      continuationAuthorized: false,
+      reason: authorized.reason,
+      events: eventsForAuth,
+      callTrace,
+      counters,
+      persistResult,
+      preContinuationRecord,
+      inventedLaterContinuation: false,
+    };
+  }
+
+  counters.continuationAuthorizationCalls += 1;
+  mark("continuation_authorized", {
+    phase: "continuation_authorized",
+    counters: { ...counters },
+  });
+
+  if (!isLast) {
+    counters.continuationCalls += 1;
+    mark("continuation_started", { phase: "continuation" });
+    mark("continuation_completed", { phase: "continuation" });
+  }
+
+  return {
+    ok: true,
+    allowRepair: true,
+    allowRetry: true,
+    allowContinuation: !isLast,
+    continuationAuthorized: true,
+    finalMigration: isLast,
+    nextMigration: isLast ? null : true,
+    inventedLaterContinuation: false,
+    events: recorder.snapshot(),
+    callTrace,
+    counters,
+    persistResult,
+    preContinuationRecord,
+    expectedCounters: expectedRunnerCountersForFile(file),
+  };
+}
+
+function commitNestedThenOuterEvidence(evidenceOut, payload) {
+  const dest = path.resolve(root, evidenceOut);
+  const written = commitQualifyEvidenceOrHold({ dest, payload });
+  if (!written.ok) return written;
+  const evidenceRoot = inferEvidenceRootFromDest(dest);
+  if (!evidenceRoot) return written;
+  const outer = commitOuterEvidenceTree(evidenceRoot);
+  if (!outer.ok) {
+    return {
+      ok: false,
+      hold: true,
+      status: "HOLD",
+      verdict: "HOLD",
+      reason: `${EVIDENCE_WRITE_HOLD}: ${outer.reason || "outer evidence index failed"}`,
+      exitCode: 1,
+    };
+  }
+  return { ...written, outer };
 }
 
 function emitAndExit(payload, { evidenceOut = null, exitCode = 1 } = {}) {
   const json = JSON.stringify(sanitizeForLog(payload), null, 2);
   console.log(json);
   if (evidenceOut) {
-    const written = commitQualifyEvidenceOrHold({
-      dest: path.resolve(root, evidenceOut),
-      payload: json,
-    });
+    const written = commitNestedThenOuterEvidence(evidenceOut, json);
     if (!written.ok) {
       const hold = {
         ...payload,
@@ -512,6 +1268,10 @@ async function main() {
     help: null,
     sequence: [],
     repairAuthorizationRecords: [],
+    preContinuationRecords: [],
+    runnerCountersByFile: {},
+    runnerEventStreams: {},
+    runnerCounters: createEmptyRunnerCounters(),
     stagingInvariant: "PREFIX-COMPLETE, SINGLE-PENDING",
     productionHistoryLimitation: PRODUCTION_HISTORY_LIMITATION_WARNING,
     claims: {
@@ -774,6 +1534,18 @@ async function main() {
       }
       for (const file of F3_FORWARD_FILES) {
         const version = preassignedVersionFor(file);
+        const runnerCounters = createEmptyRunnerCounters();
+        const recorder = createRunnerEventRecorder({
+          migrationSourceLabel: "F3_FORWARD",
+          migrationVersion: version,
+          migrationName: file,
+          targetBindingId: evidence.frozenTarget?.target?.project_ref
+            || APPROVED_DISPOSABLE_PROJECT_REF,
+        });
+        const recordRunnerEvent = (eventType, extra = {}) => recorder.record(eventType, {
+          ...extra,
+          counters: { ...runnerCounters },
+        });
         const queryHistory = () =>
           runDbQuery({
             bin: cli.bin,
@@ -802,10 +1574,19 @@ async function main() {
           throw Object.assign(new Error(evidence.limitation), { code: "F3_PLATFORM_ACL_CALIBRATION_HOLD" });
         }
         const inject = runGatedRemoteSqlText(isolated.workdir, `inject-${version}.sql`, injectSql);
+        runnerCounters.initialDbPushCalls += 1;
+        recordRunnerEvent("initial_db_push_started", {
+          phase: "initial_db_push",
+          commandIdentity: "supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault",
+        });
         const push = runDbPushCandidate({
           bin: cli.bin,
           workdir: isolated.workdir,
           help: pushHelp,
+        });
+        recordRunnerEvent("initial_db_push_completed", {
+          phase: "initial_db_push",
+          processResult: push,
         });
         const historyAfterFail = await runDbQuery({
           bin: cli.bin,
@@ -865,6 +1646,8 @@ async function main() {
           targetVersion: version,
           objectsPresent,
         });
+        recordRunnerEvent("post_commit_history_failure_classified", { phase: "classify" });
+        recordRunnerEvent("fingerprint_collected", { phase: "fingerprint" });
         const hashedPushOut = hashOriginalStdout(push.stdout ?? "");
         const hashedPushErr = hashOriginalStdout(push.stderr ?? "");
         const gateInput = {
@@ -918,15 +1701,27 @@ async function main() {
           },
           repairGate: { input: gateInput },
         });
+        runnerCounters.gateCalls += 1;
+        evaluateRepairSafetyGate(gateInput);
+        recordRunnerEvent("repair_gate_evaluated", { phase: "repair_gate" });
         const decided = await runRepairSafetyThenMaybeRepair({
           gateInput,
           frozenTarget: frozenTargetBuilt.target,
           cleanup: () => {
+            runnerCounters.cleanupCalls += 1;
+            recordRunnerEvent("cleanup_started", { phase: "cleanup" });
             const cleanupResult = runGatedRemoteSqlText(
               isolated.workdir,
               `remove-inject-${version}.sql`,
               REMOVE_HISTORY_INJECT_SQL,
             );
+            recordRunnerEvent("cleanup_completed", {
+              phase: "cleanup",
+              processResult: {
+                ...cleanupResult,
+                command: "gated-remote-sql-text remove-history-inject",
+              },
+            });
             const encodedCleanup = encodeIsolatedPsqlProcessBytes(cleanupResult);
             authRecord.poisonCleanup = {
               status: cleanupResult.status,
@@ -941,6 +1736,8 @@ async function main() {
             return cleanupResult;
           },
           verifyPoisonAbsent: async () => {
+            runnerCounters.poisonProbeCalls += 1;
+            recordRunnerEvent("poison_probe_started", { phase: "poison_probe" });
             const poisonProbe = runIsolatedPoisonPsqlQuery({
               frozenTarget: frozenTargetBuilt.target,
               sql: POISON_ABSENT_PROBE_SQL,
@@ -983,6 +1780,14 @@ async function main() {
                 frozenTarget: frozenTargetBuilt.target,
               }),
             };
+            recordRunnerEvent("poison_probe_completed", {
+              phase: "poison_probe",
+              processResult: {
+                ...processResult,
+                command: "isolated-psql poison-absent-probe",
+              },
+            });
+            recordRunnerEvent("target_binding_verified", { phase: "target_binding" });
             const pre = assertRepairAuthorizationPreRepairComplete(authRecord);
             if (!pre.ok) {
               authRecord.hold = pre;
@@ -1023,12 +1828,31 @@ async function main() {
                 stderr: poisonFingerprintEval.hold || POST_POISON_FULL_FINGERPRINT_HOLD,
               };
             }
-            return runFilenameVersionRepair({
+            const allowRepair = assertRunnerEventsAllowRepair(recorder.snapshot());
+            if (!allowRepair.ok) {
+              authRecord.hold = allowRepair;
+              return {
+                status: 1,
+                stdout: "",
+                stderr: allowRepair.reason,
+              };
+            }
+            runnerCounters.repairCalls += 1;
+            recordRunnerEvent("repair_started", {
+              phase: "repair",
+              commandIdentity: "supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
+            });
+            const repairResult = runFilenameVersionRepair({
               bin: cli.bin,
               version,
               workdir: isolated.workdir,
               help: repairHelp,
             });
+            recordRunnerEvent("repair_completed", {
+              phase: "repair",
+              processResult: repairResult,
+            });
+            return repairResult;
           },
         });
         const callbackOrder = [
@@ -1063,6 +1887,8 @@ async function main() {
             ...authRecord,
             writtenBeforeNextMigration: false,
           });
+          evidence.runnerEventStreams[file] = recorder.snapshot();
+          evidence.runnerCountersByFile[file] = { ...runnerCounters };
           break;
         }
         if (fingerprintAfterPoisonCleanup == null && decided.cleanupProven) {
@@ -1188,10 +2014,30 @@ async function main() {
           cliVersion: cli.version,
           phase: "retry",
         });
+        const allowRetry = assertRunnerEventsAllowRetry(recorder.snapshot());
+        if (!allowRetry.ok) {
+          holdSequence(allowRetry.reason, {
+            historyAfterRepair: rowsFromQuery(historyAfterRepair),
+            fingerprintAfterRepair,
+            postRepairFingerprintEval,
+          });
+          evidence.runnerEventStreams[file] = recorder.snapshot();
+          evidence.runnerCountersByFile[file] = { ...runnerCounters };
+          break;
+        }
+        runnerCounters.retryDbPushCalls += 1;
+        recordRunnerEvent("retry_started", {
+          phase: "retry",
+          commandIdentity: "supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault",
+        });
         const retry = runDbPushCandidate({
           bin: cli.bin,
           workdir: isolated.workdir,
           help: pushHelp,
+        });
+        recordRunnerEvent("retry_completed", {
+          phase: "retry",
+          processResult: retry,
         });
         const fingerprintAfterRetryQuery = await runDbQuery({
           bin: cli.bin,
@@ -1246,11 +2092,143 @@ async function main() {
               retry,
             },
           );
+          evidence.runnerEventStreams[file] = recorder.snapshot();
+          evidence.runnerCountersByFile[file] = { ...runnerCounters };
           break;
         }
+        recordRunnerEvent("post_retry_fingerprint_collected", { phase: "post_retry_fingerprint" });
         const isLastFile = file === F3_FORWARD_FILES[F3_FORWARD_FILES.length - 1];
         let fingerprintAfterCleanContinuation = null;
         let postContinuationFingerprintEval = null;
+        authRecord.retry = {
+          status: retry.status,
+          staged: retryStaged,
+          preflight: retryPreflight,
+        };
+        authRecord.continuation = {
+          allowed: false,
+          reason: isLastFile ? "last-file" : "pending-durable-authorize",
+        };
+        authRecord.postRepairFingerprint = {
+          sha256: fingerprintAfterRepair?.sha256 ?? null,
+          ok: postRepairFingerprintEval?.ok === true,
+          capture: fingerprintAfterRepair,
+          eval: postRepairFingerprintEval,
+        };
+        authRecord.postRetryFingerprint = {
+          sha256: fingerprintAfterRetryNoPending?.sha256 ?? null,
+          ok: postRetryFingerprintEval?.ok === true,
+          capture: fingerprintAfterRetryNoPending,
+          eval: postRetryFingerprintEval,
+        };
+        const repairProcessResult = encodeSanitizedProcessResult(decided.repair || {});
+        const retryProcessResult = encodeSanitizedProcessResult(retry);
+        const poisonProcessResult = encodeSanitizedProcessResult({
+          command: "isolated-psql poison-absent-probe",
+          status: authRecord.poisonAbsenceQuery?.status ?? null,
+          signal: authRecord.poisonAbsenceQuery?.signal ?? null,
+          timeout: authRecord.poisonAbsenceQuery?.timeout === true,
+          stdout: "",
+          stderr: "",
+          stdoutSha256: authRecord.poisonAbsenceQuery?.stdoutSha256,
+          stderrSha256: authRecord.poisonAbsenceQuery?.stderrSha256,
+          stdoutByteLength: authRecord.poisonAbsenceQuery?.stdoutByteLength,
+          stderrByteLength: authRecord.poisonAbsenceQuery?.stderrByteLength,
+        });
+        if (authRecord.poisonAbsenceQuery?.stdoutSha256) {
+          poisonProcessResult.stdoutSha256 = authRecord.poisonAbsenceQuery.stdoutSha256;
+          poisonProcessResult.stderrSha256 = authRecord.poisonAbsenceQuery.stderrSha256;
+          poisonProcessResult.stdoutByteLength = authRecord.poisonAbsenceQuery.stdoutByteLength;
+          poisonProcessResult.stderrByteLength = authRecord.poisonAbsenceQuery.stderrByteLength;
+        }
+        const preContinuationRecord = {
+          schema_version: F9_PRE_CONTINUATION_SCHEMA_VERSION,
+          migrationIdentity: { file, version, sourceLabel: "F3_FORWARD", destName: timestampFilenameFor(file) },
+          repairProcessResult,
+          retryProcessResult,
+          poisonProcessResult,
+          originalPoison: {
+            ...poisonProcessResult,
+            metadata: authRecord.poisonAbsenceQuery || null,
+          },
+          targetBinding: authRecord.targetBinding,
+          runnerCounters: { ...runnerCounters },
+          gateCounters: {
+            repairCalls: decided.repairCalls,
+            cleanupCalls: decided.cleanupCalls,
+            verifyCalls: decided.verifyCalls,
+            dbPushCalls: decided.dbPushCalls,
+            continuationCalls: decided.continuationCalls,
+          },
+          eventStream: recorder.snapshot(),
+          repairAuthorization: authRecord,
+          finalMigration: isLastFile,
+          nextMigration: isLastFile ? null : true,
+          inventedLaterContinuation: false,
+        };
+        const persisted = durableWriteRepairAuthorization(evidence, authRecord, args.evidenceOut, {
+          preContinuationRecord,
+        });
+        if (!persisted.ok) {
+          holdSequence(persisted.reason || F9_RUNNER_EVENT_HOLD, {
+            historyAfterRepair: rowsFromQuery(historyAfterRepair),
+            fingerprintAfterRepair,
+            fingerprintAfterRetryNoPending,
+            postRepairFingerprintEval,
+            postRetryFingerprintEval,
+            retryStaged,
+            retryPreflight,
+            retry,
+            repairAuthorization: authRecord,
+          });
+          evidence.runnerEventStreams[file] = recorder.snapshot();
+          evidence.runnerCountersByFile[file] = { ...runnerCounters };
+          break;
+        }
+        runnerCounters.durableRecordWrites += 1;
+        recordRunnerEvent("pre_continuation_record_persisted", {
+          phase: "pre_continuation",
+          process: {
+            commandIdentity: "atomic-pre-continuation-write",
+            status: 0,
+            signal: null,
+            timeout: false,
+            stdoutByteLength: persisted.bytes ?? 0,
+            stderrByteLength: 0,
+            stdoutSha256: persisted.sha256 || sha256Utf8Qualify(""),
+            stderrSha256: sha256Utf8Qualify(""),
+          },
+        });
+        const authorized = evaluateF9ContinuationAuthorization({
+          events: recorder.snapshot(),
+          record: { ...preContinuationRecord, eventStream: recorder.snapshot() },
+          persistResult: persisted,
+          file,
+        });
+        if (!authorized.ok || authorized.continuationAuthorized !== true) {
+          holdSequence(authorized.reason || F9_RUNNER_EVENT_HOLD, {
+            historyAfterRepair: rowsFromQuery(historyAfterRepair),
+            fingerprintAfterRepair,
+            fingerprintAfterRetryNoPending,
+            postRepairFingerprintEval,
+            postRetryFingerprintEval,
+            retryStaged,
+            retryPreflight,
+            retry,
+            repairAuthorization: authRecord,
+          });
+          evidence.runnerEventStreams[file] = recorder.snapshot();
+          evidence.runnerCountersByFile[file] = { ...runnerCounters };
+          break;
+        }
+        runnerCounters.continuationAuthorizationCalls += 1;
+        recordRunnerEvent("continuation_authorized", { phase: "continuation_authorized" });
+        authRecord.continuation = {
+          allowed: isLastFile ? false : true,
+          reason: isLastFile ? "last-file" : null,
+          finalMigration: isLastFile,
+          inventedLaterContinuation: false,
+        };
         if (!isLastFile) {
           const continuationQuery = await runDbQuery({
             bin: cli.bin,
@@ -1303,45 +2281,18 @@ async function main() {
             });
             break;
           }
+          runnerCounters.continuationCalls += 1;
+          recordRunnerEvent("continuation_started", { phase: "continuation" });
+          recordRunnerEvent("continuation_completed", { phase: "continuation" });
         }
-        authRecord.retry = {
-          status: retry.status,
-          staged: retryStaged,
-          preflight: retryPreflight,
-        };
-        authRecord.continuation = {
-          allowed: isLastFile ? false : postContinuationFingerprintEval?.ok === true,
-          reason: isLastFile ? "last-file" : null,
-        };
-        authRecord.postRepairFingerprint = {
-          sha256: fingerprintAfterRepair?.sha256 ?? null,
-          ok: postRepairFingerprintEval?.ok === true,
-          capture: fingerprintAfterRepair,
-          eval: postRepairFingerprintEval,
-        };
-        authRecord.postRetryFingerprint = {
-          sha256: fingerprintAfterRetryNoPending?.sha256 ?? null,
-          ok: postRetryFingerprintEval?.ok === true,
-          capture: fingerprintAfterRetryNoPending,
-          eval: postRetryFingerprintEval,
-        };
-        const persisted = durableWriteRepairAuthorization(evidence, authRecord, args.evidenceOut);
-        if (!persisted.ok) {
-          holdSequence(persisted.reason || REPAIR_AUTHORIZATION_HOLD, {
-            historyAfterRepair: rowsFromQuery(historyAfterRepair),
-            fingerprintAfterRepair,
-            fingerprintAfterRetryNoPending,
-            fingerprintAfterCleanContinuation,
-            postRepairFingerprintEval,
-            postRetryFingerprintEval,
-            postContinuationFingerprintEval,
-            retryStaged,
-            retryPreflight,
-            retry,
-            repairAuthorization: authRecord,
-          });
-          break;
-        }
+        evidence.runnerEventStreams[file] = recorder.snapshot();
+        evidence.runnerCountersByFile[file] = { ...runnerCounters };
+        evidence.runnerCounters = Object.fromEntries(
+          Object.keys(runnerCounters).map((key) => [
+            key,
+            (evidence.runnerCounters?.[key] || 0) + runnerCounters[key],
+          ]),
+        );
         evidence.sequence.push({
           ...step,
           historyAfterRepair: rowsFromQuery(historyAfterRepair),
@@ -1355,6 +2306,15 @@ async function main() {
           retryPreflight,
           retry,
           repairAuthorization: authRecord,
+          runnerCounters: { ...runnerCounters },
+          runnerEvents: recorder.snapshot(),
+          preContinuation: {
+            dest: persisted.dest,
+            sha256: persisted.sha256,
+            bytes: persisted.bytes,
+            finalMigration: isLastFile,
+            inventedLaterContinuation: false,
+          },
         });
       }
     }
@@ -1472,10 +2432,7 @@ async function main() {
   const json = JSON.stringify(sanitizeForLog(evidence), null, 2);
   console.log(json);
   if (args.evidenceOut) {
-    const written = commitQualifyEvidenceOrHold({
-      dest: path.resolve(root, args.evidenceOut),
-      payload: json,
-    });
+    const written = commitNestedThenOuterEvidence(args.evidenceOut, json);
     if (!written.ok) {
       evidence.status = "HOLD";
       evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
@@ -1501,4 +2458,8 @@ async function main() {
   process.exit(0);
 }
 
-await main();
+const invokedDirectly = process.argv[1]
+  && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (invokedDirectly) {
+  await main();
+}

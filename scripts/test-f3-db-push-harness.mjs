@@ -127,7 +127,10 @@ import {
   FINGERPRINT_CANONICALIZATION_REASON,
   FINGERPRINT_FIELD_REGISTRY,
   F3_FULL_FINGERPRINT_SCHEMA_VERSION,
+  SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION,
   F3_FULL_FINGERPRINT_NESTED_KEYS,
+  F3_FUNCTIONAL_RECURSIVE_CLOSURE,
+  assertFullCatalogV2Coverage,
   F3_HGP_PIN,
   F3_ENQUEUE_PIN,
   TEN_FIELD_SCHEMA_SUPERSEDED_REASON,
@@ -177,6 +180,11 @@ import {
   runRepairSafetyThenMaybeRepair,
   syncIsolatedMigrationsThrough,
 } from "./lib/f3-db-push-repair-safety-gate.mjs";
+import {
+  INDEPENDENT_REFERENCE_MODULE_RELPATH,
+  INDEPENDENT_REFERENCE_SCHEMA_VERSION,
+  collectIndependentFullCatalogReference,
+} from "./lib/f3-full-catalog-independent-reference.mjs";
 import { BOOTSTRAP_WITH_LOCAL_SHIM } from "./_f3_apply_current_main_floor.mjs";
 import {
   FLOOR_HOLD_IF_INEXACT,
@@ -1499,12 +1507,12 @@ test("module-load frozen expected hashes are independent of observed and match t
     assert.deepEqual(getFrozenExpectedFingerprint(file).recognition, ["manual_income"]);
   }
   assert.deepEqual(recorded.sha256BeforeDb, {
-    "00118_f3_bounded_financial_epoch_foundation.sql": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
-    "00119_f3_01_core_ledger_foundation.sql": "af633e8c0c2cd5aa4df743960e03e5d9d2e17c36907c76cb9ee8ee2dfe8a2ebc",
-    "00120_f3_02_secure_posting_idempotency.sql": "b1b3b3c3ab4163378c8dfdbeb1da1421a5a1480b5a457424da9bc4a885d1027c",
-    "00121_f3_03_projection_read_proof.sql": "db68839cc5f61ab22a84a21965af4e90a41e7b4139a056c371aa0347eb4e04ca",
-    "00122_f3_04_correction_reversal.sql": "d8b2d0316e555339bcd95e944fd23e5c7686f16fa34d1d4c4691d610b1dc7659",
-    "00123_f3_05_opening_cash_command.sql": "07e984115ffc24f4e9e0f0d5d1d7f8c903c81064312e5c0b498e367ca11a0854",
+    "00118_f3_bounded_financial_epoch_foundation.sql": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+    "00119_f3_01_core_ledger_foundation.sql": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+    "00120_f3_02_secure_posting_idempotency.sql": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+    "00121_f3_03_projection_read_proof.sql": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+    "00122_f3_04_correction_reversal.sql": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+    "00123_f3_05_opening_cash_command.sql": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa",
   });
   assert.equal(
     SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.js_sql_parser_shapes.reason,
@@ -1515,7 +1523,7 @@ test("module-load frozen expected hashes are independent of observed and match t
     "ee5ece5603bee8e3afcb20888b87cd3e3bb9e334c7f56df0235181b49c91a309",
   );
   assert.equal(
-    recorded.sha256BeforeDb["00118_f3_bounded_financial_epoch_foundation.sql"],
+    SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.f3_full_catalog_v1["00118_f3_bounded_financial_epoch_foundation.sql"],
     "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
   );
   assert.notEqual(
@@ -1524,17 +1532,25 @@ test("module-load frozen expected hashes are independent of observed and match t
   );
   assert.equal(
     EXPECTED_FINGERPRINT_SEAL_PROVENANCE.independently_reproduced_hosted_00118_after_platform_defaults,
+    false,
+  );
+  assert.equal(
+    EXPECTED_FINGERPRINT_SEAL_PROVENANCE.f3_full_catalog_v1_independently_reproduced_hosted_00118_after_platform_defaults,
     true,
   );
   assert.equal(
+    SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.f3_full_catalog_v1["00118_f3_bounded_financial_epoch_foundation.sql"],
+    EXPECTED_FINGERPRINT_SEAL_PROVENANCE.hosted_observed_00118_forbidden,
+  );
+  assert.notEqual(
     recorded.sha256BeforeDb["00118_f3_bounded_financial_epoch_foundation.sql"],
     EXPECTED_FINGERPRINT_SEAL_PROVENANCE.hosted_observed_00118_forbidden,
   );
-  for (const file of F3_FORWARD_FILES.filter((name) => name !== "00118_f3_bounded_financial_epoch_foundation.sql")) {
+  for (const file of F3_FORWARD_FILES) {
     assert.notEqual(
       recorded.sha256BeforeDb[file],
       EXPECTED_FINGERPRINT_SEAL_PROVENANCE.hosted_observed_00118_forbidden,
-      `${file} must not equal hosted 72af6699`,
+      `${file} v2 seal must not equal hosted 72af6699`,
     );
   }
   assert.notEqual(
@@ -1565,7 +1581,11 @@ test("module-load frozen expected hashes are independent of observed and match t
   );
   assert.equal(
     FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,
-    "5bdc6f4b431168d3f3c8a37ba4548bc73732cf45c1194eeb84daead688e35cf2",
+    "3f1dc7b4468a741abda2de680d8604deb914f14e315daa817b171036ca8387f7",
+  );
+  assert.equal(
+    EXPECTED_FINGERPRINT_SEAL_PROVENANCE.catalog_sha256,
+    FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,
   );
   assert.notEqual(
     FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,
@@ -3162,12 +3182,12 @@ test("22 successful full captures equal sealed expected hashes; frozen expected 
   assert.equal(recorded.independentOfObserved, true);
   assert.equal(recorded.populatedFromObserved, false);
   const sealed = {
-    "00118_f3_bounded_financial_epoch_foundation.sql": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
-    "00119_f3_01_core_ledger_foundation.sql": "af633e8c0c2cd5aa4df743960e03e5d9d2e17c36907c76cb9ee8ee2dfe8a2ebc",
-    "00120_f3_02_secure_posting_idempotency.sql": "b1b3b3c3ab4163378c8dfdbeb1da1421a5a1480b5a457424da9bc4a885d1027c",
-    "00121_f3_03_projection_read_proof.sql": "db68839cc5f61ab22a84a21965af4e90a41e7b4139a056c371aa0347eb4e04ca",
-    "00122_f3_04_correction_reversal.sql": "d8b2d0316e555339bcd95e944fd23e5c7686f16fa34d1d4c4691d610b1dc7659",
-    "00123_f3_05_opening_cash_command.sql": "07e984115ffc24f4e9e0f0d5d1d7f8c903c81064312e5c0b498e367ca11a0854",
+    "00118_f3_bounded_financial_epoch_foundation.sql": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+    "00119_f3_01_core_ledger_foundation.sql": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+    "00120_f3_02_secure_posting_idempotency.sql": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+    "00121_f3_03_projection_read_proof.sql": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+    "00122_f3_04_correction_reversal.sql": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+    "00123_f3_05_opening_cash_command.sql": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa",
   };
   for (const file of F3_FORWARD_FILES) {
     const frozen = captureFrozenExpectedFingerprint(file);
@@ -3253,7 +3273,10 @@ test("poison / post-repair / post-retry evaluators expose distinct HOLD strings"
 });
 
 test("expanded catalog fingerprint schema version and required keys are complete", () => {
-  assert.equal(F3_FULL_FINGERPRINT_SCHEMA_VERSION, "f3-full-catalog-v1");
+  assert.equal(F3_FULL_FINGERPRINT_SCHEMA_VERSION, "f3-full-catalog-v2");
+  assert.equal(SUPERSEDED_F3_FULL_FINGERPRINT_SCHEMA_VERSION, "f3-full-catalog-v1");
+  assert.equal(INDEPENDENT_REFERENCE_SCHEMA_VERSION, "f3-full-catalog-v2");
+  assert.doesNotMatch(F3_FULL_FINGERPRINT_SCHEMA_VERSION, /f3-full-catalog-v1/);
   const required = [
     "schema_version", "schema", "schemas", "function_owner", "acl", "acls",
     "policy", "policies", "relations", "columns", "types", "views", "routines",
@@ -3805,6 +3828,10 @@ test("Phase B target-observed ACL cannot replace or mutate sealed expected", asy
   assertExpectedFingerprintImmutable(FILE118);
   assert.equal(
     EXPECTED_FINGERPRINT_SEAL_PROVENANCE.independently_reproduced_hosted_00118_after_platform_defaults,
+    false,
+  );
+  assert.equal(
+    EXPECTED_FINGERPRINT_SEAL_PROVENANCE.f3_full_catalog_v1_independently_reproduced_hosted_00118_after_platform_defaults,
     true,
   );
   assert.equal(EXPECTED_FINGERPRINT_SEAL_PROVENANCE.not_copied_from_hosted_observed, true);
@@ -3845,4 +3872,859 @@ test("Phase B malformed or absent calibration evidence rejects before db push", 
     assert.equal(sealed.status, "HOLD", `${name} seal status`);
   }
   assert.match(PLATFORM_ACL_CALIBRATION_HOLD, /digest mismatch|missing|malformed/);
+});
+
+function publishNegativeRecord(partial) {
+  return {
+    caseId: partial.caseId,
+    exactMutation: partial.exactMutation,
+    classification: partial.classification,
+    failedGate: partial.failedGate,
+    dbPushCalls: partial.dbPushCalls,
+    repairCalls: partial.repairCalls,
+    cleanup: partial.cleanup,
+    poisonVerification: partial.poisonVerification,
+    continuation: partial.continuation,
+    result: partial.result,
+  };
+}
+
+async function recordFingerprintReject(caseId, exactMutation, mutate, file = FILE118) {
+  const expected = getFrozenExpectedFingerprint(file);
+  const observed = structuredClone(expected);
+  mutate(observed);
+  const exact = fingerprintCompleteAndExact({ expected, observed }, file);
+  let dbPushCalls = 0;
+  let repairCalls = 0;
+  let cleanupCalls = 0;
+  let poisonCalls = 0;
+  const decided = await runRepairSafetyThenMaybeRepair({
+    gateInput: authorizedGateInput({
+      file,
+      targetVersion: PREASSIGNED_VERSIONS[file],
+      digest: FROZEN_DIGESTS[file],
+      onDiskDigest: FROZEN_DIGESTS[file],
+      fingerprint: { expected, observed },
+      probe: passingProbe(file),
+      stagedMigrations: authorizedStagedPrefixThrough(file),
+      injectSql: historyInjectSqlForFile(file),
+      stderr: `${HISTORY_INJECT_MARKER}: blocked INSERT for version ${PREASSIGNED_VERSIONS[file]} name ${PREASSIGNED_NAMES[file]}`,
+    }),
+    cleanup: () => {
+      cleanupCalls += 1;
+      return provenCleanup();
+    },
+    verifyPoisonAbsent: () => {
+      poisonCalls += 1;
+      return poisonAbsentResult();
+    },
+    repair: () => {
+      repairCalls += 1;
+      return { status: 0 };
+    },
+  });
+  return publishNegativeRecord({
+    caseId,
+    exactMutation,
+    classification: exact.reason || decided.gate?.reason || "rejected",
+    failedGate: (decided.gate?.failedGates || []).join(",") || "fingerprint_exact",
+    dbPushCalls,
+    repairCalls,
+    cleanup: cleanupCalls > 0 ? "ran" : "none",
+    poisonVerification: poisonCalls > 0 ? "ran" : "none",
+    continuation: decided.continuation === true,
+    result: decided.repairAuthorized === false && repairCalls === 0 ? "rejected" : "UNEXPECTED",
+  });
+}
+
+test("independent collector source-contract: cannot import or invoke primary collector/builder", () => {
+  const independentPath = path.join(root, INDEPENDENT_REFERENCE_MODULE_RELPATH);
+  const src = fs.readFileSync(independentPath, "utf8");
+  const stripped = src
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+  assert.doesNotMatch(src, /f3-db-push-repair-safety-gate/);
+  assert.doesNotMatch(stripped, /CATALOG_FINGERPRINT_SQL/);
+  assert.doesNotMatch(stripped, /canonicalizeFingerprintForCompare/);
+  assert.doesNotMatch(stripped, /buildExpandedExpectedFingerprint/);
+  assert.doesNotMatch(stripped, /buildIndependentObservedFingerprint/);
+  assert.doesNotMatch(stripped, /fingerprintCompleteAndExact/);
+  assert.doesNotMatch(stripped, /collectCanonicalFullFingerprint/);
+  assert.doesNotMatch(stripped, /getFrozenExpectedFingerprint/);
+  assert.doesNotMatch(stripped, /FROZEN_EXPECTED_ORACLE_CATALOG/);
+  assert.match(src, /INDEPENDENT_FULL_CATALOG_SQL/);
+  assert.match(src, /collectIndependentFullCatalogReference/);
+  assert.equal(typeof collectIndependentFullCatalogReference, "function");
+  assert.equal(F3_FUNCTIONAL_RECURSIVE_CLOSURE.independent_reference_module, INDEPENDENT_REFERENCE_MODULE_RELPATH);
+  assert.match(F3_FUNCTIONAL_RECURSIVE_CLOSURE.independent_reference_source_sha256, /^[0-9a-f]{64}$/);
+  const recomputed = createHash("sha256").update(fs.readFileSync(independentPath)).digest("hex");
+  assert.equal(F3_FUNCTIONAL_RECURSIVE_CLOSURE.independent_reference_source_sha256, recomputed);
+});
+
+test("f3-full-catalog-v2 trigger-state and column-ACL negatives forbid repair", async () => {
+  const expected = getFrozenExpectedFingerprint(FILE118);
+  assert.equal(expected.schema_version, "f3-full-catalog-v2");
+  assert.equal(F3_FULL_FINGERPRINT_NESTED_KEYS.triggers.includes("tgenabled"), true);
+  assert.equal(F3_FULL_FINGERPRINT_NESTED_KEYS.columns.includes("attacl"), true);
+  assert.ok(expected.triggers.every((row) => ["O", "D", "R", "A"].includes(row.tgenabled)));
+  assert.ok(expected.columns.every((row) => typeof row.attacl_is_null === "boolean" && Array.isArray(row.attacl)));
+  const cases = [
+    ["TRIG-disabled", (o) => {
+      o.triggers = o.triggers.map((row, i) => (i === 0 ? { ...row, tgenabled: "D" } : row));
+    }],
+    ["TRIG-replica", (o) => {
+      o.triggers = o.triggers.map((row, i) => (i === 0 ? { ...row, tgenabled: "R" } : row));
+    }],
+    ["TRIG-always", (o) => {
+      o.triggers = o.triggers.map((row, i) => (i === 0 ? { ...row, tgenabled: "A" } : row));
+    }],
+    ["TRIG-missing-tgenabled", (o) => {
+      o.triggers = o.triggers.map((row, i) => {
+        if (i !== 0) return row;
+        const next = { ...row };
+        delete next.tgenabled;
+        return next;
+      });
+    }],
+    ["TRIG-definition", (o) => {
+      o.triggers = o.triggers.map((row, i) => (i === 0 ? { ...row, definition: "CREATE TRIGGER forged" } : row));
+    }],
+    ["TRIG-function-identity", (o) => {
+      o.triggers = o.triggers.map((row, i) => (i === 0 ? { ...row, function_identity: "forged()" } : row));
+    }],
+    ["TRIG-internal", (o) => {
+      o.triggers = o.triggers.map((row, i) => (i === 0 ? { ...row, tgisinternal: true } : row));
+    }],
+    ["COL-missing-attacl", (o) => {
+      o.columns = o.columns.map((row, i) => {
+        if (i !== 0) return row;
+        const next = { ...row };
+        delete next.attacl;
+        delete next.attacl_is_null;
+        return next;
+      });
+    }],
+    ["COL-null-vs-empty", (o) => {
+      o.columns = o.columns.map((row, i) => (
+        i === 0 ? { ...row, attacl_is_null: !row.attacl_is_null } : row
+      ));
+    }],
+    ["COL-unexpected-acl", (o) => {
+      o.columns = o.columns.map((row, i) => (
+        i === 0
+          ? {
+            ...row,
+            attacl_is_null: false,
+            attacl: [{ grantor: "postgres", grantee: "ubuntu", privilege: "SELECT", is_grantable: false }],
+          }
+          : row
+      ));
+    }],
+    ["COL-wrong-grantee", (o) => {
+      const first = o.columns[0];
+      o.columns = o.columns.map((row, i) => (
+        i === 0
+          ? {
+            ...row,
+            attacl_is_null: false,
+            attacl: [{
+              grantor: "postgres",
+              grantee: "service_role",
+              privilege: "UPDATE",
+              is_grantable: false,
+            }],
+          }
+          : row
+      ));
+      if (first.attacl_is_null === false && first.attacl.length > 0) {
+        o.columns[0] = {
+          ...first,
+          attacl: first.attacl.map((tuple, i) => (i === 0 ? { ...tuple, grantee: "ubuntu" } : tuple)),
+        };
+      }
+    }],
+    ["COL-wrong-grantor", (o) => {
+      o.columns = o.columns.map((row, i) => (
+        i === 0
+          ? {
+            ...row,
+            attacl_is_null: false,
+            attacl: [{ grantor: "ubuntu", grantee: "postgres", privilege: "SELECT", is_grantable: false }],
+          }
+          : row
+      ));
+    }],
+    ["COL-wrong-privilege", (o) => {
+      o.columns = o.columns.map((row, i) => (
+        i === 0
+          ? {
+            ...row,
+            attacl_is_null: false,
+            attacl: [{ grantor: "postgres", grantee: "postgres", privilege: "INSERT", is_grantable: false }],
+          }
+          : row
+      ));
+    }],
+    ["COL-wrong-grantability", (o) => {
+      o.columns = o.columns.map((row, i) => (
+        i === 0
+          ? {
+            ...row,
+            attacl_is_null: false,
+            attacl: [{ grantor: "postgres", grantee: "postgres", privilege: "SELECT", is_grantable: true }],
+          }
+          : row
+      ));
+    }],
+    ["COL-wrong-relation", (o) => {
+      o.columns = o.columns.map((row, i) => (
+        i === 0
+          ? {
+            ...row,
+            relation: "forged_relation",
+            attacl_is_null: false,
+            attacl: [{ grantor: "postgres", grantee: "postgres", privilege: "SELECT", is_grantable: false }],
+          }
+          : row
+      ));
+    }],
+  ];
+  for (const [name, mutate] of cases) {
+    const observed = structuredClone(expected);
+    mutate(observed);
+    assert.equal(fingerprintCompleteAndExact({ expected, observed }, FILE118).ok, false, name);
+    let repairCalls = 0;
+    const decided = await runRepairSafetyThenMaybeRepair({
+      gateInput: authorizedGateInput({ fingerprint: { expected, observed } }),
+      cleanup: () => provenCleanup(),
+      verifyPoisonAbsent: () => poisonAbsentResult(),
+      repair: () => {
+        repairCalls += 1;
+        return { status: 0 };
+      },
+    });
+    assert.equal(decided.repairAuthorized, false, name);
+    assert.equal(repairCalls, 0, `${name} repairCalls`);
+  }
+  const reorderOnly = structuredClone(expected);
+  reorderOnly.columns = reorderOnly.columns.map((row, i) => {
+    if (i !== 0) return row;
+    const tuples = [
+      { grantor: "postgres", grantee: "authenticated", privilege: "UPDATE", is_grantable: false },
+      { grantor: "postgres", grantee: "authenticated", privilege: "SELECT", is_grantable: false },
+    ];
+    return { ...row, attacl_is_null: false, attacl: tuples };
+  });
+  const expectedReordered = structuredClone(expected);
+  expectedReordered.columns = expectedReordered.columns.map((row, i) => {
+    if (i !== 0) return row;
+    return {
+      ...row,
+      attacl_is_null: false,
+      attacl: [
+        { grantor: "postgres", grantee: "authenticated", privilege: "SELECT", is_grantable: false },
+        { grantor: "postgres", grantee: "authenticated", privilege: "UPDATE", is_grantable: false },
+      ],
+    };
+  });
+  assert.equal(
+    fingerprintCompleteAndExact({ expected: expectedReordered, observed: reorderOnly }).ok,
+    true,
+    "identical attacl tuples may pass after deterministic sort only",
+  );
+});
+
+test("published complete negative matrix: N1-N24 + FC/platform + v2 + envelope + evidence", async () => {
+  const records = [];
+  const twoArg = aclRecord({
+    object_type: "routine",
+    object_name: "f3_amount",
+    prokind: "f",
+    identity_arguments: "p_value jsonb, p_currency text",
+    privilege: "EXECUTE",
+    grantee: "postgres",
+  });
+  const threePlus = aclRecord({
+    object_type: "routine",
+    object_name: "lock_financial_occurrence",
+    prokind: "f",
+    identity_arguments: LOCK_OCCURRENCE_ARGS,
+    privilege: "EXECUTE",
+    grantee: "postgres",
+  });
+  const overloadA = aclRecord({
+    object_type: "routine",
+    object_name: "lock_it",
+    prokind: "f",
+    identity_arguments: "p uuid",
+    privilege: "EXECUTE",
+    grantee: "postgres",
+  });
+  const overloadB = aclRecord({
+    object_type: "routine",
+    object_name: "lock_it",
+    prokind: "f",
+    identity_arguments: "p uuid, q text",
+    privilege: "EXECUTE",
+    grantee: "postgres",
+  });
+
+  const accept = (caseId, exactMutation, ok) => {
+    records.push(publishNegativeRecord({
+      caseId,
+      exactMutation,
+      classification: ok ? "accepted" : "rejected",
+      failedGate: ok ? "" : "fingerprint_exact",
+      dbPushCalls: 0,
+      repairCalls: 0,
+      cleanup: "n/a-accepted",
+      poisonVerification: "n/a-accepted",
+      continuation: false,
+      result: ok ? "accepted" : "UNEXPECTED",
+    }));
+    assert.equal(ok, true, caseId);
+  };
+
+  accept(
+    "N1",
+    "multi-argument ACL identity remains complete",
+    fingerprintCompleteAndExact(pairFromCatalog({ acl: [threePlus] }, { acl: [threePlus] })).ok,
+  );
+  accept(
+    "N2",
+    "overloads remain distinct; order-only",
+    fingerprintCompleteAndExact(pairFromCatalog(
+      { acl: [overloadA, overloadB] },
+      { acl: [overloadB, overloadA] },
+    )).ok,
+  );
+  accept(
+    "N3",
+    "record-order-only ACL difference accepted",
+    fingerprintCompleteAndExact(pairFromCatalog({ acl: [twoArg, threePlus] }, { acl: [threePlus, twoArg] })).ok,
+  );
+
+  const rejectFp = async (caseId, exactMutation, fingerprint) => {
+    const decided = await assertFingerprintForbidsRepair(caseId, fingerprint);
+    records.push(publishNegativeRecord({
+      caseId,
+      exactMutation,
+      classification: decided.gate?.reason || "fingerprint_exact",
+      failedGate: (decided.gate?.failedGates || []).join(",") || "fingerprint_exact",
+      dbPushCalls: 0,
+      repairCalls: 0,
+      cleanup: "ran",
+      poisonVerification: "ran",
+      continuation: false,
+      result: "rejected",
+    }));
+  };
+
+  await rejectFp("N4", "truncated identity after first comma", pairFromCatalog(
+    { acl: [threePlus] },
+    { acl: [aclRecord({ ...threePlus, identity_arguments: "p_group_id uuid, p_source_module text" })] },
+  ));
+  await rejectFp("N5", "same ACL count different object pairing", pairFromCatalog(
+    { acl: [overloadA, twoArg] },
+    { acl: [overloadB, twoArg] },
+  ));
+  await rejectFp("N6", "wrong grantee/grantor/privilege/grantability", pairFromCatalog(
+    { acl: [twoArg] },
+    { acl: [aclRecord({ ...twoArg, grantee: "ubuntu", grantor: "ubuntu", privilege: "SELECT", grantable: true })] },
+  ));
+  await rejectFp("N7", "missing/extra/duplicate ACL", pairFromCatalog(
+    { acl: [twoArg] },
+    { acl: [twoArg, twoArg] },
+  ));
+
+  const malformedProbe = await assertProbeForbidsRepair("N8", {
+    status: 1,
+    stdout: "",
+    stderr: FINANCIAL_PRIVATE_MISSING_ERROR,
+    file: FILE121,
+  });
+  records.push(publishNegativeRecord({
+    caseId: "N8",
+    exactMutation: "malformed/nonzero probe",
+    classification: malformedProbe.gate?.reason || "expected_objects",
+    failedGate: (malformedProbe.gate?.failedGates || []).join(","),
+    dbPushCalls: 0,
+    repairCalls: 0,
+    cleanup: "ran",
+    poisonVerification: "ran",
+    continuation: false,
+    result: "rejected",
+  }));
+
+  records.push(await recordFingerprintReject("N9", "fingerprint mismatch (relations emptied)", (o) => {
+    o.relations = [];
+  }));
+
+  let cleanupRepair = 0;
+  const cleanupFail = await runRepairSafetyThenMaybeRepair({
+    gateInput: authorizedGateInput(),
+    cleanup: () => ({ status: 1, stdout: "", stderr: "ERROR: cannot drop trigger" }),
+    verifyPoisonAbsent: () => poisonAbsentResult(),
+    repair: () => {
+      cleanupRepair += 1;
+      return { status: 0 };
+    },
+  });
+  records.push(publishNegativeRecord({
+    caseId: "N10",
+    exactMutation: "cleanup status 1",
+    classification: cleanupFail.reason || "cleanup",
+    failedGate: "cleanup",
+    dbPushCalls: 0,
+    repairCalls: cleanupRepair,
+    cleanup: "failed",
+    poisonVerification: "not-reached-or-ignored",
+    continuation: false,
+    result: cleanupRepair === 0 ? "rejected" : "UNEXPECTED",
+  }));
+  assert.equal(cleanupRepair, 0);
+
+  let poisonRepair = 0;
+  const poisonFail = await runRepairSafetyThenMaybeRepair({
+    gateInput: authorizedGateInput(),
+    cleanup: () => provenCleanup(),
+    verifyPoisonAbsent: () => ({
+      status: 0,
+      stdout: JSON.stringify({ trigger_present: true, function_present: false }),
+      stderr: "",
+    }),
+    repair: () => {
+      poisonRepair += 1;
+      return { status: 0 };
+    },
+  });
+  records.push(publishNegativeRecord({
+    caseId: "N11",
+    exactMutation: "poison trigger remains",
+    classification: poisonFail.reason || "poison",
+    failedGate: "poison_absent",
+    dbPushCalls: 0,
+    repairCalls: poisonRepair,
+    cleanup: "ran",
+    poisonVerification: "failed",
+    continuation: false,
+    result: poisonRepair === 0 ? "rejected" : "UNEXPECTED",
+  }));
+  assert.equal(poisonRepair, 0);
+
+  const isolatedN12 = createIsolatedDbPushWorkdir();
+  syncIsolatedMigrationsThrough(isolatedN12, F3_FORWARD_FILES[1]);
+  fs.rmSync(path.join(isolatedMigDir(isolatedN12), timestampFilenameFor(F3_FORWARD_FILES[0])), { force: true });
+  const stagingN12 = await assertStagingForbidsPushAndRepair("N12", {
+    isolated: isolatedN12,
+    file: F3_FORWARD_FILES[1],
+    historyResult: historyResult(remoteRows([F3_FORWARD_FILES[0]])),
+    expectCode: "applied_remote_missing_locally",
+    stage: false,
+  });
+  fs.rmSync(isolatedN12.workdir, { recursive: true, force: true });
+  records.push(publishNegativeRecord({
+    caseId: "N12",
+    exactMutation: "staging-prefix mismatch: applied remote missing locally",
+    classification: stagingN12.preflight?.code || "applied_remote_missing_locally",
+    failedGate: "staging",
+    dbPushCalls: 0,
+    repairCalls: 0,
+    cleanup: "n/a-pre-runner",
+    poisonVerification: "n/a-pre-runner",
+    continuation: false,
+    result: "rejected",
+  }));
+
+  accept(
+    "N13",
+    "timestamptz lookup resolves to frozen canonical timestamp with time zone identity",
+    getFrozenExpectedObjectProbeDescriptors(FILE121)[0].identity_arguments.includes("timestamp with time zone")
+      && !getFrozenExpectedObjectProbeDescriptors(FILE121)[0].identity_arguments.includes("timestamptz"),
+  );
+  accept(
+    "N14",
+    "multi-arg retained; overloads remain distinct",
+    evaluateObjectProbe(passingProbe(FILE121), { file: FILE121 }).present === true,
+  );
+
+  const n15 = await assertProbeForbidsRepair("N15", probeFrom121((row) => {
+    row.p0 = {
+      ...row.p0,
+      identity_arguments:
+        "p_group_id uuid, p_to timestamp with time zone, p_from timestamp with time zone, p_as_of_exclusive timestamp with time zone",
+    };
+    return row;
+  }));
+  records.push(publishNegativeRecord({
+    caseId: "N15",
+    exactMutation: "argument order changes",
+    classification: n15.gate?.reason || "expected_objects",
+    failedGate: (n15.gate?.failedGates || []).join(","),
+    dbPushCalls: 0,
+    repairCalls: 0,
+    cleanup: "ran",
+    poisonVerification: "ran",
+    continuation: false,
+    result: "rejected",
+  }));
+  const n16 = await assertProbeForbidsRepair("N16", probeFrom121((row) => {
+    row.p1 = {
+      ...row.p1,
+      identity_arguments:
+        "p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer",
+    };
+    return row;
+  }));
+  records.push(publishNegativeRecord({
+    caseId: "N16",
+    exactMutation: "missing argument",
+    classification: n16.gate?.reason || "expected_objects",
+    failedGate: (n16.gate?.failedGates || []).join(","),
+    dbPushCalls: 0,
+    repairCalls: 0,
+    cleanup: "ran",
+    poisonVerification: "ran",
+    continuation: false,
+    result: "rejected",
+  }));
+  const n17 = await assertProbeForbidsRepair("N17", probeFrom121((row) => {
+    row.p0 = { ...row.p0, identity_arguments: `${row.p0.identity_arguments}, p_extra text` };
+    return row;
+  }));
+  records.push(publishNegativeRecord({
+    caseId: "N17",
+    exactMutation: "extra argument",
+    classification: n17.gate?.reason || "expected_objects",
+    failedGate: (n17.gate?.failedGates || []).join(","),
+    dbPushCalls: 0,
+    repairCalls: 0,
+    cleanup: "ran",
+    poisonVerification: "ran",
+    continuation: false,
+    result: "rejected",
+  }));
+  const n18 = await assertProbeForbidsRepair("N18", probeFrom121((row) => {
+    row.p0 = {
+      ...row.p0,
+      identity_arguments: "p_group_id uuid, p_from timestamp, p_to timestamp, p_as_of_exclusive timestamp",
+    };
+    return row;
+  }));
+  records.push(publishNegativeRecord({
+    caseId: "N18",
+    exactMutation: "similar-type timestamp vs timestamptz",
+    classification: n18.gate?.reason || "expected_objects",
+    failedGate: (n18.gate?.failedGates || []).join(","),
+    dbPushCalls: 0,
+    repairCalls: 0,
+    cleanup: "ran",
+    poisonVerification: "ran",
+    continuation: false,
+    result: "rejected",
+  }));
+  const n19 = await assertProbeForbidsRepair("N19", probeFrom121((row) => {
+    row.p0 = {
+      ...row.p0,
+      identity_arguments: "p_group_id uuid, p_from timestamptz, p_to timestamptz, p_as_of_exclusive timestamptz",
+    };
+    return row;
+  }));
+  records.push(publishNegativeRecord({
+    caseId: "N19",
+    exactMutation: "lookup alias timestamptz in identity_arguments",
+    classification: n19.gate?.reason || "expected_objects",
+    failedGate: (n19.gate?.failedGates || []).join(","),
+    dbPushCalls: 0,
+    repairCalls: 0,
+    cleanup: "ran",
+    poisonVerification: "ran",
+    continuation: false,
+    result: "rejected",
+  }));
+  const n20 = await assertProbeForbidsRepair("N20", {
+    status: 0,
+    stdout: JSON.stringify([{ p0: null, p1: getFrozenExpectedObjectProbeDescriptors(FILE121)[1] }]),
+    stderr: "",
+    file: FILE121,
+  });
+  records.push(publishNegativeRecord({
+    caseId: "N20",
+    exactMutation: "unresolved signature",
+    classification: n20.gate?.reason || "expected_objects",
+    failedGate: (n20.gate?.failedGates || []).join(","),
+    dbPushCalls: 0,
+    repairCalls: 0,
+    cleanup: "ran",
+    poisonVerification: "ran",
+    continuation: false,
+    result: "rejected",
+  }));
+  const n21 = await assertProbeForbidsRepair("N21", {
+    status: 0,
+    stdout: "{",
+    stderr: "",
+    file: FILE121,
+  });
+  records.push(publishNegativeRecord({
+    caseId: "N21",
+    exactMutation: "malformed non-JSON probe",
+    classification: n21.gate?.reason || "expected_objects",
+    failedGate: (n21.gate?.failedGates || []).join(","),
+    dbPushCalls: 0,
+    repairCalls: 0,
+    cleanup: "ran",
+    poisonVerification: "ran",
+    continuation: false,
+    result: "rejected",
+  }));
+  const n22 = await assertProbeForbidsRepair("N22", probeFrom121((row) => {
+    row.p1 = { ...row.p1, identity_arguments: "p_group_id uuid, p_from timestamp with time zone" };
+    return row;
+  }));
+  records.push(publishNegativeRecord({
+    caseId: "N22",
+    exactMutation: "truncated identity (object-probe)",
+    classification: n22.gate?.reason || "expected_objects",
+    failedGate: (n22.gate?.failedGates || []).join(","),
+    dbPushCalls: 0,
+    repairCalls: 0,
+    cleanup: "ran",
+    poisonVerification: "ran",
+    continuation: false,
+    result: "rejected",
+  }));
+  const n23 = await assertProbeForbidsRepair("N23", probeFrom121((row) => ({ p0: row.p1, p1: row.p0 })));
+  records.push(publishNegativeRecord({
+    caseId: "N23",
+    exactMutation: "same object count different identity pairing",
+    classification: n23.gate?.reason || "expected_objects",
+    failedGate: (n23.gate?.failedGates || []).join(","),
+    dbPushCalls: 0,
+    repairCalls: 0,
+    cleanup: "ran",
+    poisonVerification: "ran",
+    continuation: false,
+    result: "rejected",
+  }));
+  const n24 = await assertProbeForbidsRepair("N24", probeFrom121((row) => {
+    row.p1 = { ...row.p0 };
+    return row;
+  }));
+  records.push(publishNegativeRecord({
+    caseId: "N24",
+    exactMutation: "duplicate structured records",
+    classification: n24.gate?.reason || "expected_objects",
+    failedGate: (n24.gate?.failedGates || []).join(","),
+    dbPushCalls: 0,
+    repairCalls: 0,
+    cleanup: "ran",
+    poisonVerification: "ran",
+    continuation: false,
+    result: "rejected",
+  }));
+
+  records.push(await recordFingerprintReject("FC-relations", "empty relations", (o) => { o.relations = []; }));
+  records.push(await recordFingerprintReject("FC-triggers", "empty triggers", (o) => { o.triggers = []; }));
+  records.push(await recordFingerprintReject("FC-hgp", "hgp def_md5 drift", (o) => {
+    o.hgp = { ...o.hgp, def_md5: "0".repeat(32) };
+  }));
+  records.push(await recordFingerprintReject("PLAT-missing-service_role", "drop service_role ACL tuples", (o) => {
+    o.acls = o.acls.filter((row) => row.grantee !== "service_role");
+    o.acl = o.acls;
+    o.relations = o.relations.map((rel) => ({
+      ...rel,
+      acl: (rel.acl || []).filter((row) => row.grantee !== "service_role"),
+    }));
+  }));
+  records.push(await recordFingerprintReject("TRIG-tgenabled", "tgenabled O→D", (o) => {
+    o.triggers = o.triggers.map((row, i) => (i === 0 ? { ...row, tgenabled: "D" } : row));
+  }));
+  records.push(await recordFingerprintReject("COL-attacl-missing", "delete attacl coverage", (o) => {
+    o.columns = o.columns.map((row, i) => {
+      if (i !== 0) return row;
+      const next = { ...row };
+      delete next.attacl;
+      delete next.attacl_is_null;
+      return next;
+    });
+  }));
+  records.push(await recordFingerprintReject("COL-null-vs-empty", "flip attacl_is_null", (o) => {
+    o.columns = o.columns.map((row, i) => (i === 0 ? { ...row, attacl_is_null: !row.attacl_is_null } : row));
+  }));
+
+  const independentFailObserved = structuredClone(getFrozenExpectedFingerprint(FILE118));
+  independentFailObserved.triggers = [];
+  const independentExact = fingerprintCompleteAndExact({
+    expected: getFrozenExpectedFingerprint(FILE118),
+    observed: independentFailObserved,
+  }, FILE118);
+  records.push(publishNegativeRecord({
+    caseId: "IND-REF-FAIL",
+    exactMutation: "independent reference / primary structured disagreement (empty triggers)",
+    classification: independentExact.reason || "independent_reference",
+    failedGate: "fingerprint_exact",
+    dbPushCalls: 0,
+    repairCalls: 0,
+    cleanup: "n/a-compare",
+    poisonVerification: "n/a-compare",
+    continuation: false,
+    result: independentExact.ok === false ? "rejected" : "UNEXPECTED",
+  }));
+  assert.equal(independentExact.ok, false);
+
+  const missingEnvelope = authorizeDbPushAfterPlatformAclCalibration({ envelope: null });
+  records.push(publishNegativeRecord({
+    caseId: "ENV-MISSING",
+    exactMutation: "missing original envelope",
+    classification: missingEnvelope.reason || PLATFORM_ACL_CALIBRATION_HOLD,
+    failedGate: "platform_acl_calibration",
+    dbPushCalls: missingEnvelope.dbPushCalls,
+    repairCalls: missingEnvelope.repairCalls,
+    cleanup: "n/a-pre-runner",
+    poisonVerification: "n/a-pre-runner",
+    continuation: false,
+    result: "rejected",
+  }));
+  assert.equal(missingEnvelope.dbPushCalls, 0);
+  assert.equal(missingEnvelope.repairCalls, 0);
+
+  const digestMismatch = authorizeDbPushAfterPlatformAclCalibration({
+    envelope: { ...SEALED_PLATFORM_ACL_ENVELOPE, artifact: "forged-envelope" },
+  });
+  records.push(publishNegativeRecord({
+    caseId: "ENV-DIGEST",
+    exactMutation: "envelope byte/digest mismatch",
+    classification: digestMismatch.reason || PLATFORM_ACL_CALIBRATION_HOLD,
+    failedGate: "platform_acl_calibration",
+    dbPushCalls: digestMismatch.dbPushCalls,
+    repairCalls: digestMismatch.repairCalls,
+    cleanup: "n/a-pre-runner",
+    poisonVerification: "n/a-pre-runner",
+    continuation: false,
+    result: "rejected",
+  }));
+  assert.equal(digestMismatch.dbPushCalls, 0);
+
+  const secret = "super-secret-db-password";
+  const rawOut = `# Subtest: pg failure\nnot ok 1 - pg failure\n  ---\n  ${YAML_ERROR_MARKER}\n    ERROR:  role "ubuntu" does not exist\n  password: ${secret}\n  ...\n`;
+  const sanitized = sanitizeEvidenceOutBytes(Buffer.from(rawOut, "utf8"), [secret]);
+  records.push(publishNegativeRecord({
+    caseId: "EVID-SANITIZE",
+    exactMutation: "semantic sanitization mutation of suite log secret",
+    classification: sanitized.includes(secret) ? "UNEXPECTED" : "sanitized",
+    failedGate: "evidence_sanitize",
+    dbPushCalls: 0,
+    repairCalls: 0,
+    cleanup: "n/a-evidence",
+    poisonVerification: "n/a-evidence",
+    continuation: false,
+    result: sanitized.includes(secret) ? "UNEXPECTED" : "rejected-secret",
+  }));
+  assert.equal(sanitized.includes(secret), false);
+
+  const incompletePhase = runQualifyFingerprintHoldSequence({
+    file: FILE118,
+    afterCommitCatalog: { schema: catalogFromFrozen().schema },
+  });
+  records.push(publishNegativeRecord({
+    caseId: "FP-INCOMPLETE-PHASE",
+    exactMutation: "incomplete fingerprint phase (partial after-commit catalog)",
+    classification: incompletePhase.reason || "incomplete",
+    failedGate: incompletePhase.hold || REPAIR_SAFETY_HOLD,
+    dbPushCalls: 0,
+    repairCalls: incompletePhase.repairCalls,
+    cleanup: "n/a-sequence",
+    poisonVerification: "n/a-sequence",
+    continuation: incompletePhase.allowContinuation === true,
+    result: incompletePhase.repairCalls === 0 ? "rejected" : "UNEXPECTED",
+  }));
+  assert.equal(incompletePhase.repairCalls, 0);
+
+  records.push(await recordFingerprintReject("FP-KEYSET", "expected/pre/post keyset mismatch (delete triggers)", (o) => {
+    delete o.triggers;
+  }));
+
+  const evidDir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-evidence-matrix-"));
+  const missingLog = verifyEvidenceIndex(evidDir);
+  records.push(publishNegativeRecord({
+    caseId: "EVID-MISSING-LOG",
+    exactMutation: "missing suite log / evidence index",
+    classification: missingLog.ok ? "UNEXPECTED" : "missing_index",
+    failedGate: "evidence_index",
+    dbPushCalls: 0,
+    repairCalls: 0,
+    cleanup: "n/a-evidence",
+    poisonVerification: "n/a-evidence",
+    continuation: false,
+    result: missingLog.ok ? "UNEXPECTED" : "rejected",
+  }));
+  assert.equal(missingLog.ok, false);
+
+  const outPath = path.join(evidDir, "suite.out");
+  fs.writeFileSync(outPath, "ok 1 - placeholder\n");
+  const written = writeSuiteMetaForOutFile(outPath, { tests: [{ name: "placeholder", ok: true }] });
+  const index = writeEvidenceIndexAndChecksum(evidDir, [
+    { path: "suite.out", sha256: written.meta.sha256, bytes: written.meta.bytes },
+    { path: "suite.meta.json", sha256: createHash("sha256").update(fs.readFileSync(written.metaPath)).digest("hex") },
+  ]);
+  fs.writeFileSync(index.checksumPath, "0".repeat(64) + "\n");
+  const metaMismatch = verifyEvidenceIndex(evidDir);
+  records.push(publishNegativeRecord({
+    caseId: "EVID-LOG-META",
+    exactMutation: "log metadata / index checksum mismatch",
+    classification: metaMismatch.ok ? "UNEXPECTED" : "checksum_mismatch",
+    failedGate: "evidence_index",
+    dbPushCalls: 0,
+    repairCalls: 0,
+    cleanup: "n/a-evidence",
+    poisonVerification: "n/a-evidence",
+    continuation: false,
+    result: metaMismatch.ok ? "UNEXPECTED" : "rejected",
+  }));
+  assert.equal(metaMismatch.ok, false);
+
+  fs.writeFileSync(index.checksumPath, `${index.sha256}\n`);
+  const detached = structuredClone(index.index);
+  detached.artifacts = detached.artifacts.map((item) => (
+    item.path === "suite.out" ? { ...item, sha256: "1".repeat(64) } : item
+  ));
+  fs.writeFileSync(path.join(evidDir, EVIDENCE_INDEX_FILENAME), JSON.stringify(detached, null, 2));
+  const detachedVerify = verifyEvidenceIndex(evidDir);
+  records.push(publishNegativeRecord({
+    caseId: "EVID-DETACHED-INDEX",
+    exactMutation: "detached-index mismatch (artifact sha256 rewritten)",
+    classification: detachedVerify.ok ? "UNEXPECTED" : "detached_index",
+    failedGate: "evidence_index",
+    dbPushCalls: 0,
+    repairCalls: 0,
+    cleanup: "n/a-evidence",
+    poisonVerification: "n/a-evidence",
+    continuation: false,
+    result: detachedVerify.ok ? "UNEXPECTED" : "rejected",
+  }));
+  assert.equal(detachedVerify.ok, false);
+  fs.rmSync(evidDir, { recursive: true, force: true });
+
+  for (const record of records) {
+    if (record.result === "accepted") continue;
+    assert.equal(record.repairCalls, 0, `${record.caseId} repairCalls`);
+    if (String(record.cleanup).includes("pre-runner") || record.caseId.startsWith("ENV-") || record.caseId.startsWith("N12")) {
+      assert.equal(record.dbPushCalls, 0, `${record.caseId} dbPushCalls`);
+    }
+    assert.notEqual(record.result, "UNEXPECTED", record.caseId);
+  }
+  const ids = records.map((row) => row.caseId);
+  for (const required of [
+    "N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
+    "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19", "N20",
+    "N21", "N22", "N23", "N24",
+    "FC-relations", "PLAT-missing-service_role", "TRIG-tgenabled", "COL-attacl-missing",
+    "IND-REF-FAIL", "ENV-MISSING", "ENV-DIGEST", "EVID-SANITIZE",
+    "FP-INCOMPLETE-PHASE", "FP-KEYSET", "EVID-MISSING-LOG", "EVID-LOG-META", "EVID-DETACHED-INDEX",
+  ]) {
+    assert.equal(ids.includes(required), true, `matrix missing ${required}`);
+  }
+  assert.equal(assertFullCatalogV2Coverage(getFrozenExpectedFingerprint(FILE118)).ok, true);
+  console.log(JSON.stringify({ publishedNegativeMatrix: records }, null, 2));
 });

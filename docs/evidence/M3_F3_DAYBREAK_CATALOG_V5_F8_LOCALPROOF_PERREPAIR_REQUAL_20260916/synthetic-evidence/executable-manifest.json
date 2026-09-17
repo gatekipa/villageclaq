@@ -1,0 +1,17 @@
+{
+  "artifact": "executable-manifest",
+  "schema": "f3-executable-byte-manifest-v1",
+  "self_entries": 0,
+  "files": [
+    {
+      "path": "qualify-result.json",
+      "sha256": "57a04d8a7102de331425632bceec14dfaea66fc15dfc474ec00db55eef379633",
+      "bytes": 317
+    },
+    {
+      "path": "qualify-result.json.meta.json",
+      "sha256": "dd8340de67d7139c710d770f8553300757b86f2dbefbae4140e937c4cc1b5328",
+      "bytes": 275
+    }
+  ]
+}

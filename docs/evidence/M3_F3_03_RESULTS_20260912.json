@@ -1,0 +1,21 @@
+{
+  "artifact": "M3_F3_03_RESULTS_20260912",
+  "ticket": "F3-03",
+  "functional_sha": "a1e9311552a2698a8296e8f87eb1d000a5c259fe",
+  "migration": "supabase/migrations/00121_f3_03_projection_read_proof.sql",
+  "db_suite": "scripts/test-financial-f3-projection-db.mjs",
+  "db_result": "25/25 PASS",
+  "astra_suite": "tests/finance/f3-03/projection-oracle.test.mjs",
+  "astra_result": "80/80 PASS",
+  "expected_change": "none — stub memberships required is_proxy (current-main column; not an economics change)",
+  "covered": [
+    "ACCOUNT BALANCE / FUND CASH / FUND NET / SoA-lite / cashbook",
+    "occurred_at period",
+    "correction arithmetic +500-500+450=450",
+    "transfer not in SoA",
+    "opening not period income",
+    "finances.view for group reports",
+    "no peer leakage",
+    "authenticated SELECT revoked on events/postings"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "verdict": "HOLD",
+  "functional_sha": "ebd4c20bcf72500b77ea24bd7269094f3dc13b3e",
+  "schema_version": "f3-full-catalog-v1",
+  "stopped_at": "00118_f3_bounded_financial_epoch_foundation.sql",
+  "failedGates": [
+    "fingerprint_exact"
+  ],
+  "sealed_expected": "ee5ece5603bee8e3afcb20888b87cd3e3bb9e334c7f56df0235181b49c91a309",
+  "observed_after_commit": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+  "changedKeys": [
+    "columns",
+    "constraints",
+    "indexes",
+    "routines",
+    "schemas",
+    "triggers",
+    "types"
+  ],
+  "repair_not_spawned": true,
+  "tip_resealed_from_observed": false,
+  "00119_00123": "NOT_RUN"
+}

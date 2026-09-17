@@ -1,0 +1,84 @@
+{
+  "schema": "f3-evidence-index-v1",
+  "package": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F12_RESET_PROPOSAL_20260917",
+  "authoritative": true,
+  "mode": "DOCUMENTATION_PROPOSAL_ONLY",
+  "not_hosted_execution": true,
+  "files": [
+    {
+      "path": "F12-RESET-HOLD-EXPLAINED.json",
+      "sha256": "4403d735efdb13d13321ed20f88e63a2c2c5b818246abbcb0077b2a18596dfe7",
+      "bytes": 1700
+    },
+    {
+      "path": "PINS.json",
+      "sha256": "be76352a296facb3e20b4134e031150552ab612ebd464ed37dbdea77c3554063",
+      "bytes": 3639
+    },
+    {
+      "path": "PROPOSED_RESET_SCOPE.md",
+      "sha256": "8553888b8a83e6cca7e4a5196deba02bf118d12f91ffd2b63cf17b6e0e50c399",
+      "bytes": 15638
+    },
+    {
+      "path": "README.md",
+      "sha256": "67fe03e2deae957d2c41d2df98461f6433d8dba09f803ac85b0a2776ceca5774",
+      "bytes": 483
+    },
+    {
+      "path": "closure/CLOSURE_42_TO_43.json",
+      "sha256": "6d20312617e471b43ef18abc9fbae66f3f8f32800fae37b1b559002583bcf9f4",
+      "bytes": 588
+    },
+    {
+      "path": "historical-f8-f9/F8-post-reset-inventory.json",
+      "sha256": "ecec1a6e1945acba436ee5f76b31534513df7eef4e03c8be3218fa826d71c079",
+      "bytes": 569
+    },
+    {
+      "path": "historical-f8-f9/F8-pre-reset-inventory.json",
+      "sha256": "6f19605186c96113b5ea80c1d79db705842448ecfe5ac0f15f325b75e7876acd",
+      "bytes": 1095
+    },
+    {
+      "path": "historical-f8-f9/F8-reset-plan.json",
+      "sha256": "2d6b0a76d96263cd16bef646c26f49dda61d6369d60c4c5c6fe2999a3599798b",
+      "bytes": 94
+    },
+    {
+      "path": "historical-f8-f9/F8-reset-result.json",
+      "sha256": "5b1c174a99c95e43802e38f36ea9e7db738a2bdf1a06decec5d21d05f7da04d0",
+      "bytes": 2965
+    },
+    {
+      "path": "historical-f8-f9/F9-reset-plan.json",
+      "sha256": "2d6b0a76d96263cd16bef646c26f49dda61d6369d60c4c5c6fe2999a3599798b",
+      "bytes": 94
+    },
+    {
+      "path": "historical-f8-f9/F9-reset-result.json",
+      "sha256": "eb2c6fac88d37a0a1be67d5c3c55ca6a08e3442f5858dc3577bee8f95bc46d05",
+      "bytes": 2965
+    },
+    {
+      "path": "historical-f8-f9/RECONCILIATION.json",
+      "sha256": "421bae7d083396ea8844823e0727b2e44fc83503c6cf515b47aca6af2fe390af",
+      "bytes": 990
+    },
+    {
+      "path": "historical-f8-f9/qualification-reset.F8F9.historical.sql",
+      "sha256": "0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011",
+      "bytes": 4953
+    },
+    {
+      "path": "proposed-implementation/PROPOSED_DIFF_NOTES.md",
+      "sha256": "45f9b9f78dc05e2103d55852b70aa4df1b9524e0e074634aa7c82600fc01301d",
+      "bytes": 1263
+    },
+    {
+      "path": "proposed-procedure/PROPOSED_QUALIFICATION_RESET.sql",
+      "sha256": "1b8cc9c21a14f1016329f7b49681566d37841de8877b369c596f687e57d72ae1",
+      "bytes": 5923
+    }
+  ]
+}

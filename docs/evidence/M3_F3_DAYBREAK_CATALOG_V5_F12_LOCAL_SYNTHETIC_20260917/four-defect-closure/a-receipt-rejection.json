@@ -1,0 +1,20 @@
+{
+  "schema": "f3-f12-a-receipt-rejection-v1",
+  "rejection_ids": [
+    "F12-A02-REPLACE-A-BEFORE-RETRY-BLOCKS-RETRY",
+    "F12-A03-REPLACE-A-AFTER-RETRY-BLOCKS-B-AND-CONTINUATION",
+    "F12-A04-WELL-FORMED-RESEAL-FAILS-VS-ORIGINAL-RECEIPT"
+  ],
+  "present": {
+    "F12-A01": true,
+    "F12-A02": true,
+    "F12-A03": true,
+    "F12-A04": true,
+    "F12-A05": true
+  },
+  "call_counts_from_suite": {
+    "F12-A02": "retryCalls=0 continuationAuthorizationCalls=0",
+    "F12-A03": "retryCalls=1 checkpointBWritesVerified=0 continuationAuthorizationCalls=0",
+    "F12-A04": "well-formed reseal fails vs original receipt"
+  }
+}

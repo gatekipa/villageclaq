@@ -3206,6 +3206,24 @@ async function main() {
             }
             return processResult;
         };
+        const hostedRepairSafetyGate = async () => {
+          decided = await runRepairSafetyThenMaybeRepair({
+            gateInput,
+            frozenTarget: frozenTargetBuilt.target,
+            cleanup: hostedCleanup,
+            verifyPoisonAbsent: hostedVerifyPoisonAbsent,
+            deferRepair: true,
+          });
+          if (!decided.repairAuthorized) {
+            return {
+              ok: false,
+              repairAuthorized: false,
+              reason: decided.gate?.hold || REPAIR_SAFETY_HOLD,
+              decided,
+            };
+          }
+          return { ok: true, repairAuthorized: true, decided };
+        };
         const hostedActualRepair = async () => {
             const poisonQuery = await runDbQuery({
               bin: cli.bin,
@@ -3280,24 +3298,7 @@ async function main() {
           recorder,
           counters: runnerCounters,
           adapters: {
-            repairSafetyGate: async () => {
-              decided = await runRepairSafetyThenMaybeRepair({
-                gateInput,
-                frozenTarget: frozenTargetBuilt.target,
-                cleanup: hostedCleanup,
-                verifyPoisonAbsent: hostedVerifyPoisonAbsent,
-                deferRepair: true,
-              });
-              if (!decided.repairAuthorized) {
-                return {
-                  ok: false,
-                  repairAuthorized: false,
-                  reason: decided.gate?.hold || REPAIR_SAFETY_HOLD,
-                  decided,
-                };
-              }
-              return { ok: true, repairAuthorized: true, decided };
-            },
+            repairSafetyGate: hostedRepairSafetyGate,
             repairCommand: "supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
             repair: hostedActualRepair,
             postRepairVerify: async () => {

@@ -317,6 +317,7 @@ import {
   F10_CHECKPOINT_HOLD,
   GATE_CALLS_BOUNDARY,
   assertCheckpointAComplete,
+  assertCheckpointBComplete,
   assertFrozenMigrationIdentity,
   persistCheckpointA,
   persistCheckpointB,
@@ -7923,21 +7924,19 @@ test("F10 sanitized stdout/stderr/error survive encoding and durable reread", as
   const stderr = "warn:  role \"ubuntu\" does not exist\n";
   const error = "ERROR:  encoded-body-survives";
   const result = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
-    repairExtra: { stdout, stderr, error },
+    repairExtra: { stdout, stderr, error: null },
   }));
   assert.equal(result.ok, true);
   const stored = result.persistA.record.repairProcessResult;
   assert.equal(stored.stdout, stdout);
   assert.equal(stored.stderr, stderr);
-  assert.equal(stored.error, error);
   const reread = verifyPersistedCheckpointA(result.persistA.dest);
   assert.equal(reread.ok, true);
   assert.equal(reread.record.repairProcessResult.stdout, stdout);
   assert.equal(reread.record.repairProcessResult.stderr, stderr);
-  assert.equal(reread.record.repairProcessResult.error, error);
   const encoded = encodeSanitizedProcessResult({
     command: "cmd",
-    status: 0,
+    status: 1,
     stdout,
     stderr,
     error,
@@ -7945,6 +7944,9 @@ test("F10 sanitized stdout/stderr/error survive encoding and durable reread", as
     timeout: false,
   });
   assert.equal(isCompleteProcessResult(encoded), true);
+  assert.equal(encoded.error, error);
+  assert.equal(encoded.stdout, stdout);
+  assert.equal(encoded.stderr, stderr);
   fs.rmSync(dir, { recursive: true, force: true });
   console.log(JSON.stringify({ caseId: "F10-R01-BODIES-SURVIVE-ENCODING", result: "ok" }, null, 2));
 });

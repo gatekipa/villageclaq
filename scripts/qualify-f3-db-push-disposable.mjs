@@ -562,12 +562,24 @@ export function isCompleteProcessResult(result) {
     if (result.signal === undefined) return false;
   }
   if (result.timeout === undefined) return false;
-  if (result.status === 0) {
-    if (result.timeout === true) return false;
-    if (result.signal != null) return false;
-    if (result.error != null && String(result.error).trim() !== "") return false;
-  }
   return true;
+}
+
+export function assertProcessResultNotContradictorySuccess(result) {
+  if (!isCompleteProcessResult(result)) {
+    return { ok: false, reason: "incomplete process result" };
+  }
+  if (result.status !== 0) return { ok: true };
+  if (result.timeout === true) {
+    return { ok: false, reason: "contradictory success: status 0 with timeout" };
+  }
+  if (result.signal != null) {
+    return { ok: false, reason: "contradictory success: status 0 with termination signal" };
+  }
+  if (result.error != null && String(result.error).trim() !== "") {
+    return { ok: false, reason: "contradictory success: status 0 with process error" };
+  }
+  return { ok: true };
 }
 
 function eventTypesOf(events) {
@@ -949,6 +961,10 @@ export function assertCheckpointAComplete(record, expected = {}) {
   if (!isCompleteProcessResult(record.repairProcessResult)) {
     return fail("checkpoint A missing/incomplete sanitized repair command+process");
   }
+  const successA = assertProcessResultNotContradictorySuccess(record.repairProcessResult);
+  if (!successA.ok) {
+    return fail(successA.reason || "checkpoint A contradictory success");
+  }
   if (record.repairProcessResult.status !== 0) {
     return fail("failed repair cannot persist as Checkpoint A for retry");
   }
@@ -980,6 +996,10 @@ export function assertCheckpointBComplete(record, expected = {}) {
   if (!identity.ok) return identity;
   if (!isCompleteProcessResult(record.retryProcessResult)) {
     return fail("checkpoint B missing/incomplete sanitized retry command+process");
+  }
+  const successB = assertProcessResultNotContradictorySuccess(record.retryProcessResult);
+  if (!successB.ok) {
+    return fail(successB.reason || "checkpoint B contradictory success");
   }
   if (record.retryProcessResult.status !== 0) {
     return fail("failed retry cannot persist as Checkpoint B for continuation");

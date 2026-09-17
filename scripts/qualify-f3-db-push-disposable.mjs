@@ -43,6 +43,7 @@ import {
   MANAGEMENT_API_APPLY_DISQUALIFICATION,
   MANAGEMENT_API_APPLY_PERMANENTLY_DISQUALIFIED,
   MGMT_TOKEN_ENV,
+  PREASSIGNED_NAMES,
   PREASSIGNED_VERSIONS,
   PRODUCTION_REF,
   RECOGNITION_ALLOWLIST,
@@ -102,8 +103,27 @@ import {
   evaluatePreDbPushGates,
   resolveHostedFloorMode,
 } from "./lib/f3-db-push-stub-live-pin-floor.mjs";
-import { runGatedRemoteSqlText } from "./lib/f3-db-push-remote-sql-file.mjs";
-import { INVENTORY_CAPTURE_SQL } from "./lib/f3-db-push-inventory.mjs";
+import { GATED_PSQL_FILE_RENDERED, runGatedRemoteSqlText } from "./lib/f3-db-push-remote-sql-file.mjs";
+import {
+  FAILED_FLOOR_AUTH_TRIGGER,
+  FAILED_FLOOR_PUBLIC_FUNCTION_NAMES,
+  FAILED_FLOOR_PUBLIC_TABLES,
+  FAILED_FLOOR_PUBLIC_TYPES,
+  FAILED_FLOOR_STORAGE_BUCKETS,
+  FAILED_FLOOR_STORAGE_POLICY_NAMES,
+  INVENTORY_CAPTURE_SQL,
+  MANAGED_SCHEMAS,
+  classifyInventory,
+  isCleanBaseline,
+} from "./lib/f3-db-push-inventory.mjs";
+import {
+  WIPE_AUTHORITY,
+  WIPE_HOLD,
+  assertWipeDoesNotTouchProduction,
+  buildWipeSql,
+  planWipe,
+  proveCleanBaseline,
+} from "./lib/f3-db-push-wipe.mjs";
 import {
   hashOriginalStdout,
   inventoryFromQuery,
@@ -269,7 +289,7 @@ function parseFloorMode(argv) {
   return HOSTED_DEFAULT_FLOOR_MODE;
 }
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   return {
     prepFloor: argv.includes("--prep-floor"),
     sequenceF3: argv.includes("--sequence-f3"),
@@ -280,6 +300,279 @@ function parseArgs(argv) {
     evidenceOut: parseEvidenceOutArg(argv),
     sealFromLocalOracle: argv.includes("--seal-expected-from-local-oracle"),
   };
+}
+
+export const WIPE_TO_BASELINE_REJECTION_CODE = "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH";
+export const WIPE_TO_BASELINE_REJECTION_MESSAGE =
+  "HOLD: re-wipe is forbidden for this founder auth; disposable stays CLEAN";
+
+/** Unconditional rejection of --wipe-to-baseline. Do not enable or weaken. */
+export function evaluateWipeToBaselineArg(wipeToBaseline) {
+  if (wipeToBaseline === true) {
+    return {
+      ok: false,
+      rejected: true,
+      hold: true,
+      code: WIPE_TO_BASELINE_REJECTION_CODE,
+      reason: WIPE_TO_BASELINE_REJECTION_MESSAGE,
+    };
+  }
+  return { ok: true, rejected: false, hold: false };
+}
+
+export function assertWipeToBaselineRejected(args = {}) {
+  const evaluated = evaluateWipeToBaselineArg(args.wipeToBaseline === true);
+  if (!evaluated.ok) {
+    throw Object.assign(new Error(evaluated.reason), { code: evaluated.code });
+  }
+  return evaluated;
+}
+
+const F12_SUPPORTED_QUAL_ARGV = Object.freeze([
+  "--no-wipe",
+  "--prep-floor",
+  "--sequence-f3",
+  "--floor-mode=stub-live-pin",
+]);
+
+/**
+ * PROPOSED ONLY reset/qual procedure. Does not connect, wipe, or execute.
+ * --wipe-to-baseline remains unconditionally rejected.
+ */
+export function buildProposedConstrainedResetProcedure({
+  functionalTip = null,
+  closureDigest = null,
+} = {}) {
+  const wipeFlag = evaluateWipeToBaselineArg(true);
+  const supportedArgs = parseArgs([...F12_SUPPORTED_QUAL_ARGV]);
+  const supportedArgCheck = evaluateWipeToBaselineArg(supportedArgs.wipeToBaseline);
+  const historyPredicates = F12_HISTORY_VERSION_NAME_PREDICATES;
+  const cleanInventory = {
+    public_tables: [],
+    public_views: [],
+    public_types: [],
+    public_functions: [],
+    storage_policies: [],
+    storage_buckets: [],
+    unnest_uuid_shim: false,
+    auth_handle_new_user_trigger: false,
+    schema_migrations_present: true,
+    schema_migrations_rows: 0,
+    financial_private: false,
+    financial_core: false,
+    financial_ledger_epochs: false,
+    exchange_rates: false,
+  };
+  const cleanPlan = planWipe(cleanInventory);
+  const failedFloorInventory = {
+    ...cleanInventory,
+    public_tables: ["profiles"],
+    public_types: ["membership_role"],
+    public_functions: [{ name: "handle_new_user", identity: "public.handle_new_user()" }],
+    unnest_uuid_shim: true,
+  };
+  const eligiblePlan = planWipe(failedFloorInventory);
+  const eligibleSql = eligiblePlan.action === "WIPE" ? eligiblePlan.sql : buildWipeSql({
+    verdict: "WIPE_ELIGIBLE",
+    failedTables: ["profiles"],
+    failedTypes: ["membership_role"],
+    failedFunctions: ["handle_new_user"],
+    failedStoragePolicies: [],
+    unnestShim: true,
+    authTrigger: false,
+    ambiguous: [],
+  });
+  assertWipeDoesNotTouchProduction(eligibleSql.sql);
+  const historyHoldInventory = {
+    ...cleanInventory,
+    schema_migrations_rows: historyPredicates.length,
+    financial_private: true,
+    financial_core: true,
+    financial_ledger_epochs: true,
+  };
+  const historyHoldPlan = planWipe(historyHoldInventory);
+  const historyHold = historyHoldPlan.action === "HOLD";
+  return {
+    status: F12_PROPOSED_RESET_STATUS,
+    executed: false,
+    authorized: false,
+    noResetOccurred: true,
+    noServiceConnection: true,
+    transportsDisabled: true,
+    wipeToBaselineRejected: wipeFlag.rejected === true && wipeFlag.code === WIPE_TO_BASELINE_REJECTION_CODE,
+    wipeToBaselineRejectionPreserved: true,
+    supportedQualArgv: [...F12_SUPPORTED_QUAL_ARGV],
+    supportedQualArgs: {
+      noWipe: supportedArgs.noWipe === true,
+      prepFloor: supportedArgs.prepFloor === true,
+      sequenceF3: supportedArgs.sequenceF3 === true,
+      wipeToBaseline: supportedArgs.wipeToBaseline === false,
+      floorMode: supportedArgs.floorMode,
+    },
+    supportedArgWipeRejected: supportedArgCheck.ok === true,
+    functionalTip,
+    closureDigest,
+    cliPin: CLI_PIN,
+    target: {
+      accept: {
+        ref: APPROVED_DISPOSABLE_PROJECT_REF,
+        name: APPROVED_DISPOSABLE_PROJECT_NAME,
+        org: APPROVED_DISPOSABLE_ORG_ID,
+        host: APPROVED_DISPOSABLE_HOST,
+        poolerHost: APPROVED_DISPOSABLE_POOLER_HOST,
+        poolerPort: APPROVED_DISPOSABLE_POOLER_PORT,
+        poolerUser: APPROVED_DISPOSABLE_POOLER_USER,
+      },
+      reject: [PRODUCTION_REF, "any other ref/host/org", "transaction pooler :6543"],
+    },
+    entrypoints: {
+      inventoryRead: "supabase db query --db-url [REDACTED] --workdir [ISOLATED] --output-format json",
+      inventorySqlArtifact: "scripts/lib/f3-db-push-inventory.mjs INVENTORY_CAPTURE_SQL",
+      wipePlan: "scripts/lib/f3-db-push-wipe.mjs planWipe/buildWipeSql",
+      wipeApplyIfEligible: GATED_PSQL_FILE_RENDERED,
+      wipeApplyFlagForbidden: "--wipe-to-baseline",
+      qualify: "node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence-f3",
+      apply: "supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault",
+      repair: "supabase migration repair <FILENAME_VERSION> --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
+    },
+    affectedIfWipeEligible: {
+      schemasPreserved: [...MANAGED_SCHEMAS],
+      publicTables: [...FAILED_FLOOR_PUBLIC_TABLES],
+      publicTypes: [...FAILED_FLOOR_PUBLIC_TYPES],
+      publicFunctions: [...FAILED_FLOOR_PUBLIC_FUNCTION_NAMES],
+      storagePolicies: [...FAILED_FLOOR_STORAGE_POLICY_NAMES],
+      storageBucketsNeverDroppedViaWipe: [...FAILED_FLOOR_STORAGE_BUCKETS],
+      authTrigger: FAILED_FLOOR_AUTH_TRIGGER,
+      authority: WIPE_AUTHORITY,
+    },
+    historyPredicates: historyPredicates,
+    historyRowDeletionSpecified: false,
+    cleanBaselinePlan: {
+      action: cleanPlan.action,
+      needed: cleanPlan.sql?.needed === false,
+    },
+    wipeEligiblePlan: {
+      action: eligiblePlan.action,
+      sqlTouchesProduction: false,
+      sampleSqlSha256: sha256Utf8Qualify(eligibleSql.sql || ""),
+    },
+    remainingHold: historyHold
+      ? {
+        id: "F12-RESET-HOLD-HISTORY-OR-F3-OBJECTS",
+        hold: WIPE_HOLD,
+        reason: "Pinned wipe library HOLDs when schema_migrations_rows>0 or financial_* objects are present. No authorized DELETE FROM supabase_migrations.schema_migrations WHERE version/name IN (preassigned 20260913173000–005 / PREASSIGNED_NAMES) exists in pinned source. Do not invent that SQL. Do not use --wipe-to-baseline.",
+        predicatesThatWouldHold: historyPredicates,
+      }
+      : null,
+    commandsProposedOnly: [
+      "git rev-parse HEAD  # must equal bound functional tip",
+      "# DO NOT: node scripts/qualify-f3-db-push-disposable.mjs --wipe-to-baseline  → HOLD F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
+      "# 1) Read-only inventory via existing INVENTORY_CAPTURE_SQL + db query transport (placeholders only)",
+      "# 2) Offline classifyInventory / planWipe. CLEAN_BASELINE → no mutation. WIPE_ELIGIBLE → gated psql -f of buildWipeSql. HOLD → STOP.",
+      "# 3) proveCleanBaseline / evaluatePreStubFloorCleanCheck",
+      "node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence-f3 --evidence-out docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F12_LOCAL_SYNTHETIC_STAGING_20260917/local-synthetic/qualify-evidence/qualify-result.json",
+    ],
+    budget: {
+      constrainedResets: 1,
+      completeQualsFrom00118: 1,
+      secondReset: false,
+      silentPatch: false,
+      productionForbidden: true,
+    },
+  };
+}
+
+export function validateProposedResetProcedureOffline(procedure = buildProposedConstrainedResetProcedure()) {
+  const wipeRejected = evaluateWipeToBaselineArg(true);
+  if (!wipeRejected.rejected || wipeRejected.code !== WIPE_TO_BASELINE_REJECTION_CODE) {
+    return { ok: false, reason: "wipe-to-baseline rejection guard missing" };
+  }
+  const parsedWipe = parseArgs(["--wipe-to-baseline"]);
+  if (parsedWipe.wipeToBaseline !== true) {
+    return { ok: false, reason: "parseArgs must still recognize --wipe-to-baseline so it can be rejected" };
+  }
+  try {
+    assertWipeToBaselineRejected(parsedWipe);
+    return { ok: false, reason: "assertWipeToBaselineRejected must throw for --wipe-to-baseline" };
+  } catch (err) {
+    if (err.code !== WIPE_TO_BASELINE_REJECTION_CODE) {
+      return { ok: false, reason: `unexpected wipe rejection code ${err.code}` };
+    }
+  }
+  const parsedQual = parseArgs(["--no-wipe", "--prep-floor", "--sequence-f3"]);
+  if (!parsedQual.noWipe || !parsedQual.prepFloor || !parsedQual.sequenceF3 || parsedQual.wipeToBaseline) {
+    return { ok: false, reason: "supported qualify argv is not --no-wipe --prep-floor --sequence-f3" };
+  }
+  if (procedure.wipeToBaselineRejected !== true || procedure.executed !== false) {
+    return { ok: false, reason: "procedure must remain proposed-only with wipe flag rejected" };
+  }
+  if (procedure.historyRowDeletionSpecified === true) {
+    return { ok: false, reason: "do not invent schema_migrations DELETE" };
+  }
+  if (!procedure.remainingHold || !procedure.remainingHold.id) {
+    return { ok: false, reason: "history/F3 leftover HOLD must be disclosed" };
+  }
+  if (procedure.noResetOccurred !== true || procedure.noServiceConnection !== true) {
+    return { ok: false, reason: "offline validator must record that no reset or connection occurred" };
+  }
+  return {
+    ok: true,
+    noResetOccurred: true,
+    noServiceConnection: true,
+    transportsDisabled: true,
+    wipeToBaselineStillRejected: true,
+    procedureStatus: procedure.status,
+    remainingHold: procedure.remainingHold.id,
+  };
+}
+
+export function renderProposedConstrainedResetPlanMarkdown(procedure) {
+  const plan = procedure || buildProposedConstrainedResetProcedure();
+  return [
+    "# PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE",
+    "",
+    `**Status:** ${plan.status}`,
+    "**Audience:** Chief / Daybreak (evidence commit later). LOCAL_SYNTHETIC staging. Directory name does not imply hosted execution.",
+    "**This agent did not obtain credentials, probe disposable `jkorwnwwmdeflfntxntl`, contact production `llbnliixczcqfftxpsmb`, run a reset, or execute any part of this plan.**",
+    "",
+    "## Wipe flag (unchanged rejection)",
+    "",
+    `\`${plan.entrypoints.wipeApplyFlagForbidden}\` remains unconditionally rejected (\`${WIPE_TO_BASELINE_REJECTION_CODE}\`). Do not enable, weaken, or bypass.`,
+    "",
+    "## Bound identities (fill after functional freeze)",
+    "",
+    `- Functional tip: \`${plan.functionalTip || "BIND AFTER FUNCTIONAL COMMIT"}\``,
+    `- Closure digest: \`${plan.closureDigest || "RECOMPUTE FROM FINAL BYTES AFTER FUNCTIONAL COMMIT"}\``,
+    `- CLI pin: \`${plan.cliPin}\``,
+    `- History version/name predicates (not source-label timestamp keys):`,
+    ...plan.historyPredicates.map((row) => `  - \`${row.version}\` / \`${row.name}\` ← ${row.file}`),
+    "",
+    "## Supported procedure",
+    "",
+    "1. Confirm target is disposable identity above. Reject production immediately.",
+    "2. Read-only inventory via existing `INVENTORY_CAPTURE_SQL` + `supabase db query --output-format json` (placeholders only).",
+    "3. Offline `classifyInventory` / `planWipe`:",
+    "   - CLEAN_BASELINE → no mutation.",
+    "   - WIPE_ELIGIBLE → apply `buildWipeSql` via gated `psql -f` (NOT `--wipe-to-baseline`). Failed-floor catalogs only; managed schemas preserved; never drop `storage.buckets`.",
+    "   - HOLD (history rows > 0 or financial_* present) → STOP. See remaining HOLD below.",
+    "4. `proveCleanBaseline` / `evaluatePreStubFloorCleanCheck`.",
+    "5. Exactly one qualify: `node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence-f3`.",
+    "6. Apply/repair remain separate CLI 2.117.0 commands. Stop on first unexpected failure. No silent patch. No second reset.",
+    "",
+    "## Remaining HOLD",
+    "",
+    plan.remainingHold
+      ? `${plan.remainingHold.id}: ${plan.remainingHold.reason}`
+      : "none",
+    "",
+    "## Commands (placeholders — DO NOT EXECUTE)",
+    "",
+    "```bash",
+    ...plan.commandsProposedOnly,
+    "```",
+    "",
+    `Offline validation recorded: noResetOccurred=${plan.noResetOccurred} noServiceConnection=${plan.noServiceConnection}.`,
+  ].join("\n");
 }
 
 function collectPhaseFingerprint(file, queryResult, phase) {
@@ -461,7 +754,18 @@ export function expectedF10OrchestrationCounters(file) {
 
 export const F11_SHARED_ORCHESTRATION_ID = "runF10RepairRetryContinuation";
 export const F11_HOSTED_DELEGATES_TO_SHARED = true;
+export const F12_SHARED_ORCHESTRATION_ID = F11_SHARED_ORCHESTRATION_ID;
+export const F12_HOSTED_SUPPLIES_LIVE_REPAIR_ADAPTER = true;
+export const F12_COMPLETED_REPAIR_SHORTCUT_REMOVED = true;
 export const SANITIZED_PROCESS_ERROR_ENCODING = "sanitized-process-error-v1";
+export const F12_PROPOSED_RESET_STATUS = "PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE";
+export const F12_HISTORY_VERSION_NAME_PREDICATES = Object.freeze(
+  F3_FORWARD_FILES.map((file) => Object.freeze({
+    file,
+    version: PREASSIGNED_VERSIONS[file],
+    name: PREASSIGNED_NAMES[file],
+  })),
+);
 
 function sha256Utf8Qualify(text) {
   return createHash("sha256").update(String(text ?? ""), "utf8").digest("hex");
@@ -1024,14 +1328,65 @@ export function assertCheckpointBComplete(record, expected = {}) {
 }
 
 /**
+ * Immutable receipt captured at the first successful durable write+verification
+ * of Checkpoint A. Later rereads must compare against this identity — never
+ * adopt a replacement's newly calculated digest/length.
+ */
+export function captureOriginalCheckpointAReceipt(persistedA, identity = {}) {
+  if (!persistedA || persistedA.ok !== true || persistedA.verified !== true) {
+    return {
+      ok: false,
+      hold: F10_CHECKPOINT_HOLD,
+      reason: `${F10_CHECKPOINT_HOLD}: original Checkpoint A receipt requires a verified durable write`,
+    };
+  }
+  if (typeof persistedA.sha256 !== "string" || !/^[0-9a-f]{64}$/i.test(persistedA.sha256)) {
+    return {
+      ok: false,
+      hold: F10_CHECKPOINT_HOLD,
+      reason: `${F10_CHECKPOINT_HOLD}: original Checkpoint A receipt missing sha256`,
+    };
+  }
+  if (typeof persistedA.bytes !== "number" || persistedA.bytes <= 0) {
+    return {
+      ok: false,
+      hold: F10_CHECKPOINT_HOLD,
+      reason: `${F10_CHECKPOINT_HOLD}: original Checkpoint A receipt missing byte length`,
+    };
+  }
+  if (!persistedA.dest) {
+    return {
+      ok: false,
+      hold: F10_CHECKPOINT_HOLD,
+      reason: `${F10_CHECKPOINT_HOLD}: original Checkpoint A receipt missing location`,
+    };
+  }
+  const receipt = Object.freeze({
+    dest: persistedA.dest,
+    location: persistedA.dest,
+    sha256: persistedA.sha256,
+    bytes: persistedA.bytes,
+    identity: Object.freeze({
+      file: identity.file || persistedA.record?.migrationIdentity?.file || null,
+      version: identity.version || persistedA.record?.migrationIdentity?.version || null,
+      sourceLabel: identity.sourceLabel || persistedA.record?.migrationIdentity?.sourceLabel || null,
+    }),
+  });
+  return { ok: true, receipt };
+}
+
+/**
  * Checkpoint B must authenticate the actual reread Checkpoint A bytes for
- * this step. A caller-supplied persistA reference alone is insufficient.
+ * this step against the original verified receipt when supplied. A
+ * caller-supplied persistA reference alone is insufficient. A well-formed
+ * replacement that reseals to a new digest must still fail.
  */
 export function authenticateCheckpointBAgainstRereadA({
   recordB,
   destA,
   expectedFile = null,
   expectedVersion = null,
+  originalReceipt = null,
 } = {}) {
   const fail = (reason) => ({
     ok: false,
@@ -1045,7 +1400,14 @@ export function authenticateCheckpointBAgainstRereadA({
     version: expectedVersion,
   });
   if (!completeB.ok) return completeB;
-  const rereadA = verifyPersistedCheckpointA(destA || recordB?.checkpointA?.dest, null);
+  const expectedLink = originalReceipt
+    ? { dest: originalReceipt.dest, sha256: originalReceipt.sha256, bytes: originalReceipt.bytes }
+    : null;
+  const rereadA = verifyPersistedCheckpointA(
+    destA || recordB?.checkpointA?.dest,
+    expectedLink,
+    { file: expectedFile, version: expectedVersion },
+  );
   if (!rereadA.ok) {
     return fail("checkpoint B cannot authenticate nonexistent or unverified Checkpoint A");
   }
@@ -1058,13 +1420,21 @@ export function authenticateCheckpointBAgainstRereadA({
   if (rereadA.record?.checkpoint !== "A") {
     return fail("checkpoint B linked record is wrong phase");
   }
+  if (originalReceipt) {
+    if (rereadA.sha256 !== originalReceipt.sha256 || recordB.checkpointA.sha256 !== originalReceipt.sha256) {
+      return fail("checkpoint B / reread A digest does not match original verified Checkpoint A receipt");
+    }
+    if (rereadA.bytes !== originalReceipt.bytes || recordB.checkpointA.bytes !== originalReceipt.bytes) {
+      return fail("checkpoint B / reread A length does not match original verified Checkpoint A receipt");
+    }
+  }
   if (recordB.checkpointA.sha256 !== rereadA.sha256) {
     return fail("checkpoint B link digest does not match reread Checkpoint A");
   }
   if (recordB.checkpointA.bytes !== rereadA.bytes) {
     return fail("checkpoint B link length does not match reread Checkpoint A");
   }
-  return { ok: true, rereadA, recordB };
+  return { ok: true, rereadA, recordB, originalReceipt: originalReceipt || null };
 }
 
 export function persistF10Checkpoint({ dest, record, hooks = {}, assertComplete, expected = {} } = {}) {
@@ -1287,29 +1657,31 @@ export async function invokeRecordedOperation({
       status: 1,
       stdout: "",
       stderr: String(err?.message || err),
-      error: String(err?.message || err),
+      error: err,
       signal: null,
       timeout: false,
     };
   }
+  const errorForEncode = result?.error ?? thrown ?? null;
   const processResult = {
     commandIdentity: result?.commandIdentity ?? result?.command ?? commandIdentity,
     argv: result?.argv,
     status: result?.status ?? 1,
     stdout: result?.stdout ?? "",
     stderr: result?.stderr ?? "",
-    error: result?.error ?? (thrown ? String(thrown.message || thrown) : null),
+    error: errorForEncode,
     signal: result?.signal ?? null,
     timeout: result?.timeout === true,
   };
+  const encoded = encodeSanitizedProcessResult(processResult);
   recorder.record(`${eventPrefix}_completed`, {
     phase,
-    processResult,
+    processResult: encoded,
   });
   return {
     result,
     processResult,
-    encoded: encodeSanitizedProcessResult(processResult),
+    encoded,
     thrown,
     ok: thrown == null && processResult.status === 0,
     failed: thrown != null || processResult.status !== 0,
@@ -1387,7 +1759,6 @@ export async function runF10RepairRetryContinuation({
   onAfterRepairStarted = null,
   onAfterRetryStarted = null,
   onAfterContinuationStarted = null,
-  completedRepair = null,
 } = {}) {
   const runnerCounters = counters || createEmptyRunnerCounters();
   const eventRecorder = recorder || createRunnerEventRecorder({
@@ -1397,6 +1768,8 @@ export async function runF10RepairRetryContinuation({
   });
   const spies = {
     repairCalls: 0,
+    actualRepairCallbackEntered: 0,
+    repairSafetyGateCalls: 0,
     retryCalls: 0,
     continuationAuthorizationCalls: 0,
     continuationCalls: 0,
@@ -1436,50 +1809,38 @@ export async function runF10RepairRetryContinuation({
   const destPre = destPreContinuation
     || (destA ? path.join(path.dirname(path.resolve(destA)), `pre-continuation-${version}-${String(file).replace(/\.sql$/, "")}.json`) : null);
 
-  const repairFn = adapters.repair;
-  let repairOp;
-  if (completedRepair) {
-    const processResult = {
-      commandIdentity: completedRepair.commandIdentity
-        ?? completedRepair.command
-        ?? adapters.repairCommand
-        ?? "supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
-      argv: completedRepair.argv,
-      status: completedRepair.status ?? 1,
-      stdout: completedRepair.stdout ?? "",
-      stderr: completedRepair.stderr ?? "",
-      error: completedRepair.error ?? null,
-      signal: completedRepair.signal ?? null,
-      timeout: completedRepair.timeout === true,
-    };
-    repairOp = {
-      result: completedRepair,
-      processResult,
-      encoded: encodeSanitizedProcessResult(processResult),
-      thrown: null,
-      ok: processResult.status === 0,
-      failed: processResult.status !== 0,
-    };
-    spies.repairCalls += 1;
-  } else {
-    if (typeof repairFn !== "function") {
-      return fail(`${F10_CHECKPOINT_HOLD}: repair adapter missing`);
+  const gateFn = adapters.repairSafetyGate;
+  if (typeof gateFn === "function") {
+    spies.repairSafetyGateCalls += 1;
+    const gateResult = await Promise.resolve(gateFn());
+    if (!gateResult || gateResult.ok === false || gateResult.repairAuthorized === false) {
+      return fail(gateResult?.reason || `${F10_CHECKPOINT_HOLD}: repair-safety gate rejected`, {
+        allowRetry: false,
+        repairGate: gateResult,
+        spies,
+      });
     }
-    repairOp = await invokeRecordedOperation({
-      recorder: eventRecorder,
-      counters: runnerCounters,
-      counterKey: "repairCalls",
-      eventPrefix: "repair",
-      phase: "repair",
-      commandIdentity: adapters.repairCommand
-        || "supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
-      invoke: () => {
-        spies.repairCalls += 1;
-        return repairFn();
-      },
-      onAfterStarted: onAfterRepairStarted,
-    });
   }
+
+  const repairFn = adapters.repair;
+  if (typeof repairFn !== "function") {
+    return fail(`${F10_CHECKPOINT_HOLD}: repair adapter missing`);
+  }
+  const repairOp = await invokeRecordedOperation({
+    recorder: eventRecorder,
+    counters: runnerCounters,
+    counterKey: "repairCalls",
+    eventPrefix: "repair",
+    phase: "repair",
+    commandIdentity: adapters.repairCommand
+      || "supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
+    invoke: () => {
+      spies.actualRepairCallbackEntered += 1;
+      spies.repairCalls += 1;
+      return repairFn();
+    },
+    onAfterStarted: onAfterRepairStarted,
+  });
   if (!repairOp.ok) {
     return fail(
       `${F10_CHECKPOINT_HOLD}: failed repair blocks retry+continuation`,
@@ -1515,6 +1876,18 @@ export async function runF10RepairRetryContinuation({
   }
   spies.checkpointAWritesVerified += 1;
   runnerCounters.durableRecordWrites += 1;
+  const capturedReceipt = captureOriginalCheckpointAReceipt(persistedA, {
+    file,
+    version,
+    sourceLabel: migrationSourceLabel,
+  });
+  if (!capturedReceipt.ok) {
+    return fail(capturedReceipt.reason || `${F10_CHECKPOINT_HOLD}: original Checkpoint A receipt missing`, {
+      persistA: persistedA,
+      repairOp,
+    });
+  }
+  const originalAReceipt = capturedReceipt.receipt;
   eventRecorder.record("checkpoint_a_persisted", {
     phase: "checkpoint_a",
     process: {
@@ -1529,11 +1902,12 @@ export async function runF10RepairRetryContinuation({
     },
   });
 
-  const verifiedA = verifyPersistedCheckpointA(destA, null, expectedIdentity);
+  const verifiedA = verifyPersistedCheckpointA(destA, originalAReceipt, expectedIdentity);
   if (!verifiedA.ok) {
     return fail(verifiedA.reason || `${F10_CHECKPOINT_HOLD}: Checkpoint A reread failed before retry`, {
       persistA: persistedA,
       verifiedA,
+      originalAReceipt,
       repairOp,
     });
   }
@@ -1552,7 +1926,22 @@ export async function runF10RepairRetryContinuation({
       persistA: persistedA,
       repairOp,
       postRepair,
+      originalAReceipt,
     });
+  }
+
+  const rereadABeforeRetry = verifyPersistedCheckpointA(destA, originalAReceipt, expectedIdentity);
+  if (!rereadABeforeRetry.ok) {
+    return fail(
+      rereadABeforeRetry.reason || `${F10_CHECKPOINT_HOLD}: Checkpoint A replaced or unverified before retry`,
+      {
+        persistA: persistedA,
+        repairOp,
+        originalAReceipt,
+        rereadABeforeRetry,
+        allowRetry: false,
+      },
+    );
   }
 
   const retryFn = adapters.retry;
@@ -1576,29 +1965,36 @@ export async function runF10RepairRetryContinuation({
   if (!retryOp.ok) {
     return fail(
       `${F10_CHECKPOINT_HOLD}: failed retry blocks continuation`,
-      { allowRetry: true, persistA: persistedA, repairOp, retryOp },
+      { allowRetry: true, persistA: persistedA, repairOp, retryOp, originalAReceipt },
     );
   }
-  eventRecorder.record("post_retry_fingerprint_collected", { phase: "post_retry_fingerprint" });
 
   const postRetry = typeof adapters.postRetryVerify === "function"
     ? await Promise.resolve(adapters.postRetryVerify(retryOp))
-    : { ok: true };
-  if (postRetry?.ok === false) {
-    return fail(postRetry.reason || `${F10_CHECKPOINT_HOLD}: post-retry verification failed`, {
+    : { ok: true, collected: true };
+  const collectionPending = postRetry?.pending === true || postRetry?.collectionPending === true;
+  const collectionFailed = postRetry?.ok === false
+    || postRetry?.collected === false
+    || postRetry?.collectionFailed === true;
+  if (collectionPending || collectionFailed) {
+    return fail(postRetry?.reason || `${F10_CHECKPOINT_HOLD}: post-retry collection/verification failed`, {
       persistA: persistedA,
       repairOp,
       retryOp,
       postRetry,
+      originalAReceipt,
+      postRetryFingerprintCollected: false,
     });
   }
+  eventRecorder.record("post_retry_fingerprint_collected", { phase: "post_retry_fingerprint" });
 
-  const rereadAForB = verifyPersistedCheckpointA(destA, null, expectedIdentity);
+  const rereadAForB = verifyPersistedCheckpointA(destA, originalAReceipt, expectedIdentity);
   if (!rereadAForB.ok) {
-    return fail(rereadAForB.reason || `${F10_CHECKPOINT_HOLD}: Checkpoint A missing before Checkpoint B`, {
+    return fail(rereadAForB.reason || `${F10_CHECKPOINT_HOLD}: Checkpoint A missing or replaced before Checkpoint B`, {
       persistA: persistedA,
       repairOp,
       retryOp,
+      originalAReceipt,
     });
   }
   const countersBeforeB = {
@@ -1612,9 +2008,9 @@ export async function runF10RepairRetryContinuation({
     retryProcessResult: retryOp.processResult,
     postRetryProof: { ok: true, ...(postRetry || {}) },
     checkpointA: {
-      dest: rereadAForB.dest,
-      sha256: rereadAForB.sha256,
-      bytes: rereadAForB.bytes,
+      dest: originalAReceipt.dest,
+      sha256: originalAReceipt.sha256,
+      bytes: originalAReceipt.bytes,
     },
     eventStream: eventRecorder.snapshot(),
     runnerCounters,
@@ -1642,6 +2038,7 @@ export async function runF10RepairRetryContinuation({
     destA,
     expectedFile: file,
     expectedVersion: version,
+    originalReceipt: originalAReceipt,
   });
   if (!authB.ok) {
     return fail(authB.reason || `${F10_CHECKPOINT_HOLD}: Checkpoint B did not authenticate reread A`, {
@@ -1812,6 +2209,7 @@ export async function runF10RepairRetryContinuation({
     repairOp,
     retryOp,
     continuationResult,
+    originalAReceipt,
     expectedCounters: expectedF10OrchestrationCounters(file),
     sharedOrchestration: F11_SHARED_ORCHESTRATION_ID,
   };
@@ -2423,9 +2821,7 @@ async function main() {
     if (args.wipeToBaseline) {
       evidence.status = "HOLD";
       evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
-      throw Object.assign(new Error("HOLD: re-wipe is forbidden for this founder auth; disposable stays CLEAN"), {
-        code: "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
-      });
+      assertWipeToBaselineRejected(args);
     }
 
     const historyForClean = Array.isArray(historyRows) ? historyRows : [];
@@ -2716,10 +3112,8 @@ async function main() {
         runnerCounters.gateCalls += 1;
         evaluateRepairSafetyGate(gateInput);
         recordRunnerEvent("repair_gate_evaluated", { phase: "repair_gate" });
-        const decided = await runRepairSafetyThenMaybeRepair({
-          gateInput,
-          frozenTarget: frozenTargetBuilt.target,
-          cleanup: () => {
+        let decided = null;
+        const hostedCleanup = () => {
             runnerCounters.cleanupCalls += 1;
             recordRunnerEvent("cleanup_started", { phase: "cleanup" });
             const cleanupResult = runGatedRemoteSqlText(
@@ -2746,8 +3140,8 @@ async function main() {
               stderrBase64: encodedCleanup.stderrBase64,
             };
             return cleanupResult;
-          },
-          verifyPoisonAbsent: async () => {
+        };
+        const hostedVerifyPoisonAbsent = async () => {
             runnerCounters.poisonProbeCalls += 1;
             recordRunnerEvent("poison_probe_started", { phase: "poison_probe" });
             const poisonProbe = runIsolatedPoisonPsqlQuery({
@@ -2811,8 +3205,8 @@ async function main() {
               };
             }
             return processResult;
-          },
-          repair: async () => {
+        };
+        const hostedActualRepair = async () => {
             const poisonQuery = await runDbQuery({
               bin: cli.bin,
               workdir: isolated.workdir,
@@ -2849,174 +3243,14 @@ async function main() {
                 stderr: allowRepair.reason,
               };
             }
-            runnerCounters.repairCalls += 1;
-            recordRunnerEvent("repair_started", {
-              phase: "repair",
-              commandIdentity: "supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
-            });
             const repairResult = runFilenameVersionRepair({
               bin: cli.bin,
               version,
               workdir: isolated.workdir,
               help: repairHelp,
             });
-            recordRunnerEvent("repair_completed", {
-              phase: "repair",
-              processResult: repairResult,
-            });
             return repairResult;
-          },
-        });
-        const callbackOrder = [
-          decided.cleanupCalls > 0 ? "cleanup" : null,
-          decided.verifyCalls > 0 ? "verify" : null,
-          decided.repairCalls > 0 ? "repair" : null,
-        ].filter(Boolean);
-        authRecord.repairGate = {
-          ...(authRecord.repairGate || {}),
-          input: gateInput,
-          result: decided.gate,
-          counters: {
-            repairCalls: decided.repairCalls,
-            cleanupCalls: decided.cleanupCalls,
-            verifyCalls: decided.verifyCalls,
-            dbPushCalls: decided.dbPushCalls,
-            continuationCalls: decided.continuationCalls,
-          },
-          callbackOrder,
         };
-        authRecord.repair = {
-          attempted: decided.repairAttempted === true,
-          status: decided.repair?.status ?? null,
-          repairCalls: decided.repairCalls,
-          callbackOrder,
-        };
-        if (authRecord.hold) {
-          evidence.status = "HOLD";
-          evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
-          evidence.limitation = authRecord.hold.reason || REPAIR_AUTHORIZATION_HOLD;
-          evidence.repairAuthorizationRecords.push({
-            ...authRecord,
-            writtenBeforeNextMigration: false,
-          });
-          evidence.runnerEventStreams[file] = recorder.snapshot();
-          evidence.runnerCountersByFile[file] = { ...runnerCounters };
-          break;
-        }
-        if (fingerprintAfterPoisonCleanup == null && decided.cleanupProven) {
-          const poisonQuery = await runDbQuery({
-            bin: cli.bin,
-            workdir: isolated.workdir,
-            help: queryHelp,
-            sql: CATALOG_FINGERPRINT_SQL,
-          });
-          fingerprintAfterPoisonCleanup = finalizeFingerprintCapture(
-            collectPhaseFingerprint(
-              file,
-              poisonQuery,
-              FULL_FINGERPRINT_PHASES.AFTER_POISON_CLEANUP,
-            ),
-            { expected: expectedFingerprint, preRepairObserved: fingerprintObserved },
-          );
-        }
-        const step = {
-          file,
-          destName: timestampFilenameFor(file),
-          version,
-          digest: FROZEN_DIGESTS[file],
-          staged,
-          stagingPreflight,
-          inject: { status: inject.status },
-          push,
-          classification,
-          repairSafety: decided.gate,
-          objectsPresent,
-          historyAfterFail: rowsFromQuery(historyAfterFail),
-          fingerprintExpectedFrozen,
-          fingerprintAfterCommitFailedHistory,
-          fingerprintBeforeRepair: fingerprint,
-          fingerprintAfterPoisonCleanup,
-          poisonFingerprintEval,
-          repair: decided.repair,
-          repairAttempted: decided.repairAttempted,
-          continuation: decided.continuation,
-        };
-        const holdSequence = (limitation, extra = {}) => {
-          evidence.sequence.push({
-            ...step,
-            historyAfterRepair: extra.historyAfterRepair ?? null,
-            fingerprintAfterRepair: extra.fingerprintAfterRepair ?? null,
-            fingerprintAfterRetryNoPending: extra.fingerprintAfterRetryNoPending ?? null,
-            fingerprintAfterCleanContinuation: extra.fingerprintAfterCleanContinuation ?? null,
-            retry: extra.retry ?? null,
-            retryStaged: extra.retryStaged ?? null,
-            retryPreflight: extra.retryPreflight ?? null,
-            postRepairFingerprintEval: extra.postRepairFingerprintEval ?? null,
-            postRetryFingerprintEval: extra.postRetryFingerprintEval ?? null,
-            postContinuationFingerprintEval: extra.postContinuationFingerprintEval ?? null,
-          });
-          evidence.status = "HOLD";
-          evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
-          evidence.limitation = limitation;
-          evidence.originalSqlError = decided.gate.originalSqlError;
-        };
-        if (poisonFingerprintEval && !poisonFingerprintEval.ok) {
-          holdSequence(poisonFingerprintEval.hold || POST_POISON_FULL_FINGERPRINT_HOLD);
-          break;
-        }
-        if (!decided.repairAuthorized || decided.continuation === false) {
-          holdSequence(
-            decided.repairAuthorized
-              ? "HOLD: repair authorized but repair command failed after poison cleanup; no continuation"
-              : (decided.gate.hold || REPAIR_SAFETY_HOLD),
-          );
-          break;
-        }
-        const historyAfterRepair = await runDbQuery({
-          bin: cli.bin,
-          workdir: isolated.workdir,
-          help: queryHelp,
-          sql: READ_SCHEMA_MIGRATIONS_SQL,
-        });
-        const fingerprintAfterRepairQuery = await runDbQuery({
-          bin: cli.bin,
-          workdir: isolated.workdir,
-          help: queryHelp,
-          sql: CATALOG_FINGERPRINT_SQL,
-        });
-        const fingerprintAfterRepair = finalizeFingerprintCapture(
-          collectPhaseFingerprint(
-            file,
-            fingerprintAfterRepairQuery,
-            FULL_FINGERPRINT_PHASES.AFTER_SUCCESSFUL_REPAIR,
-          ),
-          { expected: expectedFingerprint, preRepairObserved: fingerprintObserved },
-        );
-        const postRepairFingerprintEval = evaluatePostRepairFullFingerprint({
-          file,
-          capture: fingerprintAfterRepair,
-          expected: expectedFingerprint,
-          preRepairObserved: fingerprintObserved,
-        });
-        const afterRepairInv = await runDbQuery({
-          bin: cli.bin,
-          workdir: isolated.workdir,
-          help: queryHelp,
-          sql: INVENTORY_CAPTURE_SQL,
-        });
-        evidence.inventories[INVENTORY_PHASES.AFTER_REPAIR][file] = labelInventoryCapture({
-          phase: INVENTORY_PHASES.AFTER_REPAIR,
-          file,
-          body: inventoryFromQuery(afterRepairInv.stdout),
-        });
-        if (!postRepairFingerprintEval.ok) {
-          holdSequence(postRepairFingerprintEval.hold || POST_REPAIR_FULL_FINGERPRINT_HOLD, {
-            historyAfterRepair: rowsFromQuery(historyAfterRepair),
-            fingerprintAfterRepair,
-            postRepairFingerprintEval,
-          });
-          break;
-        }
         const destA = f10CheckpointDestFor(args.evidenceOut, file, version, "a")
           || path.join(isolated.workdir, `f10-checkpoint-a-${version}-${String(file).replace(/\.sql$/, "")}.json`);
         const destB = f10CheckpointDestFor(args.evidenceOut, file, version, "b")
@@ -3027,6 +3261,9 @@ async function main() {
           retryStaged: null,
           retryPreflight: null,
           retry: null,
+          historyAfterRepair: null,
+          fingerprintAfterRepair: null,
+          postRepairFingerprintEval: null,
           fingerprintAfterRetryNoPending: null,
           postRetryFingerprintEval: null,
           fingerprintAfterCleanContinuation: null,
@@ -3042,12 +3279,71 @@ async function main() {
           migrationSourceLabel: "F3_FORWARD",
           recorder,
           counters: runnerCounters,
-          completedRepair: {
-            commandIdentity: "supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
-            ...(decided.repair || {}),
-          },
           adapters: {
+            repairSafetyGate: async () => {
+              decided = await runRepairSafetyThenMaybeRepair({
+                gateInput,
+                frozenTarget: frozenTargetBuilt.target,
+                cleanup: hostedCleanup,
+                verifyPoisonAbsent: hostedVerifyPoisonAbsent,
+                deferRepair: true,
+              });
+              if (!decided.repairAuthorized) {
+                return {
+                  ok: false,
+                  repairAuthorized: false,
+                  reason: decided.gate?.hold || REPAIR_SAFETY_HOLD,
+                  decided,
+                };
+              }
+              return { ok: true, repairAuthorized: true, decided };
+            },
+            repairCommand: "supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
+            repair: hostedActualRepair,
             postRepairVerify: async () => {
+              hostedStep.historyAfterRepair = await runDbQuery({
+                bin: cli.bin,
+                workdir: isolated.workdir,
+                help: queryHelp,
+                sql: READ_SCHEMA_MIGRATIONS_SQL,
+              });
+              const fingerprintAfterRepairQuery = await runDbQuery({
+                bin: cli.bin,
+                workdir: isolated.workdir,
+                help: queryHelp,
+                sql: CATALOG_FINGERPRINT_SQL,
+              });
+              hostedStep.fingerprintAfterRepair = finalizeFingerprintCapture(
+                collectPhaseFingerprint(
+                  file,
+                  fingerprintAfterRepairQuery,
+                  FULL_FINGERPRINT_PHASES.AFTER_SUCCESSFUL_REPAIR,
+                ),
+                { expected: expectedFingerprint, preRepairObserved: fingerprintObserved },
+              );
+              hostedStep.postRepairFingerprintEval = evaluatePostRepairFullFingerprint({
+                file,
+                capture: hostedStep.fingerprintAfterRepair,
+                expected: expectedFingerprint,
+                preRepairObserved: fingerprintObserved,
+              });
+              const afterRepairInv = await runDbQuery({
+                bin: cli.bin,
+                workdir: isolated.workdir,
+                help: queryHelp,
+                sql: INVENTORY_CAPTURE_SQL,
+              });
+              evidence.inventories[INVENTORY_PHASES.AFTER_REPAIR][file] = labelInventoryCapture({
+                phase: INVENTORY_PHASES.AFTER_REPAIR,
+                file,
+                body: inventoryFromQuery(afterRepairInv.stdout),
+              });
+              if (!hostedStep.postRepairFingerprintEval.ok) {
+                return {
+                  ok: false,
+                  reason: hostedStep.postRepairFingerprintEval.hold || POST_REPAIR_FULL_FINGERPRINT_HOLD,
+                };
+              }
               hostedStep.retryStaged = syncIsolatedMigrationsThrough(isolated, file);
               const historyBeforeRetry = await queryHistory();
               hostedStep.retryPreflight = assertPrefixCompleteSinglePendingStaging({
@@ -3092,7 +3388,7 @@ async function main() {
                 {
                   expected: expectedFingerprint,
                   preRepairObserved: fingerprintObserved,
-                  postRepairObserved: fingerprintAfterRepair.fingerprint,
+                  postRepairObserved: hostedStep.fingerprintAfterRepair?.fingerprint,
                 },
               );
               hostedStep.postRetryFingerprintEval = evaluatePostRetryFullFingerprint({
@@ -3100,7 +3396,7 @@ async function main() {
                 capture: hostedStep.fingerprintAfterRetryNoPending,
                 expected: expectedFingerprint,
                 preRepairObserved: fingerprintObserved,
-                postRepairObserved: fingerprintAfterRepair.fingerprint,
+                postRepairObserved: hostedStep.fingerprintAfterRepair?.fingerprint,
               });
               const afterRetryInv = await runDbQuery({
                 bin: cli.bin,
@@ -3142,10 +3438,10 @@ async function main() {
                 reason: isLastFile ? "last-file" : "pending-durable-authorize",
               };
               authRecord.postRepairFingerprint = {
-                sha256: fingerprintAfterRepair?.sha256 ?? null,
-                ok: postRepairFingerprintEval?.ok === true,
-                capture: fingerprintAfterRepair,
-                eval: postRepairFingerprintEval,
+                sha256: hostedStep.fingerprintAfterRepair?.sha256 ?? null,
+                ok: hostedStep.postRepairFingerprintEval?.ok === true,
+                capture: hostedStep.fingerprintAfterRepair,
+                eval: hostedStep.postRepairFingerprintEval,
               };
               authRecord.postRetryFingerprint = {
                 sha256: hostedStep.fingerprintAfterRetryNoPending?.sha256 ?? null,
@@ -3159,7 +3455,7 @@ async function main() {
                 migrationSourceLabel: "F3_FORWARD",
                 repairProcessResult: {
                   commandIdentity: "supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
-                  ...(decided.repair || {}),
+                  ...(orchestrated?.repairOp?.processResult || decided?.repair || {}),
                 },
                 retryProcessResult: {
                   commandIdentity: "supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault",
@@ -3183,11 +3479,11 @@ async function main() {
                   },
                   targetBinding: authRecord.targetBinding,
                   gateCounters: {
-                    repairCalls: decided.repairCalls,
-                    cleanupCalls: decided.cleanupCalls,
-                    verifyCalls: decided.verifyCalls,
-                    dbPushCalls: decided.dbPushCalls,
-                    continuationCalls: decided.continuationCalls,
+                    repairCalls: decided?.repairCalls ?? 0,
+                    cleanupCalls: decided?.cleanupCalls ?? 0,
+                    verifyCalls: decided?.verifyCalls ?? 0,
+                    dbPushCalls: decided?.dbPushCalls ?? 0,
+                    continuationCalls: decided?.continuationCalls ?? 0,
                   },
                   repairAuthorization: authRecord,
                 },
@@ -3224,7 +3520,7 @@ async function main() {
                 {
                   expected: expectedFingerprint,
                   preRepairObserved: fingerprintObserved,
-                  postRepairObserved: fingerprintAfterRepair.fingerprint,
+                  postRepairObserved: hostedStep.fingerprintAfterRepair?.fingerprint,
                 },
               );
               hostedStep.postContinuationFingerprintEval = evaluatePostContinuationFullFingerprint({
@@ -3232,7 +3528,7 @@ async function main() {
                 capture: hostedStep.fingerprintAfterCleanContinuation,
                 expected: expectedFingerprint,
                 preRepairObserved: fingerprintObserved,
-                postRepairObserved: fingerprintAfterRepair.fingerprint,
+                postRepairObserved: hostedStep.fingerprintAfterRepair?.fingerprint,
               });
               const afterContInv = await runDbQuery({
                 bin: cli.bin,
@@ -3256,6 +3552,97 @@ async function main() {
             },
           },
         });
+        const actualRepairResult = orchestrated.repairOp?.result || orchestrated.repairOp?.processResult || null;
+        if (decided) {
+          decided.repair = actualRepairResult;
+          decided.repairAttempted = (orchestrated.spies?.actualRepairCallbackEntered || 0) > 0
+            || (orchestrated.spies?.repairCalls || 0) > 0;
+          decided.repairCalls = orchestrated.spies?.actualRepairCallbackEntered
+            ?? orchestrated.spies?.repairCalls
+            ?? decided.repairCalls;
+          decided.continuation = orchestrated.ok === true;
+        }
+        const callbackOrder = [
+          (decided?.cleanupCalls || 0) > 0 ? "cleanup" : null,
+          (decided?.verifyCalls || 0) > 0 ? "verify" : null,
+          (decided?.repairCalls || 0) > 0 ? "repair" : null,
+        ].filter(Boolean);
+        authRecord.repairGate = {
+          ...(authRecord.repairGate || {}),
+          input: gateInput,
+          result: decided?.gate,
+          counters: {
+            repairCalls: decided?.repairCalls ?? 0,
+            cleanupCalls: decided?.cleanupCalls ?? 0,
+            verifyCalls: decided?.verifyCalls ?? 0,
+            dbPushCalls: decided?.dbPushCalls ?? 0,
+            continuationCalls: decided?.continuationCalls ?? 0,
+          },
+          callbackOrder,
+        };
+        authRecord.repair = {
+          attempted: decided?.repairAttempted === true,
+          status: actualRepairResult?.status ?? null,
+          repairCalls: decided?.repairCalls ?? 0,
+          callbackOrder,
+        };
+        if (fingerprintAfterPoisonCleanup == null && decided?.cleanupProven) {
+          const poisonQuery = await runDbQuery({
+            bin: cli.bin,
+            workdir: isolated.workdir,
+            help: queryHelp,
+            sql: CATALOG_FINGERPRINT_SQL,
+          });
+          fingerprintAfterPoisonCleanup = finalizeFingerprintCapture(
+            collectPhaseFingerprint(
+              file,
+              poisonQuery,
+              FULL_FINGERPRINT_PHASES.AFTER_POISON_CLEANUP,
+            ),
+            { expected: expectedFingerprint, preRepairObserved: fingerprintObserved },
+          );
+        }
+        const step = {
+          file,
+          destName: timestampFilenameFor(file),
+          version,
+          digest: FROZEN_DIGESTS[file],
+          staged,
+          stagingPreflight,
+          inject: { status: inject.status },
+          push,
+          classification,
+          repairSafety: decided?.gate,
+          objectsPresent,
+          historyAfterFail: rowsFromQuery(historyAfterFail),
+          fingerprintExpectedFrozen,
+          fingerprintAfterCommitFailedHistory,
+          fingerprintBeforeRepair: fingerprint,
+          fingerprintAfterPoisonCleanup,
+          poisonFingerprintEval,
+          repair: actualRepairResult,
+          repairAttempted: decided?.repairAttempted,
+          continuation: decided?.continuation,
+        };
+        const holdSequence = (limitation, extra = {}) => {
+          evidence.sequence.push({
+            ...step,
+            historyAfterRepair: extra.historyAfterRepair ?? null,
+            fingerprintAfterRepair: extra.fingerprintAfterRepair ?? null,
+            fingerprintAfterRetryNoPending: extra.fingerprintAfterRetryNoPending ?? null,
+            fingerprintAfterCleanContinuation: extra.fingerprintAfterCleanContinuation ?? null,
+            retry: extra.retry ?? null,
+            retryStaged: extra.retryStaged ?? null,
+            retryPreflight: extra.retryPreflight ?? null,
+            postRepairFingerprintEval: extra.postRepairFingerprintEval ?? null,
+            postRetryFingerprintEval: extra.postRetryFingerprintEval ?? null,
+            postContinuationFingerprintEval: extra.postContinuationFingerprintEval ?? null,
+          });
+          evidence.status = "HOLD";
+          evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+          evidence.limitation = limitation;
+          evidence.originalSqlError = decided?.gate?.originalSqlError;
+        };
         const persistA = orchestrated.persistA;
         const persistB = orchestrated.persistB;
         const persisted = orchestrated.persistPre;
@@ -3268,11 +3655,11 @@ async function main() {
         const postContinuationFingerprintEval = hostedStep.postContinuationFingerprintEval;
         if (!orchestrated.ok) {
           holdSequence(orchestrated.reason || F10_CHECKPOINT_HOLD, {
-            historyAfterRepair: rowsFromQuery(historyAfterRepair),
-            fingerprintAfterRepair,
+            historyAfterRepair: rowsFromQuery(hostedStep.historyAfterRepair),
+            fingerprintAfterRepair: hostedStep.fingerprintAfterRepair,
             fingerprintAfterRetryNoPending,
             fingerprintAfterCleanContinuation,
-            postRepairFingerprintEval,
+            postRepairFingerprintEval: hostedStep.postRepairFingerprintEval,
             postRetryFingerprintEval,
             postContinuationFingerprintEval,
             retryStaged,
@@ -3300,11 +3687,11 @@ async function main() {
         );
         evidence.sequence.push({
           ...step,
-          historyAfterRepair: rowsFromQuery(historyAfterRepair),
-          fingerprintAfterRepair,
+          historyAfterRepair: rowsFromQuery(hostedStep.historyAfterRepair),
+          fingerprintAfterRepair: hostedStep.fingerprintAfterRepair,
           fingerprintAfterRetryNoPending,
           fingerprintAfterCleanContinuation,
-          postRepairFingerprintEval,
+          postRepairFingerprintEval: hostedStep.postRepairFingerprintEval,
           postRetryFingerprintEval,
           postContinuationFingerprintEval,
           retryStaged,

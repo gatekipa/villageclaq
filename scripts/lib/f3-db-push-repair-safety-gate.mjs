@@ -9687,6 +9687,7 @@ export async function runRepairSafetyThenMaybeRepair({
   continuation: continuationFn,
   frozenTarget,
   frozenTargetResult,
+  deferRepair = false,
 } = {}) {
   const spies = {
     repairCalls: 0,
@@ -9774,12 +9775,17 @@ export async function runRepairSafetyThenMaybeRepair({
       && spies.usedFallbackParser !== true,
     );
     if (repairAllowed) {
-      if (typeof repair !== "function") {
-        throw new Error("HOLD: repair executor required after authorized gate");
+      if (deferRepair === true) {
+        // Authorized, but the actual repair callback is invoked only through
+        // shared orchestration (invokeRecordedOperation). Do not enter it here.
+      } else {
+        if (typeof repair !== "function") {
+          throw new Error("HOLD: repair executor required after authorized gate");
+        }
+        repairAttempted = true;
+        spies.repairCalls += 1;
+        repairResult = await invokeMaybeAsync(repair);
       }
-      repairAttempted = true;
-      spies.repairCalls += 1;
-      repairResult = await invokeMaybeAsync(repair);
     }
     const repairOk = !repairAttempted || (repairResult && repairResult.status === 0);
     if (repairAllowed && repairOk && typeof dbPush === "function") {
@@ -9854,6 +9860,7 @@ export async function runRepairSafetyThenMaybeRepair({
     usedFallbackParser: spies.usedFallbackParser,
     reconstructedPoisonObject: spies.reconstructedPoisonObject,
     rejectBeforeRepair,
+    repairDeferred: deferRepair === true,
   };
 }
 

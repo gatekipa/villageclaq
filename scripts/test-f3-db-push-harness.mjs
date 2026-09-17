@@ -285,6 +285,7 @@ import {
   preserveOriginalProcessStdout,
   evaluateExactPsqlStdoutFraming,
   evaluateOriginalProcessResultContract,
+  hashOriginalStdout,
   PSQL_POISON_STDOUT_FRAMING_CONTRACT,
 } from "./lib/f3-db-push-query-parse.mjs";
 import { runLocalPsqlPoisonProof } from "../docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_PSQL_POISON_REQUAL_20260916/psql-proof/psql-proof/run-local-psql-poison-proof.mjs";
@@ -332,6 +333,19 @@ import {
   runHostedF10RepairRetryContinuation,
   F11_SHARED_ORCHESTRATION_ID,
   F11_HOSTED_DELEGATES_TO_SHARED,
+  F12_SHARED_ORCHESTRATION_ID,
+  F12_HOSTED_SUPPLIES_LIVE_REPAIR_ADAPTER,
+  F12_COMPLETED_REPAIR_SHORTCUT_REMOVED,
+  F12_PROPOSED_RESET_STATUS,
+  F12_HISTORY_VERSION_NAME_PREDICATES,
+  captureOriginalCheckpointAReceipt,
+  parseArgs,
+  evaluateWipeToBaselineArg,
+  assertWipeToBaselineRejected,
+  WIPE_TO_BASELINE_REJECTION_CODE,
+  buildProposedConstrainedResetProcedure,
+  validateProposedResetProcedureOffline,
+  renderProposedConstrainedResetPlanMarkdown,
 } from "./qualify-f3-db-push-disposable.mjs";
 import { BOOTSTRAP_WITH_LOCAL_SHIM } from "./_f3_apply_current_main_floor.mjs";
 import {
@@ -7639,6 +7653,7 @@ function f10AdapterArgs(dir, extra = {}) {
     destA: extra.destA || path.join(dir, `f10-a-${file.replace(/\.sql$/, "")}.json`),
     destB: extra.destB || path.join(dir, `f10-b-${file.replace(/\.sql$/, "")}.json`),
     adapters: {
+      repairSafetyGate: extra.repairSafetyGate,
       repair: extra.repair || (() => f10Process(
         "supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
         extra.repairStatus ?? 0,
@@ -7649,6 +7664,7 @@ function f10AdapterArgs(dir, extra = {}) {
         extra.retryStatus ?? 0,
         extra.retryExtra || {},
       )),
+      postRepairVerify: extra.postRepairVerify,
       postRetryVerify: extra.postRetryVerify || (() => ({ ok: true })),
       continuation: extra.continuation || (() => ({ ok: true })),
       ...extra.adapterOverrides,
@@ -8040,6 +8056,9 @@ test("F11 hosted main delegates to the same shared orchestration tests spy", asy
   assert.match(mainSrc, /runHostedF10RepairRetryContinuation\(/);
   assert.doesNotMatch(mainSrc, /persistCheckpointA\(/);
   assert.doesNotMatch(mainSrc, /persistCheckpointB\(/);
+  assert.doesNotMatch(mainSrc, /completedRepair:/);
+  assert.match(mainSrc, /repairSafetyGate:/);
+  assert.match(mainSrc, /hostedActualRepair/);
   records.push({ caseId: "F11-O01-HOSTED-MAIN-DELEGATES-TO-SHARED-ORCHESTRATION", result: "ok" });
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f11-orch-"));
@@ -8389,5 +8408,369 @@ test("F11 closure recomputes complete runtime inputs and authoritative outer met
     f11ClosureFileCount: recursive.files.length,
     f11ClosureDigest: recursive.closure_sha256,
     f11ClosureFiles: recursive.files,
+  }, null, 2));
+});
+
+function writeWellFormedReplacementA(dest, file, version, stdout = "REPLACEMENT-A-RESEALED\n") {
+  return persistCheckpointA({
+    dest,
+    expected: { file, version },
+    record: buildCheckpointARecord({
+      file,
+      version,
+      repairProcessResult: encodeSanitizedProcessResult(f10Process("repair", 0, { stdout })),
+    }),
+  });
+}
+
+test("F12 actual repair adapter runs through shared orchestration; gate reject blocks callback", async () => {
+  const records = [];
+  const qualifySrc = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
+  const mainMatch = qualifySrc.match(/async function main\([\s\S]*$/);
+  const mainSrc = mainMatch ? mainMatch[0] : "";
+  assert.equal(F12_HOSTED_SUPPLIES_LIVE_REPAIR_ADAPTER, true);
+  assert.equal(F12_COMPLETED_REPAIR_SHORTCUT_REMOVED, true);
+  assert.equal(F12_SHARED_ORCHESTRATION_ID, F11_SHARED_ORCHESTRATION_ID);
+  assert.doesNotMatch(qualifySrc, /if \(completedRepair\)/);
+  assert.match(mainSrc, /repairSafetyGate:/);
+  assert.match(mainSrc, /repair: hostedActualRepair/);
+  records.push({ caseId: "F12-R01-HOSTED-SUPPLIES-LIVE-REPAIR-ADAPTER", result: "ok" });
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f12-repair-"));
+  let repairEntered = 0;
+  let pendingRepair = null;
+  const happy = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    repair: () => {
+      repairEntered += 1;
+      return f10Process(
+        "supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
+        0,
+      );
+    },
+    onAfterRepairStarted: ({ events }) => {
+      pendingRepair = {
+        started: events.some((event) => event.event_type === "repair_started"),
+        completed: events.some((event) => event.event_type === "repair_completed"),
+      };
+    },
+  }));
+  assert.equal(happy.ok, true);
+  assert.equal(repairEntered, 1);
+  assert.equal(happy.spies.actualRepairCallbackEntered, 1);
+  assert.equal(happy.spies.repairCalls, 1);
+  assert.equal(pendingRepair.started, true);
+  assert.equal(pendingRepair.completed, false);
+  const started = happy.events.findIndex((event) => event.event_type === "repair_started");
+  const completed = happy.events.findIndex((event) => event.event_type === "repair_completed");
+  assert.ok(started >= 0 && completed > started);
+  records.push({ caseId: "F12-R02-REPAIR-ADAPTER-INVOKED-THROUGH-SHARED", result: "ok" });
+  records.push({ caseId: "F12-R03-STARTED-BEFORE-REAL-INVOKE", result: "ok" });
+  records.push({ caseId: "F12-R04-COMPLETION-AFTER-AWAIT", result: "ok" });
+
+  let rejectedEntered = 0;
+  const rejected = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "gate-a.json"),
+    destB: path.join(dir, "gate-b.json"),
+    destPreContinuation: path.join(dir, "gate-pre.json"),
+    repairSafetyGate: () => ({
+      ok: false,
+      repairAuthorized: false,
+      reason: "injected gate rejection",
+    }),
+    repair: () => {
+      rejectedEntered += 1;
+      return f10Process("repair", 0);
+    },
+  }));
+  assert.equal(rejected.ok, false);
+  assert.equal(rejectedEntered, 0);
+  assert.equal(rejected.spies.actualRepairCallbackEntered, 0);
+  assert.equal(rejected.spies.repairCalls, 0);
+  assert.equal(rejected.spies.repairSafetyGateCalls, 1);
+  assert.equal(rejected.spies.retryCalls, 0);
+  records.push({ caseId: "F12-R05-GATE-REJECTION-PREVENTS-ACTUAL-REPAIR", result: "rejected" });
+
+  const pendingCollect = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "pend-a.json"),
+    destB: path.join(dir, "pend-b.json"),
+    postRetryVerify: () => ({ ok: true, pending: true, collected: false }),
+  }));
+  assert.equal(pendingCollect.ok, false);
+  assert.equal(pendingCollect.events.some((event) => event.event_type === "post_retry_fingerprint_collected"), false);
+  assert.equal(pendingCollect.spies.checkpointBWritesVerified, 0);
+  assert.equal(pendingCollect.spies.continuationAuthorizationCalls, 0);
+  records.push({ caseId: "F12-R06-PENDING-COLLECTION-NO-PREMATURE-EVENT", result: "rejected" });
+
+  const failedCollect = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "failc-a.json"),
+    destB: path.join(dir, "failc-b.json"),
+    postRetryVerify: () => ({ ok: false, collectionFailed: true, reason: "injected collection failure" }),
+  }));
+  assert.equal(failedCollect.ok, false);
+  assert.equal(failedCollect.events.some((event) => event.event_type === "post_retry_fingerprint_collected"), false);
+  assert.equal(failedCollect.spies.checkpointBWritesVerified, 0);
+  assert.equal(failedCollect.spies.continuationAuthorizationCalls, 0);
+  records.push({ caseId: "F12-R07-COLLECTION-FAILURE-BLOCKS-CHECKPOINT-AND-CONTINUATION", result: "rejected" });
+
+  const happyCollect = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "okc-a.json"),
+    destB: path.join(dir, "okc-b.json"),
+    destPreContinuation: path.join(dir, "okc-pre.json"),
+  }));
+  const collectedAt = happyCollect.events.findIndex((event) => event.event_type === "post_retry_fingerprint_collected");
+  const retryDone = happyCollect.events.findIndex((event) => event.event_type === "retry_completed");
+  const bPersisted = happyCollect.events.findIndex((event) => event.event_type === "checkpoint_b_persisted");
+  assert.ok(collectedAt > retryDone);
+  assert.ok(bPersisted > collectedAt);
+  records.push({ caseId: "F12-R08-COLLECTION-EVENT-AFTER-SUCCESSFUL-POST-RETRY", result: "ok" });
+
+  fs.rmSync(dir, { recursive: true, force: true });
+  console.log(JSON.stringify({ publishedF12RepairOrchestration: records }, null, 2));
+});
+
+test("F12 original Checkpoint A receipt rejects well-formed replacement", async () => {
+  const records = [];
+  const rejectIds = [];
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f12-receipt-"));
+  const version = PREASSIGNED_VERSIONS[FILE118];
+
+  const happy = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "orig-a.json"),
+    destB: path.join(dir, "orig-b.json"),
+  }));
+  assert.equal(happy.ok, true);
+  assert.equal(happy.originalAReceipt.sha256, happy.persistA.sha256);
+  assert.equal(happy.originalAReceipt.bytes, happy.persistA.bytes);
+  assert.equal(happy.persistB.record.checkpointA.sha256, happy.originalAReceipt.sha256);
+  records.push({ caseId: "F12-A01-ORIGINAL-RECEIPT-CAPTURED-FROM-VERIFIED-WRITE", result: "ok" });
+
+  const beforeRetry = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "repl-before-a.json"),
+    destB: path.join(dir, "repl-before-b.json"),
+    destPreContinuation: path.join(dir, "repl-before-pre.json"),
+    postRepairVerify: () => {
+      const replaced = writeWellFormedReplacementA(
+        path.join(dir, "repl-before-a.json"),
+        FILE118,
+        version,
+      );
+      assert.equal(replaced.ok, true);
+      assert.notEqual(replaced.sha256, happy.persistA.sha256);
+      return { ok: true };
+    },
+  }));
+  assert.equal(beforeRetry.ok, false);
+  assert.equal(beforeRetry.spies.retryCalls, 0);
+  assert.equal(beforeRetry.spies.continuationAuthorizationCalls, 0);
+  assert.equal(beforeRetry.originalAReceipt.sha256 !== beforeRetry.persistA?.sha256
+    || verifyPersistedCheckpointA(path.join(dir, "repl-before-a.json"), beforeRetry.originalAReceipt).ok === false, true);
+  rejectIds.push("F12-A02-REPLACE-A-BEFORE-RETRY-BLOCKS-RETRY");
+  records.push({
+    caseId: "F12-A02-REPLACE-A-BEFORE-RETRY-BLOCKS-RETRY",
+    result: "rejected",
+    retryCalls: beforeRetry.spies.retryCalls,
+    continuationAuthorizationCalls: beforeRetry.spies.continuationAuthorizationCalls,
+  });
+
+  const afterRetry = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "repl-after-a.json"),
+    destB: path.join(dir, "repl-after-b.json"),
+    destPreContinuation: path.join(dir, "repl-after-pre.json"),
+    postRetryVerify: () => {
+      const replaced = writeWellFormedReplacementA(
+        path.join(dir, "repl-after-a.json"),
+        FILE118,
+        version,
+        "REPLACEMENT-AFTER-RETRY\n",
+      );
+      assert.equal(replaced.ok, true);
+      return { ok: true, collected: true };
+    },
+  }));
+  assert.equal(afterRetry.ok, false);
+  assert.equal(afterRetry.spies.retryCalls, 1);
+  assert.equal(afterRetry.spies.checkpointBWritesVerified, 0);
+  assert.equal(afterRetry.spies.continuationAuthorizationCalls, 0);
+  rejectIds.push("F12-A03-REPLACE-A-AFTER-RETRY-BLOCKS-B-AND-CONTINUATION");
+  records.push({
+    caseId: "F12-A03-REPLACE-A-AFTER-RETRY-BLOCKS-B-AND-CONTINUATION",
+    result: "rejected",
+    retryCalls: afterRetry.spies.retryCalls,
+    checkpointBWritesVerified: afterRetry.spies.checkpointBWritesVerified,
+    continuationAuthorizationCalls: afterRetry.spies.continuationAuthorizationCalls,
+  });
+
+  const reseal = writeWellFormedReplacementA(path.join(dir, "reseal-a.json"), FILE118, version, "RESEAL\n");
+  const authReseal = authenticateCheckpointBAgainstRereadA({
+    recordB: {
+      ...happy.persistB.record,
+      checkpointA: { dest: reseal.dest, sha256: reseal.sha256, bytes: reseal.bytes },
+    },
+    destA: reseal.dest,
+    expectedFile: FILE118,
+    expectedVersion: version,
+    originalReceipt: happy.originalAReceipt,
+  });
+  assert.equal(authReseal.ok, false);
+  rejectIds.push("F12-A04-WELL-FORMED-RESEAL-FAILS-VS-ORIGINAL-RECEIPT");
+  records.push({ caseId: "F12-A04-WELL-FORMED-RESEAL-FAILS-VS-ORIGINAL-RECEIPT", result: "rejected" });
+
+  const captured = captureOriginalCheckpointAReceipt(happy.persistA, {
+    file: FILE118,
+    version,
+  });
+  assert.equal(captured.ok, true);
+  assert.equal(Object.isFrozen(captured.receipt), true);
+  records.push({ caseId: "F12-A05-RECEIPT-IS-IMMUTABLE", result: "ok" });
+
+  fs.rmSync(dir, { recursive: true, force: true });
+  console.log(JSON.stringify({
+    publishedF12CheckpointAReceipt: records,
+    aReplacementRejectionIds: rejectIds,
+    aReplacementCallCounts: {
+      beforeRetry: { retryCalls: beforeRetry.spies.retryCalls, continuationAuthorizationCalls: 0 },
+      afterRetry: {
+        retryCalls: afterRetry.spies.retryCalls,
+        checkpointBWritesVerified: afterRetry.spies.checkpointBWritesVerified,
+        continuationAuthorizationCalls: afterRetry.spies.continuationAuthorizationCalls,
+      },
+    },
+  }, null, 2));
+});
+
+test("F12 caught Error through shared orchestration preserves code/syscall", async () => {
+  const records = [];
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f12-catch-"));
+  const thrown = new Error("EACCES: permission denied, spawn psql");
+  thrown.code = "EACCES";
+  thrown.syscall = "spawn psql";
+  const failed = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "catch-a.json"),
+    destB: path.join(dir, "catch-b.json"),
+    destPreContinuation: path.join(dir, "catch-pre.json"),
+    repair: () => {
+      throw thrown;
+    },
+  }));
+  assert.equal(failed.ok, false);
+  assert.equal(failed.spies.retryCalls, 0);
+  assert.equal(failed.spies.continuationAuthorizationCalls, 0);
+  const encoded = failed.repairOp.encoded;
+  assert.notEqual(encoded.error, "[object Object]");
+  assert.equal(encoded.errorStructured.encoding, SANITIZED_PROCESS_ERROR_ENCODING);
+  assert.equal(encoded.errorStructured.code, "EACCES");
+  assert.equal(encoded.errorStructured.syscall, "spawn psql");
+  assert.match(encoded.errorStructured.message, /permission denied/);
+  assert.match(encoded.error, /EACCES/);
+  assert.match(encoded.error, /spawn psql/);
+  const hashed = hashOriginalStdout(encoded.error ?? "");
+  assert.equal(encoded.errorSha256, hashed.sha256);
+  assert.equal(encoded.errorByteLength, hashed.byteLength);
+  assert.equal(isCompleteProcessResult(encoded), true);
+  records.push({ caseId: "F12-E01-CAUGHT-ERROR-RETAINS-CODE-SYSCALL", result: "rejected" });
+  records.push({ caseId: "F12-E02-ERROR-BODY-HASH-LENGTH-MATCH", result: "ok" });
+  records.push({ caseId: "F12-E03-CAUGHT-ERROR-BLOCKS-RETRY-CONTINUATION", result: "rejected" });
+  fs.rmSync(dir, { recursive: true, force: true });
+  console.log(JSON.stringify({ publishedF12CaughtException: records, encodedError: encoded.errorStructured }, null, 2));
+});
+
+test("F12 persistence-counter matrix remains 21 cases (7A+7B+7Pre)", async () => {
+  const records = [];
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f12-persist-21-"));
+  const hooks = ["failWrite", "failFsync", "failClose", "failRename", "failReread", "failLength", "failDigest"];
+  let i = 1;
+  for (const hook of hooks) {
+    const result = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+      destA: path.join(dir, `a-${hook}.json`),
+      destB: path.join(dir, `a-${hook}-b.json`),
+      persistHooksA: { [hook]: true },
+    }));
+    assert.equal(result.ok, false, hook);
+    assert.equal(result.spies.retryCalls, 0, hook);
+    records.push({
+      caseId: `F12-P${String(i).padStart(2, "0")}-A-${hook.toUpperCase()}`,
+      result: "rejected",
+      retryCalls: result.spies.retryCalls,
+    });
+    i += 1;
+  }
+  for (const hook of hooks) {
+    const result = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+      destA: path.join(dir, `b-${hook}-a.json`),
+      destB: path.join(dir, `b-${hook}.json`),
+      persistHooksB: { [hook]: true },
+    }));
+    assert.equal(result.ok, false, hook);
+    assert.equal(result.spies.retryCalls, 1, hook);
+    assert.equal(result.spies.continuationAuthorizationCalls, 0, hook);
+    records.push({
+      caseId: `F12-P${String(i).padStart(2, "0")}-B-${hook.toUpperCase()}`,
+      result: "rejected",
+      continuationAuthorizationCalls: 0,
+    });
+    i += 1;
+  }
+  for (const hook of hooks) {
+    const result = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+      destA: path.join(dir, `pre-${hook}-a.json`),
+      destB: path.join(dir, `pre-${hook}-b.json`),
+      destPreContinuation: path.join(dir, `pre-${hook}.json`),
+      persistHooksPre: { [hook]: true },
+    }));
+    assert.equal(result.ok, false, hook);
+    assert.equal(result.spies.checkpointAWritesVerified, 1, hook);
+    assert.equal(result.spies.checkpointBWritesVerified, 1, hook);
+    assert.equal(result.spies.preContinuationWritesVerified, 0, hook);
+    assert.equal(result.spies.continuationAuthorizationCalls, 0, hook);
+    records.push({
+      caseId: `F12-P${String(i).padStart(2, "0")}-PRE-${hook.toUpperCase()}`,
+      result: "rejected",
+      continuationAuthorizationCalls: 0,
+    });
+    i += 1;
+  }
+  assert.equal(records.length, 21);
+  fs.rmSync(dir, { recursive: true, force: true });
+  console.log(JSON.stringify({ publishedF12Persistence21: records, persistenceFailureCases: 21 }, null, 2));
+});
+
+test("F12 proposed reset procedure rejects wipe-to-baseline and stays offline", () => {
+  const records = [];
+  const parsedWipe = parseArgs(["--wipe-to-baseline"]);
+  assert.equal(parsedWipe.wipeToBaseline, true);
+  const rejected = evaluateWipeToBaselineArg(true);
+  assert.equal(rejected.rejected, true);
+  assert.equal(rejected.code, WIPE_TO_BASELINE_REJECTION_CODE);
+  assert.throws(() => assertWipeToBaselineRejected(parsedWipe), (err) => (
+    err.code === WIPE_TO_BASELINE_REJECTION_CODE
+  ));
+  records.push({ caseId: "F12-Z01-WIPE-TO-BASELINE-STILL-REJECTED", result: "rejected" });
+
+  const procedure = buildProposedConstrainedResetProcedure();
+  assert.equal(procedure.status, F12_PROPOSED_RESET_STATUS);
+  assert.equal(procedure.executed, false);
+  assert.equal(procedure.noResetOccurred, true);
+  assert.equal(procedure.noServiceConnection, true);
+  assert.equal(procedure.historyRowDeletionSpecified, false);
+  assert.equal(F12_HISTORY_VERSION_NAME_PREDICATES[0].version, "20260913173000");
+  assert.equal(F12_HISTORY_VERSION_NAME_PREDICATES[0].name, "f3_bounded_financial_epoch_foundation");
+  assert.equal(F12_HISTORY_VERSION_NAME_PREDICATES[5].version, "20260913173005");
+  assert.notEqual(F12_HISTORY_VERSION_NAME_PREDICATES[0].version, FILE118);
+  const validated = validateProposedResetProcedureOffline(procedure);
+  assert.equal(validated.ok, true);
+  assert.equal(validated.noResetOccurred, true);
+  assert.equal(validated.wipeToBaselineStillRejected, true);
+  records.push({ caseId: "F12-Z02-OFFLINE-RESET-PROCEDURE-VALIDATED", result: "ok" });
+  records.push({ caseId: "F12-Z03-HISTORY-F3-HOLD-DISCLOSED", result: "ok", hold: procedure.remainingHold.id });
+  const markdown = renderProposedConstrainedResetPlanMarkdown(procedure);
+  assert.match(markdown, /PROPOSED ONLY/);
+  assert.match(markdown, /DO NOT EXECUTE/);
+  assert.doesNotMatch(markdown, /--wipe-to-baseline \\\n/);
+  records.push({ caseId: "F12-Z04-PLAN-MARKDOWN-PROPOSED-ONLY", result: "ok" });
+  console.log(JSON.stringify({
+    publishedF12ResetPlan: records,
+    remainingHold: procedure.remainingHold,
+    noResetOccurred: true,
+    noServiceConnection: true,
   }, null, 2));
 });

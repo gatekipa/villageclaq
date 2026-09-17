@@ -1,0 +1,9 @@
+
+{"schema":"f15-qualification-reset-tx-observation-v1","phase":"T1_BEGIN","event":"began"}
+{"schema":"f15-qualification-reset-tx-observation-v1","phase":"T2_LOCK","event":"locked"}
+{"schema":"f15-qualification-reset-tx-observation-v1","phase":"T3_REVALIDATE","event":"revalidated"}
+{"schema":"f15-qualification-reset-tx-observation-v1","phase":"T4_MUTATE","event":"mutate_attempted"}
+{"schema":"f15-qualification-reset-tx-observation-v1","phase":"T5_AFFECTED","event":"affected_checked"}
+{"schema":"f15-qualification-reset-tx-observation-v1","phase":"T6_FINAL","event":"final_ok"}
+{"schema":"f15-qualification-reset-tx-observation-v1","phase":"T7_COMMIT","event":"commit_attempted"}
+{"schema":"f15-qualification-reset-tx-observation-v1","phase":"T7_COMMIT","event":"committed","committed":true}

@@ -1,0 +1,27 @@
+{
+  "parent": "437f27c2721bf7710746468a2cef9a52e1c4651a",
+  "tip": "a4fa0832420d46f6cdd73b8f5e2ab381029dd2e1",
+  "changed": [
+    "scripts/lib/f3-db-push-inventory.mjs",
+    "scripts/lib/f3-db-push-qualification-reset-design.mjs",
+    "scripts/lib/f3-db-push-qualification-reset.mjs",
+    "scripts/prove-f3-qualification-reset-local.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs",
+    "scripts/test-f3-qualification-reset-design.mjs",
+    "scripts/test-f3-qualification-reset.mjs"
+  ],
+  "authorized": [
+    "scripts/lib/f3-db-push-inventory.mjs",
+    "scripts/lib/f3-db-push-qualification-reset-design.mjs",
+    "scripts/lib/f3-db-push-qualification-reset.mjs",
+    "scripts/prove-f3-qualification-reset-local.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs",
+    "scripts/test-f3-qualification-reset-design.mjs",
+    "scripts/test-f3-qualification-reset.mjs"
+  ],
+  "unauthorized": [],
+  "scopeOk": true,
+  "note": "Allowlist vs F14 evidence tip 437f27c — exactly 8 script files."
+}

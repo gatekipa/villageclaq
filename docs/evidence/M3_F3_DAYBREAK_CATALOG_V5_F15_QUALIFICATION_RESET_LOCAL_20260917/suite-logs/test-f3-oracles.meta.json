@@ -1,0 +1,18 @@
+{
+  "suite": "test-f3-oracles",
+  "classification": "PASS",
+  "expect": {
+    "tests": 577,
+    "pass": 577,
+    "fail": 0,
+    "skipped": 0
+  },
+  "observed": {
+    "tests": 577,
+    "pass": 577,
+    "fail": 0,
+    "skipped": 0
+  },
+  "outSha256": "28d0e6f9a6268aa5ffb52476b729b70b4f3bf23d20226f60441fe3ecfae33502",
+  "outBytes": 87383
+}

@@ -1,0 +1,13 @@
+{
+  "status": 0,
+  "stdoutLeadingHex": "0a7b22736368656d61223a226631352d",
+  "parseOk": false,
+  "parseCode": "F13_TX_OBSERVATION_FRAMING",
+  "parseReason": "blank line is not an observation record",
+  "interpretedCommitted": false,
+  "interpretedPhase": null,
+  "framingOk": false,
+  "physicalAccountsGone": true,
+  "physicalHistoryCount": "0",
+  "note": "Physical CLEAN effects with framing reject due to void advisory-lock blank line"
+}

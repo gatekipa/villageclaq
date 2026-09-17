@@ -1,0 +1,11 @@
+{
+  "verdict": "F15 ACCEPT",
+  "tip": "a4fa0832420d46f6cdd73b8f5e2ab381029dd2e1",
+  "planCommit": "5ec5958ea6d6b60c7046e1c96b53636bd5ffe81d",
+  "planBlob": "8ef4d43e669378f6b5031d6aa6f3284f6fc6cab3",
+  "parentEvidenceTip": "437f27c2721bf7710746468a2cef9a52e1c4651a",
+  "f14FunctionalTip": "2d502a028b0d01808a871fb1d48d051813591ed2",
+  "f12FunctionalTip": "1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+  "sourceLabel": "villageclaq-f15-a4fa0832/qa/score.md",
+  "note": "Independent QA offline ACCEPT of F15 local correction tip + complete proposed plan blob. Not live reset / wipe / production authorization. QA env MUST_LOCAL for prove helper; Chief local PG proof recorded separately (honest HOLD on TX_SUCCESSFUL_RESET observation framing)."
+}

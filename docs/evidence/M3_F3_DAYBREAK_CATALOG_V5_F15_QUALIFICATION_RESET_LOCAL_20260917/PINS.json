@@ -1,0 +1,15 @@
+{
+  "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "designAccept": "a117d06fb202696944ae423d77336db0a48a8a13",
+  "f12Functional": "1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+  "f14Functional": "2d502a028b0d01808a871fb1d48d051813591ed2",
+  "f14EvidenceParent": "437f27c2721bf7710746468a2cef9a52e1c4651a",
+  "f15Functional": "a4fa0832420d46f6cdd73b8f5e2ab381029dd2e1",
+  "f15PlanCommit": "5ec5958ea6d6b60c7046e1c96b53636bd5ffe81d",
+  "f15PlanBlob": "8ef4d43e669378f6b5031d6aa6f3284f6fc6cab3",
+  "runtimeClosure": "a5ebe7e025e04455553197fa6caa86ca3d6d8c1becde5299d1deec4e035315a7",
+  "verificationUnion": "eb5cbbaa66fa0956fe2d84c71a192e8f34fe12cf6a2aa8e1eb7e63eb1dfb760f",
+  "forbiddenSummary": "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d",
+  "pr111": "unused as authority"
+}

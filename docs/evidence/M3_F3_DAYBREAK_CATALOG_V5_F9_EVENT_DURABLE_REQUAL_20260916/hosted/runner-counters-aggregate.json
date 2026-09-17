@@ -1,0 +1,11 @@
+{
+  "initialDbPushCalls": 6,
+  "gateCalls": 6,
+  "cleanupCalls": 6,
+  "poisonProbeCalls": 6,
+  "repairCalls": 6,
+  "retryDbPushCalls": 6,
+  "continuationAuthorizationCalls": 6,
+  "continuationCalls": 5,
+  "durableRecordWrites": 6
+}

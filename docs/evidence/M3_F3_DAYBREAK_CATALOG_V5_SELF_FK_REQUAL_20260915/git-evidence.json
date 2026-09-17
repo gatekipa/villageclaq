@@ -1,0 +1,36 @@
+{
+  "main_pin": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr83_pin": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "E4": "11c99b9579360ed9ccad2a527db0162b7d8e884f",
+  "F4": "26d91b1a4fa636346098efd33c36df7b466586ae",
+  "F5": "228549412cf3b7a3cfa3a1c6c6bdee553a1c0a65",
+  "F5_1": "55995cf0ab5f89dd0b59775eb99a7f63a5e0d5b1",
+  "tip100": "cc8495f0e7cc3b51d55d4363356f555f2fdb6f55",
+  "F5_parent": "11c99b9579360ed9ccad2a527db0162b7d8e884f",
+  "F5_1_parent": "228549412cf3b7a3cfa3a1c6c6bdee553a1c0a65",
+  "F5_vs_E4_files": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/lib/f3-full-catalog-independent-reference.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "F5_1_vs_E4_files": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/lib/f3-full-catalog-independent-reference.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "F5_1_vs_F5_files": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs"
+  ],
+  "force_push": false,
+  "prs": {
+    "84_85_86_head": "55995cf0ab5f89dd0b59775eb99a7f63a5e0d5b1",
+    "96": "d526b407992fc2a806f2b7ba7170af335a118630",
+    "97": "019321b4ce3f50aea0ecffd553df8d04f6753171",
+    "98": "9bf86c3f5bd4946bec649d4ea596bf80e7da3318",
+    "99": "50b3d884f13e3f0be573699889d772b1d83a09da",
+    "100": "cc8495f0e7cc3b51d55d4363356f555f2fdb6f55"
+  },
+  "no_merge": true
+}

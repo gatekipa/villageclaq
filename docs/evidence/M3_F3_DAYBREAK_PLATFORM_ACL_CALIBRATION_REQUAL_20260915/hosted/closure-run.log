@@ -1,0 +1,40 @@
+{
+  "closure_complete": true,
+  "counts": {
+    "local_files": 50,
+    "missing": 0,
+    "unresolved": 0,
+    "unexplained_exclusions": 0,
+    "uncommitted_functional_diffs": 0,
+    "exclusions": 15,
+    "six_migrations": 6
+  },
+  "exclusion_counts": {
+    "total": 15,
+    "node_builtin": 7,
+    "npm_package": 1,
+    "os_binary": 2,
+    "secrets": 2,
+    "unexplained": 0
+  },
+  "sample_deps": [
+    "docs/runbooks/F3_FOUNDER_CONTROLLED_MIGRATION_REPAIR.md",
+    "package-lock.json",
+    "package.json",
+    "scripts/_cut3_live_functiondef_hex.json",
+    "scripts/_f3_apply_current_main_floor.mjs",
+    "scripts/_f3_precondition_pin.sql",
+    "scripts/_m2_apply_disposable_floor.mjs",
+    "scripts/_m2_disposable_fixture.sql",
+    "scripts/fixtures/disposable-postgres.mjs",
+    "scripts/fixtures/f3-forward-prerequisites.mjs",
+    "scripts/generate-f3-forward-migrations.py",
+    "scripts/lib/f3-00030-floor-replay-transform.mjs",
+    "scripts/lib/f3-00057-floor-replay-transform.mjs",
+    "scripts/lib/f3-db-push-cli.mjs",
+    "scripts/lib/f3-db-push-floor.mjs"
+  ],
+  "missing": [],
+  "unresolved": [],
+  "unexplained": []
+}

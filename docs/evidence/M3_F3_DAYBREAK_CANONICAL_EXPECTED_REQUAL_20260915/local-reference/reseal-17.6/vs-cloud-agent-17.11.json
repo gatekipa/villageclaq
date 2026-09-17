@@ -1,0 +1,32 @@
+{
+  "00118_f3_bounded_financial_epoch_foundation.sql": {
+    "seal_17_6": "8299680fd5b3def52a981ae8c8ee097f29f13507b91d4f0799557236f1b5001c",
+    "cloud_agent_17_11": "8299680fd5b3def52a981ae8c8ee097f29f13507b91d4f0799557236f1b5001c",
+    "identical": true
+  },
+  "00119_f3_01_core_ledger_foundation.sql": {
+    "seal_17_6": "0ee6c447ac89510f381abd30908b7fb5ba304537e60c577d6eedcc7835a7ed43",
+    "cloud_agent_17_11": "0ee6c447ac89510f381abd30908b7fb5ba304537e60c577d6eedcc7835a7ed43",
+    "identical": true
+  },
+  "00120_f3_02_secure_posting_idempotency.sql": {
+    "seal_17_6": "13234a1e57a8c181da1a356ba1f236efc919efb6edb642062239499ff10d0ce9",
+    "cloud_agent_17_11": "13234a1e57a8c181da1a356ba1f236efc919efb6edb642062239499ff10d0ce9",
+    "identical": true
+  },
+  "00121_f3_03_projection_read_proof.sql": {
+    "seal_17_6": "b1693eda6e5e3944db092d800e037e366c9fd8e18723db962493b502c539cb30",
+    "cloud_agent_17_11": "b1693eda6e5e3944db092d800e037e366c9fd8e18723db962493b502c539cb30",
+    "identical": true
+  },
+  "00122_f3_04_correction_reversal.sql": {
+    "seal_17_6": "9add78f222edc0f933512f726f08ed92feed94432b9a9234c32e6952a1dfc00c",
+    "cloud_agent_17_11": "9add78f222edc0f933512f726f08ed92feed94432b9a9234c32e6952a1dfc00c",
+    "identical": true
+  },
+  "00123_f3_05_opening_cash_command.sql": {
+    "seal_17_6": "0234d2bf2374c8a681d186b8d77364b4b4db02eac76cebf786173d4a835f9547",
+    "cloud_agent_17_11": "0234d2bf2374c8a681d186b8d77364b4b4db02eac76cebf786173d4a835f9547",
+    "identical": true
+  }
+}

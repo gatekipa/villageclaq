@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "exclusions": [
+    "evidence-index.json",
+    "evidence-index.sha256"
+  ],
+  "self_hash": false,
+  "detached_checksum": "evidence-index.sha256",
+  "artifacts": [
+    {
+      "path": "qualify-result.json",
+      "sha256": "f64f36cac8f59fa67543e97d28e83702f25aedced731de373b166f7fbb0dfee0",
+      "bytes": 35696723
+    },
+    {
+      "path": "qualify-result.json.meta.json",
+      "sha256": "5514da61909007b8a530b0076043216c2153bd4e232591d3f737f18e7695da9d"
+    }
+  ]
+}

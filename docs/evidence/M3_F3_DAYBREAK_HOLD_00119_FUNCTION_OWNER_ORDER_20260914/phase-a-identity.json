@@ -1,0 +1,15 @@
+{
+  "functional_sha": "104a5b514c35b5a3bee6526578f7bccc3575dfb3",
+  "cli_pin": "2.117.0",
+  "ref": "jkorwnwwmdeflfntxntl",
+  "name": "villageclaq-f3-management-api-disposable-20260913",
+  "organizationId": "eyztkzkprpmlmcabrfef",
+  "matches_allowlist": {
+    "ref": true,
+    "name": true,
+    "org": true
+  },
+  "not_production": true,
+  "production_ref_forbidden": "llbnliixczcqfftxpsmb",
+  "history_get_rows": []
+}

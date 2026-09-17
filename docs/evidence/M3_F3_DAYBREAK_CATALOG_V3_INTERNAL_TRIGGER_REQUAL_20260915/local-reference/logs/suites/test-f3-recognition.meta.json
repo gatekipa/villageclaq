@@ -1,0 +1,11 @@
+{
+  "suite": "test-f3-recognition",
+  "exit_code": 0,
+  "classification": "PASS",
+  "tests": 40,
+  "pass": 40,
+  "fail": 0,
+  "skipped": 0,
+  "sha256": "71888262dbb681f1e55c7efbd223aab7bbc66ad9cc63208d3efbfb2fc61ee753",
+  "bytes": 7590
+}

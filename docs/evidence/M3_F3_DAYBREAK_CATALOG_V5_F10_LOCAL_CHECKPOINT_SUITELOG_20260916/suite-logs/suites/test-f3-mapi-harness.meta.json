@@ -1,0 +1,38 @@
+{
+  "sha256": "cf9bf3a8ef9c4ab2badaa1a88f5dc3402b8fd8f425e38787a0d8ed7ee62d47d4",
+  "bytes": 4556,
+  "encoding": "utf8",
+  "sanitized_before_hash": true,
+  "tests": [
+    {
+      "name": "test-f3-mapi-harness",
+      "ok": true,
+      "exact_error": null
+    }
+  ],
+  "transformation_provenance": {
+    "producer": "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile",
+    "builder": "scripts/lib/f3-db-push-repair-safety-gate.mjs#buildSuiteMetaFromSanitizedOut",
+    "transform": "scripts/lib/f3-db-push-repair-safety-gate.mjs#sanitizeEvidenceOutBytes",
+    "source_sha256": "cf9bf3a8ef9c4ab2badaa1a88f5dc3402b8fd8f425e38787a0d8ed7ee62d47d4",
+    "source_bytes": 4556,
+    "final_sha256": "cf9bf3a8ef9c4ab2badaa1a88f5dc3402b8fd8f425e38787a0d8ed7ee62d47d4",
+    "final_bytes": 4556,
+    "transformations": [
+      "identity_already_sanitized"
+    ],
+    "pipeline": [
+      "capture",
+      "sanitize",
+      "durable_write",
+      "reread",
+      "hash",
+      "suite_metadata",
+      "indexes"
+    ],
+    "durable_write": {
+      "temp_fsync_close_atomic_rename_reread": true,
+      "verified": true
+    }
+  }
+}

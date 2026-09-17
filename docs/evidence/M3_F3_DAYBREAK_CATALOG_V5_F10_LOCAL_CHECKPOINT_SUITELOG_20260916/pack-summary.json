@@ -1,0 +1,15 @@
+{
+  "mode": "LOCAL_ONLY",
+  "nested_ok": true,
+  "synth_ok": true,
+  "outer_ok": true,
+  "absolute_path_leaks": 0,
+  "secret_scan": "clean",
+  "artifact_count": 95,
+  "unindexed_count": 0,
+  "nested_indexes_in_outer": true,
+  "closure_file_count": 27,
+  "closure_digest": "b433bafc828cdfc9fcea523ecdee4662b33ce7c49b4a3987939a53a4069662da",
+  "functional_tip": "3a842910b3cd3cc9eafb3216e3e4f65326f003c2",
+  "suite_bindings": 12
+}

@@ -1,0 +1,5 @@
+{
+  "ok": true,
+  "method": "RI_FKey function family+suffix (check_ins/upd=>referencing; noaction/restrict/cascade/setnull/setdefault_upd/del=>referenced)",
+  "not_relation_equality": true
+}

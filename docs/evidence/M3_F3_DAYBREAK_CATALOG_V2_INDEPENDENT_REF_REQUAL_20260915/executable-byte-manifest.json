@@ -1,0 +1,22 @@
+{
+  "artifact": "executable-byte-manifest",
+  "functional_sha": "a4104b452c29e9bb103cb7b232004368875dc53f",
+  "files": {
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs": {
+      "sha256": "07354bbf3022fe78fab5120cc9c18cf319ae0269fb3796c960abbb8a94463aef",
+      "bytes": 1573396
+    },
+    "scripts/lib/f3-full-catalog-independent-reference.mjs": {
+      "sha256": "de4ed3fd1f79103cb85591209246e0dbd2194d0f5adbc2a6c82497fe83449c3f",
+      "bytes": 26440
+    },
+    "scripts/qualify-f3-db-push-disposable.mjs": {
+      "sha256": "842f21e8f2aab6b9c46275ef0e2d2257e73b8d0217b5e70ff10dc5052eba157c",
+      "bytes": 41643
+    },
+    "scripts/test-f3-db-push-harness.mjs": {
+      "sha256": "32b3a803f8c40dd326a3622a776d5db850a38a413d07c10f16f2859daa0bf9ab",
+      "bytes": 195129
+    }
+  }
+}

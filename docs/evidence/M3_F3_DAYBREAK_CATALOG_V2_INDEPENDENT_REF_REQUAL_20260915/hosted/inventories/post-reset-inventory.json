@@ -1,0 +1,16 @@
+{
+  "artifact": "post-reset-inventory",
+  "inventory": {
+    "server_version": "17.6",
+    "f3_history": [],
+    "financial_schemas": [],
+    "financial_public_tables": [],
+    "canary_present": false,
+    "poison_markers": [],
+    "platform_roles_exist": {
+      "anon": true,
+      "authenticated": true,
+      "service_role": true
+    }
+  }
+}

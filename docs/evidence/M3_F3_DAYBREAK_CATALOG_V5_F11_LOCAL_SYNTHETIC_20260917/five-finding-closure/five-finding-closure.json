@@ -1,0 +1,124 @@
+{
+  "schema": "f3-f11-five-finding-closure-v1",
+  "label": "LOCAL_SYNTHETIC",
+  "not_hosted_execution": true,
+  "functional_tip": "a67125309cc31ac33e601f0165cf906fb5806230",
+  "findings": [
+    {
+      "id": 1,
+      "title": "Shared orchestration",
+      "closed": true,
+      "source_refs": [
+        "scripts/qualify-f3-db-push-disposable.mjs:1374 export async function runF10RepairRetryContinuation",
+        "scripts/qualify-f3-db-push-disposable.mjs:1821 export const runHostedF10RepairRetryContinuation = runF10RepairRetryContinuation",
+        "scripts/qualify-f3-db-push-disposable.mjs:3036 await runHostedF10RepairRetryContinuation({...}) in hosted main",
+        "scripts/qualify-f3-db-push-disposable.mjs:462 F11_SHARED_ORCHESTRATION_ID"
+      ],
+      "evidence_ids": [
+        "F11-O01",
+        "F11-O02",
+        "F11-O03",
+        "F11-O04",
+        "F11-O05",
+        "F11-O06"
+      ],
+      "note": "Same function object; no invented traces"
+    },
+    {
+      "id": 2,
+      "title": "Durable-write counters",
+      "closed": true,
+      "source_refs": [
+        "scripts/lib/f3-db-push-repair-safety-gate.mjs DURABLE_WRITE_COUNTER_SCOPE / recordDurableWriteAttempt / recordDurableWriteVerified",
+        "scripts/qualify-f3-db-push-disposable.mjs expectedF10OrchestrationCounters"
+      ],
+      "evidence_ids": [
+        "F11-C01",
+        "F11-C02",
+        "F11-C03",
+        "F11-C04",
+        "F11-C05",
+        "F11-C06",
+        "F11-C07",
+        "F11-C08"
+      ],
+      "happy_path_verified_writes": 3,
+      "failure_spies": {
+        "A_fail": "attempts>=1 verified=0 retryCalls=0",
+        "B_fail": "verified=1 (A) continuationAuthorizationCalls=0",
+        "pre_fail": "verified=2 (A+B) pre attempts=1 verified=0"
+      }
+    },
+    {
+      "id": 3,
+      "title": "Record validation / malformed rejection",
+      "closed": true,
+      "source_refs": [
+        "assertFrozenMigrationIdentity",
+        "authenticateCheckpointBAgainstRereadA",
+        "encodeSanitizedProcessError",
+        "assertProcessResultNotContradictorySuccess"
+      ],
+      "evidence_ids": [
+        "F11-V01",
+        "F11-V02",
+        "F11-V03",
+        "F11-V04",
+        "F11-V05",
+        "F11-V06",
+        "F11-V07",
+        "F11-V08",
+        "F11-V09",
+        "F11-V10",
+        "F11-V11",
+        "F11-V12",
+        "F11-V13",
+        "F11-V14",
+        "F11-V15",
+        "F11-V16",
+        "F11-V17",
+        "F11-V18",
+        "F11-V19"
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Runtime closure + authoritative outer metadata",
+      "closed": true,
+      "source_refs": [
+        "buildFunctionalRecursiveRuntimeClosure",
+        "REQUIRED_RUNTIME_READ_INPUTS",
+        "F11_PREVIOUSLY_OMITTED_CLOSURE_INPUTS",
+        "buildAuthoritativeOuterEvidencePointer",
+        "assertLocalSyntheticEvidenceDirName"
+      ],
+      "evidence_ids": [
+        "F11-L01",
+        "F11-L02",
+        "F11-L03",
+        "F11-L04",
+        "F11-L05",
+        "F11-L06",
+        "F11-L07",
+        "F11-L08",
+        "F11-L09",
+        "F11-L10"
+      ],
+      "closure_file_count": 42,
+      "closure_sha256": "ecfd265dfbab3b3c275d01e621fc47d220234cfe0e48b0d1577d9308f42dbfb3",
+      "not_f10_27_digest": "b433bafc828cdfc9fcea523ecdee4662b33ce7c49b4a3987939a53a4069662da"
+    },
+    {
+      "id": 5,
+      "title": "Hosted plan proposed-only (not executed)",
+      "closed": true,
+      "source_refs": [
+        "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F11_LOCAL_SYNTHETIC_20260917/PROPOSED_HOSTED_REQUAL_PLAN.md"
+      ],
+      "evidence_ids": [],
+      "status": "PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE",
+      "executed": false,
+      "plan_source_commit": "6f9e1afcc350b77d5347db5c382f8c30e21304c0"
+    }
+  ]
+}

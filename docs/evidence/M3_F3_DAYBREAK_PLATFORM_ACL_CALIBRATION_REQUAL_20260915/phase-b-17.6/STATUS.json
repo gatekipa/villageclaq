@@ -1,0 +1,68 @@
+{
+  "phase": "B",
+  "verdict": "READY_TO_FF",
+  "hold_reason": null,
+  "tip_sha": "d526b407992fc2a806f2b7ba7170af335a118630",
+  "baseline_sha": "2fcc651",
+  "tip_vs_baseline_files_only": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "tip_vs_baseline_file_count": 3,
+  "pg": {
+    "engine": "17.6",
+    "container": "f3-reference-pg176",
+    "listen": "127.0.0.1:55432",
+    "host_17_11_avoided": true
+  },
+  "seal_database": "f3_reference_platform_seal_20260915",
+  "envelope_digest": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "envelope_proof": {
+    "tip_digest_constant": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "tip_envelope_digest_field": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "tip_recomputed": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "expected_pin": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "match": true,
+    "not_from_hosted_fingerprint_72af6699": true,
+    "not_from_financial_ledger_epochs": true,
+    "provenance_claim": "INDEPENDENT SUPABASE PLATFORM-ACL CALIBRATION \u2014 derived ONLY from disposable pg_default_acl + canary agreement"
+  },
+  "independent_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+    "00119_f3_01_core_ledger_foundation.sql": "af633e8c0c2cd5aa4df743960e03e5d9d2e17c36907c76cb9ee8ee2dfe8a2ebc",
+    "00120_f3_02_secure_posting_idempotency.sql": "b1b3b3c3ab4163378c8dfdbeb1da1421a5a1480b5a457424da9bc4a885d1027c",
+    "00121_f3_03_projection_read_proof.sql": "db68839cc5f61ab22a84a21965af4e90a41e7b4139a056c371aa0347eb4e04ca",
+    "00122_f3_04_correction_reversal.sql": "d8b2d0316e555339bcd95e944fd23e5c7686f16fa34d1d4c4691d610b1dc7659",
+    "00123_f3_05_opening_cash_command.sql": "07e984115ffc24f4e9e0f0d5d1d7f8c903c81064312e5c0b498e367ca11a0854"
+  },
+  "tip_embedded_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+    "00119_f3_01_core_ledger_foundation.sql": "af633e8c0c2cd5aa4df743960e03e5d9d2e17c36907c76cb9ee8ee2dfe8a2ebc",
+    "00120_f3_02_secure_posting_idempotency.sql": "b1b3b3c3ab4163378c8dfdbeb1da1421a5a1480b5a457424da9bc4a885d1027c",
+    "00121_f3_03_projection_read_proof.sql": "db68839cc5f61ab22a84a21965af4e90a41e7b4139a056c371aa0347eb4e04ca",
+    "00122_f3_04_correction_reversal.sql": "d8b2d0316e555339bcd95e944fd23e5c7686f16fa34d1d4c4691d610b1dc7659",
+    "00123_f3_05_opening_cash_command.sql": "07e984115ffc24f4e9e0f0d5d1d7f8c903c81064312e5c0b498e367ca11a0854"
+  },
+  "builder_eq_reference_all_six": true,
+  "tip_eq_independent_all_six": true,
+  "00118_independently_equals_72af6699": true,
+  "not_copied_from_assignment": true,
+  "not_from_hosted_flags": {
+    "envelope": true,
+    "envelope_not_from_financial": true
+  },
+  "local_suites": {
+    "command": "npm run test:f3-db-push",
+    "tests": 118,
+    "pass": 117,
+    "fail": 0,
+    "skipped": 1,
+    "exit_ok": true,
+    "captured_at_et": "9/15/2026, 7:51:11 PM ET",
+    "log": "test-f3-db-push.log"
+  },
+  "production_contacted": false,
+  "disposable_reset": false,
+  "captured_at_et": "9/15/2026, 7:51:11 PM ET"
+}

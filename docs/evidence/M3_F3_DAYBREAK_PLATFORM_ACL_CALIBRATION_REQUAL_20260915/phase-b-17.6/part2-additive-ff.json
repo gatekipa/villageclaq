@@ -1,0 +1,24 @@
+{
+  "H": "25bb48a2931735f9ad80cd5e140bdfdeb7870856",
+  "F": "11c9e3f763bba6dda999ec5554237b0ca39fdaba",
+  "parent_of_F": "25bb48a2931735f9ad80cd5e140bdfdeb7870856",
+  "diff_vs_H_files": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "branches_ff": [
+    "feat/m3-f3-01-05-forward-foundation-9b17",
+    "cursor/f3-dbpush-qualification-1c3f",
+    "cursor/f3-wipe-00030-replay-6945"
+  ],
+  "title": "DAYBREAK HOLD \u2014 platform ACL calibration requalification",
+  "prs_kept_open_draft_unmerged": [
+    84,
+    85,
+    86
+  ],
+  "pr96_left_open_draft_unmerged": true,
+  "force_push": false,
+  "captured_at_et": "9/15/2026, 7:51:34 PM ET"
+}

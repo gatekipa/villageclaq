@@ -444,3 +444,42 @@ test("F14-A02 allowed function surface includes zero-arg, custom types, and time
   assert.equal(arrayForm, "financial_core.probe(text[])");
   assert.equal(validateObjectAllowlist(["public.zero_arg_probe()"], []).ok, false);
 });
+
+test("F15-C2-A01 matching constraint name cannot authorize different endpoints", () => {
+  const altered = validateObjectAllowlist(["public.financial_accounts"], [{
+    kind: "foreign_key",
+    identity: "memberships_group_id_fkey",
+    from: "public.financial_accounts",
+    to: "public.groups",
+  }]);
+  assert.equal(altered.ok, false);
+  assert.equal(altered.code, "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY");
+
+  const nameOnly = validateObjectAllowlist(["public.financial_accounts"], ["memberships_group_id_fkey"]);
+  assert.equal(nameOnly.ok, false);
+});
+
+test("F15-C3-A01 allowlist carries actual catalog FK identities from migrations", () => {
+  const required = [
+    "posting_command_payloads_event_id_fkey",
+    "correction_command_payloads_target_event_id_group_id_fkey",
+    "correction_command_payloads_reversal_event_id_group_id_fkey",
+    "correction_command_payloads_replacement_event_id_group_id_fkey",
+  ];
+  for (const identity of required) {
+    const row = FINITE_DEPENDENCY_ALLOWLIST.find((dep) => dep.identity === identity);
+    assert.ok(row, identity);
+    assert.equal(row.kind, "foreign_key");
+    assert.ok(row.from.includes("."), identity);
+    assert.ok(row.to.includes("."), identity);
+  }
+  assert.equal(
+    FINITE_DEPENDENCY_ALLOWLIST.some((dep) => /event_id -> public.financial_events/.test(dep.identity)),
+    false,
+  );
+  assert.equal(
+    FINITE_DEPENDENCY_ALLOWLIST.some((dep) => dep.id === "dep.financial_events.correction_command_payloads_fks"),
+    false,
+  );
+});
+

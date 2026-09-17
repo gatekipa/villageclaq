@@ -951,3 +951,480 @@ test("F14-R07 proposed hosted plan is complete, offline, and unauthorized", () =
   assert.equal(offline.transportsDisabled, true);
   assert.equal(offline.wipeToBaselineStillRejected, true);
 });
+
+function contradictoryEmptyUniverse(inventoryOverrides) {
+  return completeCaptureBody({
+    inventory: {
+      schema_migrations_present: true,
+      schema_migrations_rows: 0,
+      ...inventoryOverrides,
+    },
+    discovered_objects: [],
+    discovered_dependencies: [],
+    observed_objects: [],
+    observed_dependencies: [],
+    observed_history_rows: [],
+  });
+}
+
+const GENUINE_POSTING_EVENT_FK = Object.freeze({
+  kind: "foreign_key",
+  identity: "posting_command_payloads_event_id_fkey",
+  from: "financial_core.posting_command_payloads",
+  to: "public.financial_events",
+});
+const GENUINE_CORRECTION_TARGET_FK = Object.freeze({
+  kind: "foreign_key",
+  identity: "correction_command_payloads_target_event_id_group_id_fkey",
+  from: "financial_core.correction_command_payloads",
+  to: "public.financial_events",
+});
+const GENUINE_CORRECTION_REVERSAL_FK = Object.freeze({
+  kind: "foreign_key",
+  identity: "correction_command_payloads_reversal_event_id_group_id_fkey",
+  from: "financial_core.correction_command_payloads",
+  to: "public.financial_events",
+});
+const GENUINE_CORRECTION_REPLACEMENT_FK = Object.freeze({
+  kind: "foreign_key",
+  identity: "correction_command_payloads_replacement_event_id_group_id_fkey",
+  from: "financial_core.correction_command_payloads",
+  to: "public.financial_events",
+});
+const MEMBERSHIPS_GROUP_FK = Object.freeze({
+  kind: "foreign_key",
+  identity: "memberships_group_id_fkey",
+  from: "public.memberships",
+  to: "public.groups",
+});
+
+test("F15-C1-R01 empty discovered vs inventory.public_tables cannot be CLEAN_BASELINE", async () => {
+  // F14-repro: observedFromQualificationResetCapture / qualify path treated
+  // empty discovered/observed/history as alreadyClean even when
+  // inventory.public_tables=["financial_accounts"].
+  const body = contradictoryEmptyUniverse({ public_tables: ["financial_accounts"] });
+  const observed = observedFromQualificationResetCapture(body);
+  assert.equal(observed.ok, false);
+  assert.notEqual(observed.alreadyClean, true);
+  assert.match(String(observed.code), /INVENTORY|CONTRADICT/);
+
+  const { result, emit } = await runQualifyMainPath({ captureBody: body });
+  assert.equal(result.ok, false);
+  assert.notEqual(result.alreadyClean, true);
+  assert.notEqual(result.verdict, F13_RESET_ALREADY_CLEAN_VERDICT);
+  assert.equal(result.spies.captureCalls, 1);
+  assert.equal(result.spies.applyCalls || 0, 0);
+  assert.equal(result.spies.sqlCalls || 0, 0);
+  assert.equal(emit.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
+});
+
+test("F15-C1-R02 empty discovered vs inventory.public_views cannot be CLEAN_BASELINE", async () => {
+  const body = contradictoryEmptyUniverse({ public_views: ["unexpected_view"] });
+  const observed = observedFromQualificationResetCapture(body);
+  assert.equal(observed.ok, false);
+  assert.notEqual(observed.alreadyClean, true);
+  const { result } = await runQualifyMainPath({ captureBody: body });
+  assert.equal(result.ok, false);
+  assert.notEqual(result.alreadyClean, true);
+  assert.equal(result.spies.applyCalls || 0, 0);
+  assert.equal(result.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
+});
+
+test("F15-C1-R03 empty discovered vs inventory.financial_core cannot be CLEAN_BASELINE", async () => {
+  const body = contradictoryEmptyUniverse({ financial_core: true });
+  const observed = observedFromQualificationResetCapture(body);
+  assert.equal(observed.ok, false);
+  assert.notEqual(observed.alreadyClean, true);
+  const { result } = await runQualifyMainPath({ captureBody: body });
+  assert.equal(result.ok, false);
+  assert.notEqual(result.alreadyClean, true);
+  assert.equal(result.spies.applyCalls || 0, 0);
+});
+
+test("F15-C1-R04 empty history vs inventory.schema_migrations_rows=6 cannot be CLEAN_BASELINE", async () => {
+  const body = contradictoryEmptyUniverse({ schema_migrations_rows: 6 });
+  const observed = observedFromQualificationResetCapture(body);
+  assert.equal(observed.ok, false);
+  assert.notEqual(observed.alreadyClean, true);
+  const { result } = await runQualifyMainPath({ captureBody: body });
+  assert.equal(result.ok, false);
+  assert.notEqual(result.alreadyClean, true);
+  assert.equal(result.spies.applyCalls || 0, 0);
+});
+
+test("F15-C1-R05 combined inventory contradictions HOLD with zero apply/SQL", async () => {
+  const body = contradictoryEmptyUniverse({
+    public_tables: ["financial_accounts"],
+    public_views: ["unexpected_view"],
+    financial_core: true,
+    schema_migrations_rows: 6,
+  });
+  const observed = observedFromQualificationResetCapture(body);
+  assert.equal(observed.ok, false);
+  const { result } = await runQualifyMainPath({ captureBody: body });
+  assert.equal(result.ok, false);
+  assert.notEqual(result.alreadyClean, true);
+  assert.equal(result.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
+  assert.equal(result.spies.captureCalls, 1);
+  assert.equal(result.spies.applyCalls || 0, 0);
+  assert.equal(result.spies.sqlCalls || 0, 0);
+  assert.equal(result.plan?.sql, undefined);
+});
+
+test("F15-C1-R06 duplicate JSON member names are rejected at the raw boundary", () => {
+  // F14-repro: JSON.parse keeps the later discovered_objects:[] and can hide
+  // an earlier unexpected table. Duplicate keys must fail before parse discard.
+  const empty = emptyCaptureBody();
+  const populated = JSON.stringify([{ kind: "table", identity: "public.financial_accounts" }]);
+  const raw = `${JSON.stringify(empty).slice(0, -1)},"discovered_objects":${populated},"discovered_objects":[]}`;
+  assert.match(raw, /"discovered_objects":\[\{"kind":"table"/);
+  assert.match(raw, /"discovered_objects":\[\]/);
+  const parsedJs = JSON.parse(raw);
+  assert.deepEqual(parsedJs.discovered_objects, []);
+
+  const process = inventoryProcess(`${raw}\n`);
+  assert.equal(process.ok, false);
+  assert.match(String(process.code), /DUPLICATE|MALFORMED|CAPTURE/);
+  assert.notEqual(process.alreadyClean, true);
+  assert.notEqual(process.inventoryCaptured, true);
+});
+
+test("F15-C1-R07 genuine complete matching inventories remain usable", async () => {
+  const clean = await runQualifyMainPath({ captureBody: emptyCaptureBody() });
+  assert.equal(clean.result.ok, true);
+  assert.equal(clean.result.alreadyClean, true);
+  assert.equal(clean.result.spies.applyCalls || 0, 0);
+
+  const leftover = leftoverCaptureBody();
+  const observed = observedFromQualificationResetCapture(leftover);
+  assert.equal(observed.ok, true);
+  assert.deepEqual(observed.observedObjects, ["public.financial_accounts"]);
+  assert.equal(observed.inventory.public_tables.includes("financial_accounts"), true);
+});
+
+test("F15-C2-R01 same-name FK with altered endpoints is rejected before apply", async () => {
+  // F14-repro: identityFromDiscovered / validateObjectAllowlist reduced deps
+  // to constraint name, so memberships_group_id_fkey from financial_accounts
+  // → groups was authorized by name.
+  const altered = {
+    kind: "foreign_key",
+    identity: "memberships_group_id_fkey",
+    from: "public.financial_accounts",
+    to: "public.groups",
+  };
+  const planned = planQualificationReset(planInput({
+    observedObjects: ["public.financial_accounts"],
+    observedDependencies: [altered],
+  }));
+  assert.equal(planned.ok, false);
+  assert.equal(planned.code, "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY");
+  assert.equal(planned.sql, undefined);
+  assert.notEqual(planned.eligible, true);
+
+  const { result } = await runQualifyMainPath({
+    captureBody: leftoverCaptureBody({
+      discovered_dependencies: [altered],
+      observed_dependencies: [altered],
+    }),
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY");
+  assert.equal(result.spies.applyCalls || 0, 0);
+});
+
+test("F15-C2-R02 name-only dependency strings are not a fallback identity", () => {
+  const namedOnly = planQualificationReset(planInput({
+    observedObjects: ["public.financial_accounts"],
+    observedDependencies: ["memberships_group_id_fkey"],
+  }));
+  assert.equal(namedOnly.ok, false);
+  assert.equal(namedOnly.code, "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY");
+});
+
+test("F15-C2-R03 complete matching dependency tuples are retained through plan", () => {
+  const planned = planQualificationReset(planInput({
+    observedObjects: ["public.financial_accounts", "public.memberships", "public.groups"],
+    observedDependencies: [MEMBERSHIPS_GROUP_FK],
+  }));
+  assert.equal(planned.ok, true);
+  assert.equal(planned.eligible, true);
+  assert.equal(planned.observed.dependencies.length, 1);
+  assert.equal(typeof planned.observed.dependencies[0], "object");
+  assert.equal(planned.observed.dependencies[0].identity, MEMBERSHIPS_GROUP_FK.identity);
+  assert.equal(planned.observed.dependencies[0].from, MEMBERSHIPS_GROUP_FK.from);
+  assert.equal(planned.observed.dependencies[0].to, MEMBERSHIPS_GROUP_FK.to);
+  assert.equal(planned.observed.dependencies[0].kind, MEMBERSHIPS_GROUP_FK.kind);
+});
+
+test("F15-C3-R01 genuine migration-created financial FKs are eligible leftovers", async () => {
+  // F14-repro: allowlist used descriptive aggregates, so catalog names
+  // posting_command_payloads_event_id_fkey and the three correction
+  // composite FKs were rejected as unexpected.
+  const deps = [
+    GENUINE_POSTING_EVENT_FK,
+    GENUINE_CORRECTION_TARGET_FK,
+    GENUINE_CORRECTION_REVERSAL_FK,
+    GENUINE_CORRECTION_REPLACEMENT_FK,
+  ];
+  const objects = [
+    "financial_core.posting_command_payloads",
+    "financial_core.correction_command_payloads",
+    "public.financial_events",
+  ];
+  const allowed = validateObjectAllowlist(objects, deps);
+  assert.equal(allowed.ok, true);
+
+  const planned = planQualificationReset(planInput({
+    observedObjects: objects,
+    observedDependencies: deps,
+  }));
+  assert.equal(planned.ok, true);
+  assert.equal(planned.eligible, true);
+
+  const { result } = await runQualifyMainPath({
+    captureBody: leftoverCaptureBody({
+      inventory: {
+        public_tables: ["financial_events"],
+        financial_core: true,
+        schema_migrations_rows: AUTHENTICATED_HISTORY_KEYS.length,
+      },
+      discovered_objects: objects,
+      observed_objects: objects,
+      discovered_dependencies: deps,
+      observed_dependencies: deps,
+    }),
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.plan.eligible, true);
+  assert.equal(result.verdict, F13_RESET_SUCCESS_VERDICT);
+});
+
+test("F15-C3-R02 same catalog name with altered kind/source/target is rejected", () => {
+  const alteredKind = {
+    ...GENUINE_POSTING_EVENT_FK,
+    kind: "index",
+  };
+  const alteredFrom = {
+    ...GENUINE_POSTING_EVENT_FK,
+    from: "public.financial_accounts",
+  };
+  const alteredTo = {
+    ...GENUINE_POSTING_EVENT_FK,
+    to: "public.groups",
+  };
+  assert.equal(validateObjectAllowlist(["public.financial_accounts"], [alteredKind]).ok, false);
+  assert.equal(validateObjectAllowlist(["public.financial_accounts"], [alteredFrom]).ok, false);
+  assert.equal(validateObjectAllowlist(["public.financial_accounts"], [alteredTo]).ok, false);
+  assert.equal(validateObjectAllowlist(["public.financial_accounts"], [{
+    identity: "posting_command_payloads.event_id -> public.financial_events.id",
+    kind: "foreign_key",
+    from: "financial_core.posting_command_payloads",
+    to: "public.financial_events",
+  }]).ok, false);
+});
+
+test("F15-C4-R01 PREFIX+WRONG_PHASE committed+SUFFIX status0 is not CLEAN_BASELINE", async () => {
+  // F14-repro: regex substring match accepted
+  // PREFIX {schema:f14-qualification-reset-tx-observation-v1,phase:WRONG_PHASE,event:committed,committed:true} SUFFIX
+  // with status 0 as F13_RESET_COMMITTED.
+  const f14Payload = JSON.stringify({
+    schema: "f14-qualification-reset-tx-observation-v1",
+    phase: "WRONG_PHASE",
+    event: "committed",
+    committed: true,
+  });
+  const interpreted = interpretQualificationResetTransportResult({
+    status: 0,
+    stdout: `PREFIX ${f14Payload} SUFFIX\n`,
+    stderr: "",
+    argv: [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", "[FILE]"],
+  });
+  assert.equal(interpreted.committed, false);
+  assert.notEqual(interpreted.observed.committed, true);
+
+  const recorder = createQualificationResetRecorder();
+  const result = await runQualificationReset({
+    input: planInput(),
+    adapters: {
+      transport: {
+        kind: "f14-repro-prefix-wrong-phase",
+        disabled: true,
+        execute() {
+          return {
+            argv: [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", "[FILE]"],
+            status: 0,
+            stdout: `PREFIX ${f14Payload} SUFFIX\n`,
+            stderr: "",
+            error: null,
+            signal: null,
+            timeout: false,
+          };
+        },
+      },
+    },
+    recorder,
+    allowDisabledTransport: true,
+  });
+  assert.equal(result.ok, false);
+  assert.notEqual(result.code, "F13_RESET_COMMITTED");
+  assert.notEqual(result.verdict, F13_RESET_SUCCESS_VERDICT);
+  assert.equal(result.committed, false);
+  assert.equal(result.spies.committedEffects, 0);
+  assert.equal(result.spies.replayCalls, 0);
+});
+
+test("F15-C4-R02 PREFIX committed observation plus EACCES is not success", async () => {
+  const f14Payload = JSON.stringify({
+    schema: "f14-qualification-reset-tx-observation-v1",
+    phase: "WRONG_PHASE",
+    event: "committed",
+    committed: true,
+  });
+  const eacces = new Error("EACCES: permission denied");
+  eacces.code = "EACCES";
+  const interpreted = interpretQualificationResetTransportResult({
+    status: 0,
+    stdout: `PREFIX ${f14Payload} SUFFIX\n`,
+    stderr: "psql: permission denied",
+    error: eacces,
+    argv: [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", "[FILE]"],
+  });
+  assert.equal(interpreted.committed, false);
+  assert.equal(interpreted.processResult.structuredError?.code, "EACCES");
+
+  const recorder = createQualificationResetRecorder();
+  const result = await runQualificationReset({
+    input: planInput(),
+    adapters: {
+      transport: {
+        kind: "f14-repro-prefix-eacces",
+        disabled: true,
+        execute() {
+          return {
+            argv: [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", "[FILE]"],
+            status: 0,
+            stdout: `PREFIX ${f14Payload} SUFFIX\n`,
+            stderr: "psql: permission denied",
+            error: eacces,
+            signal: null,
+            timeout: false,
+          };
+        },
+      },
+    },
+    recorder,
+    allowDisabledTransport: true,
+  });
+  assert.equal(result.ok, false);
+  assert.notEqual(result.verdict, F13_RESET_SUCCESS_VERDICT);
+  assert.equal(result.committed, false);
+  assert.equal(result.spies.replayCalls, 0);
+});
+
+test("F15-C4-R03 new protocol still rejects equivalent WRONG_PHASE / missing / reorder mutations", async () => {
+  const { TX_OBSERVATION_SCHEMA } = await import("./lib/f3-db-push-qualification-reset.mjs");
+  assert.notEqual(TX_OBSERVATION_SCHEMA, "f14-qualification-reset-tx-observation-v1");
+  assert.match(TX_OBSERVATION_SCHEMA, /f15-qualification-reset-tx-observation/);
+
+  const wrongPhase = JSON.stringify({
+    schema: TX_OBSERVATION_SCHEMA,
+    phase: "WRONG_PHASE",
+    event: "committed",
+    committed: true,
+  });
+  const wrong = interpretQualificationResetTransportResult({
+    status: 0,
+    stdout: `${wrongPhase}\n`,
+    stderr: "",
+  });
+  assert.equal(wrong.committed, false);
+
+  const reordered = interpretQualificationResetTransportResult({
+    status: 0,
+    stdout: [
+      JSON.stringify({ schema: TX_OBSERVATION_SCHEMA, phase: "T7_COMMIT", event: "committed", committed: true }),
+      JSON.stringify({ schema: TX_OBSERVATION_SCHEMA, phase: "T1_BEGIN", event: "began" }),
+      JSON.stringify({ schema: TX_OBSERVATION_SCHEMA, phase: "T7_COMMIT", event: "commit_attempted" }),
+    ].join("\n") + "\n",
+    stderr: "",
+  });
+  assert.equal(reordered.committed, false);
+
+  const missingBegin = interpretQualificationResetTransportResult({
+    status: 0,
+    stdout: [
+      JSON.stringify({ schema: TX_OBSERVATION_SCHEMA, phase: "T7_COMMIT", event: "commit_attempted" }),
+      JSON.stringify({ schema: TX_OBSERVATION_SCHEMA, phase: "T7_COMMIT", event: "committed", committed: true }),
+    ].join("\n") + "\n",
+    stderr: "",
+  });
+  assert.equal(missingBegin.committed, false);
+});
+
+test("F15-C5-R01 committed helper records three real TX scenarios or MUST_LOCAL", async () => {
+  const { proveQualificationResetLocal } = await import("./prove-f3-qualification-reset-local.mjs");
+  const proof = await proveQualificationResetLocal();
+  assert.equal(proof.hostedIdentityProof, false);
+  assert.equal(proof.disposableContact, false);
+  assert.equal(proof.wipeRejectionCode, F13_WIPE_REJECTION_CODE);
+  const required = [
+    "TX_SUCCESSFUL_RESET",
+    "TX_UNEXPECTED_OBJECT_ROLLBACK",
+    "TX_HISTORY_MISMATCH_ROLLBACK",
+  ];
+  for (const id of required) {
+    assert.ok(proof.cases.some((row) => row.id === id), `missing ${id}`);
+  }
+  assert.ok(proof.cases.some((row) => row.id === "UNEXPECTED_OBJECT_BLOCKS_BEFORE_PLAN"));
+  assert.ok(proof.cases.some((row) => row.id === "WIPE_STILL_REJECTED" && row.ok === true));
+  if (proof.localPg.available !== true) {
+    assert.equal(proof.mustLocal, true);
+    assert.equal(proof.localPg.classification, "MUST_LOCAL");
+    for (const id of required) {
+      const row = proof.cases.find((item) => item.id === id);
+      assert.equal(row.ok, true);
+      assert.equal(row.executedTransaction, false);
+      assert.match(String(row.note || row.code || ""), /MUST_LOCAL/);
+    }
+  } else {
+    assert.equal(proof.distinctions.executedTransactions >= 3, true);
+    for (const id of required) {
+      const row = proof.cases.find((item) => item.id === id);
+      assert.equal(row.ok, true);
+      assert.equal(row.executedTransaction, true);
+    }
+  }
+});
+
+test("F15-C6-R01 hosted plan builder emits complete unauthorized candidate plan", async () => {
+  const qualify = await import("./qualify-f3-db-push-disposable.mjs");
+  assert.equal(typeof qualify.renderProposedQualificationResetHostedPlanMarkdown, "function");
+  const plan = qualify.buildProposedQualificationResetHostedPlan();
+  assert.match(plan.status, /PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE/);
+  assert.equal(plan.authorized, false);
+  assert.equal(plan.executed, false);
+  assert.equal(plan.target.accept, APPROVED_DISPOSABLE_PROJECT_REF);
+  assert.ok(plan.target.reject.includes(PRODUCTION_REF));
+  assert.ok(Array.isArray(plan.commands.reset));
+  assert.ok(plan.commands.reset.includes("--qualification-reset"));
+  assert.ok(plan.commands.completeQualFrom00118.includes("--no-wipe"));
+  assert.ok(plan.commands.completeQualFrom00118.includes("--sequence-f3"));
+  assert.ok(plan.objectScopeCount > 0);
+  assert.ok(plan.dependencyScopeCount > 0);
+  assert.equal(plan.historyKeyCount, AUTHENTICATED_HISTORY_KEYS.length);
+  assert.ok(plan.scopeSqlIdentitySha256);
+  assert.notEqual(plan.runtimeClosure.sha256, plan.verificationUnion.sha256);
+  assert.notEqual(plan.runtimeClosure.label, plan.verificationUnion.label);
+  assert.equal(plan.cliPin, "2.117.0");
+  assert.equal(plan.applyRepairSeparation, true);
+  assert.equal(plan.managementApiApply, false);
+  const markdown = qualify.renderProposedQualificationResetHostedPlanMarkdown(plan);
+  assert.ok(markdown.split("\n").length > 40);
+  assert.match(markdown, /PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE/);
+  assert.match(markdown, /jkorwnwwmdeflfntxntl/);
+  assert.match(markdown, /llbnliixczcqfftxpsmb/);
+  assert.doesNotMatch(markdown, /postgresql:\/\//);
+  assert.match(markdown, /2\.117\.0/);
+  assert.match(markdown, /Management API apply/);
+});
+

@@ -1,0 +1,10 @@
+{
+  "schema": "f3-f12-closure-42-to-43-v1",
+  "f11_file_count": 42,
+  "f12_file_count": 43,
+  "f12_digest": "08c2d46d7ff0d7e80d4df30342ca804cd7f1ddc408951491f77d5bb92ce1157b",
+  "additional_input": "scripts/lib/f3-db-push-wipe.mjs",
+  "reason": "qualify-f3-db-push-disposable.mjs imports wipe planWipe/buildWipeSql for offline reset-plan and HOLD disclosure; buildFunctionalRecursiveRuntimeClosure recursive dependency walk includes that import. Absent from F11 42-file closure.",
+  "required_runtime_read_inputs_lists_wipe": false,
+  "included_via_recursive_import_from_qualify": true
+}

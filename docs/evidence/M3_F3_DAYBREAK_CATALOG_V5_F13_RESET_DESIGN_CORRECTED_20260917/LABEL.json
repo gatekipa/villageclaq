@@ -1,0 +1,10 @@
+{
+  "label": "F13 RESET DESIGN CORRECTED — AWAITING INDEPENDENT QA — NOT IMPLEMENTED YET",
+  "phase": 1,
+  "mode": "LOCAL_SYNTHETIC",
+  "hosted_implication": false,
+  "mutation_entrypoint_open": false,
+  "wipe_to_baseline": "rejected",
+  "wipe_rejection_code": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
+  "awaiting": "independent QA accept before Phase 2 mutation-path implementation"
+}

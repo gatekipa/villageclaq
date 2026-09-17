@@ -1,0 +1,11 @@
+{
+  "suite": "test-f3-db-push",
+  "exit_code": 0,
+  "classification": "PASS_WITH_SKIPS",
+  "tests": 122,
+  "pass": 121,
+  "fail": 0,
+  "skipped": 1,
+  "sha256": "af95f2245907836a3804c97890e1b5fdfb42ee88b9f5d491e653d59d34beff25",
+  "bytes": 49053
+}

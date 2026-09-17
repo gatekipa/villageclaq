@@ -1,0 +1,10 @@
+{
+  "title": "M3_F3_DAYBREAK_HOLD_00119_STAGING_20260914",
+  "verdict": "HOLD",
+  "functional_sha": "71d5a14e38d13c0a2993b086a3fc754af2678c86",
+  "root_cause": "one-file staging omits remote-applied 20260913173000; CLI 2.117.0 remote/local mismatch at 00119",
+  "00118": "PASS",
+  "00119": "HOLD STOP",
+  "00120_00123": "NOT RUN",
+  "negatives_all_repairCalls_zero": true
+}

@@ -1,0 +1,16 @@
+{
+  "artifact": "M3_F3_03_WIPE_SUCCESS_BASELINE_20260913",
+  "wipe": "SUCCESS",
+  "disposable_state": "CLEAN_BASELINE",
+  "do_not_re_floor": true,
+  "do_not_re_wipe": true,
+  "hosted_floor_db_push": "NOT_STARTED",
+  "overall_qualification": "HOLD — not PASS",
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "production_ref_contacted": false,
+  "pre_wipe_artifact": "M3_F3_02_PRE_WIPE_INVENTORY_20260913",
+  "recognition": ["manual_income"],
+  "shim_created": false,
+  "financial_objects": "absent",
+  "managed_schemas_preserved": true
+}

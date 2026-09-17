@@ -1,0 +1,100 @@
+{
+  "ok": true,
+  "live": {
+    "current_database": "postgres",
+    "current_user": "postgres",
+    "provenance": "original_query_output"
+  },
+  "frozenTarget": {
+    "project_ref": "jkorwnwwmdeflfntxntl",
+    "project_name": "villageclaq-f3-management-api-disposable-20260913",
+    "org_id": "eyztkzkprpmlmcabrfef",
+    "identity_hostname_pin": "db.jkorwnwwmdeflfntxntl.supabase.co",
+    "connection_hostname": "aws-0-us-east-1.pooler.supabase.com",
+    "connection_port": 5432,
+    "connection_database": "postgres",
+    "connection_username": "postgres.jkorwnwwmdeflfntxntl",
+    "expected_live_database": "postgres",
+    "expected_live_role": "postgres",
+    "host_classification": "approved_session_pooler",
+    "ssl_required": true,
+    "sslmode": "require",
+    "credential_source": "env:VILLAGECLAQ_F3_DISPOSABLE_DB_PASSWORD",
+    "production_ref_rejected": true,
+    "production_ref": "llbnliixczcqfftxpsmb",
+    "pooler_username_mapping": {
+      "connection_username": "postgres.jkorwnwwmdeflfntxntl",
+      "project_ref": "jkorwnwwmdeflfntxntl",
+      "expected_live_current_user": "postgres",
+      "expected_live_current_database": "postgres"
+    },
+    "provenance": {
+      "project_ref": "approved_disposable_pin",
+      "project_name": "approved_disposable_pin",
+      "org_id": "approved_disposable_pin",
+      "identity_hostname_pin": "approved_disposable_pin",
+      "connection_hostname": "connection_metadata",
+      "connection_port": "connection_metadata",
+      "connection_database": "connection_metadata",
+      "connection_username": "connection_metadata",
+      "expected_live_database": "connection_username_mapping",
+      "expected_live_role": "connection_username_mapping",
+      "host_classification": "connection_metadata",
+      "ssl_required": "connection_metadata",
+      "sslmode": "connection_metadata",
+      "credential_source": "connection_metadata",
+      "production_ref_rejected": "connection_metadata",
+      "live_current_database": "original_query_output",
+      "live_current_user": "original_query_output"
+    },
+    "source": "qualify-f3-db-push-disposable",
+    "immutable_hash": "6f8237a0ecd67f0032f34088e1c9ae60ec6c46529f9b0e303bd9dc010e621234"
+  },
+  "fieldComparisons": {
+    "current_database": {
+      "actual": "postgres",
+      "expected": "postgres",
+      "match": true
+    },
+    "current_user": {
+      "actual": "postgres",
+      "expected": "postgres",
+      "match": true
+    },
+    "connection_database": {
+      "actual": "postgres",
+      "expected": "postgres",
+      "match": true
+    },
+    "expected_live_role": {
+      "actual": "postgres",
+      "expected": "postgres",
+      "match": true
+    },
+    "pooler_mapped_role": {
+      "actual": "postgres",
+      "expected": "postgres",
+      "match": true
+    },
+    "connection_hostname": {
+      "actual": "aws-0-us-east-1.pooler.supabase.com",
+      "expected": "aws-0-us-east-1.pooler.supabase.com",
+      "match": true
+    },
+    "connection_port": {
+      "actual": 5432,
+      "expected": 5432,
+      "match": true
+    },
+    "sslmode": {
+      "actual": "require",
+      "expected": "require",
+      "match": true
+    },
+    "project_ref": {
+      "actual": "jkorwnwwmdeflfntxntl",
+      "expected": "jkorwnwwmdeflfntxntl",
+      "match": true
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "schema": "f3-f11-counter-spy-results-v1",
+  "from_suite_log": "suite-logs/suites/test-f3-db-push.out",
+  "happy_path": {
+    "durableWriteAttempts": 3,
+    "durableWritesVerified": 3,
+    "durableRecordWrites": 3,
+    "note": "A + B + pre-continuation verified at writeDurableArtifactBytes only"
+  },
+  "failure_spies": {
+    "F11-C04": "A failure: attempt not verified",
+    "F11-C05": "B failure: A verified B not",
+    "F11-C06": "pre failure: A+B verified pre not",
+    "F11-O04": "truthful failure suppresses subsequent",
+    "F11-O06": "persistence failure through shared path"
+  },
+  "case_ids_present": {
+    "F11-C01": true,
+    "F11-C02": true,
+    "F11-C03": true,
+    "F11-C04": true,
+    "F11-C05": true,
+    "F11-C06": true,
+    "F11-C07": true,
+    "F11-C08": true,
+    "F11-O01": true,
+    "F11-O02": true,
+    "F11-O03": true,
+    "F11-O04": true,
+    "F11-O05": true,
+    "F11-O06": true
+  }
+}

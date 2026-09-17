@@ -1,0 +1,39 @@
+{
+  "sha256": "6f049dd3958e3560b5bd8036bc97a275d3f033906b6bc2cfb37db4c434372e91",
+  "bytes": 7449,
+  "encoding": "utf8",
+  "sanitized_before_hash": true,
+  "tests": [
+    {
+      "name": "test-f3-recognition",
+      "ok": true,
+      "exact_error": null
+    }
+  ],
+  "transformation_provenance": {
+    "producer": "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile",
+    "builder": "scripts/lib/f3-db-push-repair-safety-gate.mjs#buildSuiteMetaFromSanitizedOut",
+    "transform": "scripts/lib/f3-db-push-repair-safety-gate.mjs#sanitizeEvidenceOutBytes",
+    "source_sha256": "c9573893725d4f993a5361c31134d1cc7730296c9997f6478b98f5bc4e672dec",
+    "source_bytes": 7541,
+    "final_sha256": "6f049dd3958e3560b5bd8036bc97a275d3f033906b6bc2cfb37db4c434372e91",
+    "final_bytes": 7449,
+    "transformations": [
+      "sanitizeEvidenceOutBytes",
+      "nonsemantic_absolute_path_sanitization"
+    ],
+    "pipeline": [
+      "capture",
+      "sanitize",
+      "durable_write",
+      "reread",
+      "hash",
+      "suite_metadata",
+      "indexes"
+    ],
+    "durable_write": {
+      "temp_fsync_close_atomic_rename_reread": true,
+      "verified": true
+    }
+  }
+}

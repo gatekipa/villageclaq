@@ -1,0 +1,163 @@
+{
+  "artifact": "executable-byte-manifest",
+  "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919",
+  "cli_pin": "2.117.0",
+  "cli_path": "/workspace/f3-dbpush-qual/bin/supabase",
+  "tree_root": "[ISOLATED_TREE]",
+  "entries": [
+    {
+      "path": "scripts/qualify-f3-db-push-disposable.mjs",
+      "bytes": 26497,
+      "sha256": "d736967615c33d7618f6a71bc2fe1f86597f0c173ad2b5105e2366651cb1d5ea",
+      "git_blob_sha": "45175049ae5ae4416c2603b703f00ed445270e82",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+      "bytes": 27190,
+      "sha256": "bfe8d48a6949f44d6a0b65b8f85acbe83ffa0b66d929d890bbef85d7c57ff3ed",
+      "git_blob_sha": "efe0beda2f7c93f7bdf2bf4523ebf3cf3eb2f14c",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "scripts/lib/f3-db-push-pins.mjs",
+      "bytes": 8485,
+      "sha256": "9ce282bed1c4ea3b81f0e2ba9bedd5c7a928ecdccc1e23c867c86ac0f8969412",
+      "git_blob_sha": "14c99b61638b0b14ad8a55054bfe0a6e4d41aab2",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "scripts/lib/f3-db-push-cli.mjs",
+      "bytes": 9136,
+      "sha256": "164789ec1eb9015cf218b52069632f6be67b9fe9187cfbea2c36f419a314147a",
+      "git_blob_sha": "a0d1ae7887e9a1c343e14414a20ae3d70a22d676",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "scripts/lib/f3-db-push-target-guard.mjs",
+      "bytes": 18401,
+      "sha256": "8552dff537d237b83045313f277df6e60f1bb2f186f3cd0975dd979992fbfb3b",
+      "git_blob_sha": "f6774cf0083219110bb705ac6721a274dcbb3e7a",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "scripts/lib/f3-db-push-identity.mjs",
+      "bytes": 5809,
+      "sha256": "4f7e7285238d2f57e7b85bb97c6693879835e27428946c125b6541e7b64f25bc",
+      "git_blob_sha": "ededc64c4986c99dab31bb515ed4544bebf03ec7",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "scripts/lib/f3-db-push-version-map.mjs",
+      "bytes": 7475,
+      "sha256": "5b833b5b7fc4db6cf239177fcc91197c2c4786c87f6153da23ab2ef2b62638ee",
+      "git_blob_sha": "e7f22181605bf75776c6b9dbda8cba3a5be9600a",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "scripts/lib/f3-db-push-history-inject.mjs",
+      "bytes": 5165,
+      "sha256": "3e472c9548ef0db61c131a971257e5a7ef9c1d84c26469d9389bbb4510f5a96d",
+      "git_blob_sha": "4a5682f787538b8d18aec74a7adbe747312630cf",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "scripts/lib/f3-db-push-floor.mjs",
+      "bytes": 16919,
+      "sha256": "277e11a095bfbd4699135c8904590544d1b0781a15fb13580292d857cfbb35f5",
+      "git_blob_sha": "1c9faa4a4ea35f410b99de0f2e9e0cfa4b292317",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "scripts/lib/f3-db-push-stub-live-pin-floor.mjs",
+      "bytes": 31082,
+      "sha256": "25ebcc05519ce5e89d7cebefb15d7914fd529756463c370ad0e1da9059712e60",
+      "git_blob_sha": "7f9f1d9807ef45e18dbabcfd9134a2186daadd1c",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "scripts/lib/f3-db-push-remote-sql-file.mjs",
+      "bytes": 3658,
+      "sha256": "655337dc833680db9ac33ba53e4ab73bf3e40fab52b73913fc6948c504833453",
+      "git_blob_sha": "db3970be411f4a1d3bf22c806063ce46a991297f",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "scripts/lib/f3-db-push-inventory.mjs",
+      "bytes": 13050,
+      "sha256": "28e7a9606dc343c57595bd60adeb345ff0bd37798a7cd22825b2fc1fa2615da2",
+      "git_blob_sha": "2825b2691458439bb3c3b3a2b1faa8b76b6662ff",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "scripts/lib/f3-db-push-query-parse.mjs",
+      "bytes": 7600,
+      "sha256": "eabcb5ad1ead1fe2b977f622ca121c53e850a67ea24f7fd23b614dc412667bfa",
+      "git_blob_sha": "268ff75c66d3f76cde5206c7229b93d27a699877",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "scripts/lib/f3-db-push-pre-stub-floor-clean-check.mjs",
+      "bytes": 6909,
+      "sha256": "1bb07a711f621f61d74346c4b5b0e06a648d52caeb5217d12129ce12c4e8caa9",
+      "git_blob_sha": "24da662301a880967d9d1674045df74dd60adc9d",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "scripts/lib/f3-db-push-wipe.mjs",
+      "bytes": 5708,
+      "sha256": "c0d2224bcabefa0de4cfac6cac86db174d6334bb6634cd8d81b93b106c36e7bb",
+      "git_blob_sha": "43f728335922ec53338a0ca1766b6e3fe99c772a",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "scripts/test-f3-db-push-harness.mjs",
+      "bytes": 47330,
+      "sha256": "ed16ef31c05d6fd090816f710217df7a09db8edf676f0c6cee11669316efbeb9",
+      "git_blob_sha": "01bafe3ebe98234deff4ea2725c4e21852bf8246",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "supabase/migrations/00118_f3_bounded_financial_epoch_foundation.sql",
+      "bytes": 12935,
+      "sha256": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+      "git_blob_sha": "10f359380da2d98010b67ba8bd7700d7f38945d7",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql",
+      "bytes": 35663,
+      "sha256": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+      "git_blob_sha": "13fd81e88b53373ba16be928890d2576da0198e4",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql",
+      "bytes": 33103,
+      "sha256": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+      "git_blob_sha": "bebdcc3f319344e09d478b54807fdfa1448ffd41",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "supabase/migrations/00121_f3_03_projection_read_proof.sql",
+      "bytes": 36076,
+      "sha256": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+      "git_blob_sha": "d1d561829b3632f47f7ad5d6510943fa4f0caa79",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "supabase/migrations/00122_f3_04_correction_reversal.sql",
+      "bytes": 49221,
+      "sha256": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+      "git_blob_sha": "cefafa005db3318e7abd787f478a179772576b99",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    },
+    {
+      "path": "supabase/migrations/00123_f3_05_opening_cash_command.sql",
+      "bytes": 19813,
+      "sha256": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
+      "git_blob_sha": "582bbb23e8e240baff932aecb7234c7289e3c3b4",
+      "functional_commit": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+    }
+  ]
+}

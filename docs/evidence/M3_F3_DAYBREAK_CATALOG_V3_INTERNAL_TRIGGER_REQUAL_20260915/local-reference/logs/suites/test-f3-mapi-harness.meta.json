@@ -1,0 +1,11 @@
+{
+  "suite": "test-f3-mapi-harness",
+  "exit_code": 0,
+  "classification": "PASS",
+  "tests": 22,
+  "pass": 22,
+  "fail": 0,
+  "skipped": 0,
+  "sha256": "f2601dbb45cc407c45777e7a5db72e46f60660ff178bd457fe9099a51079c696",
+  "bytes": 4566
+}

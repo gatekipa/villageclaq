@@ -1,0 +1,6272 @@
+{
+  "acl": [
+    {
+      "schema": "financial_core",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "assert_finances_manage",
+      "object_type": "routine",
+      "identity_arguments": "p_group_id uuid"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "assert_finances_manage",
+      "object_type": "routine",
+      "identity_arguments": "p_group_id uuid"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "assert_financial_event_balanced",
+      "object_type": "routine",
+      "identity_arguments": "p_event_id uuid"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "can_manage_finances",
+      "object_type": "routine",
+      "identity_arguments": "p_group_id uuid"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "can_manage_finances",
+      "object_type": "routine",
+      "identity_arguments": "p_group_id uuid"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "can_view_finances",
+      "object_type": "routine",
+      "identity_arguments": "p_group_id uuid"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "can_view_finances",
+      "object_type": "routine",
+      "identity_arguments": "p_group_id uuid"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "check_event_balance_from_event",
+      "object_type": "routine",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "check_event_balance_from_posting",
+      "object_type": "routine",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "currency_scale",
+      "object_type": "routine",
+      "identity_arguments": "p_currency text"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "currency_scale",
+      "object_type": "routine",
+      "identity_arguments": "p_currency text"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "currency_scale",
+      "object_type": "routine",
+      "identity_arguments": "p_currency text"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "guard_financial_account",
+      "object_type": "routine",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "guard_financial_category",
+      "object_type": "routine",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "guard_financial_event_epoch",
+      "object_type": "routine",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "guard_financial_event_history",
+      "object_type": "routine",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "guard_financial_fund",
+      "object_type": "routine",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "guard_financial_posting_history",
+      "object_type": "routine",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "lock_financial_occurrence",
+      "object_type": "routine",
+      "identity_arguments": "p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid"
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "guard_ledger_epoch",
+      "object_type": "routine",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "DELETE",
+      "object_name": "epoch_transitions",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "epoch_transitions",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "MAINTAIN",
+      "object_name": "epoch_transitions",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "REFERENCES",
+      "object_name": "epoch_transitions",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "epoch_transitions",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRIGGER",
+      "object_name": "epoch_transitions",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRUNCATE",
+      "object_name": "epoch_transitions",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "epoch_transitions",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "DELETE",
+      "object_name": "internal_financial_tenants",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "internal_financial_tenants",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "MAINTAIN",
+      "object_name": "internal_financial_tenants",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "REFERENCES",
+      "object_name": "internal_financial_tenants",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "internal_financial_tenants",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRIGGER",
+      "object_name": "internal_financial_tenants",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRUNCATE",
+      "object_name": "internal_financial_tenants",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "internal_financial_tenants",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "DELETE",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "MAINTAIN",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "REFERENCES",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRIGGER",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRUNCATE",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "DELETE",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "MAINTAIN",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "REFERENCES",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRIGGER",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRUNCATE",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "DELETE",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "MAINTAIN",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "REFERENCES",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRIGGER",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRUNCATE",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "DELETE",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "MAINTAIN",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "REFERENCES",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRIGGER",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRUNCATE",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "DELETE",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "MAINTAIN",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "REFERENCES",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRIGGER",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRUNCATE",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "DELETE",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "MAINTAIN",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "REFERENCES",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRIGGER",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRUNCATE",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "DELETE",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "MAINTAIN",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "REFERENCES",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRIGGER",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRUNCATE",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    }
+  ],
+  "hgp": {
+    "name": "has_group_permission",
+    "count": 1,
+    "owner": "postgres",
+    "schema": "public",
+    "def_md5": "695368464e97297fbf0f90ce7345162f",
+    "src_md5": "96a296dfd541c7fc75ec68c4da1d92ff",
+    "language": "plpgsql",
+    "proconfig": [
+      "search_path=\"\""
+    ],
+    "result_type": "boolean",
+    "security_definer": true,
+    "identity_arguments": "gid uuid, perm_key text, uid uuid"
+  },
+  "rls": [
+    {
+      "schema": "financial_private",
+      "relation": "epoch_transitions",
+      "rls_force": false,
+      "rls_enabled": false
+    },
+    {
+      "schema": "financial_private",
+      "relation": "internal_financial_tenants",
+      "rls_force": true,
+      "rls_enabled": true
+    },
+    {
+      "schema": "public",
+      "relation": "financial_accounts",
+      "rls_force": true,
+      "rls_enabled": true
+    },
+    {
+      "schema": "public",
+      "relation": "financial_categories",
+      "rls_force": true,
+      "rls_enabled": true
+    },
+    {
+      "schema": "public",
+      "relation": "financial_events",
+      "rls_force": true,
+      "rls_enabled": true
+    },
+    {
+      "schema": "public",
+      "relation": "financial_funds",
+      "rls_force": true,
+      "rls_enabled": true
+    },
+    {
+      "schema": "public",
+      "relation": "financial_ledger_epochs",
+      "rls_force": false,
+      "rls_enabled": true
+    },
+    {
+      "schema": "public",
+      "relation": "financial_postings",
+      "rls_force": true,
+      "rls_enabled": true
+    }
+  ],
+  "acls": [
+    {
+      "schema": "financial_core",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "assert_finances_manage",
+      "object_type": "routine",
+      "identity_arguments": "p_group_id uuid"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "assert_finances_manage",
+      "object_type": "routine",
+      "identity_arguments": "p_group_id uuid"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "assert_financial_event_balanced",
+      "object_type": "routine",
+      "identity_arguments": "p_event_id uuid"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "can_manage_finances",
+      "object_type": "routine",
+      "identity_arguments": "p_group_id uuid"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "can_manage_finances",
+      "object_type": "routine",
+      "identity_arguments": "p_group_id uuid"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "can_view_finances",
+      "object_type": "routine",
+      "identity_arguments": "p_group_id uuid"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "can_view_finances",
+      "object_type": "routine",
+      "identity_arguments": "p_group_id uuid"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "check_event_balance_from_event",
+      "object_type": "routine",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "check_event_balance_from_posting",
+      "object_type": "routine",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "currency_scale",
+      "object_type": "routine",
+      "identity_arguments": "p_currency text"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "currency_scale",
+      "object_type": "routine",
+      "identity_arguments": "p_currency text"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "currency_scale",
+      "object_type": "routine",
+      "identity_arguments": "p_currency text"
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "guard_financial_account",
+      "object_type": "routine",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "guard_financial_category",
+      "object_type": "routine",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "guard_financial_event_epoch",
+      "object_type": "routine",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "guard_financial_event_history",
+      "object_type": "routine",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "guard_financial_fund",
+      "object_type": "routine",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "guard_financial_posting_history",
+      "object_type": "routine",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_core",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "lock_financial_occurrence",
+      "object_type": "routine",
+      "identity_arguments": "p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid"
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "f",
+      "grantable": false,
+      "privilege": "EXECUTE",
+      "object_name": "guard_ledger_epoch",
+      "object_type": "routine",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "DELETE",
+      "object_name": "epoch_transitions",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "epoch_transitions",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "MAINTAIN",
+      "object_name": "epoch_transitions",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "REFERENCES",
+      "object_name": "epoch_transitions",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "epoch_transitions",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRIGGER",
+      "object_name": "epoch_transitions",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRUNCATE",
+      "object_name": "epoch_transitions",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "epoch_transitions",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "DELETE",
+      "object_name": "internal_financial_tenants",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "internal_financial_tenants",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "MAINTAIN",
+      "object_name": "internal_financial_tenants",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "REFERENCES",
+      "object_name": "internal_financial_tenants",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "internal_financial_tenants",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRIGGER",
+      "object_name": "internal_financial_tenants",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRUNCATE",
+      "object_name": "internal_financial_tenants",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "financial_private",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "internal_financial_tenants",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "DELETE",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "MAINTAIN",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "REFERENCES",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRIGGER",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRUNCATE",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_accounts",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "DELETE",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "MAINTAIN",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "REFERENCES",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRIGGER",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRUNCATE",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_categories",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "DELETE",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "MAINTAIN",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "REFERENCES",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRIGGER",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRUNCATE",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_events",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "DELETE",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "MAINTAIN",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "REFERENCES",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRIGGER",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRUNCATE",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_funds",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "DELETE",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "MAINTAIN",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "REFERENCES",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRIGGER",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRUNCATE",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "DELETE",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "MAINTAIN",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "REFERENCES",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRIGGER",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRUNCATE",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_ledger_epochs",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "authenticated",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "DELETE",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "INSERT",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "MAINTAIN",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "REFERENCES",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRIGGER",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "TRUNCATE",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "postgres",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "UPDATE",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    },
+    {
+      "schema": "public",
+      "grantee": "service_role",
+      "grantor": "postgres",
+      "prokind": "",
+      "grantable": false,
+      "privilege": "SELECT",
+      "object_name": "financial_postings",
+      "object_type": "table",
+      "identity_arguments": ""
+    }
+  ],
+  "types": [
+    {
+      "acl": [],
+      "kind": "composite",
+      "name": "epoch_transitions",
+      "owner": "postgres",
+      "labels": [],
+      "schema": "financial_private"
+    },
+    {
+      "acl": [],
+      "kind": "composite",
+      "name": "internal_financial_tenants",
+      "owner": "postgres",
+      "labels": [],
+      "schema": "financial_private"
+    },
+    {
+      "acl": [],
+      "kind": "enum",
+      "name": "financial_account_kind",
+      "owner": "postgres",
+      "labels": [
+        "bank",
+        "cash",
+        "mobile_money",
+        "wallet",
+        "other"
+      ],
+      "schema": "public"
+    },
+    {
+      "acl": [],
+      "kind": "enum",
+      "name": "financial_account_status",
+      "owner": "postgres",
+      "labels": [
+        "active",
+        "inactive",
+        "closed"
+      ],
+      "schema": "public"
+    },
+    {
+      "acl": [],
+      "kind": "composite",
+      "name": "financial_accounts",
+      "owner": "postgres",
+      "labels": [],
+      "schema": "public"
+    },
+    {
+      "acl": [],
+      "kind": "composite",
+      "name": "financial_categories",
+      "owner": "postgres",
+      "labels": [],
+      "schema": "public"
+    },
+    {
+      "acl": [],
+      "kind": "enum",
+      "name": "financial_category_class",
+      "owner": "postgres",
+      "labels": [
+        "income",
+        "expense"
+      ],
+      "schema": "public"
+    },
+    {
+      "acl": [],
+      "kind": "enum",
+      "name": "financial_config_status",
+      "owner": "postgres",
+      "labels": [
+        "active",
+        "inactive"
+      ],
+      "schema": "public"
+    },
+    {
+      "acl": [],
+      "kind": "enum",
+      "name": "financial_control_class",
+      "owner": "postgres",
+      "labels": [
+        "custody",
+        "income",
+        "expense",
+        "opening_position",
+        "receivable",
+        "liability"
+      ],
+      "schema": "public"
+    },
+    {
+      "acl": [],
+      "kind": "enum",
+      "name": "financial_event_class",
+      "owner": "postgres",
+      "labels": [
+        "money_in",
+        "money_out",
+        "transfer",
+        "opening_adjustment"
+      ],
+      "schema": "public"
+    },
+    {
+      "acl": [],
+      "kind": "enum",
+      "name": "financial_event_status",
+      "owner": "postgres",
+      "labels": [
+        "posted",
+        "corrected",
+        "reversed"
+      ],
+      "schema": "public"
+    },
+    {
+      "acl": [],
+      "kind": "composite",
+      "name": "financial_events",
+      "owner": "postgres",
+      "labels": [],
+      "schema": "public"
+    },
+    {
+      "acl": [],
+      "kind": "composite",
+      "name": "financial_funds",
+      "owner": "postgres",
+      "labels": [],
+      "schema": "public"
+    },
+    {
+      "acl": [],
+      "kind": "composite",
+      "name": "financial_ledger_epochs",
+      "owner": "postgres",
+      "labels": [],
+      "schema": "public"
+    },
+    {
+      "acl": [],
+      "kind": "composite",
+      "name": "financial_postings",
+      "owner": "postgres",
+      "labels": [],
+      "schema": "public"
+    }
+  ],
+  "views": [],
+  "policy": [
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_accounts",
+      "using": "",
+      "schema": "public",
+      "command": "INSERT",
+      "permissive": true,
+      "with_check": "( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances)",
+      "policy_name": "financial_accounts_manager_insert"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_accounts",
+      "using": "( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances)",
+      "schema": "public",
+      "command": "SELECT",
+      "permissive": true,
+      "with_check": "",
+      "policy_name": "financial_accounts_manager_select"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_accounts",
+      "using": "( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances)",
+      "schema": "public",
+      "command": "UPDATE",
+      "permissive": true,
+      "with_check": "( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances)",
+      "policy_name": "financial_accounts_manager_update"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_categories",
+      "using": "",
+      "schema": "public",
+      "command": "INSERT",
+      "permissive": true,
+      "with_check": "(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system))",
+      "policy_name": "financial_categories_manager_insert"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_categories",
+      "using": "( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances)",
+      "schema": "public",
+      "command": "SELECT",
+      "permissive": true,
+      "with_check": "",
+      "policy_name": "financial_categories_manager_select"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_categories",
+      "using": "(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system))",
+      "schema": "public",
+      "command": "UPDATE",
+      "permissive": true,
+      "with_check": "(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system))",
+      "policy_name": "financial_categories_manager_update"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_events",
+      "using": "( SELECT financial_core.can_view_finances(financial_events.group_id) AS can_view_finances)",
+      "schema": "public",
+      "command": "SELECT",
+      "permissive": true,
+      "with_check": "",
+      "policy_name": "financial_events_finance_reader"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_funds",
+      "using": "",
+      "schema": "public",
+      "command": "INSERT",
+      "permissive": true,
+      "with_check": "( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances)",
+      "policy_name": "financial_funds_manager_insert"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_funds",
+      "using": "( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances)",
+      "schema": "public",
+      "command": "SELECT",
+      "permissive": true,
+      "with_check": "",
+      "policy_name": "financial_funds_manager_select"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_funds",
+      "using": "( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances)",
+      "schema": "public",
+      "command": "UPDATE",
+      "permissive": true,
+      "with_check": "( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances)",
+      "policy_name": "financial_funds_manager_update"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_ledger_epochs",
+      "using": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.group_id = financial_ledger_epochs.group_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text))))",
+      "schema": "public",
+      "command": "SELECT",
+      "permissive": true,
+      "with_check": "",
+      "policy_name": "financial_ledger_epoch_active_reader"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_postings",
+      "using": "( SELECT financial_core.can_view_finances(financial_postings.group_id) AS can_view_finances)",
+      "schema": "public",
+      "command": "SELECT",
+      "permissive": true,
+      "with_check": "",
+      "policy_name": "financial_postings_finance_reader"
+    }
+  ],
+  "schema": [
+    {
+      "owner": "postgres",
+      "schema": "financial_core"
+    },
+    {
+      "owner": "postgres",
+      "schema": "financial_private"
+    }
+  ],
+  "columns": [
+    {
+      "name": "transaction_id",
+      "type": "bigint",
+      "attacl": [],
+      "schema": "financial_private",
+      "typmod": null,
+      "default": null,
+      "ordinal": 1,
+      "identity": null,
+      "nullable": false,
+      "relation": "epoch_transitions",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "group_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "financial_private",
+      "typmod": null,
+      "default": null,
+      "ordinal": 2,
+      "identity": null,
+      "nullable": false,
+      "relation": "epoch_transitions",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "organization_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "financial_private",
+      "typmod": null,
+      "default": null,
+      "ordinal": 1,
+      "identity": null,
+      "nullable": false,
+      "relation": "internal_financial_tenants",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "tenant_kind",
+      "type": "text",
+      "attacl": [],
+      "schema": "financial_private",
+      "typmod": null,
+      "default": null,
+      "ordinal": 2,
+      "identity": null,
+      "nullable": false,
+      "relation": "internal_financial_tenants",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "reason",
+      "type": "text",
+      "attacl": [],
+      "schema": "financial_private",
+      "typmod": null,
+      "default": "'disposable-qualification-fixture'::text",
+      "ordinal": 3,
+      "identity": null,
+      "nullable": false,
+      "relation": "internal_financial_tenants",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "financial_private",
+      "typmod": null,
+      "default": "now()",
+      "ordinal": 4,
+      "identity": null,
+      "nullable": false,
+      "relation": "internal_financial_tenants",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "created_by",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "financial_private",
+      "typmod": null,
+      "default": null,
+      "ordinal": 5,
+      "identity": null,
+      "nullable": true,
+      "relation": "internal_financial_tenants",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "gen_random_uuid()",
+      "ordinal": 1,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_accounts",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "closed_at",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 10,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_accounts",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "created_by",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 11,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_accounts",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "opened_at",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "now()",
+      "ordinal": 12,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_accounts",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "now()",
+      "ordinal": 13,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_accounts",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "now()",
+      "ordinal": 14,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_accounts",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "group_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 2,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_accounts",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "opened_ledger_epoch_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 3,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_accounts",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "currency",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 4,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_accounts",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "name",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 5,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_accounts",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 6,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_accounts",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "kind",
+      "type": "financial_account_kind",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 7,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_accounts",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "status",
+      "type": "financial_account_status",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "'active'::financial_account_status",
+      "ordinal": 8,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_accounts",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "inactive_at",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 9,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_accounts",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "gen_random_uuid()",
+      "ordinal": 1,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_categories",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "now()",
+      "ordinal": 10,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_categories",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "group_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 2,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_categories",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "name",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 3,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_categories",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 4,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_categories",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "category_class",
+      "type": "financial_category_class",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 5,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_categories",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "is_system",
+      "type": "boolean",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "false",
+      "ordinal": 6,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_categories",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "status",
+      "type": "financial_config_status",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "'active'::financial_config_status",
+      "ordinal": 7,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_categories",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "created_by",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 8,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_categories",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "now()",
+      "ordinal": 9,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_categories",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "gen_random_uuid()",
+      "ordinal": 1,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_events",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "economic_payload_fingerprint",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 10,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_events",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "occurred_at",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 11,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_events",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "posted_at",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "now()",
+      "ordinal": 12,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_events",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "now()",
+      "ordinal": 13,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_events",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "created_by",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 14,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_events",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 15,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_events",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "reference_metadata",
+      "type": "jsonb",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "'{}'::jsonb",
+      "ordinal": 16,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_events",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "status",
+      "type": "financial_event_status",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "'posted'::financial_event_status",
+      "ordinal": 17,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_events",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "reversal_of_event_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 18,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_events",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "replacement_event_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 19,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_events",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "group_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 2,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_events",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "corrected_at",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 20,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_events",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "correction_reason",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 21,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_events",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "ledger_epoch_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 3,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_events",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "currency",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 4,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_events",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "event_class",
+      "type": "financial_event_class",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 5,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_events",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "source_module",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 6,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_events",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "source_record_id",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 7,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_events",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "effect_kind",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 8,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_events",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "request_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 9,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_events",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "gen_random_uuid()",
+      "ordinal": 1,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_funds",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "now()",
+      "ordinal": 10,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_funds",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "group_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 2,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_funds",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "name",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 3,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_funds",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 4,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_funds",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "is_restricted",
+      "type": "boolean",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "false",
+      "ordinal": 5,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_funds",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "is_default",
+      "type": "boolean",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "false",
+      "ordinal": 6,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_funds",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "status",
+      "type": "financial_config_status",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "'active'::financial_config_status",
+      "ordinal": 7,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_funds",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "created_by",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 8,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_funds",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "now()",
+      "ordinal": 9,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_funds",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "gen_random_uuid()",
+      "ordinal": 1,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_ledger_epochs",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "approved_by",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 10,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_ledger_epochs",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "approved_at",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "now()",
+      "ordinal": 11,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_ledger_epochs",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "now()",
+      "ordinal": 12,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_ledger_epochs",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "group_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 2,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_ledger_epochs",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "currency",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 3,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_ledger_epochs",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "effective_from",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 4,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_ledger_epochs",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "effective_to",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 5,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_ledger_epochs",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "source_kind",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 6,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_ledger_epochs",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "source_reference",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 7,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_ledger_epochs",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "approval_note",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 8,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_ledger_epochs",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "created_by",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 9,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_ledger_epochs",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "gen_random_uuid()",
+      "ordinal": 1,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_postings",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "fund_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 10,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_postings",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "category_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 11,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_postings",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "category_class",
+      "type": "financial_category_class",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 12,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_postings",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "member_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 13,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_postings",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "project_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 14,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_postings",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": "now()",
+      "ordinal": 15,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_postings",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "event_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 2,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_postings",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "group_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 3,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_postings",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "ledger_epoch_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 4,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_postings",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "currency",
+      "type": "text",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 5,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_postings",
+      "collation": "default",
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "occurred_at",
+      "type": "timestamp with time zone",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 6,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_postings",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "amount_signed",
+      "type": "numeric",
+      "attacl": [],
+      "schema": "public",
+      "typmod": 1966092,
+      "default": null,
+      "ordinal": 7,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_postings",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "control_class",
+      "type": "financial_control_class",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 8,
+      "identity": null,
+      "nullable": false,
+      "relation": "financial_postings",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    },
+    {
+      "name": "account_id",
+      "type": "uuid",
+      "attacl": [],
+      "schema": "public",
+      "typmod": null,
+      "default": null,
+      "ordinal": 9,
+      "identity": null,
+      "nullable": true,
+      "relation": "financial_postings",
+      "collation": null,
+      "generated": null,
+      "attacl_is_null": true
+    }
+  ],
+  "enqueue": {
+    "name": "enqueue_outbound_notification",
+    "count": 1,
+    "owner": "postgres",
+    "schema": "public",
+    "def_md5": "dbdb16cdced6cae9cbdbfb6a6a9f421f",
+    "src_md5": "3fa76af51e431ccbd31eb033dcff0b80",
+    "language": "plpgsql",
+    "proconfig": [
+      "search_path=\"\""
+    ],
+    "result_type": "TABLE(queue_id uuid, result text)",
+    "security_definer": true,
+    "identity_arguments": "p_notification_type text, p_domain_object_id uuid, p_channel notification_channel, p_recipient_membership_id uuid, p_locale text"
+  },
+  "indexes": [
+    {
+      "name": "financial_accounts_group_name",
+      "schema": "public",
+      "unique": true,
+      "relation": "financial_accounts",
+      "definition": "CREATE UNIQUE INDEX financial_accounts_group_name ON public.financial_accounts USING btree (group_id, lower(name))"
+    },
+    {
+      "name": "financial_accounts_group_status",
+      "schema": "public",
+      "unique": false,
+      "relation": "financial_accounts",
+      "definition": "CREATE INDEX financial_accounts_group_status ON public.financial_accounts USING btree (group_id, status, name)"
+    },
+    {
+      "name": "financial_accounts_id_group_currency",
+      "schema": "public",
+      "unique": true,
+      "relation": "financial_accounts",
+      "definition": "CREATE UNIQUE INDEX financial_accounts_id_group_currency ON public.financial_accounts USING btree (id, group_id, currency)"
+    },
+    {
+      "name": "financial_accounts_opened_epoch",
+      "schema": "public",
+      "unique": false,
+      "relation": "financial_accounts",
+      "definition": "CREATE INDEX financial_accounts_opened_epoch ON public.financial_accounts USING btree (opened_ledger_epoch_id)"
+    },
+    {
+      "name": "financial_categories_group_class_name",
+      "schema": "public",
+      "unique": true,
+      "relation": "financial_categories",
+      "definition": "CREATE UNIQUE INDEX financial_categories_group_class_name ON public.financial_categories USING btree (group_id, category_class, lower(name))"
+    },
+    {
+      "name": "financial_categories_group_status",
+      "schema": "public",
+      "unique": false,
+      "relation": "financial_categories",
+      "definition": "CREATE INDEX financial_categories_group_status ON public.financial_categories USING btree (group_id, category_class, status, name)"
+    },
+    {
+      "name": "financial_categories_id_group_class",
+      "schema": "public",
+      "unique": true,
+      "relation": "financial_categories",
+      "definition": "CREATE UNIQUE INDEX financial_categories_id_group_class ON public.financial_categories USING btree (id, group_id, category_class)"
+    },
+    {
+      "name": "financial_events_group_epoch_occurred",
+      "schema": "public",
+      "unique": false,
+      "relation": "financial_events",
+      "definition": "CREATE INDEX financial_events_group_epoch_occurred ON public.financial_events USING btree (group_id, ledger_epoch_id, occurred_at DESC)"
+    },
+    {
+      "name": "financial_events_group_occurred",
+      "schema": "public",
+      "unique": false,
+      "relation": "financial_events",
+      "definition": "CREATE INDEX financial_events_group_occurred ON public.financial_events USING btree (group_id, occurred_at DESC, id)"
+    },
+    {
+      "name": "financial_events_id_group",
+      "schema": "public",
+      "unique": true,
+      "relation": "financial_events",
+      "definition": "CREATE UNIQUE INDEX financial_events_id_group ON public.financial_events USING btree (id, group_id)"
+    },
+    {
+      "name": "financial_events_manual_request",
+      "schema": "public",
+      "unique": true,
+      "relation": "financial_events",
+      "definition": "CREATE UNIQUE INDEX financial_events_manual_request ON public.financial_events USING btree (group_id, request_id) WHERE (request_id IS NOT NULL)"
+    },
+    {
+      "name": "financial_events_one_reversal",
+      "schema": "public",
+      "unique": true,
+      "relation": "financial_events",
+      "definition": "CREATE UNIQUE INDEX financial_events_one_reversal ON public.financial_events USING btree (group_id, reversal_of_event_id) WHERE (reversal_of_event_id IS NOT NULL)"
+    },
+    {
+      "name": "financial_events_posting_scope",
+      "schema": "public",
+      "unique": true,
+      "relation": "financial_events",
+      "definition": "CREATE UNIQUE INDEX financial_events_posting_scope ON public.financial_events USING btree (id, group_id, ledger_epoch_id, currency, occurred_at)"
+    },
+    {
+      "name": "financial_events_source_identity",
+      "schema": "public",
+      "unique": true,
+      "relation": "financial_events",
+      "definition": "CREATE UNIQUE INDEX financial_events_source_identity ON public.financial_events USING btree (group_id, source_module, source_record_id, effect_kind, ledger_epoch_id)"
+    },
+    {
+      "name": "financial_funds_group_name",
+      "schema": "public",
+      "unique": true,
+      "relation": "financial_funds",
+      "definition": "CREATE UNIQUE INDEX financial_funds_group_name ON public.financial_funds USING btree (group_id, lower(name))"
+    },
+    {
+      "name": "financial_funds_group_status",
+      "schema": "public",
+      "unique": false,
+      "relation": "financial_funds",
+      "definition": "CREATE INDEX financial_funds_group_status ON public.financial_funds USING btree (group_id, status, name)"
+    },
+    {
+      "name": "financial_funds_id_group",
+      "schema": "public",
+      "unique": true,
+      "relation": "financial_funds",
+      "definition": "CREATE UNIQUE INDEX financial_funds_id_group ON public.financial_funds USING btree (id, group_id)"
+    },
+    {
+      "name": "financial_funds_one_default",
+      "schema": "public",
+      "unique": true,
+      "relation": "financial_funds",
+      "definition": "CREATE UNIQUE INDEX financial_funds_one_default ON public.financial_funds USING btree (group_id) WHERE is_default"
+    },
+    {
+      "name": "financial_ledger_epoch_group_period",
+      "schema": "public",
+      "unique": false,
+      "relation": "financial_ledger_epochs",
+      "definition": "CREATE INDEX financial_ledger_epoch_group_period ON public.financial_ledger_epochs USING btree (group_id, effective_from DESC)"
+    },
+    {
+      "name": "financial_ledger_epoch_no_overlap",
+      "schema": "public",
+      "unique": false,
+      "relation": "financial_ledger_epochs",
+      "definition": "CREATE INDEX financial_ledger_epoch_no_overlap ON public.financial_ledger_epochs USING gist (group_id, tstzrange(effective_from, COALESCE(effective_to, 'infinity'::timestamp with time zone), '[)'::text))"
+    },
+    {
+      "name": "financial_ledger_epoch_one_active",
+      "schema": "public",
+      "unique": true,
+      "relation": "financial_ledger_epochs",
+      "definition": "CREATE UNIQUE INDEX financial_ledger_epoch_one_active ON public.financial_ledger_epochs USING btree (group_id) WHERE (effective_to IS NULL)"
+    },
+    {
+      "name": "financial_ledger_epoch_scope",
+      "schema": "public",
+      "unique": true,
+      "relation": "financial_ledger_epochs",
+      "definition": "CREATE UNIQUE INDEX financial_ledger_epoch_scope ON public.financial_ledger_epochs USING btree (id, group_id, currency)"
+    },
+    {
+      "name": "financial_postings_account_period",
+      "schema": "public",
+      "unique": false,
+      "relation": "financial_postings",
+      "definition": "CREATE INDEX financial_postings_account_period ON public.financial_postings USING btree (group_id, account_id, occurred_at DESC) WHERE (account_id IS NOT NULL)"
+    },
+    {
+      "name": "financial_postings_category_period",
+      "schema": "public",
+      "unique": false,
+      "relation": "financial_postings",
+      "definition": "CREATE INDEX financial_postings_category_period ON public.financial_postings USING btree (group_id, category_id, occurred_at DESC) WHERE (category_id IS NOT NULL)"
+    },
+    {
+      "name": "financial_postings_event",
+      "schema": "public",
+      "unique": false,
+      "relation": "financial_postings",
+      "definition": "CREATE INDEX financial_postings_event ON public.financial_postings USING btree (event_id)"
+    },
+    {
+      "name": "financial_postings_fund_period",
+      "schema": "public",
+      "unique": false,
+      "relation": "financial_postings",
+      "definition": "CREATE INDEX financial_postings_fund_period ON public.financial_postings USING btree (group_id, fund_id, occurred_at DESC)"
+    },
+    {
+      "name": "financial_postings_member_period",
+      "schema": "public",
+      "unique": false,
+      "relation": "financial_postings",
+      "definition": "CREATE INDEX financial_postings_member_period ON public.financial_postings USING btree (group_id, member_id, occurred_at DESC) WHERE (member_id IS NOT NULL)"
+    }
+  ],
+  "schemas": [
+    {
+      "acl": [
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "USAGE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "CREATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "USAGE"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "USAGE"
+        }
+      ],
+      "name": "financial_core",
+      "owner": "postgres"
+    },
+    {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "CREATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "USAGE"
+        }
+      ],
+      "name": "financial_private",
+      "owner": "postgres"
+    }
+  ],
+  "policies": [
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_accounts",
+      "using": "",
+      "schema": "public",
+      "command": "INSERT",
+      "permissive": true,
+      "with_check": "( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances)",
+      "policy_name": "financial_accounts_manager_insert"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_accounts",
+      "using": "( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances)",
+      "schema": "public",
+      "command": "SELECT",
+      "permissive": true,
+      "with_check": "",
+      "policy_name": "financial_accounts_manager_select"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_accounts",
+      "using": "( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances)",
+      "schema": "public",
+      "command": "UPDATE",
+      "permissive": true,
+      "with_check": "( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances)",
+      "policy_name": "financial_accounts_manager_update"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_categories",
+      "using": "",
+      "schema": "public",
+      "command": "INSERT",
+      "permissive": true,
+      "with_check": "(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system))",
+      "policy_name": "financial_categories_manager_insert"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_categories",
+      "using": "( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances)",
+      "schema": "public",
+      "command": "SELECT",
+      "permissive": true,
+      "with_check": "",
+      "policy_name": "financial_categories_manager_select"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_categories",
+      "using": "(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system))",
+      "schema": "public",
+      "command": "UPDATE",
+      "permissive": true,
+      "with_check": "(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system))",
+      "policy_name": "financial_categories_manager_update"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_events",
+      "using": "( SELECT financial_core.can_view_finances(financial_events.group_id) AS can_view_finances)",
+      "schema": "public",
+      "command": "SELECT",
+      "permissive": true,
+      "with_check": "",
+      "policy_name": "financial_events_finance_reader"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_funds",
+      "using": "",
+      "schema": "public",
+      "command": "INSERT",
+      "permissive": true,
+      "with_check": "( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances)",
+      "policy_name": "financial_funds_manager_insert"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_funds",
+      "using": "( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances)",
+      "schema": "public",
+      "command": "SELECT",
+      "permissive": true,
+      "with_check": "",
+      "policy_name": "financial_funds_manager_select"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_funds",
+      "using": "( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances)",
+      "schema": "public",
+      "command": "UPDATE",
+      "permissive": true,
+      "with_check": "( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances)",
+      "policy_name": "financial_funds_manager_update"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_ledger_epochs",
+      "using": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.group_id = financial_ledger_epochs.group_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text))))",
+      "schema": "public",
+      "command": "SELECT",
+      "permissive": true,
+      "with_check": "",
+      "policy_name": "financial_ledger_epoch_active_reader"
+    },
+    {
+      "roles": [
+        "authenticated"
+      ],
+      "table": "financial_postings",
+      "using": "( SELECT financial_core.can_view_finances(financial_postings.group_id) AS can_view_finances)",
+      "schema": "public",
+      "command": "SELECT",
+      "permissive": true,
+      "with_check": "",
+      "policy_name": "financial_postings_finance_reader"
+    }
+  ],
+  "routines": [
+    {
+      "acl": [
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        }
+      ],
+      "name": "assert_finances_manage",
+      "owner": "postgres",
+      "schema": "financial_core",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "unsafe",
+      "leakproof": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "volatility": "stable",
+      "functiondef": "CREATE OR REPLACE FUNCTION financial_core.assert_finances_manage(p_group_id uuid)\n RETURNS uuid\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nDECLARE\n  actor uuid := auth.uid();\nBEGIN\n  IF actor IS NULL THEN\n    RAISE EXCEPTION 'AUTHENTICATION_REQUIRED' USING ERRCODE = '42501';\n  END IF;\n  IF NOT financial_core.can_manage_finances(p_group_id) THEN\n    RAISE EXCEPTION 'ACTIVE_FINANCES_MANAGE_REQUIRED' USING ERRCODE = '42501';\n  END IF;\n  RETURN actor;\nEND;\n$function$\n",
+      "result_type": "uuid",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": true,
+      "identity_arguments": "p_group_id uuid"
+    },
+    {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        }
+      ],
+      "name": "assert_financial_event_balanced",
+      "owner": "postgres",
+      "schema": "financial_core",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "unsafe",
+      "leakproof": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "volatility": "volatile",
+      "functiondef": "CREATE OR REPLACE FUNCTION financial_core.assert_financial_event_balanced(p_event_id uuid)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nDECLARE\n  posting_count bigint;\n  posting_total numeric;\nBEGIN\n  IF NOT EXISTS (SELECT 1 FROM public.financial_events e WHERE e.id = p_event_id) THEN\n    RETURN;\n  END IF;\n  SELECT count(*), COALESCE(sum(p.amount_signed), 0)\n    INTO posting_count, posting_total\n  FROM public.financial_postings p\n  WHERE p.event_id = p_event_id;\n  IF posting_count = 0 THEN\n    RAISE EXCEPTION 'POSTED_FINANCIAL_EVENT_REQUIRES_POSTINGS' USING ERRCODE = '23514';\n  END IF;\n  IF posting_total <> 0 THEN\n    RAISE EXCEPTION 'POSTED_FINANCIAL_EVENT_UNBALANCED' USING ERRCODE = '23514';\n  END IF;\nEND;\n$function$\n",
+      "result_type": "void",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": true,
+      "identity_arguments": "p_event_id uuid"
+    },
+    {
+      "acl": [
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        }
+      ],
+      "name": "can_manage_finances",
+      "owner": "postgres",
+      "schema": "financial_core",
+      "strict": false,
+      "language": "sql",
+      "parallel": "unsafe",
+      "leakproof": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "volatility": "stable",
+      "functiondef": "CREATE OR REPLACE FUNCTION financial_core.can_manage_finances(p_group_id uuid)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  SELECT (SELECT auth.uid()) IS NOT NULL\n    AND EXISTS (\n      SELECT 1 FROM public.memberships m\n      WHERE m.group_id = p_group_id\n        AND m.user_id = (SELECT auth.uid())\n        AND m.membership_status = 'active'\n    )\n    AND public.has_group_permission(\n      p_group_id, 'finances.manage', (SELECT auth.uid()));\n$function$\n",
+      "result_type": "boolean",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": true,
+      "identity_arguments": "p_group_id uuid"
+    },
+    {
+      "acl": [
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        }
+      ],
+      "name": "can_view_finances",
+      "owner": "postgres",
+      "schema": "financial_core",
+      "strict": false,
+      "language": "sql",
+      "parallel": "unsafe",
+      "leakproof": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "volatility": "stable",
+      "functiondef": "CREATE OR REPLACE FUNCTION financial_core.can_view_finances(p_group_id uuid)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  SELECT (SELECT auth.uid()) IS NOT NULL\n    AND EXISTS (\n      SELECT 1 FROM public.memberships m\n      WHERE m.group_id = p_group_id\n        AND m.user_id = (SELECT auth.uid())\n        AND m.membership_status = 'active'\n    )\n    AND (\n      public.has_group_permission(\n        p_group_id, 'finances.view', (SELECT auth.uid()))\n      OR public.has_group_permission(\n        p_group_id, 'finances.manage', (SELECT auth.uid()))\n    );\n$function$\n",
+      "result_type": "boolean",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": true,
+      "identity_arguments": "p_group_id uuid"
+    },
+    {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        }
+      ],
+      "name": "check_event_balance_from_event",
+      "owner": "postgres",
+      "schema": "financial_core",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "unsafe",
+      "leakproof": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "volatility": "volatile",
+      "functiondef": "CREATE OR REPLACE FUNCTION financial_core.check_event_balance_from_event()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nBEGIN\n  PERFORM financial_core.assert_financial_event_balanced(NEW.id);\n  RETURN NULL;\nEND;\n$function$\n",
+      "result_type": "trigger",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        }
+      ],
+      "name": "check_event_balance_from_posting",
+      "owner": "postgres",
+      "schema": "financial_core",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "unsafe",
+      "leakproof": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "volatility": "volatile",
+      "functiondef": "CREATE OR REPLACE FUNCTION financial_core.check_event_balance_from_posting()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nBEGIN\n  IF TG_OP = 'DELETE' THEN\n    PERFORM financial_core.assert_financial_event_balanced(OLD.event_id);\n  ELSE\n    PERFORM financial_core.assert_financial_event_balanced(NEW.event_id);\n    IF TG_OP = 'UPDATE' AND OLD.event_id IS DISTINCT FROM NEW.event_id THEN\n      PERFORM financial_core.assert_financial_event_balanced(OLD.event_id);\n    END IF;\n  END IF;\n  RETURN NULL;\nEND;\n$function$\n",
+      "result_type": "trigger",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "acl": [
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        }
+      ],
+      "name": "currency_scale",
+      "owner": "postgres",
+      "schema": "financial_core",
+      "strict": false,
+      "language": "sql",
+      "parallel": "safe",
+      "leakproof": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "volatility": "immutable",
+      "functiondef": "CREATE OR REPLACE FUNCTION financial_core.currency_scale(p_currency text)\n RETURNS smallint\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE\n SET search_path TO ''\nAS $function$\n  SELECT CASE upper(p_currency)\n    WHEN 'XAF' THEN 0 WHEN 'XOF' THEN 0 WHEN 'TZS' THEN 0\n    WHEN 'UGX' THEN 0 WHEN 'RWF' THEN 0\n    WHEN 'NGN' THEN 2 WHEN 'GHS' THEN 2 WHEN 'KES' THEN 2\n    WHEN 'ZAR' THEN 2 WHEN 'ETB' THEN 2 WHEN 'CDF' THEN 2\n    WHEN 'USD' THEN 2 WHEN 'EUR' THEN 2 WHEN 'GBP' THEN 2\n    WHEN 'CAD' THEN 2 WHEN 'CHF' THEN 2 WHEN 'AUD' THEN 2\n    WHEN 'AED' THEN 2\n    ELSE NULL\n  END;\n$function$\n",
+      "result_type": "smallint",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": false,
+      "identity_arguments": "p_currency text"
+    },
+    {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        }
+      ],
+      "name": "guard_financial_account",
+      "owner": "postgres",
+      "schema": "financial_core",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "unsafe",
+      "leakproof": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "volatility": "volatile",
+      "functiondef": "CREATE OR REPLACE FUNCTION financial_core.guard_financial_account()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO ''\nAS $function$\nBEGIN\n  IF TG_OP = 'DELETE' THEN\n    RAISE EXCEPTION 'FINANCIAL_ACCOUNT_DELETE_FORBIDDEN' USING ERRCODE = '55000';\n  END IF;\n  IF TG_OP = 'INSERT' THEN\n    IF NEW.status <> 'active' OR NEW.inactive_at IS NOT NULL OR NEW.closed_at IS NOT NULL THEN\n      RAISE EXCEPTION 'FINANCIAL_ACCOUNT_MUST_START_ACTIVE' USING ERRCODE = '23514';\n    END IF;\n    RETURN NEW;\n  END IF;\n  IF (NEW.id, NEW.group_id, NEW.opened_ledger_epoch_id, NEW.currency, NEW.kind,\n      NEW.created_by, NEW.opened_at, NEW.created_at)\n     IS DISTINCT FROM\n     (OLD.id, OLD.group_id, OLD.opened_ledger_epoch_id, OLD.currency, OLD.kind,\n      OLD.created_by, OLD.opened_at, OLD.created_at) THEN\n    RAISE EXCEPTION 'FINANCIAL_ACCOUNT_IDENTITY_IMMUTABLE' USING ERRCODE = '55000';\n  END IF;\n  IF NEW.status IS DISTINCT FROM OLD.status THEN\n    IF OLD.status = 'active' AND NEW.status = 'inactive' THEN\n      NEW.inactive_at := clock_timestamp();\n      NEW.closed_at := NULL;\n    ELSIF OLD.status = 'inactive' AND NEW.status = 'closed' THEN\n      NEW.inactive_at := OLD.inactive_at;\n      NEW.closed_at := clock_timestamp();\n    ELSE\n      RAISE EXCEPTION 'INVALID_FINANCIAL_ACCOUNT_TRANSITION' USING ERRCODE = '23514';\n    END IF;\n  ELSIF (NEW.inactive_at, NEW.closed_at) IS DISTINCT FROM (OLD.inactive_at, OLD.closed_at) THEN\n    RAISE EXCEPTION 'FINANCIAL_ACCOUNT_LIFECYCLE_AUDIT_IMMUTABLE' USING ERRCODE = '55000';\n  END IF;\n  NEW.updated_at := clock_timestamp();\n  RETURN NEW;\nEND;\n$function$\n",
+      "result_type": "trigger",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": false,
+      "identity_arguments": ""
+    },
+    {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        }
+      ],
+      "name": "guard_financial_category",
+      "owner": "postgres",
+      "schema": "financial_core",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "unsafe",
+      "leakproof": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "volatility": "volatile",
+      "functiondef": "CREATE OR REPLACE FUNCTION financial_core.guard_financial_category()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO ''\nAS $function$\nBEGIN\n  IF TG_OP = 'DELETE' THEN\n    RAISE EXCEPTION 'FINANCIAL_CATEGORY_DELETE_FORBIDDEN' USING ERRCODE = '55000';\n  END IF;\n  IF TG_OP = 'UPDATE' THEN\n    IF (NEW.id, NEW.group_id, NEW.category_class, NEW.is_system,\n        NEW.created_by, NEW.created_at)\n       IS DISTINCT FROM\n       (OLD.id, OLD.group_id, OLD.category_class, OLD.is_system,\n        OLD.created_by, OLD.created_at) THEN\n      RAISE EXCEPTION 'FINANCIAL_CATEGORY_IDENTITY_IMMUTABLE' USING ERRCODE = '55000';\n    END IF;\n    IF NEW.status IS DISTINCT FROM OLD.status\n       AND NOT (OLD.status = 'active' AND NEW.status = 'inactive') THEN\n      RAISE EXCEPTION 'INVALID_FINANCIAL_CATEGORY_TRANSITION' USING ERRCODE = '23514';\n    END IF;\n    NEW.updated_at := clock_timestamp();\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n",
+      "result_type": "trigger",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": false,
+      "identity_arguments": ""
+    },
+    {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        }
+      ],
+      "name": "guard_financial_event_epoch",
+      "owner": "postgres",
+      "schema": "financial_core",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "unsafe",
+      "leakproof": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "volatility": "volatile",
+      "functiondef": "CREATE OR REPLACE FUNCTION financial_core.guard_financial_event_epoch()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nDECLARE\n  epoch_from timestamptz;\n  epoch_to timestamptz;\nBEGIN\n  SELECT e.effective_from, e.effective_to\n    INTO epoch_from, epoch_to\n  FROM public.financial_ledger_epochs e\n  WHERE e.id = NEW.ledger_epoch_id\n    AND e.group_id = NEW.group_id\n    AND e.currency = NEW.currency;\n  IF FOUND AND (\n    NEW.occurred_at < epoch_from\n    OR (epoch_to IS NOT NULL AND NEW.occurred_at >= epoch_to)\n  ) THEN\n    RAISE EXCEPTION 'FINANCIAL_EVENT_OUTSIDE_LEDGER_EPOCH' USING ERRCODE = '23514';\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n",
+      "result_type": "trigger",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        }
+      ],
+      "name": "guard_financial_event_history",
+      "owner": "postgres",
+      "schema": "financial_core",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "unsafe",
+      "leakproof": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "volatility": "volatile",
+      "functiondef": "CREATE OR REPLACE FUNCTION financial_core.guard_financial_event_history()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO ''\nAS $function$\nBEGIN\n  IF TG_OP = 'DELETE' THEN\n    RAISE EXCEPTION 'POSTED_FINANCIAL_EVENT_DELETE_FORBIDDEN' USING ERRCODE = '55000';\n  END IF;\n  IF (NEW.id, NEW.group_id, NEW.ledger_epoch_id, NEW.currency, NEW.event_class,\n      NEW.source_module, NEW.source_record_id, NEW.effect_kind, NEW.request_id,\n      NEW.economic_payload_fingerprint, NEW.occurred_at, NEW.posted_at,\n      NEW.created_at, NEW.created_by, NEW.description, NEW.reference_metadata,\n      NEW.reversal_of_event_id)\n     IS DISTINCT FROM\n     (OLD.id, OLD.group_id, OLD.ledger_epoch_id, OLD.currency, OLD.event_class,\n      OLD.source_module, OLD.source_record_id, OLD.effect_kind, OLD.request_id,\n      OLD.economic_payload_fingerprint, OLD.occurred_at, OLD.posted_at,\n      OLD.created_at, OLD.created_by, OLD.description, OLD.reference_metadata,\n      OLD.reversal_of_event_id) THEN\n    RAISE EXCEPTION 'POSTED_FINANCIAL_EVENT_IMMUTABLE' USING ERRCODE = '55000';\n  END IF;\n  IF NEW.status = OLD.status THEN\n    IF (NEW.replacement_event_id, NEW.corrected_at, NEW.correction_reason)\n       IS DISTINCT FROM\n       (OLD.replacement_event_id, OLD.corrected_at, OLD.correction_reason) THEN\n      RAISE EXCEPTION 'FINANCIAL_CORRECTION_LINKAGE_REQUIRES_STATUS_TRANSITION'\n        USING ERRCODE = '55000';\n    END IF;\n  ELSIF NOT (OLD.status = 'posted' AND NEW.status IN ('corrected', 'reversed')) THEN\n    RAISE EXCEPTION 'INVALID_FINANCIAL_EVENT_TRANSITION' USING ERRCODE = '23514';\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n",
+      "result_type": "trigger",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": false,
+      "identity_arguments": ""
+    },
+    {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        }
+      ],
+      "name": "guard_financial_fund",
+      "owner": "postgres",
+      "schema": "financial_core",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "unsafe",
+      "leakproof": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "volatility": "volatile",
+      "functiondef": "CREATE OR REPLACE FUNCTION financial_core.guard_financial_fund()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO ''\nAS $function$\nBEGIN\n  IF TG_OP = 'DELETE' THEN\n    RAISE EXCEPTION 'FINANCIAL_FUND_DELETE_FORBIDDEN' USING ERRCODE = '55000';\n  END IF;\n  IF TG_OP = 'UPDATE' THEN\n    IF (NEW.id, NEW.group_id, NEW.is_restricted, NEW.created_by, NEW.created_at)\n       IS DISTINCT FROM\n       (OLD.id, OLD.group_id, OLD.is_restricted, OLD.created_by, OLD.created_at) THEN\n      RAISE EXCEPTION 'FINANCIAL_FUND_IDENTITY_IMMUTABLE' USING ERRCODE = '55000';\n    END IF;\n    IF NEW.status IS DISTINCT FROM OLD.status\n       AND NOT (OLD.status = 'active' AND NEW.status = 'inactive') THEN\n      RAISE EXCEPTION 'INVALID_FINANCIAL_FUND_TRANSITION' USING ERRCODE = '23514';\n    END IF;\n    NEW.updated_at := clock_timestamp();\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n",
+      "result_type": "trigger",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": false,
+      "identity_arguments": ""
+    },
+    {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        }
+      ],
+      "name": "guard_financial_posting_history",
+      "owner": "postgres",
+      "schema": "financial_core",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "unsafe",
+      "leakproof": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "volatility": "volatile",
+      "functiondef": "CREATE OR REPLACE FUNCTION financial_core.guard_financial_posting_history()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO ''\nAS $function$\nBEGIN\n  RAISE EXCEPTION 'POSTED_FINANCIAL_POSTING_IMMUTABLE' USING ERRCODE = '55000';\nEND;\n$function$\n",
+      "result_type": "trigger",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": false,
+      "identity_arguments": ""
+    },
+    {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        }
+      ],
+      "name": "lock_financial_occurrence",
+      "owner": "postgres",
+      "schema": "financial_core",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "unsafe",
+      "leakproof": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "volatility": "volatile",
+      "functiondef": "CREATE OR REPLACE FUNCTION financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid)\n RETURNS void\n LANGUAGE plpgsql\n SET search_path TO ''\nAS $function$\nBEGIN\n  IF p_group_id IS NULL OR p_source_module IS NULL OR p_source_record_id IS NULL\n     OR p_effect_kind IS NULL OR p_ledger_epoch_id IS NULL THEN\n    RAISE EXCEPTION 'FINANCIAL_OCCURRENCE_LOCK_KEY_REQUIRED' USING ERRCODE = '22004';\n  END IF;\n  PERFORM pg_catalog.pg_advisory_xact_lock(\n    pg_catalog.hashtextextended(\n      pg_catalog.jsonb_build_array(\n        p_group_id, p_source_module, p_source_record_id,\n        p_effect_kind, p_ledger_epoch_id\n      )::text,\n      0\n    )\n  );\nEND;\n$function$\n",
+      "result_type": "void",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": false,
+      "identity_arguments": "p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid"
+    },
+    {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        }
+      ],
+      "name": "guard_ledger_epoch",
+      "owner": "postgres",
+      "schema": "financial_private",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "unsafe",
+      "leakproof": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "volatility": "volatile",
+      "functiondef": "CREATE OR REPLACE FUNCTION financial_private.guard_ledger_epoch()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nDECLARE\n  group_currency text;\nBEGIN\n  IF TG_OP = 'DELETE' THEN\n    RAISE EXCEPTION 'LEDGER_EPOCH_IMMUTABLE';\n  END IF;\n  IF TG_OP = 'UPDATE' THEN\n    IF NOT EXISTS (\n      SELECT 1 FROM financial_private.epoch_transitions x\n      WHERE x.transaction_id = txid_current() AND x.group_id = OLD.group_id\n    )\n      OR (NEW.group_id, NEW.currency, NEW.effective_from, NEW.source_kind,\n          NEW.source_reference, NEW.approval_note, NEW.created_by,\n          NEW.approved_by, NEW.approved_at, NEW.created_at)\n         IS DISTINCT FROM\n         (OLD.group_id, OLD.currency, OLD.effective_from, OLD.source_kind,\n          OLD.source_reference, OLD.approval_note, OLD.created_by,\n          OLD.approved_by, OLD.approved_at, OLD.created_at)\n      OR OLD.effective_to IS NOT NULL\n      OR NEW.effective_to IS NULL\n    THEN\n      RAISE EXCEPTION 'LEDGER_EPOCH_IMMUTABLE';\n    END IF;\n  END IF;\n  IF NEW.effective_to IS NULL THEN\n    IF NEW.effective_from > clock_timestamp() THEN\n      RAISE EXCEPTION 'FUTURE_LEDGER_EPOCH_NOT_ACTIVE';\n    END IF;\n    SELECT currency INTO group_currency FROM public.groups WHERE id = NEW.group_id;\n    IF group_currency IS DISTINCT FROM NEW.currency\n      AND NOT EXISTS (\n        SELECT 1 FROM financial_private.epoch_transitions x\n        WHERE x.transaction_id = txid_current() AND x.group_id = NEW.group_id\n      )\n    THEN\n      RAISE EXCEPTION 'ACTIVE_LEDGER_CURRENCY_MISMATCH';\n    END IF;\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n",
+      "result_type": "trigger",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": true,
+      "identity_arguments": ""
+    }
+  ],
+  "triggers": [
+    {
+      "name": "financial_accounts_guard",
+      "schema": "public",
+      "for_each": "row",
+      "relation": "financial_accounts",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER financial_accounts_guard BEFORE INSERT OR DELETE OR UPDATE ON public.financial_accounts FOR EACH ROW EXECUTE FUNCTION financial_core.guard_financial_account()",
+      "tgisinternal": false,
+      "timing_events": "CREATE TRIGGER financial_accounts_guard BEFORE INSERT OR DELETE OR UPDATE ON public.financial_accounts FOR EACH ROW EXECUTE FUNCTION financial_core.guard_financial_account()",
+      "function_identity": "guard_financial_account()",
+      "constraint_trigger": false
+    },
+    {
+      "name": "financial_categories_guard",
+      "schema": "public",
+      "for_each": "row",
+      "relation": "financial_categories",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER financial_categories_guard BEFORE DELETE OR UPDATE ON public.financial_categories FOR EACH ROW EXECUTE FUNCTION financial_core.guard_financial_category()",
+      "tgisinternal": false,
+      "timing_events": "CREATE TRIGGER financial_categories_guard BEFORE DELETE OR UPDATE ON public.financial_categories FOR EACH ROW EXECUTE FUNCTION financial_core.guard_financial_category()",
+      "function_identity": "guard_financial_category()",
+      "constraint_trigger": false
+    },
+    {
+      "name": "financial_events_balance_guard",
+      "schema": "public",
+      "for_each": "row",
+      "relation": "financial_events",
+      "tgenabled": "O",
+      "definition": "CREATE CONSTRAINT TRIGGER financial_events_balance_guard AFTER INSERT OR UPDATE ON public.financial_events DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION financial_core.check_event_balance_from_event()",
+      "tgisinternal": false,
+      "timing_events": "CREATE CONSTRAINT TRIGGER financial_events_balance_guard AFTER INSERT OR UPDATE ON public.financial_events DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION financial_core.check_event_balance_from_event()",
+      "function_identity": "check_event_balance_from_event()",
+      "constraint_trigger": true
+    },
+    {
+      "name": "financial_events_epoch_guard",
+      "schema": "public",
+      "for_each": "row",
+      "relation": "financial_events",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER financial_events_epoch_guard BEFORE INSERT ON public.financial_events FOR EACH ROW EXECUTE FUNCTION financial_core.guard_financial_event_epoch()",
+      "tgisinternal": false,
+      "timing_events": "CREATE TRIGGER financial_events_epoch_guard BEFORE INSERT ON public.financial_events FOR EACH ROW EXECUTE FUNCTION financial_core.guard_financial_event_epoch()",
+      "function_identity": "guard_financial_event_epoch()",
+      "constraint_trigger": false
+    },
+    {
+      "name": "financial_events_history_guard",
+      "schema": "public",
+      "for_each": "row",
+      "relation": "financial_events",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER financial_events_history_guard BEFORE DELETE OR UPDATE ON public.financial_events FOR EACH ROW EXECUTE FUNCTION financial_core.guard_financial_event_history()",
+      "tgisinternal": false,
+      "timing_events": "CREATE TRIGGER financial_events_history_guard BEFORE DELETE OR UPDATE ON public.financial_events FOR EACH ROW EXECUTE FUNCTION financial_core.guard_financial_event_history()",
+      "function_identity": "guard_financial_event_history()",
+      "constraint_trigger": false
+    },
+    {
+      "name": "financial_funds_guard",
+      "schema": "public",
+      "for_each": "row",
+      "relation": "financial_funds",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER financial_funds_guard BEFORE DELETE OR UPDATE ON public.financial_funds FOR EACH ROW EXECUTE FUNCTION financial_core.guard_financial_fund()",
+      "tgisinternal": false,
+      "timing_events": "CREATE TRIGGER financial_funds_guard BEFORE DELETE OR UPDATE ON public.financial_funds FOR EACH ROW EXECUTE FUNCTION financial_core.guard_financial_fund()",
+      "function_identity": "guard_financial_fund()",
+      "constraint_trigger": false
+    },
+    {
+      "name": "financial_ledger_epoch_guard",
+      "schema": "public",
+      "for_each": "row",
+      "relation": "financial_ledger_epochs",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER financial_ledger_epoch_guard BEFORE INSERT OR DELETE OR UPDATE ON public.financial_ledger_epochs FOR EACH ROW EXECUTE FUNCTION financial_private.guard_ledger_epoch()",
+      "tgisinternal": false,
+      "timing_events": "CREATE TRIGGER financial_ledger_epoch_guard BEFORE INSERT OR DELETE OR UPDATE ON public.financial_ledger_epochs FOR EACH ROW EXECUTE FUNCTION financial_private.guard_ledger_epoch()",
+      "function_identity": "guard_ledger_epoch()",
+      "constraint_trigger": false
+    },
+    {
+      "name": "financial_postings_balance_guard",
+      "schema": "public",
+      "for_each": "row",
+      "relation": "financial_postings",
+      "tgenabled": "O",
+      "definition": "CREATE CONSTRAINT TRIGGER financial_postings_balance_guard AFTER INSERT OR DELETE OR UPDATE ON public.financial_postings DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION financial_core.check_event_balance_from_posting()",
+      "tgisinternal": false,
+      "timing_events": "CREATE CONSTRAINT TRIGGER financial_postings_balance_guard AFTER INSERT OR DELETE OR UPDATE ON public.financial_postings DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION financial_core.check_event_balance_from_posting()",
+      "function_identity": "check_event_balance_from_posting()",
+      "constraint_trigger": true
+    },
+    {
+      "name": "financial_postings_history_guard",
+      "schema": "public",
+      "for_each": "row",
+      "relation": "financial_postings",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER financial_postings_history_guard BEFORE DELETE OR UPDATE ON public.financial_postings FOR EACH ROW EXECUTE FUNCTION financial_core.guard_financial_posting_history()",
+      "tgisinternal": false,
+      "timing_events": "CREATE TRIGGER financial_postings_history_guard BEFORE DELETE OR UPDATE ON public.financial_postings FOR EACH ROW EXECUTE FUNCTION financial_core.guard_financial_posting_history()",
+      "function_identity": "guard_financial_posting_history()",
+      "constraint_trigger": false
+    }
+  ],
+  "relations": [
+    {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "name": "epoch_transitions",
+      "owner": "postgres",
+      "schema": "financial_private",
+      "relkind": "r",
+      "rls_force": false,
+      "persistence": "permanent",
+      "rls_enabled": false,
+      "replica_identity": "default"
+    },
+    {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "name": "internal_financial_tenants",
+      "owner": "postgres",
+      "schema": "financial_private",
+      "relkind": "r",
+      "rls_force": true,
+      "persistence": "permanent",
+      "rls_enabled": true,
+      "replica_identity": "default"
+    },
+    {
+      "acl": [
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "UPDATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "UPDATE"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        }
+      ],
+      "name": "financial_accounts",
+      "owner": "postgres",
+      "schema": "public",
+      "relkind": "r",
+      "rls_force": true,
+      "persistence": "permanent",
+      "rls_enabled": true,
+      "replica_identity": "default"
+    },
+    {
+      "acl": [
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "UPDATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "UPDATE"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        }
+      ],
+      "name": "financial_categories",
+      "owner": "postgres",
+      "schema": "public",
+      "relkind": "r",
+      "rls_force": true,
+      "persistence": "permanent",
+      "rls_enabled": true,
+      "replica_identity": "default"
+    },
+    {
+      "acl": [
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "UPDATE"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        }
+      ],
+      "name": "financial_events",
+      "owner": "postgres",
+      "schema": "public",
+      "relkind": "r",
+      "rls_force": true,
+      "persistence": "permanent",
+      "rls_enabled": true,
+      "replica_identity": "default"
+    },
+    {
+      "acl": [
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "UPDATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "UPDATE"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        }
+      ],
+      "name": "financial_funds",
+      "owner": "postgres",
+      "schema": "public",
+      "relkind": "r",
+      "rls_force": true,
+      "persistence": "permanent",
+      "rls_enabled": true,
+      "replica_identity": "default"
+    },
+    {
+      "acl": [
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "UPDATE"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "DELETE"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "MAINTAIN"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "REFERENCES"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "TRIGGER"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "TRUNCATE"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "name": "financial_ledger_epochs",
+      "owner": "postgres",
+      "schema": "public",
+      "relkind": "r",
+      "rls_force": false,
+      "persistence": "permanent",
+      "rls_enabled": true,
+      "replica_identity": "default"
+    },
+    {
+      "acl": [
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "UPDATE"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "SELECT"
+        }
+      ],
+      "name": "financial_postings",
+      "owner": "postgres",
+      "schema": "public",
+      "relkind": "r",
+      "rls_force": true,
+      "persistence": "permanent",
+      "rls_enabled": true,
+      "replica_identity": "default"
+    }
+  ],
+  "constraints": [
+    {
+      "name": "epoch_transitions_pkey",
+      "schema": "financial_private",
+      "contype": "p",
+      "relation": "epoch_transitions",
+      "definition": "PRIMARY KEY (transaction_id, group_id)"
+    },
+    {
+      "name": "internal_financial_tenants_created_by_fkey",
+      "schema": "financial_private",
+      "contype": "f",
+      "relation": "internal_financial_tenants",
+      "definition": "FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "internal_financial_tenants_organization_id_fkey",
+      "schema": "financial_private",
+      "contype": "f",
+      "relation": "internal_financial_tenants",
+      "definition": "FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "internal_financial_tenants_pkey",
+      "schema": "financial_private",
+      "contype": "p",
+      "relation": "internal_financial_tenants",
+      "definition": "PRIMARY KEY (organization_id)"
+    },
+    {
+      "name": "internal_financial_tenants_reason_check",
+      "schema": "financial_private",
+      "contype": "c",
+      "relation": "internal_financial_tenants",
+      "definition": "CHECK ((length(TRIM(BOTH FROM reason)) >= 8))"
+    },
+    {
+      "name": "internal_financial_tenants_tenant_kind_check",
+      "schema": "financial_private",
+      "contype": "c",
+      "relation": "internal_financial_tenants",
+      "definition": "CHECK ((tenant_kind = ANY (ARRAY['test'::text, 'qa'::text, 'demo'::text])))"
+    },
+    {
+      "name": "financial_accounts_created_by_fkey",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_accounts",
+      "definition": "FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "name": "financial_accounts_currency_supported",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_accounts",
+      "definition": "CHECK (((currency = upper(currency)) AND (financial_core.currency_scale(currency) IS NOT NULL)))"
+    },
+    {
+      "name": "financial_accounts_epoch_scope",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_accounts",
+      "definition": "FOREIGN KEY (opened_ledger_epoch_id, group_id, currency) REFERENCES financial_ledger_epochs(id, group_id, currency) ON DELETE RESTRICT"
+    },
+    {
+      "name": "financial_accounts_group_id_fkey",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_accounts",
+      "definition": "FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "financial_accounts_id_group_currency",
+      "schema": "public",
+      "contype": "u",
+      "relation": "financial_accounts",
+      "definition": "UNIQUE (id, group_id, currency)"
+    },
+    {
+      "name": "financial_accounts_lifecycle",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_accounts",
+      "definition": "CHECK ((((status = 'active'::financial_account_status) AND (inactive_at IS NULL) AND (closed_at IS NULL)) OR ((status = 'inactive'::financial_account_status) AND (inactive_at IS NOT NULL) AND (closed_at IS NULL)) OR ((status = 'closed'::financial_account_status) AND (inactive_at IS NOT NULL) AND (closed_at IS NOT NULL))))"
+    },
+    {
+      "name": "financial_accounts_name_check",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_accounts",
+      "definition": "CHECK (((length(TRIM(BOTH FROM name)) >= 1) AND (length(TRIM(BOTH FROM name)) <= 120)))"
+    },
+    {
+      "name": "financial_accounts_pkey",
+      "schema": "public",
+      "contype": "p",
+      "relation": "financial_accounts",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "financial_categories_created_by_fkey",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_categories",
+      "definition": "FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "name": "financial_categories_group_id_fkey",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_categories",
+      "definition": "FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "financial_categories_id_group_class",
+      "schema": "public",
+      "contype": "u",
+      "relation": "financial_categories",
+      "definition": "UNIQUE (id, group_id, category_class)"
+    },
+    {
+      "name": "financial_categories_name_check",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_categories",
+      "definition": "CHECK (((length(TRIM(BOTH FROM name)) >= 1) AND (length(TRIM(BOTH FROM name)) <= 120)))"
+    },
+    {
+      "name": "financial_categories_pkey",
+      "schema": "public",
+      "contype": "p",
+      "relation": "financial_categories",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "financial_events_balance_guard",
+      "schema": "public",
+      "contype": "t",
+      "relation": "financial_events",
+      "definition": "TRIGGER DEFERRABLE INITIALLY DEFERRED"
+    },
+    {
+      "name": "financial_events_correction_state",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_events",
+      "definition": "CHECK ((((status = 'posted'::financial_event_status) AND (corrected_at IS NULL) AND (replacement_event_id IS NULL) AND (correction_reason IS NULL)) OR ((status = 'corrected'::financial_event_status) AND (corrected_at IS NOT NULL) AND (replacement_event_id IS NOT NULL) AND (length(TRIM(BOTH FROM correction_reason)) >= 3)) OR ((status = 'reversed'::financial_event_status) AND (corrected_at IS NOT NULL) AND (replacement_event_id IS NULL) AND (length(TRIM(BOTH FROM correction_reason)) >= 3))))"
+    },
+    {
+      "name": "financial_events_created_by_fkey",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_events",
+      "definition": "FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "name": "financial_events_currency_supported",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_events",
+      "definition": "CHECK (((currency = upper(currency)) AND (financial_core.currency_scale(currency) IS NOT NULL)))"
+    },
+    {
+      "name": "financial_events_economic_payload_fingerprint_check",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_events",
+      "definition": "CHECK ((economic_payload_fingerprint ~ '^[0-9a-f]{64}$'::text))"
+    },
+    {
+      "name": "financial_events_effect_kind_check",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_events",
+      "definition": "CHECK ((effect_kind ~ '^[a-z][a-z0-9_]{0,63}$'::text))"
+    },
+    {
+      "name": "financial_events_epoch_scope",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_events",
+      "definition": "FOREIGN KEY (ledger_epoch_id, group_id, currency) REFERENCES financial_ledger_epochs(id, group_id, currency) ON DELETE RESTRICT"
+    },
+    {
+      "name": "financial_events_group_id_fkey",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_events",
+      "definition": "FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "financial_events_id_group",
+      "schema": "public",
+      "contype": "u",
+      "relation": "financial_events",
+      "definition": "UNIQUE (id, group_id)"
+    },
+    {
+      "name": "financial_events_not_self_linked",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_events",
+      "definition": "CHECK (((reversal_of_event_id IS DISTINCT FROM id) AND (replacement_event_id IS DISTINCT FROM id)))"
+    },
+    {
+      "name": "financial_events_pkey",
+      "schema": "public",
+      "contype": "p",
+      "relation": "financial_events",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "financial_events_posting_scope",
+      "schema": "public",
+      "contype": "u",
+      "relation": "financial_events",
+      "definition": "UNIQUE (id, group_id, ledger_epoch_id, currency, occurred_at)"
+    },
+    {
+      "name": "financial_events_reference_metadata_check",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_events",
+      "definition": "CHECK ((jsonb_typeof(reference_metadata) = 'object'::text))"
+    },
+    {
+      "name": "financial_events_replacement_scope",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_events",
+      "definition": "FOREIGN KEY (replacement_event_id, group_id) REFERENCES financial_events(id, group_id) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED"
+    },
+    {
+      "name": "financial_events_reversal_scope",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_events",
+      "definition": "FOREIGN KEY (reversal_of_event_id, group_id) REFERENCES financial_events(id, group_id) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED"
+    },
+    {
+      "name": "financial_events_source_identity",
+      "schema": "public",
+      "contype": "u",
+      "relation": "financial_events",
+      "definition": "UNIQUE (group_id, source_module, source_record_id, effect_kind, ledger_epoch_id)"
+    },
+    {
+      "name": "financial_events_source_module_check",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_events",
+      "definition": "CHECK ((source_module ~ '^[a-z][a-z0-9_]{0,63}$'::text))"
+    },
+    {
+      "name": "financial_events_source_record_id_check",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_events",
+      "definition": "CHECK ((((length(source_record_id) >= 1) AND (length(source_record_id) <= 256)) AND (source_record_id = TRIM(BOTH FROM source_record_id))))"
+    },
+    {
+      "name": "financial_funds_created_by_fkey",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_funds",
+      "definition": "FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "name": "financial_funds_default_general",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_funds",
+      "definition": "CHECK (((NOT is_default) OR ((NOT is_restricted) AND (status = 'active'::financial_config_status))))"
+    },
+    {
+      "name": "financial_funds_group_id_fkey",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_funds",
+      "definition": "FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "financial_funds_id_group",
+      "schema": "public",
+      "contype": "u",
+      "relation": "financial_funds",
+      "definition": "UNIQUE (id, group_id)"
+    },
+    {
+      "name": "financial_funds_name_check",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_funds",
+      "definition": "CHECK (((length(TRIM(BOTH FROM name)) >= 1) AND (length(TRIM(BOTH FROM name)) <= 120)))"
+    },
+    {
+      "name": "financial_funds_pkey",
+      "schema": "public",
+      "contype": "p",
+      "relation": "financial_funds",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "financial_ledger_epoch_no_overlap",
+      "schema": "public",
+      "contype": "x",
+      "relation": "financial_ledger_epochs",
+      "definition": "EXCLUDE USING gist (group_id WITH =, tstzrange(effective_from, COALESCE(effective_to, 'infinity'::timestamp with time zone), '[)'::text) WITH &&)"
+    },
+    {
+      "name": "financial_ledger_epoch_range",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_ledger_epochs",
+      "definition": "CHECK (((effective_to IS NULL) OR (effective_to > effective_from)))"
+    },
+    {
+      "name": "financial_ledger_epoch_scope",
+      "schema": "public",
+      "contype": "u",
+      "relation": "financial_ledger_epochs",
+      "definition": "UNIQUE (id, group_id, currency)"
+    },
+    {
+      "name": "financial_ledger_epochs_approval_note_check",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_ledger_epochs",
+      "definition": "CHECK ((length(TRIM(BOTH FROM approval_note)) >= 3))"
+    },
+    {
+      "name": "financial_ledger_epochs_approved_by_fkey",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_ledger_epochs",
+      "definition": "FOREIGN KEY (approved_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "name": "financial_ledger_epochs_created_by_fkey",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_ledger_epochs",
+      "definition": "FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "name": "financial_ledger_epochs_currency_check",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_ledger_epochs",
+      "definition": "CHECK (((length(TRIM(BOTH FROM currency)) >= 3) AND (length(TRIM(BOTH FROM currency)) <= 8)))"
+    },
+    {
+      "name": "financial_ledger_epochs_group_id_fkey",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_ledger_epochs",
+      "definition": "FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "financial_ledger_epochs_pkey",
+      "schema": "public",
+      "contype": "p",
+      "relation": "financial_ledger_epochs",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "financial_ledger_epochs_source_kind_check",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_ledger_epochs",
+      "definition": "CHECK ((source_kind = ANY (ARRAY['migration_backfill'::text, 'currency_transition'::text, 'legacy_resolution'::text, 'cutover'::text])))"
+    },
+    {
+      "name": "financial_postings_account_scope",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_postings",
+      "definition": "FOREIGN KEY (account_id, group_id, currency) REFERENCES financial_accounts(id, group_id, currency) ON DELETE RESTRICT"
+    },
+    {
+      "name": "financial_postings_amount_nonzero",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_postings",
+      "definition": "CHECK ((amount_signed <> (0)::numeric))"
+    },
+    {
+      "name": "financial_postings_amount_precision",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_postings",
+      "definition": "CHECK (((financial_core.currency_scale(currency) IS NOT NULL) AND (amount_signed = round(amount_signed, (financial_core.currency_scale(currency))::integer))))"
+    },
+    {
+      "name": "financial_postings_balance_guard",
+      "schema": "public",
+      "contype": "t",
+      "relation": "financial_postings",
+      "definition": "TRIGGER DEFERRABLE INITIALLY DEFERRED"
+    },
+    {
+      "name": "financial_postings_category_scope",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_postings",
+      "definition": "FOREIGN KEY (category_id, group_id, category_class) REFERENCES financial_categories(id, group_id, category_class) ON DELETE RESTRICT"
+    },
+    {
+      "name": "financial_postings_category_shape",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_postings",
+      "definition": "CHECK ((((control_class = 'income'::financial_control_class) AND (category_id IS NOT NULL) AND (category_class IS NOT NULL) AND (category_class = 'income'::financial_category_class)) OR ((control_class = 'expense'::financial_control_class) AND (category_id IS NOT NULL) AND (category_class IS NOT NULL) AND (category_class = 'expense'::financial_category_class)) OR ((control_class <> ALL (ARRAY['income'::financial_control_class, 'expense'::financial_control_class])) AND (category_id IS NULL) AND (category_class IS NULL))))"
+    },
+    {
+      "name": "financial_postings_custody_shape",
+      "schema": "public",
+      "contype": "c",
+      "relation": "financial_postings",
+      "definition": "CHECK ((((control_class = 'custody'::financial_control_class) AND (account_id IS NOT NULL)) OR ((control_class <> 'custody'::financial_control_class) AND (account_id IS NULL))))"
+    },
+    {
+      "name": "financial_postings_event_scope",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_postings",
+      "definition": "FOREIGN KEY (event_id, group_id, ledger_epoch_id, currency, occurred_at) REFERENCES financial_events(id, group_id, ledger_epoch_id, currency, occurred_at) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED"
+    },
+    {
+      "name": "financial_postings_fund_scope",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_postings",
+      "definition": "FOREIGN KEY (fund_id, group_id) REFERENCES financial_funds(id, group_id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "financial_postings_member_scope",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_postings",
+      "definition": "FOREIGN KEY (member_id, group_id) REFERENCES memberships(id, group_id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "financial_postings_pkey",
+      "schema": "public",
+      "contype": "p",
+      "relation": "financial_postings",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "financial_postings_project_scope",
+      "schema": "public",
+      "contype": "f",
+      "relation": "financial_postings",
+      "definition": "FOREIGN KEY (project_id, group_id) REFERENCES projects(id, group_id) ON DELETE RESTRICT"
+    }
+  ],
+  "function_owner": [
+    {
+      "owner": "postgres",
+      "schema": "financial_core",
+      "function": "assert_finances_manage",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": true,
+      "identity_arguments": "p_group_id uuid"
+    },
+    {
+      "owner": "postgres",
+      "schema": "financial_core",
+      "function": "assert_financial_event_balanced",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": true,
+      "identity_arguments": "p_event_id uuid"
+    },
+    {
+      "owner": "postgres",
+      "schema": "financial_core",
+      "function": "can_manage_finances",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": true,
+      "identity_arguments": "p_group_id uuid"
+    },
+    {
+      "owner": "postgres",
+      "schema": "financial_core",
+      "function": "can_view_finances",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": true,
+      "identity_arguments": "p_group_id uuid"
+    },
+    {
+      "owner": "postgres",
+      "schema": "financial_core",
+      "function": "check_event_balance_from_event",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "owner": "postgres",
+      "schema": "financial_core",
+      "function": "check_event_balance_from_posting",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "owner": "postgres",
+      "schema": "financial_core",
+      "function": "currency_scale",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": false,
+      "identity_arguments": "p_currency text"
+    },
+    {
+      "owner": "postgres",
+      "schema": "financial_core",
+      "function": "guard_financial_account",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": false,
+      "identity_arguments": ""
+    },
+    {
+      "owner": "postgres",
+      "schema": "financial_core",
+      "function": "guard_financial_category",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": false,
+      "identity_arguments": ""
+    },
+    {
+      "owner": "postgres",
+      "schema": "financial_core",
+      "function": "guard_financial_event_epoch",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "owner": "postgres",
+      "schema": "financial_core",
+      "function": "guard_financial_event_history",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": false,
+      "identity_arguments": ""
+    },
+    {
+      "owner": "postgres",
+      "schema": "financial_core",
+      "function": "guard_financial_fund",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": false,
+      "identity_arguments": ""
+    },
+    {
+      "owner": "postgres",
+      "schema": "financial_core",
+      "function": "guard_financial_posting_history",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": false,
+      "identity_arguments": ""
+    },
+    {
+      "owner": "postgres",
+      "schema": "financial_core",
+      "function": "lock_financial_occurrence",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": false,
+      "identity_arguments": "p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid"
+    },
+    {
+      "owner": "postgres",
+      "schema": "financial_private",
+      "function": "guard_ledger_epoch",
+      "search_path": "{\"search_path=\\\"\\\"\"}",
+      "security_definer": true,
+      "identity_arguments": ""
+    }
+  ],
+  "schema_version": "f3-full-catalog-v2",
+  "f3_objects_absent": false,
+  "migration_file": "00119_f3_01_core_ledger_foundation.sql",
+  "migration_source_label": "00119",
+  "migration_version": "20260913173001",
+  "migration_name": "00119_f3_01_core_ledger_foundation",
+  "migration_digest": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+  "recognition": [
+    "manual_income"
+  ]
+}

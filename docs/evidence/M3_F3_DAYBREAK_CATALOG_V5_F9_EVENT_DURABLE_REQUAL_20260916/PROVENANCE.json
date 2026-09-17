@@ -1,0 +1,18 @@
+{
+  "tip_functional": "268f974a1adec7d3525beb850f7768137262c135",
+  "parent_f8_evidence": "080dd6adc79931bbcff25893d407aecf91bc7c14",
+  "parent_chain": [
+    "080dd6adc79931bbcff25893d407aecf91bc7c14",
+    "facec73a21ec62025d7a33d0ae142dcf05bc1183",
+    "268f974a1adec7d3525beb850f7768137262c135"
+  ],
+  "evidence_dir": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F9_EVENT_DURABLE_REQUAL_20260916",
+  "captured_at_et": "9/16/2026, 4:38:24 PM EDT",
+  "recognition": [
+    "manual_income"
+  ],
+  "schema": "f3-full-catalog-v5",
+  "cli": "2.117.0",
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "phase0": "F8 HISTORICAL EVIDENCE INSUFFICIENT — F9 HOSTED REQUALIFICATION REQUIRED"
+}

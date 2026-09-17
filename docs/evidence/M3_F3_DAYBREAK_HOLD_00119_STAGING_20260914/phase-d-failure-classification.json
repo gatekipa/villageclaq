@@ -1,0 +1,47 @@
+{
+  "artifact": "phase-d-failure-classification",
+  "verdict": "HOLD",
+  "functional_sha": "71d5a14e38d13c0a2993b086a3fc754af2678c86",
+  "stopped_at": "00119_f3_01_core_ledger_foundation.sql",
+  "version": "20260913173001",
+  "sequence_progress": {
+    "00118": {
+      "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+      "objectsPresent": true,
+      "repairAttempted": true,
+      "repairAuthorized": true,
+      "continuation": true,
+      "failedGates": [],
+      "classification_split": "POST_COMMIT_HISTORY_FAILURE",
+      "expected_hash_before": "a1538e7d2d451c198350535128ece77cbe54ad31cd11d6d902f7efc0ece231c5",
+      "verdict": "PASS"
+    },
+    "00119": {
+      "file": "00119_f3_01_core_ledger_foundation.sql",
+      "objectsPresent": false,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [
+        "target_inject_marker",
+        "expected_objects",
+        "security_postconditions",
+        "fingerprint_exact"
+      ],
+      "classification_split": "PRE_COMMIT_OR_ATOMIC_ROLLBACK",
+      "push_stderr_head": "Connecting to remote database...\nRemote migration versions not found in local migrations directory.\n\nMake sure your local git repo is up-to-date. If the error persists, try repairing the migration history table:\nsupabase migration repair --status reverted 20260913173000\n\nAnd update local migrations to match remote database:\nsupabase db pull\n\n",
+      "verdict": "HOLD"
+    },
+    "00120_00123": "NOT RUN (stopped earlier)"
+  },
+  "root_cause": "After 00118 repair+retry+continuation succeeded with independent frozen expected fingerprints, 00119 db push failed before apply because tip syncIsolatedMigrationsThrough stages exactly one migration file while remote history still contains 20260913173000. Supabase CLI 2.117.0 refuses: \"Remote migration versions not found in local migrations directory.\" Gate then fails target_inject_marker/expected_objects/security_postconditions/fingerprint_exact; repair not spawned.",
+  "tip_locus": {
+    "file": "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "function": "syncIsolatedMigrationsThrough",
+    "behavior": "Stage exactly one intended F3 timestamp migration (removes prior authorized staged files)",
+    "sha": "71d5a14e38d13c0a2993b086a3fc754af2678c86"
+  },
+  "do_not_repair_on_partial": true,
+  "do_not_patch_tip": true,
+  "note": "00118 proves independent frozen expected fingerprints work hosted (founder points). Sequence cannot continue past first repaired migration with exact-one staging under CLI 2.117.0."
+}

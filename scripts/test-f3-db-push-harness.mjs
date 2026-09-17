@@ -346,7 +346,19 @@ import {
   buildProposedConstrainedResetProcedure,
   validateProposedResetProcedureOffline,
   renderProposedConstrainedResetPlanMarkdown,
+  evaluateQualificationResetCli,
 } from "./qualify-f3-db-push-disposable.mjs";
+import { evaluateQualificationResetEligibility } from "./lib/f3-db-push-inventory.mjs";
+import {
+  F13_RUNTIME_LABEL,
+  F13_SHARED_ORCHESTRATION_ID,
+  AUTHENTICATED_HISTORY_KEYS as F13_AUTHENTICATED_HISTORY_KEYS,
+  buildQualificationResetSql,
+  createDisabledQualificationResetTransportAdapter,
+  planQualificationReset,
+  runQualificationReset,
+  scopeSqlIdentityDigest,
+} from "./lib/f3-db-push-qualification-reset.mjs";
 import { BOOTSTRAP_WITH_LOCAL_SHIM } from "./_f3_apply_current_main_floor.mjs";
 import {
   FLOOR_HOLD_IF_INEXACT,
@@ -8773,4 +8785,113 @@ test("F12 proposed reset procedure rejects wipe-to-baseline and stays offline", 
     noResetOccurred: true,
     noServiceConnection: true,
   }, null, 2));
+});
+
+test("F13 reset wiring keeps wipe rejected, extras HOLD, CASCADE refused, name mismatch abort", async () => {
+  const records = [];
+  const parsedWipe = parseArgs(["--qualification-reset", "--wipe-to-baseline"]);
+  assert.equal(parsedWipe.qualificationReset, true);
+  assert.equal(evaluateWipeToBaselineArg(true).code, WIPE_TO_BASELINE_REJECTION_CODE);
+  assert.throws(() => assertWipeToBaselineRejected(parsedWipe), (err) => (
+    err.code === WIPE_TO_BASELINE_REJECTION_CODE
+  ));
+  records.push({ caseId: "F13-H01-WIPE-STILL-REJECTED", result: "rejected" });
+
+  const extras = evaluateQualificationResetEligibility({
+    observedObjectIdentities: ["public.not_on_allowlist"],
+    observedHistoryRows: [],
+  });
+  assert.equal(extras.ok, false);
+  records.push({ caseId: "F13-H02-EXTRAS-HOLD", result: "rejected", code: extras.code });
+
+  const prefix = evaluateQualificationResetEligibility({
+    observedObjectIdentities: ["financial_*"],
+  });
+  assert.equal(prefix.ok, false);
+  assert.equal(prefix.financialPrefixUsedAsSelector, false);
+  records.push({ caseId: "F13-H03-FINANCIAL-PREFIX-NOT-SELECTOR", result: "rejected" });
+
+  const sql = buildQualificationResetSql({
+    observedHistoryRows: F13_AUTHENTICATED_HISTORY_KEYS.map((key) => ({
+      version: key.version,
+      name: key.name,
+    })),
+    scopeSqlIdentitySha256: scopeSqlIdentityDigest(),
+  });
+  assert.equal(sql.ok, true);
+  assert.doesNotMatch(sql.sql, /\bCASCADE\b/);
+  records.push({ caseId: "F13-H04-CASCADE-REFUSED", result: "ok" });
+
+  const mismatch = planQualificationReset({
+    authorization: {
+      targetRef: APPROVED_DISPOSABLE_PROJECT_REF,
+      functionalCandidateSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      closureDigest: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      scopeSqlIdentitySha256: scopeSqlIdentityDigest(),
+      executionBudget: { constrainedResets: 1, completeQualsFrom00118: 1, secondReset: false },
+    },
+    runtimeContext: {
+      targetRef: APPROVED_DISPOSABLE_PROJECT_REF,
+      functionalCandidateSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      closureDigest: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      scopeSqlIdentitySha256: scopeSqlIdentityDigest(),
+    },
+    observedObjects: [],
+    observedHistoryRows: [{ version: "20260913173000", name: "wrong" }],
+  });
+  assert.equal(mismatch.ok, false);
+  assert.equal(mismatch.code, "F13_HISTORY_KEY_MISMATCH");
+  records.push({ caseId: "F13-H05-NAME-MISMATCH-ABORTS", result: "rejected" });
+
+  const prod = planQualificationReset({
+    target: { ref: PRODUCTION_REF },
+    authorization: {
+      targetRef: APPROVED_DISPOSABLE_PROJECT_REF,
+      functionalCandidateSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      closureDigest: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      scopeSqlIdentitySha256: scopeSqlIdentityDigest(),
+      executionBudget: { constrainedResets: 1, completeQualsFrom00118: 1, secondReset: false },
+    },
+    runtimeContext: {
+      functionalCandidateSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      closureDigest: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    },
+  });
+  assert.equal(prod.ok, false);
+  records.push({ caseId: "F13-H06-PRODUCTION-REFUSED", result: "rejected", code: prod.code });
+
+  const disabledBypass = await runQualificationReset({
+    input: {
+      authorization: {
+        targetRef: APPROVED_DISPOSABLE_PROJECT_REF,
+        functionalCandidateSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        closureDigest: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        scopeSqlIdentitySha256: scopeSqlIdentityDigest(),
+        executionBudget: { constrainedResets: 1, completeQualsFrom00118: 1, secondReset: false },
+      },
+      runtimeContext: {
+        functionalCandidateSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        closureDigest: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      },
+      observedObjects: [],
+      observedHistoryRows: [],
+    },
+    adapters: { transport: createDisabledQualificationResetTransportAdapter() },
+    allowDisabledTransport: false,
+  });
+  assert.equal(disabledBypass.ok, false);
+  assert.equal(disabledBypass.code, "F13_DISABLED_TRANSPORT_NOT_AUTHORIZED");
+  records.push({ caseId: "F13-H07-DISABLED-TRANSPORT-NOT-BYPASS", result: "rejected" });
+
+  const cli = evaluateQualificationResetCli({ qualificationReset: true }, {
+    functionalCandidateSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    closureDigest: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  });
+  assert.equal(cli.ok, false);
+  assert.equal(cli.code, "F13_FLAG_NOT_AUTHORIZATION");
+  records.push({ caseId: "F13-H08-FLAG-NOT-AUTH", result: "rejected" });
+
+  assert.equal(F13_SHARED_ORCHESTRATION_ID, "runQualificationReset");
+  assert.match(F13_RUNTIME_LABEL, /IMPLEMENTATION CANDIDATE/);
+  console.log(JSON.stringify({ publishedF13ResetHarness: records }, null, 2));
 });

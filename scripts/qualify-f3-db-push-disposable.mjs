@@ -17,6 +17,7 @@
  * If env is absent: exit 2 NOT_RUN with a Chief runbook (no child process
  * that can reach a database).
  */
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -116,6 +117,15 @@ import {
   classifyInventory,
   isCleanBaseline,
 } from "./lib/f3-db-push-inventory.mjs";
+import {
+  F13_RUNTIME_LABEL,
+  F13_SHARED_ORCHESTRATION_ID,
+  F13_WIPE_STILL_REJECTED,
+  evaluateQualificationResetArgv,
+  parseFounderAuthorizationArtifactArg,
+  runQualificationReset,
+  scopeSqlIdentityDigest,
+} from "./lib/f3-db-push-qualification-reset.mjs";
 import {
   WIPE_AUTHORITY,
   WIPE_HOLD,
@@ -299,8 +309,57 @@ export function parseArgs(argv) {
     floorMode: parseFloorMode(argv),
     evidenceOut: parseEvidenceOutArg(argv),
     sealFromLocalOracle: argv.includes("--seal-expected-from-local-oracle"),
+    qualificationReset: argv.includes("--qualification-reset"),
+    founderAuthorizationArtifact: parseFounderAuthorizationArtifactArg(argv),
   };
 }
+
+export function readBoundFunctionalCandidateSha({ cwd = root } = {}) {
+  try {
+    return String(execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd,
+      encoding: "utf8",
+      timeout: 5000,
+    })).trim();
+  } catch {
+    return null;
+  }
+}
+
+export function qualificationResetRuntimeContext(overrides = {}) {
+  return {
+    repoRoot: root,
+    targetRef: APPROVED_DISPOSABLE_PROJECT_REF,
+    functionalCandidateSha: overrides.functionalCandidateSha || readBoundFunctionalCandidateSha(),
+    closureDigest: overrides.closureDigest || F3_FUNCTIONAL_RECURSIVE_CLOSURE.closure_sha256,
+    scopeSqlIdentitySha256: overrides.scopeSqlIdentitySha256 || scopeSqlIdentityDigest(),
+    ...overrides,
+  };
+}
+
+/**
+ * Offline CLI gate for --qualification-reset. Flag alone is not authorization.
+ * --wipe-to-baseline remains unconditionally rejected. No hosted contact.
+ */
+export function evaluateQualificationResetCli(args = {}, runtimeContext = qualificationResetRuntimeContext()) {
+  const wipe = evaluateWipeToBaselineArg(args.wipeToBaseline === true);
+  if (!wipe.ok) return wipe;
+  const argv = [];
+  if (args.qualificationReset) argv.push("--qualification-reset");
+  if (args.founderAuthorizationArtifact) {
+    argv.push(`--founder-authorization-artifact=${args.founderAuthorizationArtifact}`);
+  }
+  if (args.prepFloor) argv.push("--prep-floor");
+  if (args.sequenceF3) argv.push("--sequence-f3");
+  if (args.sealFromLocalOracle) argv.push("--seal-expected-from-local-oracle");
+  if (args.wipeToBaseline) argv.push("--wipe-to-baseline");
+  if (!args.qualificationReset) {
+    return { ok: true, qualificationReset: false };
+  }
+  return evaluateQualificationResetArgv(argv, runtimeContext);
+}
+
+export const runHostedQualificationReset = runQualificationReset;
 
 export const WIPE_TO_BASELINE_REJECTION_CODE = "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH";
 export const WIPE_TO_BASELINE_REJECTION_MESSAGE =
@@ -2541,6 +2600,54 @@ function emitAndExit(payload, { evidenceOut = null, exitCode = 1 } = {}) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (args.wipeToBaseline) {
+    try {
+      assertWipeToBaselineRejected(args);
+    } catch (err) {
+      emitAndExit({
+        status: "HOLD",
+        verdict: FILE_BASED_RUNNER_VERDICTS.HOLD,
+        ok: false,
+        reason: err.message || WIPE_TO_BASELINE_REJECTION_MESSAGE,
+        code: err.code || WIPE_TO_BASELINE_REJECTION_CODE,
+        wipeToBaselineRejected: true,
+        productionContacted: false,
+        hostedDisposableContacted: false,
+        dbAccess: false,
+        dbPushCalls: 0,
+        repairCalls: 0,
+        continuationCalls: 0,
+        fingerprint_exact: false,
+        failedGate: "wipe_to_baseline",
+      }, { evidenceOut: null, exitCode: 1 });
+    }
+  }
+  let qualificationResetCli = { ok: true, qualificationReset: false };
+  if (args.qualificationReset) {
+    qualificationResetCli = evaluateQualificationResetCli(args, qualificationResetRuntimeContext());
+    if (!qualificationResetCli.ok) {
+      emitAndExit({
+        status: "HOLD",
+        verdict: FILE_BASED_RUNNER_VERDICTS.HOLD,
+        ok: false,
+        reason: qualificationResetCli.reason,
+        code: qualificationResetCli.code,
+        flagAloneIsNotAuthorization: qualificationResetCli.flagAloneIsNotAuthorization === true,
+        wipeToBaselineRejected: true,
+        wipeRejectionCode: F13_WIPE_STILL_REJECTED,
+        productionContacted: false,
+        hostedDisposableContacted: false,
+        dbAccess: false,
+        dbPushCalls: 0,
+        repairCalls: 0,
+        continuationCalls: 0,
+        qualificationResetCalls: 0,
+        fingerprint_exact: false,
+        failedGate: "qualification_reset_authorization",
+        label: F13_RUNTIME_LABEL,
+      }, { evidenceOut: args.evidenceOut, exitCode: 1 });
+    }
+  }
   const evidenceOutGate = assertEvidenceOutFileContract(
     args.evidenceOut ? path.resolve(root, args.evidenceOut) : null,
   );
@@ -2633,6 +2740,46 @@ async function main() {
   assertDbPushGates({ optIn: true });
   if (!MANAGEMENT_API_APPLY_PERMANENTLY_DISQUALIFIED) {
     refuseManagementApiApply();
+  }
+
+  if (args.qualificationReset) {
+    const isolatedReset = createIsolatedDbPushWorkdir();
+    const resetResult = await runHostedQualificationReset({
+      input: {
+        authorization: {
+          ...qualificationResetCli.authorization,
+          authorizationArtifactSatisfied: true,
+          bound: qualificationResetCli.authorization,
+        },
+        runtimeContext: qualificationResetRuntimeContext(),
+        observedObjects: [],
+        observedDependencies: [],
+        observedHistoryRows: [],
+        workdir: isolatedReset.workdir,
+        target: { ref: APPROVED_DISPOSABLE_PROJECT_REF },
+      },
+      allowDisabledTransport: false,
+    });
+    emitAndExit({
+      status: resetResult.ok ? "OK" : "HOLD",
+      verdict: resetResult.ok ? FILE_BASED_RUNNER_VERDICTS.HOLD : FILE_BASED_RUNNER_VERDICTS.HOLD,
+      ok: resetResult.ok === true,
+      reason: resetResult.reason || F13_RUNTIME_LABEL,
+      code: resetResult.code,
+      label: F13_RUNTIME_LABEL,
+      sharedOrchestration: F13_SHARED_ORCHESTRATION_ID,
+      wipeToBaselineRejected: true,
+      wipeRejectionCode: F13_WIPE_STILL_REJECTED,
+      productionContacted: false,
+      spies: resetResult.spies,
+      executed: resetResult.executed === true,
+      committed: resetResult.committed === true,
+      automaticReplay: false,
+      fingerprint_exact: false,
+    }, {
+      evidenceOut: args.evidenceOut,
+      exitCode: resetResult.ok === true ? 0 : 1,
+    });
   }
 
   const evidence = {

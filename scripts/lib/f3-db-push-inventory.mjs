@@ -6,6 +6,13 @@
  * leftover OR pure stock). Does not apply migrations.
  */
 import { RECOGNITION_ALLOWLIST } from "./f3-db-push-pins.mjs";
+import {
+  AUTHENTICATED_HISTORY_KEYS,
+  FINITE_OBJECT_ALLOWLIST,
+  isFinancialPrefixSelector,
+  validateHistoryKeys,
+  validateObjectAllowlist,
+} from "./f3-db-push-qualification-reset-design.mjs";
 
 export const MANAGED_SCHEMAS = Object.freeze([
   "auth",
@@ -392,4 +399,81 @@ export function classifyInventory(inventory) {
 
 export function isCleanBaseline(classification) {
   return classification?.verdict === "CLEAN_BASELINE" && classification?.cleanBaseline === true;
+}
+
+/**
+ * Exact-identity eligibility for the F13 qualification-reset path.
+ * Leftovers are eligible only when every observed identity is in the
+ * finite allowlist and every history row matches authenticated keys.
+ * `financial_*` / `financial_object` remains a HOLD classifier hint —
+ * never a destructive selector and never an eligibility grant.
+ */
+export function evaluateQualificationResetEligibility({
+  observedObjectIdentities = [],
+  observedDependencies = [],
+  observedHistoryRows = [],
+} = {}) {
+  const identities = (observedObjectIdentities || []).map((item) => (
+    typeof item === "string" ? item : item?.identity
+  ));
+  if (identities.some((identity) => isFinancialPrefixSelector(identity))) {
+    return {
+      ok: false,
+      eligible: false,
+      verdict: "HOLD",
+      code: "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY",
+      reason: "financial_* prefix is not a destructive allowlist",
+      financialPrefixUsedAsSelector: false,
+    };
+  }
+  const objects = validateObjectAllowlist(observedObjectIdentities, observedDependencies);
+  if (!objects.ok) {
+    return {
+      ok: false,
+      eligible: false,
+      verdict: "HOLD",
+      code: objects.code,
+      reason: objects.reason,
+      unexpectedObjects: objects.unexpectedObjects,
+      unexpectedDependencies: objects.unexpectedDependencies,
+      financialPrefixUsedAsSelector: false,
+    };
+  }
+  const history = validateHistoryKeys(observedHistoryRows);
+  if (!history.ok) {
+    return {
+      ok: false,
+      eligible: false,
+      verdict: "HOLD",
+      code: history.code,
+      reason: history.reason,
+      errors: history.errors,
+      financialPrefixUsedAsSelector: false,
+    };
+  }
+  const leftovers = identities.filter(Boolean);
+  if (leftovers.length === 0 && (observedHistoryRows || []).length === 0) {
+    return {
+      ok: true,
+      eligible: false,
+      alreadyClean: true,
+      verdict: "CLEAN_BASELINE",
+      reason: "no allowlisted leftovers or permitted history rows; reset mutation not required",
+      financialPrefixUsedAsSelector: false,
+      allowedCount: FINITE_OBJECT_ALLOWLIST.length,
+      historyKeyCount: AUTHENTICATED_HISTORY_KEYS.length,
+    };
+  }
+  return {
+    ok: true,
+    eligible: true,
+    alreadyClean: false,
+    verdict: "RESET_ELIGIBLE",
+    reason: "every leftover identity is in FINITE_OBJECT_ALLOWLIST and history matches authenticated keys",
+    financialPrefixUsedAsSelector: false,
+    leftoverCount: leftovers.length,
+    allowedCount: FINITE_OBJECT_ALLOWLIST.length,
+    historyMatched: history.matched,
+    historyKeyCount: AUTHENTICATED_HISTORY_KEYS.length,
+  };
 }

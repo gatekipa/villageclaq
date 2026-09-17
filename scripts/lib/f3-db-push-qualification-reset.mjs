@@ -687,7 +687,14 @@ export function buildQualificationResetSql({
   lines.push(`SET LOCAL lock_timeout = ${sqlString(F13_TX_TIMEOUTS.lock_timeout)};`);
   lines.push(`SET LOCAL statement_timeout = ${sqlString(F13_TX_TIMEOUTS.statement_timeout)};`);
   lines.push(`SET LOCAL idle_in_transaction_session_timeout = ${sqlString(F13_TX_TIMEOUTS.idle_in_transaction_session_timeout)};`);
-  lines.push(`SELECT pg_advisory_xact_lock(${lockK1}, ${lockK2});`);
+  // PERFORM inside DO emits no client row. Top-level SELECT of void
+  // pg_advisory_xact_lock prints a blank line under psql -At and must not
+  // appear among observation records.
+  lines.push("DO $f15_advisory_xact_lock$");
+  lines.push("BEGIN");
+  lines.push(`  PERFORM pg_advisory_xact_lock(${lockK1}, ${lockK2});`);
+  lines.push("END");
+  lines.push("$f15_advisory_xact_lock$;");
   lines.push(txObservationSql("T1_BEGIN", "began"));
   lines.push("-- T2_LOCK");
   lines.push("DO $f13_lock$");
@@ -926,6 +933,10 @@ function encodeProcessResult(result, commandIdentity) {
   };
 }
 
+export function isProtocolDefinedTxObservationWhitespaceLine(line) {
+  return typeof line === "string" && /^[ \t\r]*$/.test(line);
+}
+
 export function parseQualificationResetTxObservationStdout(stdout) {
   const raw = String(stdout ?? "");
   if (!raw.length) {
@@ -941,13 +952,8 @@ export function parseQualificationResetTxObservationStdout(stdout) {
   const lines = body.split("\n");
   const observations = [];
   for (const line of lines) {
-    if (line === "") {
-      return {
-        ok: false,
-        code: "F13_TX_OBSERVATION_FRAMING",
-        observations,
-        reason: "blank line is not an observation record",
-      };
+    if (isProtocolDefinedTxObservationWhitespaceLine(line)) {
+      continue;
     }
     const parsed = parseDuplicateKeySafeJson(`${line}\n`);
     if (!parsed.ok) {
@@ -987,6 +993,14 @@ export function parseQualificationResetTxObservationStdout(stdout) {
       };
     }
     observations.push(rec);
+  }
+  if (observations.length === 0) {
+    return {
+      ok: false,
+      code: "F13_TX_OBSERVATION_FRAMING",
+      observations: [],
+      reason: "no observation records",
+    };
   }
   return { ok: true, observations };
 }

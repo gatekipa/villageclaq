@@ -33,9 +33,12 @@ import {
   F15_RUNTIME_LABEL,
   QUALIFICATION_RESET_APPLY_PSQL_ARGV,
   QUALIFICATION_RESET_LOCAL_PROOF_HELPER_RELPATH,
+  TX_OBSERVATION_SCHEMA,
+  TX_OBSERVATION_SUCCESS_SEQUENCE,
   buildQualificationResetSql,
   createLocalFixtureQualificationResetTransportAdapter,
   interpretQualificationResetTransportResult,
+  parseQualificationResetTxObservationStdout,
   publishQualificationResetClosures,
   runQualificationReset,
 } from "./lib/f3-db-push-qualification-reset.mjs";
@@ -170,6 +173,51 @@ function runOfflineChecks() {
     rollback: null,
     replay: false,
     observedPhase: "T7_COMMIT",
+  }));
+
+  const generated = buildQualificationResetSql({
+    observedHistoryRows: AUTHENTICATED_HISTORY_KEYS.map((key) => ({
+      version: key.version,
+      name: key.name,
+    })),
+    scopeSqlIdentitySha256: scopeSqlIdentityDigest(),
+  });
+  const withoutDoBlocks = String(generated.sql || "").replace(/DO \$[A-Za-z0-9_]+\$[\s\S]*?\$[A-Za-z0-9_]+\$;/g, "");
+  checks.push(record("ADVISORY_LOCK_NO_VOID_SELECT", "check", {
+    ok: generated.ok === true
+      && /PERFORM\s+pg_advisory_xact_lock\s*\(/.test(generated.sql)
+      && !/SELECT\s+pg_advisory_xact_lock\s*\(/.test(withoutDoBlocks),
+    sql: generated.ok === true,
+  }));
+
+  const voidThenComplete = `\n${TX_OBSERVATION_SUCCESS_SEQUENCE.map((row) => (
+    JSON.stringify({ schema: TX_OBSERVATION_SCHEMA, ...row })
+  )).join("\n")}\n`;
+  const framed = parseQualificationResetTxObservationStdout(voidThenComplete);
+  const framedInterp = interpretQualificationResetTransportResult({
+    status: 0,
+    stdout: voidThenComplete,
+    stderr: "",
+    argv: [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", "[FILE]"],
+  });
+  const prefixHold = interpretQualificationResetTransportResult({
+    status: 0,
+    stdout: `PREFIX ${JSON.stringify({
+      schema: "f14-qualification-reset-tx-observation-v1",
+      phase: "WRONG_PHASE",
+      event: "committed",
+      committed: true,
+    })} SUFFIX\n`,
+    stderr: "",
+  });
+  checks.push(record("ADVISORY_LOCK_VOID_SELECT_FRAMING", "check", {
+    ok: framed.ok === true
+      && framed.observations.length === TX_OBSERVATION_SUCCESS_SEQUENCE.length
+      && framedInterp.committed === true
+      && prefixHold.committed !== true,
+    commit: framedInterp.committed === true,
+    observedPhase: framedInterp.phaseReached,
+    note: "protocol-defined whitespace from void SELECT is ignored; PREFIX/SUFFIX still rejected",
   }));
 
   const closures = publishQualificationResetClosures();

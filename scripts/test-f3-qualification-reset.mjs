@@ -54,9 +54,12 @@ import {
   evaluateQualificationResetArgv,
   interpretQualificationResetTransportResult,
   loadFounderAuthorizationArtifact,
+  parseQualificationResetTxObservationStdout,
   planQualificationReset,
   publishQualificationResetClosures,
   runQualificationReset,
+  TX_OBSERVATION_SCHEMA,
+  TX_OBSERVATION_SUCCESS_SEQUENCE,
 } from "./lib/f3-db-push-qualification-reset.mjs";
 import {
   FILE_BASED_RUNNER_VERDICTS,
@@ -1331,6 +1334,89 @@ test("F15-C4-R02 PREFIX committed observation plus EACCES is not success", async
   assert.notEqual(result.verdict, F13_RESET_SUCCESS_VERDICT);
   assert.equal(result.committed, false);
   assert.equal(result.spies.replayCalls, 0);
+});
+
+function f15SuccessObservationStdout({ leadingVoidSelectBlank = false } = {}) {
+  const records = TX_OBSERVATION_SUCCESS_SEQUENCE.map((row) => (
+    JSON.stringify({ schema: TX_OBSERVATION_SCHEMA, ...row })
+  ));
+  const body = `${records.join("\n")}\n`;
+  // psql -At emits an empty field for SELECT pg_advisory_xact_lock(...)::void
+  return leadingVoidSelectBlank ? `\n${body}` : body;
+}
+
+test("F15-C4-R04 advisory-lock void SELECT blank line must not break success observation framing", async () => {
+  // Chief HOLD on a4fa0832: void pg_advisory_xact_lock under psql -At prints a
+  // blank line that F15 treated as F13_TX_OBSERVATION_FRAMING, so the success
+  // TX never recorded commit even when physical state was CLEAN.
+  const voidThenComplete = f15SuccessObservationStdout({ leadingVoidSelectBlank: true });
+  assert.equal(voidThenComplete.startsWith("\n{"), true);
+  assert.match(voidThenComplete, /^$/m);
+
+  const parsed = parseQualificationResetTxObservationStdout(voidThenComplete);
+  assert.equal(parsed.ok, true, parsed.reason || parsed.code);
+  assert.equal(parsed.observations.length, TX_OBSERVATION_SUCCESS_SEQUENCE.length);
+  assert.equal(parsed.code, undefined);
+
+  const interpreted = interpretQualificationResetTransportResult({
+    status: 0,
+    stdout: voidThenComplete,
+    stderr: "",
+    argv: [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", "[FILE]"],
+  });
+  assert.equal(interpreted.observed.framingOk, true);
+  assert.equal(interpreted.committed, true);
+  assert.equal(interpreted.observed.observations.at(-1)?.event, "committed");
+
+  const recorder = createQualificationResetRecorder();
+  const result = await runQualificationReset({
+    input: planInput(),
+    adapters: {
+      transport: {
+        kind: "advisory-lock-void-select-stdout",
+        disabled: true,
+        execute() {
+          return {
+            argv: [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", "[FILE]"],
+            status: 0,
+            stdout: voidThenComplete,
+            stderr: "",
+            error: null,
+            signal: null,
+            timeout: false,
+          };
+        },
+      },
+    },
+    recorder,
+    allowDisabledTransport: true,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.committed, true);
+  assert.equal(result.verdict, F13_RESET_SUCCESS_VERDICT);
+  assert.equal(result.code, "F13_RESET_COMMITTED");
+  assert.equal(result.spies.replayCalls, 0);
+
+  const sql = buildQualificationResetSql({
+    observedHistoryRows: authenticatedHistory(),
+    scopeSqlIdentitySha256: scopeSqlIdentityDigest(),
+  });
+  assert.equal(sql.ok, true);
+  assert.match(sql.sql, /PERFORM\s+pg_advisory_xact_lock\s*\(/);
+  const withoutDoBlocks = sql.sql.replace(/DO \$[A-Za-z0-9_]+\$[\s\S]*?\$[A-Za-z0-9_]+\$;/g, "");
+  assert.doesNotMatch(withoutDoBlocks, /SELECT\s+pg_advisory_xact_lock\s*\(/);
+
+  const prefixStillRejected = interpretQualificationResetTransportResult({
+    status: 0,
+    stdout: `PREFIX ${JSON.stringify({
+      schema: "f14-qualification-reset-tx-observation-v1",
+      phase: "WRONG_PHASE",
+      event: "committed",
+      committed: true,
+    })} SUFFIX\n`,
+    stderr: "",
+  });
+  assert.equal(prefixStillRejected.committed, false);
 });
 
 test("F15-C4-R03 new protocol still rejects equivalent WRONG_PHASE / missing / reorder mutations", async () => {

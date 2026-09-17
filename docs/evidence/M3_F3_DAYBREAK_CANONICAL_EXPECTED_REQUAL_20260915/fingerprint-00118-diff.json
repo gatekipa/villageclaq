@@ -1,0 +1,41 @@
+{
+  "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+  "expected_sha256": "8299680fd5b3def52a981ae8c8ee097f29f13507b91d4f0799557236f1b5001c",
+  "observed_sha256": "d206f2f87a4f7ed10d2c6c0e826cae45d82b9fbe3d90ee840c557717493f0c9b",
+  "forbidden_hosted_sha256": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+  "observed_equals_forbidden": false,
+  "expected_ne_observed": true,
+  "top_level_diffs": [
+    {
+      "path": "acl",
+      "kind": "value_mismatch",
+      "expected_type": "array(27)",
+      "observed_type": "array(34)",
+      "expected_sha256": "6f533dc4338045bf9f8e8c7647fb1fe2fd4146db0156ea0b96b73885374549cb",
+      "observed_sha256": "ac1a564c7cf97d022fd7bd96095e21e941c16ba2fc64679b5f56b03cf6dbb9dc",
+      "expected_preview": "[{\"grantable\":false,\"grantee\":\"postgres\",\"grantor\":\"postgres\",\"identity_arguments\":\"\",\"object_name\":\"guard_ledger_epoch\",\"object_type\":\"routine\",\"privilege\":\"EXECUTE\",\"prokind\":\"f\",\"schema\":\"financial_private\"},{\"grantable\":false,\"grantee\":",
+      "observed_preview": "[{\"grantable\":false,\"grantee\":\"postgres\",\"grantor\":\"postgres\",\"identity_arguments\":\"\",\"object_name\":\"guard_ledger_epoch\",\"object_type\":\"routine\",\"privilege\":\"EXECUTE\",\"prokind\":\"f\",\"schema\":\"financial_private\"},{\"grantable\":false,\"grantee\":"
+    },
+    {
+      "path": "acls",
+      "kind": "value_mismatch",
+      "expected_type": "array(27)",
+      "observed_type": "array(34)",
+      "expected_sha256": "6f533dc4338045bf9f8e8c7647fb1fe2fd4146db0156ea0b96b73885374549cb",
+      "observed_sha256": "ac1a564c7cf97d022fd7bd96095e21e941c16ba2fc64679b5f56b03cf6dbb9dc",
+      "expected_preview": "[{\"grantable\":false,\"grantee\":\"postgres\",\"grantor\":\"postgres\",\"identity_arguments\":\"\",\"object_name\":\"guard_ledger_epoch\",\"object_type\":\"routine\",\"privilege\":\"EXECUTE\",\"prokind\":\"f\",\"schema\":\"financial_private\"},{\"grantable\":false,\"grantee\":",
+      "observed_preview": "[{\"grantable\":false,\"grantee\":\"postgres\",\"grantor\":\"postgres\",\"identity_arguments\":\"\",\"object_name\":\"guard_ledger_epoch\",\"object_type\":\"routine\",\"privilege\":\"EXECUTE\",\"prokind\":\"f\",\"schema\":\"financial_private\"},{\"grantable\":false,\"grantee\":"
+    },
+    {
+      "path": "relations",
+      "kind": "value_mismatch",
+      "expected_type": "array(3)",
+      "observed_type": "array(3)",
+      "expected_sha256": "36da81ee26e1b8d7ee1018e9f01687b53977121057c88397edefdebd6f444f1b",
+      "observed_sha256": "6c7e9f5bb3716c243a8b3b0e3c3f0eb26c86e38d8ddda8297a93b3cf2300d8c9",
+      "expected_preview": "[{\"acl\":[{\"grantable\":false,\"grantee\":\"postgres\",\"grantor\":\"postgres\",\"privilege\":\"DELETE\"},{\"grantable\":false,\"grantee\":\"postgres\",\"grantor\":\"postgres\",\"privilege\":\"INSERT\"},{\"grantable\":false,\"grantee\":\"postgres\",\"grantor\":\"postgres\",\"pri",
+      "observed_preview": "[{\"acl\":[{\"grantable\":false,\"grantee\":\"postgres\",\"grantor\":\"postgres\",\"privilege\":\"DELETE\"},{\"grantable\":false,\"grantee\":\"postgres\",\"grantor\":\"postgres\",\"privilege\":\"INSERT\"},{\"grantable\":false,\"grantee\":\"postgres\",\"grantor\":\"postgres\",\"pri"
+    }
+  ],
+  "note": "HOLD evidence only — expected NOT resealed from observed"
+}

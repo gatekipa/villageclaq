@@ -1,0 +1,146 @@
+
+> villageclaq@0.1.0 test:f3-mapi-harness
+> node --test scripts/test-f3-management-api-remote-harness.mjs
+
+TAP version 13
+# Subtest: approved disposable pins are exact and production is excluded
+ok 1 - approved disposable pins are exact and production is excluded
+  ---
+  duration_ms: 2.481526
+  type: 'test'
+  ...
+# Subtest: gates refuse production ref before any fetch
+ok 2 - gates refuse production ref before any fetch
+  ---
+  duration_ms: 0.708708
+  type: 'test'
+  ...
+# Subtest: gates refuse unapproved ref, wrong sentinel, missing destructive, missing token
+ok 3 - gates refuse unapproved ref, wrong sentinel, missing destructive, missing token
+  ---
+  duration_ms: 0.585007
+  type: 'test'
+  ...
+# Subtest: apply and list throw synchronously and fetch nothing when unauthorized
+ok 4 - apply and list throw synchronously and fetch nothing when unauthorized
+  ---
+  duration_ms: 0.559614
+  type: 'test'
+  ...
+# Subtest: token is never accepted as a caller argument and never appears in sanitized logs
+ok 5 - token is never accepted as a caller argument and never appears in sanitized logs
+  ---
+  duration_ms: 1.155694
+  type: 'test'
+  ...
+# Subtest: identity verification requires matching name and refuses org/ref drift
+ok 6 - identity verification requires matching name and refuses org/ref drift
+  ---
+  duration_ms: 0.975815
+  type: 'test'
+  ...
+# Subtest: file-stream apply POSTs only query/name and captures sanitized metadata
+ok 7 - file-stream apply POSTs only query/name and captures sanitized metadata
+  ---
+  duration_ms: 2.559882
+  type: 'test'
+  ...
+# Subtest: apply rejects caller version field
+ok 8 - apply rejects caller version field
+  ---
+  duration_ms: 0.354707
+  type: 'test'
+  ...
+# Subtest: list captures before/after rows from interceptor
+ok 9 - list captures before/after rows from interceptor
+  ---
+  duration_ms: 0.551639
+  type: 'test'
+  ...
+# Subtest: version recovery uses response / list / schema only and HOLDs when absent
+ok 10 - version recovery uses response / list / schema only and HOLDs when absent
+  ---
+  duration_ms: 0.936003
+  type: 'test'
+  ...
+# Subtest: parseIdentityFromAuthoritativeText does not accept a bare 14-digit clock
+ok 11 - parseIdentityFromAuthoritativeText does not accept a bare 14-digit clock
+  ---
+  duration_ms: 0.17555
+  type: 'test'
+  ...
+# Subtest: Chief live probe shape is HOLD and repair is forbidden
+ok 12 - Chief live probe shape is HOLD and repair is forbidden
+  ---
+  duration_ms: 0.422693
+  type: 'test'
+  ...
+# Subtest: history INSERT blocked HOLD even if exception text has parser-only version= name= pair
+ok 13 - history INSERT blocked HOLD even if exception text has parser-only version= name= pair
+  ---
+  duration_ms: 0.185109
+  type: 'test'
+  ...
+# Subtest: refuseClockOrGuessedVersion rejects apply-time clock usage
+ok 14 - refuseClockOrGuessedVersion rejects apply-time clock usage
+  ---
+  duration_ms: 0.190964
+  type: 'test'
+  ...
+# Subtest: repair lookup writes exact authorized bytes under recovered timestamp name
+ok 15 - repair lookup writes exact authorized bytes under recovered timestamp name
+  ---
+  duration_ms: 1.959519
+  type: 'test'
+  ...
+# Subtest: repair lookup refuses a non-authoritative version
+ok 16 - repair lookup refuses a non-authoritative version
+  ---
+  duration_ms: 0.18357
+  type: 'test'
+  ...
+# Subtest: frozen 00118-00123 digests stay byte-identical
+ok 17 - frozen 00118-00123 digests stay byte-identical
+  ---
+  duration_ms: 1.515395
+  type: 'test'
+  ...
+# Subtest: floor limitation discloses that 00001-00117 is not a clean replay
+ok 18 - floor limitation discloses that 00001-00117 is not a clean replay
+  ---
+  duration_ms: 0.226359
+  type: 'test'
+  ...
+# Subtest: VillageClaq continuation order is sequential 00118-00123
+ok 19 - VillageClaq continuation order is sequential 00118-00123
+  ---
+  duration_ms: 0.226176
+  type: 'test'
+  ...
+# Subtest: CLI discovery uses --help and does not invent repair flags
+ok 20 - CLI discovery uses --help and does not invent repair flags
+  ---
+  duration_ms: 1179.114411
+  type: 'test'
+  ...
+# Subtest: qualify runner and floor prep refuse to run without env (NOT_RUN)
+ok 21 - qualify runner and floor prep refuse to run without env (NOT_RUN)
+  ---
+  duration_ms: 0.733733
+  type: 'test'
+  ...
+# Subtest: runbook and evidence withdraw overclaims and keep production ban
+ok 22 - runbook and evidence withdraw overclaims and keep production ban
+  ---
+  duration_ms: 0.439433
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1293.326435

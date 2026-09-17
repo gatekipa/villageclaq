@@ -1,0 +1,49 @@
+{
+  "phase": "A",
+  "verdict": "CONTINUE",
+  "captured_at_et": "09/16/2026, 09:57:34 AM ET",
+  "candidate": "55995cf0ab5f89dd0b59775eb99a7f63a5e0d5b1",
+  "parent_F5": "228549412cf3b7a3cfa3a1c6c6bdee553a1c0a65",
+  "evidence_parent_E5": "3e8e1ce8620784ee88b50feec4e67e479fd7dfa3",
+  "f5_to_f51_only_poison_sql": true,
+  "ancestry_exact": true,
+  "sealed_V5_hashes_unchanged": true,
+  "poison_target_negatives": "CONTINUE",
+  "poison_case_count": 29,
+  "v5_reconfirm": "CONTINUE",
+  "recognition": [
+    "manual_income"
+  ],
+  "frozen_digests_unchanged": true,
+  "cli": "2.117.0",
+  "local_gate": "CONTINUE",
+  "suites": {
+    "test-f3-recognition": "PASS",
+    "test-f3-db-push": "PASS_WITH_SKIPS",
+    "test-f3-local-safety": "PASS",
+    "test-f3-mapi-harness": "PASS",
+    "tsc-noEmit": "PASS",
+    "next-build": "PASS"
+  },
+  "test_f3_db_push": {
+    "tests": 125,
+    "pass": 124,
+    "fail": 0,
+    "skipped": 1
+  },
+  "recursive_closure_complete": true,
+  "clean_worktree": true,
+  "no_pr96_100_as_authority": true,
+  "floor_label": "DOCUMENTED QUALIFICATION FIXTURE \u2014 NOT A CLEAN 00001\u201300117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "hold_reason": null,
+  "component_verdicts": {
+    "ancestry": "CONTINUE",
+    "sealed": "CONTINUE",
+    "poison_target": "CONTINUE",
+    "v5_reconfirm": "CONTINUE",
+    "recognition_digests": "CONTINUE",
+    "local_gate": "CONTINUE",
+    "recursive_closure": "CONTINUE"
+  },
+  "db_access_authorized": true
+}

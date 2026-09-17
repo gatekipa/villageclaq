@@ -1,0 +1,13 @@
+{
+  "command": "npm run test:f3-db-push",
+  "tests": 121,
+  "pass": 120,
+  "fail": 0,
+  "skipped": 1,
+  "skipped_detail": "optional-role REVOKE is a no-op when absent and revokes when present \u2014 SKIP local PostgreSQL 17 unavailable via default socket (TCP 55432 oracle still used for seal)",
+  "exit_ok": true,
+  "repairCalls_all_zero_where_observed": true,
+  "dbPushCalls_all_zero_where_observed": true,
+  "captured_at_et": "9/15/2026, 8:52:38 PM ET",
+  "log": "logs/test-f3-db-push.log"
+}

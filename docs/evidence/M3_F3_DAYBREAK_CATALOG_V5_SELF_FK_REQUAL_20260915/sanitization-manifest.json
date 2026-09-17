@@ -1,0 +1,29 @@
+{
+  "qualify_result_bytes": 40572666,
+  "production_ref_absent": true,
+  "raw_db_password_absent": true,
+  "gh_pat_absent": true,
+  "checks": [
+    {
+      "pattern": "db_url_password",
+      "count": 0,
+      "ok": true
+    },
+    {
+      "pattern": "gh_pat",
+      "count": 0,
+      "ok": true
+    },
+    {
+      "pattern": "jwt",
+      "count": 0,
+      "ok": true
+    },
+    {
+      "pattern": "production_ref",
+      "count": 0,
+      "ok": true
+    }
+  ],
+  "note": "Hosted qualify stdout uses [REDACTED] placeholders for db-url secrets"
+}

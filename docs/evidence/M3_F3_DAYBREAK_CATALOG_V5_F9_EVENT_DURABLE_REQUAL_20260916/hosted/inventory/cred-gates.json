@@ -1,0 +1,13 @@
+{
+  "sentinel_ok": true,
+  "sentinel": "villageclaq-f3-dbpush-20260913-authorized",
+  "mapi_sentinel": "villageclaq-f3-mapi-20260913-authorized",
+  "destructive_ok": true,
+  "password_present": true,
+  "token_present": true,
+  "cli_matches_pin": true,
+  "cli_version": "2.117.0",
+  "db_url_built": true,
+  "db_url_not_production": true,
+  "db_url_host_ok": true
+}

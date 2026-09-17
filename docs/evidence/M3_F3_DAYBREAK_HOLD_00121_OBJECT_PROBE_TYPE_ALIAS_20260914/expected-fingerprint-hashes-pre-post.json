@@ -1,0 +1,69 @@
+{
+  "artifact": "expected-fingerprint-hashes-pre-post",
+  "functional_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315",
+  "recordedBeforeDbAccess": true,
+  "independentOfObserved": true,
+  "sha256BeforeDb": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+    "00119_f3_01_core_ledger_foundation.sql": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+    "00120_f3_02_secure_posting_idempotency.sql": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+    "00121_f3_03_projection_read_proof.sql": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+    "00122_f3_04_correction_reversal.sql": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+    "00123_f3_05_opening_cash_command.sql": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965"
+  },
+  "sealedTip": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+    "00119_f3_01_core_ledger_foundation.sql": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+    "00120_f3_02_secure_posting_idempotency.sql": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+    "00121_f3_03_projection_read_proof.sql": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+    "00122_f3_04_correction_reversal.sql": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+    "00123_f3_05_opening_cash_command.sql": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965"
+  },
+  "recomputedMatchSealed": true,
+  "superseded_generations": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": {
+      "concatenated_object_identity": "07ce0b411f0a7098de31ada42dd2863cb6fc50e94fe685ff998b0bd16613e535",
+      "prior_structured": "a1538e7d2d451c198350535128ece77cbe54ad31cd11d6d902f7efc0ece231c5",
+      "new_sealed": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+      "beforeDb": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+      "matches_new_sealed": true
+    },
+    "00119_f3_01_core_ledger_foundation.sql": {
+      "concatenated_object_identity": "e8005d0591d974d4b24ced9529904bd7c0727bc3fd98a5aeabf61c7325ab4d26",
+      "prior_structured": "422c5d8b22ae4c07f59261f09988afccf80efb85f3c05dc5c3c91063a12f7f4c",
+      "new_sealed": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+      "beforeDb": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+      "matches_new_sealed": true
+    },
+    "00120_f3_02_secure_posting_idempotency.sql": {
+      "concatenated_object_identity": "ebeb5c45edc4ee41e1fc98687b11d6c0fe122d629a972c8d4b507ab2096b117b",
+      "prior_structured": "1f5433b99ee60148fe708c51e576ce50cf082e8279e32057aa8e0e1a2e450610",
+      "new_sealed": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+      "beforeDb": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+      "matches_new_sealed": true
+    },
+    "00121_f3_03_projection_read_proof.sql": {
+      "concatenated_object_identity": "f026b6abcfd37efda7c5d12c687077958acf0be01cf9154a77070b32fd245976",
+      "prior_structured": "6705f7bb63cf18eda2b22bace9ff69c2c915207238f760437eccf08441e95c3c",
+      "new_sealed": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+      "beforeDb": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+      "matches_new_sealed": true
+    },
+    "00122_f3_04_correction_reversal.sql": {
+      "concatenated_object_identity": "e245610827cc6aebbfd64b86f684f8cea9b6d53311b7788bbd5459c93029faae",
+      "prior_structured": "e84cf051957897be0434d6b2fb71a3f4317228080d994110ec4470b8cb97b9ee",
+      "new_sealed": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+      "beforeDb": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+      "matches_new_sealed": true
+    },
+    "00123_f3_05_opening_cash_command.sql": {
+      "concatenated_object_identity": "f25e2ea4a86650faf3d5f0a01175bac4a1d2f44f11e3c2e7fc5a9acff422c09a",
+      "prior_structured": "3ff28c4c5f3f31c05014febd2c4e25158b597048f5e1e3bc7ea23a1d7ef40b66",
+      "new_sealed": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
+      "beforeDb": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
+      "matches_new_sealed": true
+    }
+  },
+  "unchanged_after_compare": true,
+  "note": "00118 supersedes 07ce0b41\u2026 and a1538e7d\u2026 \u2192 0a403e8d\u2026; 00119 supersedes e8005d05\u2026 and 422c5d8b\u2026 \u2192 ca616973\u2026"
+}

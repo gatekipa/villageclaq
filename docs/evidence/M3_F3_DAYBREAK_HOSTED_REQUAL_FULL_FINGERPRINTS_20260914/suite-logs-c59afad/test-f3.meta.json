@@ -1,0 +1,13 @@
+{
+  "name": "test-f3",
+  "command": "npm run test:f3",
+  "startedAt": "2026-09-14T21:34:26Z",
+  "endedAt": "2026-09-14T21:34:29Z",
+  "exit": 1,
+  "pass": 755,
+  "fail": 313,
+  "skip": 1,
+  "log": "<redacted-path>",
+  "sha256": "7eacaf13370e79c795303d99c683071e601b669a310b9c19417a89ea0393790d",
+  "bytes": 514887
+}

@@ -1,0 +1,26 @@
+{
+  "F7": "5d480db63592b85dfdeeb3dc4b955bd9b83878f1",
+  "parent_HOLD": "0ba4e293d5d0895e3e107a367887745a877d0756",
+  "blob_source_PR102": "19e997dfadd9f6a8bc1a221a7edb5f6e8ec02d80",
+  "files": [
+    "scripts/lib/f3-db-push-query-parse.mjs",
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "independent_ref_unchanged": true,
+  "branches_FF": [
+    "feat/m3-f3-01-05-forward-foundation-9b17",
+    "cursor/f3-dbpush-qualification-1c3f",
+    "cursor/f3-wipe-00030-replay-6945"
+  ],
+  "titles_retained": "DAYBREAK HOLD \u2014 catalog-v5 self-FK RI roles + fail-closed",
+  "PRs": {
+    "84": "OPEN DRAFT",
+    "85": "OPEN DRAFT",
+    "86": "OPEN DRAFT",
+    "102": "OPEN DRAFT unused as authority"
+  },
+  "force_push": false,
+  "captured_at_et": "2026-09-16 12:01:51 EDT"
+}

@@ -1,0 +1,21 @@
+{
+  "process_exit": 0,
+  "retry_success": true,
+  "pending_empty": true,
+  "strict_isolated_psql": true,
+  "exact_envelope": true,
+  "target_binding": {
+    "current_database": "postgres",
+    "current_user": "postgres",
+    "provenance": "original_query_output"
+  },
+  "poison_absent": true,
+  "six_history_rows": true,
+  "genuine_FINAL_inventory": true,
+  "nested_verify": true,
+  "outer_verify": null,
+  "evidence_out_file": true,
+  "recognition": [
+    "manual_income"
+  ]
+}

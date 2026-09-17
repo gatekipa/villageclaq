@@ -8,6 +8,7 @@
 import { RECOGNITION_ALLOWLIST } from "./f3-db-push-pins.mjs";
 import {
   AUTHENTICATED_HISTORY_KEYS,
+  FINITE_DEPENDENCY_ALLOWLIST,
   FINITE_OBJECT_ALLOWLIST,
   isFinancialPrefixSelector,
   validateHistoryKeys,
@@ -199,8 +200,7 @@ export const FAILED_FLOOR_STORAGE_BUCKETS = Object.freeze([
 
 export const FAILED_FLOOR_AUTH_TRIGGER = "on_auth_user_created";
 
-export const INVENTORY_CAPTURE_SQL = `
-SELECT jsonb_build_object(
+export const INVENTORY_CAPTURE_OBJECT_SQL = `jsonb_build_object(
   'recognition_pin', '${RECOGNITION_ALLOWLIST[0]}',
   'schemas', (
     SELECT coalesce(jsonb_agg(nspname ORDER BY nspname), '[]'::jsonb)
@@ -280,8 +280,129 @@ SELECT jsonb_build_object(
       ELSE coalesce((SELECT jsonb_agg(id ORDER BY id) FROM storage.buckets), '[]'::jsonb)
     END
   )
+)`;
+
+export const INVENTORY_CAPTURE_SQL = `
+SELECT ${INVENTORY_CAPTURE_OBJECT_SQL}::text
+`;
+
+function sqlInventoryString(value) {
+  return `'${String(value ?? "").replace(/'/g, "''")}'`;
+}
+
+function allowlistPresenceProbe(row) {
+  const id = sqlInventoryString(row.identity);
+  if (row.kind === "function") return `to_regprocedure(${id}) IS NOT NULL`;
+  if (row.kind === "table" || row.kind === "sequence") return `to_regclass(${id}) IS NOT NULL`;
+  if (row.kind === "type") return `to_regtype(${id}) IS NOT NULL`;
+  if (row.kind === "schema") return `to_regnamespace(${id}) IS NOT NULL`;
+  if (row.kind === "extension") return `EXISTS (SELECT 1 FROM pg_extension WHERE extname = ${id})`;
+  return "false";
+}
+
+const ALLOWLIST_PRESENCE_VALUES = FINITE_OBJECT_ALLOWLIST
+  .map((row) => `      (${sqlInventoryString(row.identity)}, ${allowlistPresenceProbe(row)})`)
+  .join(",\n");
+
+const NAMED_DEPENDENCY_IDENTITIES = FINITE_DEPENDENCY_ALLOWLIST
+  .map((dep) => dep.identity)
+  .filter((identity) => identity && !/[\s>]/.test(identity));
+
+/**
+ * Reset inventory: existing INVENTORY_CAPTURE_SQL object plus exact
+ * allowlist presence probes and schema_migrations version+name rows.
+ * Used by the qualify --qualification-reset path. Not a wipe selector.
+ */
+export const QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL = `
+SELECT jsonb_build_object(
+  'schema', 'f13-qualification-reset-inventory-v1',
+  'inventory_capture_sql', 'scripts/lib/f3-db-push-inventory.mjs INVENTORY_CAPTURE_SQL',
+  'inventory', ${INVENTORY_CAPTURE_OBJECT_SQL},
+  'observed_objects', (
+    SELECT coalesce(jsonb_agg(identity ORDER BY identity), '[]'::jsonb)
+    FROM (
+      VALUES
+${ALLOWLIST_PRESENCE_VALUES}
+    ) AS t(identity, present)
+    WHERE present
+  ),
+  'observed_history_rows', (
+    SELECT CASE
+      WHEN to_regclass('supabase_migrations.schema_migrations') IS NULL THEN '[]'::jsonb
+      ELSE coalesce((
+        SELECT jsonb_agg(jsonb_build_object('version', version::text, 'name', name) ORDER BY version)
+        FROM supabase_migrations.schema_migrations
+      ), '[]'::jsonb)
+    END
+  ),
+  'observed_dependencies', (
+    SELECT coalesce(jsonb_agg(con.conname ORDER BY con.conname), '[]'::jsonb)
+    FROM pg_constraint con
+    WHERE con.contype = 'f'
+      AND con.conname = ANY (${
+        NAMED_DEPENDENCY_IDENTITIES.length
+          ? `ARRAY[${NAMED_DEPENDENCY_IDENTITIES.map(sqlInventoryString).join(", ")}]`
+          : "ARRAY[]::text[]"
+      })
+  )
 )::text
 `;
+
+export function deriveObservedObjectsFromInventoryCapture(inventory = {}) {
+  const objects = [];
+  for (const name of asList(inventory.public_tables)) objects.push(`public.${name}`);
+  for (const name of asList(inventory.public_types)) objects.push(`public.${name}`);
+  const functions = Array.isArray(inventory.public_functions) ? inventory.public_functions : [];
+  for (const fn of functions) {
+    if (fn && fn.identity) objects.push(String(fn.identity));
+    else if (fn && fn.name) objects.push(`public.${fn.name}`);
+  }
+  if (inventory.financial_core) objects.push("financial_core");
+  if (inventory.financial_private) objects.push("financial_private");
+  if (inventory.financial_ledger_epochs) objects.push("public.financial_ledger_epochs");
+  return objects;
+}
+
+export function observedFromQualificationResetCapture(body = {}) {
+  if (body == null || typeof body !== "object" || Array.isArray(body)) {
+    return {
+      ok: false,
+      inventoryCaptured: false,
+      code: "F13_INVENTORY_CAPTURE_REQUIRED",
+      reason: "Qualification reset inventory capture is missing or malformed",
+    };
+  }
+  const inventory = body.inventory && typeof body.inventory === "object"
+    ? body.inventory
+    : body;
+  const exactObjects = Array.isArray(body.observed_objects)
+    ? body.observed_objects.map((item) => (typeof item === "string" ? item : item?.identity)).filter(Boolean)
+    : [];
+  const derivedObjects = deriveObservedObjectsFromInventoryCapture(inventory);
+  const observedObjects = exactObjects.length ? exactObjects : derivedObjects;
+  const observedDependencies = Array.isArray(body.observed_dependencies)
+    ? body.observed_dependencies.map((item) => (typeof item === "string" ? item : item?.identity)).filter(Boolean)
+    : [];
+  const historySource = Array.isArray(body.observed_history_rows)
+    ? body.observed_history_rows
+    : Array.isArray(body.history_rows)
+      ? body.history_rows
+      : [];
+  const observedHistoryRows = historySource.map((row) => ({
+    version: row?.version == null ? "" : String(row.version),
+    name: row?.name == null ? null : String(row.name),
+  }));
+  return {
+    ok: true,
+    inventoryCaptured: true,
+    observedObjects,
+    observedDependencies,
+    observedHistoryRows,
+    inventory,
+    captureSchema: body.schema || null,
+  };
+}
+
 
 export function asList(value) {
   if (Array.isArray(value)) return value.map(String);

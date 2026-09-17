@@ -118,12 +118,14 @@ import {
   isCleanBaseline,
 } from "./lib/f3-db-push-inventory.mjs";
 import {
+  F13_RESET_ALREADY_CLEAN_VERDICT,
+  F13_RESET_SUCCESS_VERDICT,
   F13_RUNTIME_LABEL,
   F13_SHARED_ORCHESTRATION_ID,
   F13_WIPE_STILL_REJECTED,
   evaluateQualificationResetArgv,
   parseFounderAuthorizationArtifactArg,
-  runQualificationReset,
+  runQualificationResetQualifyPath,
   scopeSqlIdentityDigest,
 } from "./lib/f3-db-push-qualification-reset.mjs";
 import {
@@ -359,7 +361,43 @@ export function evaluateQualificationResetCli(args = {}, runtimeContext = qualif
   return evaluateQualificationResetArgv(argv, runtimeContext);
 }
 
-export const runHostedQualificationReset = runQualificationReset;
+export { runQualificationResetQualifyPath };
+export const runHostedQualificationReset = runQualificationResetQualifyPath;
+
+/**
+ * Qualify-main emit for --qualification-reset. Successful authorized
+ * synthetic/complete reset is CLEAN_BASELINE — never labeled HOLD.
+ */
+export function qualificationResetQualifyEmitPayload(resetResult = {}) {
+  const ok = resetResult.ok === true;
+  const successVerdict = resetResult.verdict && resetResult.verdict !== FILE_BASED_RUNNER_VERDICTS.HOLD
+    ? resetResult.verdict
+    : (resetResult.alreadyClean === true
+      ? F13_RESET_ALREADY_CLEAN_VERDICT
+      : F13_RESET_SUCCESS_VERDICT);
+  return {
+    status: ok ? "OK" : "HOLD",
+    verdict: ok ? successVerdict : FILE_BASED_RUNNER_VERDICTS.HOLD,
+    ok,
+    reason: resetResult.reason || F13_RUNTIME_LABEL,
+    code: resetResult.code,
+    label: F13_RUNTIME_LABEL,
+    sharedOrchestration: F13_SHARED_ORCHESTRATION_ID,
+    wipeToBaselineRejected: true,
+    wipeRejectionCode: F13_WIPE_STILL_REJECTED,
+    productionContacted: false,
+    spies: resetResult.spies,
+    executed: resetResult.executed === true,
+    committed: resetResult.committed === true,
+    mutation: resetResult.mutation === true,
+    alreadyClean: resetResult.alreadyClean === true,
+    inventoryCaptured: resetResult.inventoryCaptured === true,
+    captureSqlWired: resetResult.captureSqlWired === true,
+    observedFromCapture: resetResult.observedFromCapture || null,
+    automaticReplay: false,
+    fingerprint_exact: false,
+  };
+}
 
 export const WIPE_TO_BASELINE_REJECTION_CODE = "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH";
 export const WIPE_TO_BASELINE_REJECTION_MESSAGE =
@@ -2744,39 +2782,19 @@ async function main() {
 
   if (args.qualificationReset) {
     const isolatedReset = createIsolatedDbPushWorkdir();
-    const resetResult = await runHostedQualificationReset({
-      input: {
-        authorization: {
-          ...qualificationResetCli.authorization,
-          authorizationArtifactSatisfied: true,
-          bound: qualificationResetCli.authorization,
-        },
-        runtimeContext: qualificationResetRuntimeContext(),
-        observedObjects: [],
-        observedDependencies: [],
-        observedHistoryRows: [],
-        workdir: isolatedReset.workdir,
-        target: { ref: APPROVED_DISPOSABLE_PROJECT_REF },
+    const resetResult = await runQualificationResetQualifyPath({
+      authorization: {
+        ...qualificationResetCli.authorization,
+        authorizationArtifactSatisfied: true,
+        bound: qualificationResetCli.authorization,
       },
+      runtimeContext: qualificationResetRuntimeContext(),
+      target: { ref: APPROVED_DISPOSABLE_PROJECT_REF },
+      workdir: isolatedReset.workdir,
       allowDisabledTransport: false,
+      allowLiveCapture: true,
     });
-    emitAndExit({
-      status: resetResult.ok ? "OK" : "HOLD",
-      verdict: resetResult.ok ? FILE_BASED_RUNNER_VERDICTS.HOLD : FILE_BASED_RUNNER_VERDICTS.HOLD,
-      ok: resetResult.ok === true,
-      reason: resetResult.reason || F13_RUNTIME_LABEL,
-      code: resetResult.code,
-      label: F13_RUNTIME_LABEL,
-      sharedOrchestration: F13_SHARED_ORCHESTRATION_ID,
-      wipeToBaselineRejected: true,
-      wipeRejectionCode: F13_WIPE_STILL_REJECTED,
-      productionContacted: false,
-      spies: resetResult.spies,
-      executed: resetResult.executed === true,
-      committed: resetResult.committed === true,
-      automaticReplay: false,
-      fingerprint_exact: false,
-    }, {
+    emitAndExit(qualificationResetQualifyEmitPayload(resetResult), {
       evidenceOut: args.evidenceOut,
       exitCode: resetResult.ok === true ? 0 : 1,
     });

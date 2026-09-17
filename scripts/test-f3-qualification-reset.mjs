@@ -21,8 +21,13 @@ import {
   validateHistorySqlPredicate,
 } from "./lib/f3-db-push-qualification-reset-design.mjs";
 import {
+  F13_INVENTORY_CAPTURE_REQUIRED,
+  F13_RESET_ALREADY_CLEAN_VERDICT,
+  F13_RESET_SUCCESS_VERDICT,
   F13_RUNTIME_LABEL,
   F13_SHARED_ORCHESTRATION_ID,
+  INVENTORY_CAPTURE_SQL,
+  QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL,
   bindFounderAuthorizationArtifact,
   buildQualificationResetSql,
   createDisabledQualificationResetTransportAdapter,
@@ -33,12 +38,18 @@ import {
   runQualificationReset,
 } from "./lib/f3-db-push-qualification-reset.mjs";
 import {
+  FILE_BASED_RUNNER_VERDICTS,
+} from "./lib/f3-db-push-pins.mjs";
+import {
   WIPE_TO_BASELINE_REJECTION_CODE,
   assertWipeToBaselineRejected,
   evaluateQualificationResetCli,
   evaluateWipeToBaselineArg,
   parseArgs,
+  qualificationResetQualifyEmitPayload,
   qualificationResetRuntimeContext,
+  runHostedQualificationReset,
+  runQualificationResetQualifyPath,
 } from "./qualify-f3-db-push-disposable.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -93,7 +104,75 @@ function planInput(overrides = {}) {
     observedObjects: ["public.financial_accounts"],
     observedDependencies: [],
     observedHistoryRows: authenticatedHistory(),
+    inventoryCaptured: true,
     ...overrides,
+  };
+}
+
+function leftoverCaptureBody(overrides = {}) {
+  return {
+    schema: "f13-qualification-reset-inventory-v1",
+    inventory_capture_sql: "scripts/lib/f3-db-push-inventory.mjs INVENTORY_CAPTURE_SQL",
+    inventory: {
+      public_tables: ["financial_accounts"],
+      public_types: [],
+      public_functions: [],
+      schema_migrations_present: true,
+      schema_migrations_rows: AUTHENTICATED_HISTORY_KEYS.length,
+    },
+    observed_objects: ["public.financial_accounts"],
+    observed_dependencies: [],
+    observed_history_rows: authenticatedHistory(),
+    ...overrides,
+  };
+}
+
+function emptyCaptureBody() {
+  return {
+    schema: "f13-qualification-reset-inventory-v1",
+    inventory_capture_sql: "scripts/lib/f3-db-push-inventory.mjs INVENTORY_CAPTURE_SQL",
+    inventory: {
+      public_tables: [],
+      public_types: [],
+      public_functions: [],
+      schema_migrations_present: true,
+      schema_migrations_rows: 0,
+    },
+    observed_objects: [],
+    observed_dependencies: [],
+    observed_history_rows: [],
+  };
+}
+
+async function runQualifyMainPath({
+  captureBody,
+  captureInventory,
+  disabledScript = {},
+  allowDisabledTransport = true,
+} = {}) {
+  let captureRequest = null;
+  const capture = captureInventory || (async (request) => {
+    captureRequest = request;
+    return captureBody;
+  });
+  const recorder = createQualificationResetRecorder();
+  const result = await runQualificationResetQualifyPath({
+    authorization: validArtifact(),
+    runtimeContext: runtimeContext(),
+    target: { ref: APPROVED_DISPOSABLE_PROJECT_REF },
+    captureInventory: capture,
+    adapters: {
+      transport: createDisabledQualificationResetTransportAdapter(disabledScript),
+    },
+    allowDisabledTransport,
+    allowLiveCapture: false,
+    recorder,
+  });
+  return {
+    result,
+    recorder,
+    captureRequest,
+    emit: qualificationResetQualifyEmitPayload(result),
   };
 }
 
@@ -396,6 +475,8 @@ test("F13-R13 successful authorized synthetic execution uses the real planner", 
   assert.equal(sawStartedBeforeInvoke, true);
   assert.equal(result.ok, true);
   assert.equal(result.committed, true);
+  assert.equal(result.verdict, F13_RESET_SUCCESS_VERDICT);
+  assert.notEqual(result.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
   assert.equal(result.sharedOrchestration, F13_SHARED_ORCHESTRATION_ID);
   assert.equal(result.label, F13_RUNTIME_LABEL);
   assert.equal(result.spies.sqlCalls, 1);
@@ -443,4 +524,138 @@ test("F13-R16 qualify runtime context helper stays disposable-bound", () => {
   assert.equal(ctx.targetRef, APPROVED_DISPOSABLE_PROJECT_REF);
   assert.equal(ctx.scopeSqlIdentitySha256, scopeSqlIdentityDigest());
   assert.notEqual(ctx.targetRef, PRODUCTION_REF);
+});
+
+test("F13-R17 hardcoded empty inventory is refused until capture is wired", () => {
+  const uncaptured = planQualificationReset(planInput({
+    observedObjects: [],
+    observedDependencies: [],
+    observedHistoryRows: [],
+    inventoryCaptured: false,
+  }));
+  assert.equal(uncaptured.ok, false);
+  assert.equal(uncaptured.code, F13_INVENTORY_CAPTURE_REQUIRED);
+  assert.equal(uncaptured.sql, undefined);
+  assert.notEqual(uncaptured.verdict, F13_RESET_SUCCESS_VERDICT);
+
+  const capturedClean = planQualificationReset(planInput({
+    observedObjects: [],
+    observedDependencies: [],
+    observedHistoryRows: [],
+    inventoryCaptured: true,
+  }));
+  assert.equal(capturedClean.ok, true);
+  assert.equal(capturedClean.alreadyClean, true);
+  assert.equal(capturedClean.eligible, false);
+  assert.equal(capturedClean.sql, null);
+  assert.equal(capturedClean.mutation, false);
+  assert.equal(capturedClean.verdict, F13_RESET_ALREADY_CLEAN_VERDICT);
+});
+
+test("F13-R18 leftover emit requires eligible===true; alreadyClean is no-mutation", () => {
+  const leftover = planQualificationReset(planInput());
+  assert.equal(leftover.ok, true);
+  assert.equal(leftover.eligible, true);
+  assert.equal(leftover.alreadyClean, false);
+  assert.equal(typeof leftover.sql, "string");
+  assert.match(leftover.sql, /DROP TABLE IF EXISTS public\.financial_accounts RESTRICT/);
+
+  const extra = planQualificationReset(planInput({
+    observedObjects: ["public.not_on_allowlist"],
+    inventoryCaptured: true,
+  }));
+  assert.equal(extra.ok, false);
+  assert.notEqual(extra.eligible, true);
+  assert.equal(extra.sql, undefined);
+});
+
+test("F13-R19 qualify-main path wires INVENTORY_CAPTURE_SQL before plan/emit", async () => {
+  assert.equal(runHostedQualificationReset, runQualificationResetQualifyPath);
+  let capturedSql = "";
+  let capturedInventorySql = "";
+  let captureRequest = null;
+  const { result, emit } = await runQualifyMainPath({
+    captureInventory: async (request) => {
+      captureRequest = request;
+      capturedSql = request.sql;
+      capturedInventorySql = request.inventoryCaptureSql;
+      return leftoverCaptureBody();
+    },
+  });
+  assert.equal(result.inventoryCaptured, true);
+  assert.equal(result.captureSqlWired, true);
+  assert.equal(capturedSql, QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL);
+  assert.equal(capturedInventorySql, INVENTORY_CAPTURE_SQL);
+  assert.match(capturedSql, /INVENTORY_CAPTURE_SQL/);
+  assert.deepEqual(result.observedFromCapture.observedObjects, ["public.financial_accounts"]);
+  assert.equal(result.observedFromCapture.observedHistoryRows.length, AUTHENTICATED_HISTORY_KEYS.length);
+  assert.notDeepEqual(result.observedFromCapture.observedObjects, []);
+  assert.equal(result.plan.eligible, true);
+  assert.equal(typeof result.plan.sql, "string");
+  assert.match(result.plan.sql, /DROP TABLE IF EXISTS public\.financial_accounts RESTRICT/);
+  assert.equal(result.ok, true);
+  assert.equal(result.verdict, F13_RESET_SUCCESS_VERDICT);
+  assert.notEqual(result.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
+  assert.equal(emit.verdict, F13_RESET_SUCCESS_VERDICT);
+  assert.notEqual(emit.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
+  assert.equal(emit.ok, true);
+  assert.equal(captureRequest.inventoryCaptureSqlArtifact.includes("INVENTORY_CAPTURE_SQL"), true);
+});
+
+test("F13-R20 qualify-main empty capture is alreadyClean no-mutation; missing capture is refused", async () => {
+  const clean = await runQualifyMainPath({ captureBody: emptyCaptureBody() });
+  assert.equal(clean.result.ok, true);
+  assert.equal(clean.result.alreadyClean, true);
+  assert.equal(clean.result.executed, false);
+  assert.equal(clean.result.committed, false);
+  assert.equal(clean.result.mutation, false);
+  assert.equal(clean.result.spies.transportCalls, 0);
+  assert.equal(clean.result.spies.applyCalls, 0);
+  assert.equal(clean.result.plan.sql, null);
+  assert.equal(clean.result.verdict, F13_RESET_ALREADY_CLEAN_VERDICT);
+  assert.notEqual(clean.result.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
+  assert.equal(clean.emit.verdict, F13_RESET_ALREADY_CLEAN_VERDICT);
+  assert.notEqual(clean.emit.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
+
+  const missing = await runQualifyMainPath({
+    captureInventory: async () => null,
+  });
+  assert.equal(missing.result.ok, false);
+  assert.equal(missing.result.code, F13_INVENTORY_CAPTURE_REQUIRED);
+  assert.equal(missing.result.inventoryCaptured, false);
+  assert.equal(missing.emit.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
+  assert.equal(missing.result.spies.transportCalls || 0, 0);
+
+  const unwired = await runQualificationResetQualifyPath({
+    authorization: validArtifact(),
+    runtimeContext: runtimeContext(),
+    allowLiveCapture: false,
+    allowDisabledTransport: true,
+  });
+  assert.equal(unwired.ok, false);
+  assert.equal(unwired.code, F13_INVENTORY_CAPTURE_REQUIRED);
+  assert.equal(qualificationResetQualifyEmitPayload(unwired).verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
+});
+
+test("F13-R21 qualify-main leftover path requires eligible===true; extras HOLD with no DROP", async () => {
+  const extra = await runQualifyMainPath({
+    captureBody: leftoverCaptureBody({
+      observed_objects: ["public.not_on_allowlist"],
+    }),
+  });
+  assert.equal(extra.result.ok, false);
+  assert.notEqual(extra.result.eligible, true);
+  assert.equal(extra.result.code, "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY");
+  assert.equal(extra.result.spies.transportCalls || 0, 0);
+  assert.equal(extra.emit.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
+  assert.equal(extra.emit.ok, false);
+
+  const leftover = await runQualifyMainPath({ captureBody: leftoverCaptureBody() });
+  assert.equal(leftover.result.ok, true);
+  assert.equal(leftover.result.plan.eligible, true);
+  assert.equal(leftover.result.executed, true);
+  assert.equal(leftover.result.committed, true);
+  assert.equal(leftover.result.verdict, F13_RESET_SUCCESS_VERDICT);
+  assert.notEqual(leftover.emit.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
+  assert.equal(leftover.emit.verdict, "CLEAN_BASELINE");
 });

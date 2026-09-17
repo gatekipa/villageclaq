@@ -44,7 +44,12 @@ import {
   validateObjectAllowlist,
   validateTransactionContract,
 } from "./f3-db-push-qualification-reset-design.mjs";
-import { evaluateQualificationResetEligibility } from "./f3-db-push-inventory.mjs";
+import {
+  INVENTORY_CAPTURE_SQL,
+  QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL,
+  evaluateQualificationResetEligibility,
+  observedFromQualificationResetCapture,
+} from "./f3-db-push-inventory.mjs";
 import { GATED_PSQL_FILE_RENDERED, runGatedRemoteSqlText } from "./f3-db-push-remote-sql-file.mjs";
 import { assertDbPushGates, refuseProduction, sanitizeForLog } from "./f3-db-push-target-guard.mjs";
 
@@ -58,6 +63,15 @@ export const F13_RUNTIME_LABEL =
   "F13 RESET IMPLEMENTATION CANDIDATE — LOCAL VERIFICATION PENDING CHIEF / QA";
 export const F13_SHARED_ORCHESTRATION_ID = "runQualificationReset";
 export const F13_WIPE_STILL_REJECTED = F13_WIPE_REJECTION_CODE;
+export const F13_RESET_SUCCESS_VERDICT = "CLEAN_BASELINE";
+export const F13_RESET_ALREADY_CLEAN_VERDICT = "CLEAN_BASELINE";
+export const F13_INVENTORY_CAPTURE_REQUIRED = "F13_INVENTORY_CAPTURE_REQUIRED";
+export const F13_INVENTORY_CAPTURE_SQL_ARTIFACT =
+  "scripts/lib/f3-db-push-inventory.mjs INVENTORY_CAPTURE_SQL";
+export {
+  INVENTORY_CAPTURE_SQL,
+  QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL,
+};
 
 export const F13_TX_TIMEOUTS = Object.freeze({
   lock_timeout: "5s",
@@ -389,6 +403,44 @@ export function planQualificationReset(input = {}) {
   if (!eligibility.ok) {
     return fail(eligibility.code, eligibility.reason, eligibility);
   }
+  if (input.inventoryCaptured !== true) {
+    return fail(
+      F13_INVENTORY_CAPTURE_REQUIRED,
+      "Qualification reset refuses hardcoded empty inventory; capture observed objects/deps/history first",
+      { alreadyClean: eligibility.alreadyClean === true, eligible: eligibility.eligible === true },
+    );
+  }
+  if (eligibility.alreadyClean === true || eligibility.eligible !== true) {
+    if (eligibility.alreadyClean === true) {
+      return {
+        ok: true,
+        executed: false,
+        committed: false,
+        alreadyClean: true,
+        eligible: false,
+        mutation: false,
+        sql: null,
+        sqlSha256: null,
+        dropOrder: [],
+        historyDeletes: [],
+        verdict: F13_RESET_ALREADY_CLEAN_VERDICT,
+        code: "F13_RESET_ALREADY_CLEAN",
+        reason: eligibility.reason,
+        phase: F13_RUNTIME_PHASE,
+        label: F13_RUNTIME_LABEL,
+        mutationEntrypointOpen: false,
+        wipeToBaselineRejected: true,
+        wipeRejectionCode: F13_WIPE_REJECTION_CODE,
+        cliPin: CLI_PIN,
+        authorization: null,
+        observed: snapshotObserved(input),
+        eligibility,
+        inventoryCaptured: true,
+        sharedOrchestration: F13_SHARED_ORCHESTRATION_ID,
+      };
+    }
+    return fail("F13_RESET_NOT_ELIGIBLE", eligibility.reason || "Reset is not eligible", eligibility);
+  }
 
   const authInput = input.authorization;
   if (!authInput) {
@@ -443,6 +495,10 @@ export function planQualificationReset(input = {}) {
     }),
     authorization: auth.bound,
     observed,
+    alreadyClean: false,
+    eligible: true,
+    mutation: true,
+    inventoryCaptured: true,
     objectCount: FINITE_OBJECT_ALLOWLIST.length,
     dependencyCount: FINITE_DEPENDENCY_ALLOWLIST.length,
     historyKeyCount: AUTHENTICATED_HISTORY_KEYS.length,
@@ -977,6 +1033,32 @@ export async function runQualificationReset({
   if (!plan.ok) {
     return { ...plan, spies, events: recorder.events || [] };
   }
+  if (plan.alreadyClean === true) {
+    return {
+      ok: true,
+      executed: false,
+      committed: false,
+      mutation: false,
+      alreadyClean: true,
+      eligible: false,
+      verdict: F13_RESET_ALREADY_CLEAN_VERDICT,
+      code: plan.code || "F13_RESET_ALREADY_CLEAN",
+      reason: plan.reason,
+      label: F13_RUNTIME_LABEL,
+      phase: F13_RUNTIME_PHASE,
+      wipeToBaselineRejected: true,
+      wipeRejectionCode: F13_WIPE_REJECTION_CODE,
+      automaticReplay: false,
+      replayCalls: 0,
+      spies,
+      plan,
+      events: recorder.events || recorder.snapshot?.() || [],
+      sharedOrchestration: F13_SHARED_ORCHESTRATION_ID,
+    };
+  }
+  if (plan.eligible !== true) {
+    return failRun("F13_RESET_NOT_ELIGIBLE", plan.reason || "Reset is not eligible", { plan });
+  }
 
   const inventoryAtTx = input.inventoryAtTx || adapters.inventoryAtTx || null;
   if (inventoryAtTx) {
@@ -1111,6 +1193,10 @@ export async function runQualificationReset({
     ok: true,
     executed: true,
     committed: true,
+    mutation: true,
+    alreadyClean: false,
+    eligible: true,
+    verdict: F13_RESET_SUCCESS_VERDICT,
     code: "F13_RESET_COMMITTED",
     label: F13_RUNTIME_LABEL,
     phase: F13_RUNTIME_PHASE,
@@ -1137,5 +1223,213 @@ export function createQualificationResetRecorder() {
     snapshot() {
       return [...events];
     },
+  };
+}
+
+function parseQualificationResetCaptureBody(raw) {
+  if (raw == null) return null;
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    try {
+      return parseQualificationResetCaptureBody(JSON.parse(trimmed));
+    } catch {
+      const start = trimmed.search(/[\[{]/);
+      if (start < 0) return null;
+      try {
+        return parseQualificationResetCaptureBody(JSON.parse(trimmed.slice(start)));
+      } catch {
+        return null;
+      }
+    }
+  }
+  if (typeof raw !== "object") return null;
+  if (Array.isArray(raw)) return parseQualificationResetCaptureBody(raw[0]);
+  if (
+    Array.isArray(raw.observed_objects)
+    || Array.isArray(raw.observed_history_rows)
+    || Array.isArray(raw.observed_dependencies)
+    || (raw.inventory && typeof raw.inventory === "object")
+    || raw.schema
+  ) {
+    return raw;
+  }
+  if (raw.body != null) return parseQualificationResetCaptureBody(raw.body);
+  if (raw.stdout != null) return parseQualificationResetCaptureBody(raw.stdout);
+  if (Array.isArray(raw.rows) && raw.rows[0]) {
+    const first = raw.rows[0];
+    const val = first.jsonb_build_object
+      || first["?column?"]
+      || first.jsonb_build_object_1
+      || Object.values(first)[0];
+    return parseQualificationResetCaptureBody(val);
+  }
+  return raw;
+}
+
+export function qualificationResetInventoryCaptureRequest() {
+  return {
+    sql: QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL,
+    inventoryCaptureSql: INVENTORY_CAPTURE_SQL,
+    qualificationResetInventoryCaptureSql: QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL,
+    inventoryCaptureSqlArtifact: F13_INVENTORY_CAPTURE_SQL_ARTIFACT,
+  };
+}
+
+export async function captureQualificationResetInventory({
+  captureInventory,
+  adapters = {},
+  workdir,
+  allowLiveCapture = false,
+} = {}) {
+  const request = qualificationResetInventoryCaptureRequest();
+  const captureFn = typeof captureInventory === "function"
+    ? captureInventory
+    : typeof adapters.captureInventory === "function"
+      ? adapters.captureInventory
+      : null;
+  if (typeof captureFn === "function") {
+    let raw;
+    try {
+      raw = await captureFn(request);
+    } catch (err) {
+      return {
+        ok: false,
+        inventoryCaptured: false,
+        code: F13_INVENTORY_CAPTURE_REQUIRED,
+        reason: err?.message || "Qualification reset inventory capture failed",
+        captureSqlWired: true,
+        inventoryCaptureSqlArtifact: F13_INVENTORY_CAPTURE_SQL_ARTIFACT,
+      };
+    }
+    const observed = observedFromQualificationResetCapture(parseQualificationResetCaptureBody(raw));
+    return {
+      ...observed,
+      captureSqlWired: true,
+      inventoryCaptureSqlArtifact: F13_INVENTORY_CAPTURE_SQL_ARTIFACT,
+    };
+  }
+  if (allowLiveCapture !== true) {
+    return {
+      ok: false,
+      inventoryCaptured: false,
+      code: F13_INVENTORY_CAPTURE_REQUIRED,
+      reason: "Qualification reset refuses hardcoded empty inventory; capture observed objects/deps/history first",
+      captureSqlWired: true,
+      inventoryCaptureSqlArtifact: F13_INVENTORY_CAPTURE_SQL_ARTIFACT,
+    };
+  }
+  if (!workdir) {
+    return {
+      ok: false,
+      inventoryCaptured: false,
+      code: F13_INVENTORY_CAPTURE_REQUIRED,
+      reason: "isolated workdir is required for live qualification-reset inventory capture",
+      captureSqlWired: true,
+      inventoryCaptureSqlArtifact: F13_INVENTORY_CAPTURE_SQL_ARTIFACT,
+    };
+  }
+  try {
+    const raw = await Promise.resolve(runGatedRemoteSqlText(
+      workdir,
+      "f13-qualification-reset-inventory.sql",
+      QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL,
+    ));
+    const observed = observedFromQualificationResetCapture(parseQualificationResetCaptureBody(raw?.stdout ?? raw));
+    return {
+      ...observed,
+      captureSqlWired: true,
+      inventoryCaptureSqlArtifact: F13_INVENTORY_CAPTURE_SQL_ARTIFACT,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      inventoryCaptured: false,
+      code: F13_INVENTORY_CAPTURE_REQUIRED,
+      reason: err?.message || "Qualification reset inventory capture failed",
+      captureSqlWired: true,
+      inventoryCaptureSqlArtifact: F13_INVENTORY_CAPTURE_SQL_ARTIFACT,
+    };
+  }
+}
+
+/**
+ * Qualify-main --qualification-reset path: capture inventory first, then
+ * plan / emit / execute. Observed objects, deps, and history come from
+ * INVENTORY_CAPTURE_SQL / QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL — never
+ * hardcoded []. alreadyClean is a no-mutation path. leftover requires
+ * eligible===true. Successful authorized reset is CLEAN_BASELINE, not HOLD.
+ */
+export async function runQualificationResetQualifyPath({
+  authorization,
+  runtimeContext,
+  target,
+  workdir,
+  captureInventory,
+  adapters = {},
+  allowDisabledTransport = false,
+  allowLiveCapture = false,
+  recorder,
+  onAfterStarted,
+} = {}) {
+  const captured = await captureQualificationResetInventory({
+    captureInventory,
+    adapters,
+    workdir,
+    allowLiveCapture,
+  });
+  if (!captured.ok || captured.inventoryCaptured !== true) {
+    return {
+      ...fail(
+        captured.code || F13_INVENTORY_CAPTURE_REQUIRED,
+        captured.reason || "Qualification reset inventory capture is required before plan/emit/execute",
+      ),
+      spies: emptySpies(),
+      inventoryCaptured: false,
+      captureSqlWired: captured.captureSqlWired === true,
+      inventoryCaptureSqlArtifact: F13_INVENTORY_CAPTURE_SQL_ARTIFACT,
+      verdict: "HOLD",
+    };
+  }
+
+  const input = {
+    authorization,
+    runtimeContext,
+    target,
+    workdir,
+    observedObjects: captured.observedObjects,
+    observedDependencies: captured.observedDependencies,
+    observedHistoryRows: captured.observedHistoryRows,
+    inventoryCaptured: true,
+    inventoryAtTx: {
+      observedObjects: captured.observedObjects,
+      observedDependencies: captured.observedDependencies,
+      observedHistoryRows: captured.observedHistoryRows,
+    },
+  };
+
+  const result = await runQualificationReset({
+    input,
+    adapters: { ...adapters, workdir: adapters.workdir || workdir },
+    recorder: recorder || createQualificationResetRecorder(),
+    allowDisabledTransport,
+    onAfterStarted,
+  });
+
+  return {
+    ...result,
+    inventoryCaptured: true,
+    captureSqlWired: true,
+    inventoryCaptureSqlArtifact: F13_INVENTORY_CAPTURE_SQL_ARTIFACT,
+    observedFromCapture: {
+      observedObjects: captured.observedObjects,
+      observedDependencies: captured.observedDependencies,
+      observedHistoryRows: captured.observedHistoryRows,
+    },
+    verdict: result.ok === true
+      ? (result.verdict || F13_RESET_SUCCESS_VERDICT)
+      : (result.verdict && result.verdict !== F13_RESET_SUCCESS_VERDICT
+        ? result.verdict
+        : "HOLD"),
   };
 }

@@ -347,12 +347,17 @@ import {
   validateProposedResetProcedureOffline,
   renderProposedConstrainedResetPlanMarkdown,
   evaluateQualificationResetCli,
+  qualificationResetQualifyEmitPayload,
+  runQualificationResetQualifyPath,
 } from "./qualify-f3-db-push-disposable.mjs";
 import { evaluateQualificationResetEligibility } from "./lib/f3-db-push-inventory.mjs";
 import {
+  F13_RESET_SUCCESS_VERDICT,
   F13_RUNTIME_LABEL,
   F13_SHARED_ORCHESTRATION_ID,
   AUTHENTICATED_HISTORY_KEYS as F13_AUTHENTICATED_HISTORY_KEYS,
+  INVENTORY_CAPTURE_SQL,
+  QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL,
   buildQualificationResetSql,
   createDisabledQualificationResetTransportAdapter,
   planQualificationReset,
@@ -8873,8 +8878,12 @@ test("F13 reset wiring keeps wipe rejected, extras HOLD, CASCADE refused, name m
         functionalCandidateSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         closureDigest: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       },
-      observedObjects: [],
-      observedHistoryRows: [],
+      observedObjects: ["public.financial_accounts"],
+      observedHistoryRows: F13_AUTHENTICATED_HISTORY_KEYS.map((key) => ({
+        version: key.version,
+        name: key.name,
+      })),
+      inventoryCaptured: true,
     },
     adapters: { transport: createDisabledQualificationResetTransportAdapter() },
     allowDisabledTransport: false,
@@ -8893,5 +8902,78 @@ test("F13 reset wiring keeps wipe rejected, extras HOLD, CASCADE refused, name m
 
   assert.equal(F13_SHARED_ORCHESTRATION_ID, "runQualificationReset");
   assert.match(F13_RUNTIME_LABEL, /IMPLEMENTATION CANDIDATE/);
+
+  let qualifyCaptureSql = "";
+  const qualifyMain = await runQualificationResetQualifyPath({
+    authorization: {
+      targetRef: APPROVED_DISPOSABLE_PROJECT_REF,
+      functionalCandidateSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      closureDigest: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      scopeSqlIdentitySha256: scopeSqlIdentityDigest(),
+      executionBudget: { constrainedResets: 1, completeQualsFrom00118: 1, secondReset: false },
+    },
+    runtimeContext: {
+      targetRef: APPROVED_DISPOSABLE_PROJECT_REF,
+      functionalCandidateSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      closureDigest: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      scopeSqlIdentitySha256: scopeSqlIdentityDigest(),
+    },
+    captureInventory: async (request) => {
+      qualifyCaptureSql = request.sql;
+      assert.equal(request.inventoryCaptureSql, INVENTORY_CAPTURE_SQL);
+      return {
+        schema: "f13-qualification-reset-inventory-v1",
+        observed_objects: ["public.financial_accounts"],
+        observed_dependencies: [],
+        observed_history_rows: F13_AUTHENTICATED_HISTORY_KEYS.map((key) => ({
+          version: key.version,
+          name: key.name,
+        })),
+      };
+    },
+    adapters: { transport: createDisabledQualificationResetTransportAdapter() },
+    allowDisabledTransport: true,
+    allowLiveCapture: false,
+  });
+  assert.equal(qualifyCaptureSql, QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL);
+  assert.equal(qualifyMain.ok, true);
+  assert.equal(qualifyMain.inventoryCaptured, true);
+  assert.equal(qualifyMain.plan.eligible, true);
+  assert.equal(qualifyMain.verdict, F13_RESET_SUCCESS_VERDICT);
+  assert.notEqual(qualificationResetQualifyEmitPayload(qualifyMain).verdict, "HOLD");
+  records.push({ caseId: "F13-H09-QUALIFY-MAIN-INVENTORY-WIRED", result: "ok" });
+
+  const alreadyCleanMain = await runQualificationResetQualifyPath({
+    authorization: {
+      targetRef: APPROVED_DISPOSABLE_PROJECT_REF,
+      functionalCandidateSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      closureDigest: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      scopeSqlIdentitySha256: scopeSqlIdentityDigest(),
+      executionBudget: { constrainedResets: 1, completeQualsFrom00118: 1, secondReset: false },
+    },
+    runtimeContext: {
+      targetRef: APPROVED_DISPOSABLE_PROJECT_REF,
+      functionalCandidateSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      closureDigest: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      scopeSqlIdentitySha256: scopeSqlIdentityDigest(),
+    },
+    captureInventory: async () => ({
+      schema: "f13-qualification-reset-inventory-v1",
+      observed_objects: [],
+      observed_dependencies: [],
+      observed_history_rows: [],
+    }),
+    adapters: { transport: createDisabledQualificationResetTransportAdapter() },
+    allowDisabledTransport: true,
+    allowLiveCapture: false,
+  });
+  assert.equal(alreadyCleanMain.ok, true);
+  assert.equal(alreadyCleanMain.alreadyClean, true);
+  assert.equal(alreadyCleanMain.mutation, false);
+  assert.equal(alreadyCleanMain.plan.sql, null);
+  assert.equal(alreadyCleanMain.spies.transportCalls, 0);
+  assert.notEqual(qualificationResetQualifyEmitPayload(alreadyCleanMain).verdict, "HOLD");
+  records.push({ caseId: "F13-H10-ALREADY-CLEAN-NO-MUTATION", result: "ok" });
+
   console.log(JSON.stringify({ publishedF13ResetHarness: records }, null, 2));
 });

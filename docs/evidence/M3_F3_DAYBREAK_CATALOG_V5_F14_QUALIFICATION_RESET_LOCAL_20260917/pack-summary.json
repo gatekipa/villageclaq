@@ -1,0 +1,22 @@
+{
+  "evidenceRel": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F14_QUALIFICATION_RESET_LOCAL_20260917",
+  "tip": "2d502a028b0d01808a871fb1d48d051813591ed2",
+  "fileCount": 52,
+  "unindexed": 0,
+  "pathLeaks": 0,
+  "runtimeClosureSha256": "f6205869b233eaccf375b299112f7b9c352d58c6f2659471e06d2ca7a241e31d",
+  "verificationUnionSha256": "f6ff6e42b4b5ec14b1a67fe88377d7deafe5f12f2c2c35c834e7c763711e7caa",
+  "localStatus": "LOCAL CANDIDATE READY",
+  "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "qaAccept": "F14 ACCEPT",
+  "expandedPg": {
+    "pass": 18,
+    "fail": 0,
+    "executedTransactions": 3
+  },
+  "committedHelper": {
+    "classification": "MUST_LOCAL",
+    "overallOk": true,
+    "passCount": 12
+  }
+}

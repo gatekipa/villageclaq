@@ -1,0 +1,13 @@
+{
+  "status": "synthetic-local-f10",
+  "tip": "3a842910b3cd3cc9eafb3216e3e4f65326f003c2",
+  "parent": "f5727733a036536c0374d93570f61e80a127d428",
+  "recognition": [
+    "manual_income"
+  ],
+  "schema_version": "f3-full-catalog-v5",
+  "note": "synthetic evidence package for nested+outer integrity verification (F10 local-only)",
+  "hosted_forbidden": true,
+  "hosted_run": false,
+  "layer": "synthetic-evidence-nested"
+}

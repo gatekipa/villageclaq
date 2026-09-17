@@ -1,0 +1,272 @@
+{
+  "probe_sql_proof": {
+    "contains_current_database_call": true,
+    "contains_current_user_call": true,
+    "contains_poisonPresent": true,
+    "contains_trigger_present": true,
+    "contains_function_present": true,
+    "sql_snippet_hash_keys": [
+      "trigger_present",
+      "function_present",
+      "poisonPresent",
+      "current_database",
+      "current_user"
+    ]
+  },
+  "required_final_keys": [
+    "schema_version",
+    "trigger_present",
+    "function_present",
+    "poisonPresent",
+    "target_identity"
+  ],
+  "required_target_keys": [
+    "project_ref",
+    "project_name",
+    "org_id",
+    "hostname",
+    "database_name",
+    "user",
+    "connection_mode",
+    "pooler_identity",
+    "qualification_run_id",
+    "evidence_schema_version"
+  ],
+  "approved_ref": "jkorwnwwmdeflfntxntl",
+  "approved_name": "villageclaq-f3-management-api-disposable-20260913",
+  "approved_org": "eyztkzkprpmlmcabrfef",
+  "cases": [
+    {
+      "name": "parser_reject_extra_key",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "final poison probe extra key canary_present",
+      "parser_verdict": "keyset_mismatch"
+    },
+    {
+      "name": "parser_reject_missing_key",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "final poison probe missing required keys",
+      "parser_verdict": "required_key_subset"
+    },
+    {
+      "name": "parser_reject_null_poisonPresent",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "final poison probe poisonPresent is not an explicit boolean",
+      "parser_verdict": "wrong_type"
+    },
+    {
+      "name": "parser_reject_empty_database_name",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "HOLD: poison target_identity.database_name is null or empty",
+      "parser_verdict": "target_identity_null"
+    },
+    {
+      "name": "parser_reject_wrong_type",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "final poison probe trigger_present is not an explicit boolean",
+      "parser_verdict": "wrong_type"
+    },
+    {
+      "name": "parser_reject_malformed",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "final poison probe non-JSON",
+      "parser_verdict": "non-JSON"
+    },
+    {
+      "name": "parser_reject_multi_row_array",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "verify malformed: expected one row",
+      "parser_verdict": "verify malformed: expected one row"
+    },
+    {
+      "name": "parser_reject_SQL_error",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "final poison probe SQL error",
+      "parser_verdict": "rejected"
+    },
+    {
+      "name": "parser_reject_nonzero",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "final poison probe status 1",
+      "parser_verdict": "rejected"
+    },
+    {
+      "name": "parser_reject_timeout",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "final poison probe timed out",
+      "parser_verdict": "rejected"
+    },
+    {
+      "name": "parser_reject_signal",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "final poison probe signaled: SIGTERM",
+      "parser_verdict": "rejected"
+    },
+    {
+      "name": "parser_reject_poisonPresent_true",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "poisonPresent true or poison objects remain",
+      "parser_verdict": "rejected"
+    },
+    {
+      "name": "parser_exact_valid_PASS",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "parser_verdict": "valid_json_exact_schema",
+      "poisonPresent": false
+    },
+    {
+      "name": "evaluatePoisonAbsent_requires_poisonPresent_false",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0
+    },
+    {
+      "name": "evaluatePoisonAbsent_reject_poisonPresent_true",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "poisonPresent true"
+    },
+    {
+      "name": "target_binding_reject_empty_database_name",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "HOLD: poison target_identity.database_name is null or empty",
+      "parser_verdict": "target_identity_null"
+    },
+    {
+      "name": "target_binding_reject_null_database_name",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "HOLD: poison target_identity.database_name is null or empty",
+      "parser_verdict": "target_identity_null"
+    },
+    {
+      "name": "target_binding_reject_empty_user",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "HOLD: poison target_identity.user is null or empty",
+      "parser_verdict": "target_identity_null"
+    },
+    {
+      "name": "target_binding_reject_null_user",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "HOLD: poison target_identity.user is null or empty",
+      "parser_verdict": "target_identity_null"
+    },
+    {
+      "name": "target_binding_reject_mismatch_ref",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "HOLD: poison target_identity does not match approved disposable",
+      "parser_verdict": "target_identity_mismatch"
+    },
+    {
+      "name": "target_binding_reject_mismatch_name",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "HOLD: poison target_identity does not match approved disposable",
+      "parser_verdict": "target_identity_mismatch"
+    },
+    {
+      "name": "target_binding_reject_mismatch_org",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "HOLD: poison target_identity does not match approved disposable",
+      "parser_verdict": "target_identity_mismatch"
+    },
+    {
+      "name": "target_binding_reject_empty_hostname",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "HOLD: poison target_identity.hostname is null or empty",
+      "parser_verdict": "target_identity_null"
+    },
+    {
+      "name": "identity_gate_reject_mismatch_host",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "exact disposable identity not verified",
+      "note": "poison target_identity does not compare hostname; disposable_identity gate does"
+    },
+    {
+      "name": "poison_target_wrong_host_not_compared_documented",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "note": "F5.1 evaluatePoisonTargetIdentity only checks ref/name/org equality; hostname nonempty only"
+    },
+    {
+      "name": "target_binding_reject_extra_key",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "HOLD: poison target_identity keyset mismatch",
+      "parser_verdict": "target_identity_keyset"
+    },
+    {
+      "name": "target_binding_reject_missing_key",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "reason": "HOLD: poison target_identity keyset mismatch",
+      "parser_verdict": "target_identity_keyset"
+    },
+    {
+      "name": "target_binding_exact_valid_PASS",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "database_name": "postgres",
+      "user": "postgres.jkorwnwwmdeflfntxntl",
+      "project_ref": "jkorwnwwmdeflfntxntl"
+    },
+    {
+      "name": "target_binding_exact_valid_final_poison_PASS",
+      "ok": true,
+      "repairCalls": 0,
+      "continuationCalls": 0,
+      "parser_verdict": "valid_json_exact_schema"
+    }
+  ],
+  "case_count": 29,
+  "all_cases_ok": true,
+  "rejects_repairCalls_0_continuationCalls_0": true,
+  "verdict": "CONTINUE"
+}

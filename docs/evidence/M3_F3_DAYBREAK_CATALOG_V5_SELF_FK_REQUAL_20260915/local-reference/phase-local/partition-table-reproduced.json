@@ -1,0 +1,122 @@
+{
+  "00118_f3_bounded_financial_epoch_foundation.sql": {
+    "required": {
+      "total": 21,
+      "internal_fk": 20,
+      "ordinary_user": 1,
+      "user_defined_constraint": 0,
+      "referencing": 10,
+      "referenced": 10
+    },
+    "reproduced": {
+      "total": 21,
+      "internal_fk": 20,
+      "ordinary_user": 1,
+      "user_defined_constraint": 0,
+      "referencing": 10,
+      "referenced": 10
+    },
+    "match": true,
+    "internal_fk_sum_ok": true
+  },
+  "00119_f3_01_core_ledger_foundation.sql": {
+    "required": {
+      "total": 101,
+      "internal_fk": 92,
+      "ordinary_user": 7,
+      "user_defined_constraint": 2,
+      "referencing": 46,
+      "referenced": 46
+    },
+    "reproduced": {
+      "total": 101,
+      "internal_fk": 92,
+      "ordinary_user": 7,
+      "user_defined_constraint": 2,
+      "referencing": 46,
+      "referenced": 46
+    },
+    "match": true,
+    "internal_fk_sum_ok": true
+  },
+  "00120_f3_02_secure_posting_idempotency.sql": {
+    "required": {
+      "total": 108,
+      "internal_fk": 96,
+      "ordinary_user": 9,
+      "user_defined_constraint": 3,
+      "referencing": 48,
+      "referenced": 48
+    },
+    "reproduced": {
+      "total": 108,
+      "internal_fk": 96,
+      "ordinary_user": 9,
+      "user_defined_constraint": 3,
+      "referencing": 48,
+      "referenced": 48
+    },
+    "match": true,
+    "internal_fk_sum_ok": true
+  },
+  "00121_f3_03_projection_read_proof.sql": {
+    "required": {
+      "total": 108,
+      "internal_fk": 96,
+      "ordinary_user": 9,
+      "user_defined_constraint": 3,
+      "referencing": 48,
+      "referenced": 48
+    },
+    "reproduced": {
+      "total": 108,
+      "internal_fk": 96,
+      "ordinary_user": 9,
+      "user_defined_constraint": 3,
+      "referencing": 48,
+      "referenced": 48
+    },
+    "match": true,
+    "internal_fk_sum_ok": true
+  },
+  "00122_f3_04_correction_reversal.sql": {
+    "required": {
+      "total": 131,
+      "internal_fk": 116,
+      "ordinary_user": 11,
+      "user_defined_constraint": 4,
+      "referencing": 58,
+      "referenced": 58
+    },
+    "reproduced": {
+      "total": 131,
+      "internal_fk": 116,
+      "ordinary_user": 11,
+      "user_defined_constraint": 4,
+      "referencing": 58,
+      "referenced": 58
+    },
+    "match": true,
+    "internal_fk_sum_ok": true
+  },
+  "00123_f3_05_opening_cash_command.sql": {
+    "required": {
+      "total": 140,
+      "internal_fk": 124,
+      "ordinary_user": 12,
+      "user_defined_constraint": 4,
+      "referencing": 62,
+      "referenced": 62
+    },
+    "reproduced": {
+      "total": 140,
+      "internal_fk": 124,
+      "ordinary_user": 12,
+      "user_defined_constraint": 4,
+      "referencing": 62,
+      "referenced": 62
+    },
+    "match": true,
+    "internal_fk_sum_ok": true
+  }
+}

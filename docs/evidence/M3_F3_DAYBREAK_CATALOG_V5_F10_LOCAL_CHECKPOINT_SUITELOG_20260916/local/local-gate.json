@@ -1,0 +1,430 @@
+{
+  "tip": "3a842910b3cd3cc9eafb3216e3e4f65326f003c2",
+  "mode": "LOCAL_ONLY",
+  "hosted_run": false,
+  "disposable_reset": false,
+  "production_contacted": false,
+  "suites": {
+    "test-f3-db-push": {
+      "exit": 0,
+      "classification": "PASS_WITH_SKIPS",
+      "counts": {
+        "tests": 140,
+        "pass": 139,
+        "fail": 0,
+        "skipped": 1
+      },
+      "out_sha256": "16d16fdf663d12708d93526182c10f5a19964494e09f58a2f7768761a3ba8d7b",
+      "out_bytes": 173960,
+      "meta_path": "suite-logs/suites/test-f3-db-push.meta.json",
+      "transformation_provenance_present": true,
+      "binding_ok": true
+    },
+    "test-f3-recognition": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 40,
+        "pass": 40,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "cc7d407f69eae40085ba4770fc5b54e5149416973f3205175c695cd44a66d309",
+      "out_bytes": 7451,
+      "meta_path": "suite-logs/suites/test-f3-recognition.meta.json",
+      "transformation_provenance_present": true,
+      "binding_ok": true
+    },
+    "test-f3-oracles": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 577,
+        "pass": 577,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "9dcf18451f0009a1a123b34484ece9f629becdc92db2c346a0989886a851defe",
+      "out_bytes": 87166,
+      "meta_path": "suite-logs/suites/test-f3-oracles.meta.json",
+      "transformation_provenance_present": true,
+      "binding_ok": true
+    },
+    "test-f3-local-safety": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "bac77440b0da680bedab72025772d468e48fbb073234345cf3303921f04c97e2",
+      "out_bytes": 10246,
+      "meta_path": "suite-logs/suites/test-f3-local-safety.meta.json",
+      "transformation_provenance_present": true,
+      "binding_ok": true
+    },
+    "test-f3-mapi-harness": {
+      "exit": null,
+      "classification": "PASS",
+      "counts": {
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "cf9bf3a8ef9c4ab2badaa1a88f5dc3402b8fd8f425e38787a0d8ed7ee62d47d4",
+      "out_bytes": 4556,
+      "meta_path": "suite-logs/suites/test-f3-mapi-harness.meta.json",
+      "transformation_provenance_present": true,
+      "binding_ok": true
+    },
+    "test-m2": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 111,
+        "pass": 111,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "7d9ad6dde03236eea5fcfe9611edf38fe4596754a20c7dd11cc989d3e0417803",
+      "out_bytes": 22170,
+      "meta_path": "suite-logs/suites/test-m2.meta.json",
+      "transformation_provenance_present": true,
+      "binding_ok": true
+    },
+    "test-m2-static-security": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "2d4cac4398b5f731d5a2ec68c1c756b50c7d6c8e003118c20a059be0d3a2d3ce",
+      "out_bytes": 1916,
+      "meta_path": "suite-logs/suites/test-m2-static-security.meta.json",
+      "transformation_provenance_present": true,
+      "binding_ok": true
+    },
+    "test-s0-cut1": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "eec0bd7a6386dcabcbdb5849ce2258dddb648da6cd9147a4dc4bd0067ff0a9c2",
+      "out_bytes": 2405,
+      "meta_path": "suite-logs/suites/test-s0-cut1.meta.json",
+      "transformation_provenance_present": true,
+      "binding_ok": true
+    },
+    "test-s0-cut2": {
+      "exit": 1,
+      "classification": "ENV_DEPENDENT_FAIL",
+      "counts": {
+        "tests": 21,
+        "pass": 14,
+        "fail": 7,
+        "skipped": 0
+      },
+      "out_sha256": "2a62cd7b31420a1f1b5bc689b05ef78d7eed49bc359adfa84fd5d3b48f79ea6c",
+      "out_bytes": 12926,
+      "meta_path": "suite-logs/suites/test-s0-cut2.meta.json",
+      "transformation_provenance_present": true,
+      "binding_ok": true
+    },
+    "test-storage-buckets": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "aa7ed7b0928c6496b9df24228fd04279a95b4f464a22ec4dc76a75ec79246dda",
+      "out_bytes": 2427,
+      "meta_path": "suite-logs/suites/test-storage-buckets.meta.json",
+      "transformation_provenance_present": true,
+      "binding_ok": true
+    },
+    "tsc-noEmit": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "194ff5bca66278888f0f00be5c7ca523d15098ece958b14952533811089f6106",
+      "out_bytes": 7,
+      "meta_path": "suite-logs/suites/tsc-noEmit.meta.json",
+      "transformation_provenance_present": true,
+      "binding_ok": true
+    },
+    "next-build": {
+      "exit": null,
+      "classification": "PASS",
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "db973852667856b452e96e1f1fd03a8d36c0547dcaa28b882238a7967e22c9f8",
+      "out_bytes": 6884,
+      "meta_path": "suite-logs/suites/next-build.meta.json",
+      "transformation_provenance_present": true,
+      "binding_ok": true
+    }
+  },
+  "suite_bindings": [
+    {
+      "suite": "test-f3-db-push",
+      "ok": true,
+      "outSha256": "16d16fdf663d12708d93526182c10f5a19964494e09f58a2f7768761a3ba8d7b",
+      "outBytes": 173960,
+      "provenance_pipeline": [
+        "capture",
+        "sanitize",
+        "durable_write",
+        "reread",
+        "hash",
+        "suite_metadata",
+        "indexes"
+      ],
+      "producer": "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile",
+      "transform": "scripts/lib/f3-db-push-repair-safety-gate.mjs#sanitizeEvidenceOutBytes"
+    },
+    {
+      "suite": "test-f3-recognition",
+      "ok": true,
+      "outSha256": "cc7d407f69eae40085ba4770fc5b54e5149416973f3205175c695cd44a66d309",
+      "outBytes": 7451,
+      "provenance_pipeline": [
+        "capture",
+        "sanitize",
+        "durable_write",
+        "reread",
+        "hash",
+        "suite_metadata",
+        "indexes"
+      ],
+      "producer": "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile",
+      "transform": "scripts/lib/f3-db-push-repair-safety-gate.mjs#sanitizeEvidenceOutBytes"
+    },
+    {
+      "suite": "test-f3-oracles",
+      "ok": true,
+      "outSha256": "9dcf18451f0009a1a123b34484ece9f629becdc92db2c346a0989886a851defe",
+      "outBytes": 87166,
+      "provenance_pipeline": [
+        "capture",
+        "sanitize",
+        "durable_write",
+        "reread",
+        "hash",
+        "suite_metadata",
+        "indexes"
+      ],
+      "producer": "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile",
+      "transform": "scripts/lib/f3-db-push-repair-safety-gate.mjs#sanitizeEvidenceOutBytes"
+    },
+    {
+      "suite": "test-f3-local-safety",
+      "ok": true,
+      "outSha256": "bac77440b0da680bedab72025772d468e48fbb073234345cf3303921f04c97e2",
+      "outBytes": 10246,
+      "provenance_pipeline": [
+        "capture",
+        "sanitize",
+        "durable_write",
+        "reread",
+        "hash",
+        "suite_metadata",
+        "indexes"
+      ],
+      "producer": "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile",
+      "transform": "scripts/lib/f3-db-push-repair-safety-gate.mjs#sanitizeEvidenceOutBytes"
+    },
+    {
+      "suite": "test-f3-mapi-harness",
+      "ok": true,
+      "outSha256": "cf9bf3a8ef9c4ab2badaa1a88f5dc3402b8fd8f425e38787a0d8ed7ee62d47d4",
+      "outBytes": 4556,
+      "provenance_pipeline": [
+        "capture",
+        "sanitize",
+        "durable_write",
+        "reread",
+        "hash",
+        "suite_metadata",
+        "indexes"
+      ],
+      "producer": "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile",
+      "transform": "scripts/lib/f3-db-push-repair-safety-gate.mjs#sanitizeEvidenceOutBytes"
+    },
+    {
+      "suite": "test-m2",
+      "ok": true,
+      "outSha256": "7d9ad6dde03236eea5fcfe9611edf38fe4596754a20c7dd11cc989d3e0417803",
+      "outBytes": 22170,
+      "provenance_pipeline": [
+        "capture",
+        "sanitize",
+        "durable_write",
+        "reread",
+        "hash",
+        "suite_metadata",
+        "indexes"
+      ],
+      "producer": "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile",
+      "transform": "scripts/lib/f3-db-push-repair-safety-gate.mjs#sanitizeEvidenceOutBytes"
+    },
+    {
+      "suite": "test-m2-static-security",
+      "ok": true,
+      "outSha256": "2d4cac4398b5f731d5a2ec68c1c756b50c7d6c8e003118c20a059be0d3a2d3ce",
+      "outBytes": 1916,
+      "provenance_pipeline": [
+        "capture",
+        "sanitize",
+        "durable_write",
+        "reread",
+        "hash",
+        "suite_metadata",
+        "indexes"
+      ],
+      "producer": "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile",
+      "transform": "scripts/lib/f3-db-push-repair-safety-gate.mjs#sanitizeEvidenceOutBytes"
+    },
+    {
+      "suite": "test-s0-cut1",
+      "ok": true,
+      "outSha256": "eec0bd7a6386dcabcbdb5849ce2258dddb648da6cd9147a4dc4bd0067ff0a9c2",
+      "outBytes": 2405,
+      "provenance_pipeline": [
+        "capture",
+        "sanitize",
+        "durable_write",
+        "reread",
+        "hash",
+        "suite_metadata",
+        "indexes"
+      ],
+      "producer": "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile",
+      "transform": "scripts/lib/f3-db-push-repair-safety-gate.mjs#sanitizeEvidenceOutBytes"
+    },
+    {
+      "suite": "test-s0-cut2",
+      "ok": true,
+      "outSha256": "2a62cd7b31420a1f1b5bc689b05ef78d7eed49bc359adfa84fd5d3b48f79ea6c",
+      "outBytes": 12926,
+      "provenance_pipeline": [
+        "capture",
+        "sanitize",
+        "durable_write",
+        "reread",
+        "hash",
+        "suite_metadata",
+        "indexes"
+      ],
+      "producer": "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile",
+      "transform": "scripts/lib/f3-db-push-repair-safety-gate.mjs#sanitizeEvidenceOutBytes"
+    },
+    {
+      "suite": "test-storage-buckets",
+      "ok": true,
+      "outSha256": "aa7ed7b0928c6496b9df24228fd04279a95b4f464a22ec4dc76a75ec79246dda",
+      "outBytes": 2427,
+      "provenance_pipeline": [
+        "capture",
+        "sanitize",
+        "durable_write",
+        "reread",
+        "hash",
+        "suite_metadata",
+        "indexes"
+      ],
+      "producer": "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile",
+      "transform": "scripts/lib/f3-db-push-repair-safety-gate.mjs#sanitizeEvidenceOutBytes"
+    },
+    {
+      "suite": "tsc-noEmit",
+      "ok": true,
+      "outSha256": "194ff5bca66278888f0f00be5c7ca523d15098ece958b14952533811089f6106",
+      "outBytes": 7,
+      "provenance_pipeline": [
+        "capture",
+        "sanitize",
+        "durable_write",
+        "reread",
+        "hash",
+        "suite_metadata",
+        "indexes"
+      ],
+      "producer": "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile",
+      "transform": "scripts/lib/f3-db-push-repair-safety-gate.mjs#sanitizeEvidenceOutBytes"
+    },
+    {
+      "suite": "next-build",
+      "ok": true,
+      "outSha256": "db973852667856b452e96e1f1fd03a8d36c0547dcaa28b882238a7967e22c9f8",
+      "outBytes": 6884,
+      "provenance_pipeline": [
+        "capture",
+        "sanitize",
+        "durable_write",
+        "reread",
+        "hash",
+        "suite_metadata",
+        "indexes"
+      ],
+      "producer": "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile",
+      "transform": "scripts/lib/f3-db-push-repair-safety-gate.mjs#sanitizeEvidenceOutBytes"
+    }
+  ],
+  "f10_case_ids": {
+    "F10-A01": true,
+    "F10-A02": true,
+    "F10-A03": true,
+    "F10-A04": true,
+    "F10-B01": true,
+    "F10-B02": true,
+    "F10-B03": true,
+    "F10-E01": true,
+    "F10-E02": true,
+    "F10-E03": true,
+    "F10-E04": true,
+    "F10-P01": true,
+    "F10-P02": true,
+    "F10-P03": true,
+    "F10-P04": true,
+    "F10-P05": true,
+    "F10-P06": true,
+    "F10-P07": true,
+    "F10-P08": true,
+    "F10-P09": true,
+    "F10-P10": true,
+    "F10-P11": true,
+    "F10-P12": true,
+    "F10-P13": true,
+    "F10-P14": true,
+    "F10-R01": true,
+    "F10-S01": true,
+    "F10-S02": true,
+    "F10-S03": true,
+    "F10-S04": true
+  },
+  "s0_cut2_classification": "ENV_DEPENDENT_FAIL",
+  "recognition_mentions_manual_income": true,
+  "captured_at_et": "9/16/2026, 7:39:18 PM EDT"
+}

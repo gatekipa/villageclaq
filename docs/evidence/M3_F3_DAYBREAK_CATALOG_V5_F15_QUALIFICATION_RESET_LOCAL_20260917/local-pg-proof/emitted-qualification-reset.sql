@@ -7,7 +7,11 @@ BEGIN ISOLATION LEVEL SERIALIZABLE;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '60s';
 SET LOCAL idle_in_transaction_session_timeout = '30s';
-SELECT pg_advisory_xact_lock(-1953389924, -753430976);
+DO $f15_advisory_xact_lock$
+BEGIN
+  PERFORM pg_advisory_xact_lock(-1953389924, -753430976);
+END
+$f15_advisory_xact_lock$;
 SELECT '{"schema":"f15-qualification-reset-tx-observation-v1","phase":"T1_BEGIN","event":"began"}'::text;
 -- T2_LOCK
 DO $f13_lock$

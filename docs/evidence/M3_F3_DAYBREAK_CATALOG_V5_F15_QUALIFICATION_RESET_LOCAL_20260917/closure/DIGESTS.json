@@ -5,7 +5,7 @@
     "forbiddenSummaryHash": "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d",
     "entrypoint": "scripts/qualify-f3-db-push-disposable.mjs",
     "count": 45,
-    "sha256": "a5ebe7e025e04455553197fa6caa86ca3d6d8c1becde5299d1deec4e035315a7",
+    "sha256": "949e68359e55870050e53ef3f93ec8179fc7a5e1587a908044e0ab26cfdbbb92",
     "files": [
       "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_PSQL_POISON_REQUAL_20260916/psql-proof/psql-proof/run-local-psql-poison-proof.mjs",
       "docs/runbooks/F3_FOUNDER_CONTROLLED_MIGRATION_REPAIR.md",
@@ -59,7 +59,7 @@
     "label": "F15_QUALIFICATION_RESET_VERIFICATION_UNION",
     "notSummaryFileHash": true,
     "count": 48,
-    "sha256": "eb5cbbaa66fa0956fe2d84c71a192e8f34fe12cf6a2aa8e1eb7e63eb1dfb760f",
+    "sha256": "30dd8ad9972db6ef6dc7d4c35d49ae420ce2c445103c6180d469d901f88c5752",
     "files": [
       "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_PSQL_POISON_REQUAL_20260916/psql-proof/psql-proof/run-local-psql-poison-proof.mjs",
       "docs/runbooks/F3_FOUNDER_CONTROLLED_MIGRATION_REPAIR.md",

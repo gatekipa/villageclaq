@@ -1,12 +1,16 @@
 {
   "package": "M3_F3_DAYBREAK_CATALOG_V5_F15_QUALIFICATION_RESET_LOCAL_20260917",
-  "localStatus": "HOLD — TX_SUCCESSFUL_RESET OBSERVATION FRAMING",
+  "localStatus": "LOCAL CANDIDATE READY",
   "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "framingHoldClosed": true,
   "supersedes": {
     "f14Ready": true,
     "f14Package": "M3_F3_DAYBREAK_CATALOG_V5_F14_QUALIFICATION_RESET_LOCAL_20260917",
-    "f14EvidenceTipPreserved": "437f27c2721bf7710746468a2cef9a52e1c4651a"
+    "f14EvidenceTipPreserved": "437f27c2721bf7710746468a2cef9a52e1c4651a",
+    "priorF15HoldEvidenceTip": "d9e37d1f3bbfe35c47145b7ca886d2b4af486475",
+    "priorF15HoldReason": "TX_SUCCESSFUL_RESET OBSERVATION FRAMING"
   },
   "qaAccept": "F15 ACCEPT",
+  "qaKind": "framing-follow-up",
   "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT"
 }

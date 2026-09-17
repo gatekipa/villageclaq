@@ -5,7 +5,7 @@
     "forbiddenSummaryHash": "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d",
     "entrypoint": "scripts/qualify-f3-db-push-disposable.mjs",
     "count": 45,
-    "sha256": "a5ebe7e025e04455553197fa6caa86ca3d6d8c1becde5299d1deec4e035315a7",
+    "sha256": "949e68359e55870050e53ef3f93ec8179fc7a5e1587a908044e0ab26cfdbbb92",
     "files": [
       "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_PSQL_POISON_REQUAL_20260916/psql-proof/psql-proof/run-local-psql-poison-proof.mjs",
       "docs/runbooks/F3_FOUNDER_CONTROLLED_MIGRATION_REPAIR.md",
@@ -59,7 +59,7 @@
     "label": "F15_QUALIFICATION_RESET_VERIFICATION_UNION",
     "notSummaryFileHash": true,
     "count": 48,
-    "sha256": "eb5cbbaa66fa0956fe2d84c71a192e8f34fe12cf6a2aa8e1eb7e63eb1dfb760f",
+    "sha256": "30dd8ad9972db6ef6dc7d4c35d49ae420ce2c445103c6180d469d901f88c5752",
     "files": [
       "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_PSQL_POISON_REQUAL_20260916/psql-proof/psql-proof/run-local-psql-poison-proof.mjs",
       "docs/runbooks/F3_FOUNDER_CONTROLLED_MIGRATION_REPAIR.md",
@@ -286,10 +286,10 @@
       },
       "scripts/lib/f3-db-push-qualification-reset.mjs": {
         "path": "scripts/lib/f3-db-push-qualification-reset.mjs",
-        "worktreeSha256": "5855455c19774e2d87490ad9b0522144374a0870402f0cafcf3d37dd38bf6382",
-        "executedByteSha256": "5855455c19774e2d87490ad9b0522144374a0870402f0cafcf3d37dd38bf6382",
-        "gitBlobSha1": "f56256cce8b1138999db77eb7599eb82ca1312bf",
-        "bytes": 73858,
+        "worktreeSha256": "a50f8b1ccc81f919ba351901207dbb13016035c1d2b9031a3eb6bfe12abc773c",
+        "executedByteSha256": "a50f8b1ccc81f919ba351901207dbb13016035c1d2b9031a3eb6bfe12abc773c",
+        "gitBlobSha1": "845e62c8e900a0ddb0a31a28f7a80929032e6fff",
+        "bytes": 74379,
         "crlfDetected": false,
         "crlfNormalizedForPass": false
       },
@@ -403,10 +403,10 @@
       },
       "scripts/prove-f3-qualification-reset-local.mjs": {
         "path": "scripts/prove-f3-qualification-reset-local.mjs",
-        "worktreeSha256": "edcd96890ae1501fc87bc119c396b3e17d50d13f894616c881c46db7ab6316e0",
-        "executedByteSha256": "edcd96890ae1501fc87bc119c396b3e17d50d13f894616c881c46db7ab6316e0",
-        "gitBlobSha1": "1b933d80de36b6fdbfecec2fefb09a85ff288818",
-        "bytes": 18054,
+        "worktreeSha256": "16d24da1e28149183242dd005e49acfaa8c702ec16628d3252dc034a02832c81",
+        "executedByteSha256": "16d24da1e28149183242dd005e49acfaa8c702ec16628d3252dc034a02832c81",
+        "gitBlobSha1": "731df9da1eddb1295134189b84fcc2911f042131",
+        "bytes": 19982,
         "crlfDetected": false,
         "crlfNormalizedForPass": false
       },
@@ -439,10 +439,10 @@
       },
       "scripts/test-f3-qualification-reset.mjs": {
         "path": "scripts/test-f3-qualification-reset.mjs",
-        "worktreeSha256": "46308fee3f9dc15532e78efd0adffd2455fe060eb51230e252430c7ef276ad93",
-        "executedByteSha256": "46308fee3f9dc15532e78efd0adffd2455fe060eb51230e252430c7ef276ad93",
-        "gitBlobSha1": "ba3344a1b85c8c6379d83229b56ce3a28c34b8e7",
-        "bytes": 59481,
+        "worktreeSha256": "cb0970fc3df536abdde7e1f71e8ac30de87f85e4922d9e3b89c74dcbfe8b5ae3",
+        "executedByteSha256": "cb0970fc3df536abdde7e1f71e8ac30de87f85e4922d9e3b89c74dcbfe8b5ae3",
+        "gitBlobSha1": "fcecdcd485fc320a3bea0aef01d456fd34f7d7e6",
+        "bytes": 62781,
         "crlfDetected": false,
         "crlfNormalizedForPass": false
       },

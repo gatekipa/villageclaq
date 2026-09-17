@@ -1,27 +1,20 @@
 {
-  "parent": "437f27c2721bf7710746468a2cef9a52e1c4651a",
-  "tip": "a4fa0832420d46f6cdd73b8f5e2ab381029dd2e1",
-  "changed": [
-    "scripts/lib/f3-db-push-inventory.mjs",
-    "scripts/lib/f3-db-push-qualification-reset-design.mjs",
+  "parentAccept": "a4fa0832420d46f6cdd73b8f5e2ab381029dd2e1",
+  "functionalTip": "49a91169fbb53dba149f4e7bbcf3016f988f4922",
+  "planCommit": "206dce13d424f5303520d2b63a43768a078dda35",
+  "framingChanged": [
+    "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F15_QUALIFICATION_RESET_PROPOSED_PLAN_20260917/PROPOSED_HOSTED_REQUAL_PLAN.md",
     "scripts/lib/f3-db-push-qualification-reset.mjs",
     "scripts/prove-f3-qualification-reset-local.mjs",
-    "scripts/qualify-f3-db-push-disposable.mjs",
-    "scripts/test-f3-db-push-harness.mjs",
-    "scripts/test-f3-qualification-reset-design.mjs",
     "scripts/test-f3-qualification-reset.mjs"
   ],
-  "authorized": [
-    "scripts/lib/f3-db-push-inventory.mjs",
-    "scripts/lib/f3-db-push-qualification-reset-design.mjs",
+  "framingAuthorized": [
     "scripts/lib/f3-db-push-qualification-reset.mjs",
     "scripts/prove-f3-qualification-reset-local.mjs",
-    "scripts/qualify-f3-db-push-disposable.mjs",
-    "scripts/test-f3-db-push-harness.mjs",
-    "scripts/test-f3-qualification-reset-design.mjs",
-    "scripts/test-f3-qualification-reset.mjs"
+    "scripts/test-f3-qualification-reset.mjs",
+    "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F15_QUALIFICATION_RESET_PROPOSED_PLAN_20260917/PROPOSED_HOSTED_REQUAL_PLAN.md"
   ],
-  "unauthorized": [],
+  "framingUnauthorized": [],
   "scopeOk": true,
-  "note": "Allowlist vs F14 evidence tip 437f27c — exactly 8 script files."
+  "note": "Framing follow-up vs a4fa0832 ACCEPT: reset.mjs + prove helper + test + plan (rebound on 206dce13). Historical F15 eight-script allowlist vs 437f27c unchanged beneath."
 }

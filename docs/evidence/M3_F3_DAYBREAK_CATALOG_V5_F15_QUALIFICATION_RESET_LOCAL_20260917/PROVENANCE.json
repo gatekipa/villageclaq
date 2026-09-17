@@ -1,12 +1,15 @@
 {
-  "packagedAt": "2026-09-17T21:51:38.245Z",
-  "functionalTip": "a4fa0832420d46f6cdd73b8f5e2ab381029dd2e1",
-  "planCommit": "5ec5958ea6d6b60c7046e1c96b53636bd5ffe81d",
+  "packagedAt": "2026-09-17T22:00:35.100Z",
+  "functionalTip": "49a91169fbb53dba149f4e7bbcf3016f988f4922",
+  "planCommit": "206dce13d424f5303520d2b63a43768a078dda35",
+  "parentAccept": "a4fa0832420d46f6cdd73b8f5e2ab381029dd2e1",
+  "priorHoldEvidence": "d9e37d1f3bbfe35c47145b7ca886d2b4af486475",
   "parentEvidence": "437f27c2721bf7710746468a2cef9a52e1c4651a",
   "helper": "scripts/prove-f3-qualification-reset-local.mjs",
   "hostedContact": false,
   "disposableContact": false,
   "productionContact": false,
   "daybreakAstraContact": false,
-  "wipeEnabled": false
+  "wipeEnabled": false,
+  "framingHoldClosed": true
 }

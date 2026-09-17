@@ -13,7 +13,7 @@
     "classification": "LOCAL_PG_EXECUTED"
   },
   "distinctions": {
-    "checks": 9,
+    "checks": 11,
     "scenarios": 4,
     "executedTransactions": 3
   },
@@ -131,6 +131,38 @@
       "note": null
     },
     {
+      "id": "ADVISORY_LOCK_NO_VOID_SELECT",
+      "kind": "check",
+      "ok": true,
+      "capture": null,
+      "resetApply": null,
+      "sql": true,
+      "observedPhase": null,
+      "commit": null,
+      "rollback": null,
+      "replay": false,
+      "code": null,
+      "verdict": null,
+      "executedTransaction": false,
+      "note": null
+    },
+    {
+      "id": "ADVISORY_LOCK_VOID_SELECT_FRAMING",
+      "kind": "check",
+      "ok": true,
+      "capture": null,
+      "resetApply": null,
+      "sql": null,
+      "observedPhase": "T7_COMMIT",
+      "commit": true,
+      "rollback": null,
+      "replay": false,
+      "code": null,
+      "verdict": null,
+      "executedTransaction": false,
+      "note": "protocol-defined whitespace from void SELECT is ignored; PREFIX/SUFFIX still rejected"
+    },
+    {
       "id": "RUNTIME_CLOSURE_NOT_SUMMARY",
       "kind": "check",
       "ok": true,
@@ -181,16 +213,16 @@
     {
       "id": "TX_SUCCESSFUL_RESET",
       "kind": "scenario",
-      "ok": false,
+      "ok": true,
       "capture": "eligible-leftover",
       "resetApply": 1,
       "sql": true,
-      "observedPhase": null,
-      "commit": false,
+      "observedPhase": "T7_COMMIT",
+      "commit": true,
       "rollback": null,
       "replay": false,
       "code": null,
-      "verdict": "HOLD",
+      "verdict": "CLEAN_BASELINE",
       "executedTransaction": true,
       "note": "shared runQualificationReset + local-fixture psql + generated SQL"
     },
@@ -201,7 +233,7 @@
       "capture": "eligible-then-sentinel-after-capture",
       "resetApply": 1,
       "sql": true,
-      "observedPhase": null,
+      "observedPhase": "T2_LOCK",
       "commit": false,
       "rollback": null,
       "replay": false,
@@ -217,7 +249,7 @@
       "capture": "eligible-then-history-mutated-after-capture",
       "resetApply": 1,
       "sql": true,
-      "observedPhase": null,
+      "observedPhase": "T2_LOCK",
       "commit": false,
       "rollback": null,
       "replay": false,
@@ -227,7 +259,7 @@
       "note": "history mismatch after capture rolls back; mutated history retained"
     }
   ],
-  "passCount": 12,
-  "failCount": 1,
-  "overallOk": false
+  "passCount": 15,
+  "failCount": 0,
+  "overallOk": true
 }

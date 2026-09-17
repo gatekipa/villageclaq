@@ -1,8 +1,8 @@
 {
   "suite": "committed-helper-local-pg",
-  "classification": "HOLD_TX_SUCCESS_FRAMING",
+  "classification": "PASS_LOCAL_PG_3TX",
   "expect": null,
   "observed": null,
-  "outSha256": "b45792409e10fe85091a6691d7302805baf1341741c63614a8d392acf18d857f",
-  "outBytes": 5931
+  "outSha256": "ee33365cc6a96d54f241a3767b81e66e0730f77bbfb66733f15c4955ddd42d47",
+  "outBytes": 6775
 }

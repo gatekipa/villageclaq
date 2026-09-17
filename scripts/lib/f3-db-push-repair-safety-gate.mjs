@@ -2171,6 +2171,51 @@ export function readFinalCommittedBytes(abs) {
 
 export const F10_DURABLE_WRITE_HOLD =
   "HOLD: F10 durable artifact write failed verification";
+
+/**
+ * Durable-write counter scope. Counted ONLY at writeDurableArtifactBytes.
+ * Attempts increment when a write is attempted (before open/write).
+ * Verified increment only after write + fsync + close + rename + reread +
+ * length + hash all succeed. Snapshot timing: checkpoint / pre-continuation
+ * records copy runner counters BEFORE their own write is verified — a record
+ * must not claim its own write already verified. F10/F11 present flow counts
+ * Checkpoint A + Checkpoint B + retained pre-continuation (≥3). gateCalls
+ * remain qualify-level wrapper invocations, not internal gate evaluations.
+ */
+export const DURABLE_WRITE_COUNTER_SCOPE = Object.freeze({
+  counted_at: "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeDurableArtifactBytes",
+  attempt_when: "write attempted (open/write begins)",
+  verified_when: "write + fsync + close + rename + reread + length + hash all succeed",
+  records_in_f10_flow: Object.freeze(["checkpoint_a", "checkpoint_b", "pre_continuation"]),
+  minimum_verified_writes_in_present_flow: 3,
+  snapshot_timing: "records snapshot counters before their own write is verified",
+  not_counted: Object.freeze([
+    "gate-wrapper invocations (qualify-level repair_gate_evaluated)",
+    "internal evaluateRepairSafetyGate calls inside runRepairSafetyThenMaybeRepair",
+  ]),
+});
+
+export function createEmptyDurableWriteCounters() {
+  return {
+    durableWriteAttempts: 0,
+    durableWritesVerified: 0,
+  };
+}
+
+export function recordDurableWriteAttempt(counters) {
+  if (counters && typeof counters === "object") {
+    counters.durableWriteAttempts = (counters.durableWriteAttempts || 0) + 1;
+  }
+  return counters;
+}
+
+export function recordDurableWriteVerified(counters) {
+  if (counters && typeof counters === "object") {
+    counters.durableWritesVerified = (counters.durableWritesVerified || 0) + 1;
+  }
+  return counters;
+}
+
 export const SUITE_META_PRODUCER_ID =
   "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile";
 export const SUITE_TRANSFORM_ID =
@@ -2195,6 +2240,8 @@ export function writeDurableArtifactBytes(abs, buf, hooks = {}) {
   const body = Buffer.isBuffer(buf) ? buf : Buffer.from(String(buf ?? ""), "utf8");
   const expectedSha = sha256Bytes(body);
   const tmp = `${abs}.tmp`;
+  const counters = hooks.counters || null;
+  recordDurableWriteAttempt(counters);
   try {
     fs.mkdirSync(path.dirname(abs), { recursive: true });
     if (hooks.failWrite === true) {
@@ -2279,6 +2326,7 @@ export function writeDurableArtifactBytes(abs, buf, hooks = {}) {
         reason: "HOLD: written artifact bytes mutated before re-read",
       };
     }
+    recordDurableWriteVerified(counters);
     return {
       ok: true,
       written: true,
@@ -2377,10 +2425,15 @@ export function inferEvidenceRootFromDest(dest) {
   const abs = path.resolve(dest);
   const parts = abs.split(path.sep);
   for (let i = 0; i < parts.length; i += 1) {
-    if (parts[i] === "synthetic-evidence") {
+    if (parts[i] === "synthetic-evidence" || parts[i] === "local-synthetic-evidence") {
       return parts.slice(0, i).join(path.sep) || path.sep;
     }
-    if (parts[i] === "qualify-evidence" && i > 0 && (parts[i - 1] === "hosted" || parts[i - 1] === "phase-c")) {
+    if (parts[i] === "qualify-evidence" && i > 0 && (
+      parts[i - 1] === "hosted"
+      || parts[i - 1] === "phase-c"
+      || parts[i - 1] === "local-synthetic"
+      || parts[i - 1] === "local"
+    )) {
       return parts.slice(0, i - 1).join(path.sep) || path.sep;
     }
   }
@@ -2809,12 +2862,11 @@ export function writeOuterEvidenceIndexAndChecksum(root) {
     }
     artifacts.push({ path: rel, sha256: committed.sha256, bytes: committed.bytes });
   }
-  const requiredNested = [
-    "hosted/qualify-evidence/evidence-index.json",
-    "hosted/qualify-evidence/evidence-index.sha256",
-    "synthetic-evidence/evidence-index.json",
-    "synthetic-evidence/evidence-index.sha256",
-  ].filter((rel) => present.includes(rel) || fs.existsSync(path.join(root, rel)));
+  const requiredNested = present.filter((rel) => (
+    rel !== EVIDENCE_INDEX_FILENAME
+    && rel !== EVIDENCE_INDEX_CHECKSUM_FILENAME
+    && (rel.endsWith(`/${EVIDENCE_INDEX_FILENAME}`) || rel.endsWith(`/${EVIDENCE_INDEX_CHECKSUM_FILENAME}`))
+  ));
   for (const rel of requiredNested) {
     if (!artifacts.some((item) => item.path === rel)) {
       return { ok: false, reason: `HOLD: nested index/checksum not indexed ${rel}` };
@@ -2850,6 +2902,64 @@ export function commitOuterEvidenceTree(root) {
       reason: `${QUALIFY_EVIDENCE_PACKAGING_HOLD}: ${err?.message || err}`,
     };
   }
+}
+
+export const F11_EVIDENCE_LABEL = "LOCAL_SYNTHETIC";
+export const F11_EVIDENCE_DIR_MUST_NOT_IMPLY_HOSTED =
+  "F11 local/synthetic evidence directory name must not imply hosted execution";
+
+/**
+ * Authoritative final identity is the committed outer evidence-index.json.
+ * This pointer references that index by relative path and does NOT embed
+ * the index digest (the same index would hash this artifact — that cycle
+ * produced F10 STATUS 94 / pack-summary 95 / final index 96). Staging
+ * counts are never presented as final.
+ */
+export function buildAuthoritativeOuterEvidencePointer({
+  indexRelPath = EVIDENCE_INDEX_FILENAME,
+  checksumRelPath = EVIDENCE_INDEX_CHECKSUM_FILENAME,
+} = {}) {
+  return {
+    schema: "f3-authoritative-outer-evidence-pointer-v1",
+    label: F11_EVIDENCE_LABEL,
+    not_hosted_execution: true,
+    authoritative: true,
+    authoritative_index: indexRelPath,
+    detached_checksum: checksumRelPath,
+    staging_counts_not_authoritative: true,
+    embeds_index_digest: false,
+    note: "Final artifact identity is the committed outer evidence-index.json. Do not treat pack-summary/STATUS counts as final.",
+  };
+}
+
+export function buildNonAuthoritativeStagingSummary({
+  reason = "Staging snapshot; not the final outer index",
+  historical = true,
+} = {}) {
+  return {
+    schema: "f3-non-authoritative-staging-summary-v1",
+    label: F11_EVIDENCE_LABEL,
+    not_hosted_execution: true,
+    authoritative: false,
+    historical_staging: historical === true,
+    reason,
+    see: EVIDENCE_INDEX_FILENAME,
+  };
+}
+
+export function assertLocalSyntheticEvidenceDirName(dirName) {
+  const name = String(dirName || "").replace(/\\/g, "/");
+  const base = path.posix.basename(name.replace(/\/+$/, ""));
+  if (!name) {
+    return { ok: false, reason: `${F11_EVIDENCE_DIR_MUST_NOT_IMPLY_HOSTED}: empty name` };
+  }
+  if (/(^|\/)hosted(\/|$)/i.test(name) || /^hosted$/i.test(base)) {
+    return {
+      ok: false,
+      reason: `${F11_EVIDENCE_DIR_MUST_NOT_IMPLY_HOSTED}: ${name}`,
+    };
+  }
+  return { ok: true, label: F11_EVIDENCE_LABEL, dirName: name };
 }
 
 export function verifyEvidenceIndex(dir) {
@@ -4169,7 +4279,24 @@ function parseDeterministicSqlFilenames(source) {
   return [...names];
 }
 
+export const LOCAL_PSQL_POISON_PROOF_HELPER_RELPATH =
+  "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_PSQL_POISON_REQUAL_20260916/psql-proof/psql-proof/run-local-psql-poison-proof.mjs";
+
+/**
+ * Deterministic runtime reads + required local entrypoints that the F10
+ * 27-file JS-only manifest omitted. Previously omitted: package.json
+ * (read for specifier versions but never listed), recognition source,
+ * frozen 00115/00117 + 00118–00123 SQL (filename literals / floor copies),
+ * Cut-3 hex, the local harness, and the local-proof helper. Do not pad
+ * to a target count; do not reuse the incomplete 27-file identity
+ * b433bafc… . F10 Daybreak hosted 38 / c542aff7… and union 40 / 69279457…
+ * are F10 baseline identities, not expected F11 digests.
+ */
 export const REQUIRED_RUNTIME_READ_INPUTS = Object.freeze([
+  Object.freeze({
+    path: "package.json",
+    why: "buildFunctionalRecursiveRuntimeClosure reads package inputs for specifier versions",
+  }),
   Object.freeze({
     path: "supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql",
     why: "extractEnqueueCreateSql reads the Cut-2 queue migration at floor install",
@@ -4186,7 +4313,31 @@ export const REQUIRED_RUNTIME_READ_INPUTS = Object.freeze([
     path: "src/lib/financial-f3-recognition.ts",
     why: "recognitionFromSource / recognitionFromSourcePin read the SOA allowlist",
   }),
+  Object.freeze({
+    path: "scripts/test-f3-db-push-harness.mjs",
+    why: "local qualification harness is a required F11 runtime-closure entrypoint",
+  }),
+  Object.freeze({
+    path: LOCAL_PSQL_POISON_PROOF_HELPER_RELPATH,
+    why: "F8/F11 local-proof helper invoked by the harness with injected spawn",
+  }),
 ]);
+
+export const F11_PREVIOUSLY_OMITTED_CLOSURE_INPUTS = Object.freeze([
+  "package.json",
+  "src/lib/financial-f3-recognition.ts",
+  "scripts/_cut3_live_functiondef_hex.json",
+  "supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql",
+  "supabase/migrations/00117_m2_notification_policy_foundation.sql",
+  ...F3_FORWARD_FILES.map((file) => `supabase/migrations/${file}`),
+]);
+
+export const F10_INCOMPLETE_27_FILE_CLOSURE_DIGEST =
+  "b433bafc828cdfc9fcea523ecdee4662b33ce7c49b4a3987939a53a4069662da";
+export const F10_DAYBREAK_HOSTED_CLOSURE_DIGEST =
+  "c542aff7";
+export const F10_DAYBREAK_UNION_CLOSURE_DIGEST =
+  "69279457";
 
 function parseFilesystemReadRelPaths(source, fromRel) {
   const stripped = String(source)
@@ -4216,12 +4367,7 @@ function parseFilesystemReadRelPaths(source, fromRel) {
     const rel = match[1].replaceAll("\\", "/");
     if (!rel.startsWith("/") && !rel.includes(":")) found.push({ path: rel, kind: "filesystem" });
   }
-  const known = [
-    "supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql",
-    "supabase/migrations/00117_m2_notification_policy_foundation.sql",
-    "scripts/_cut3_live_functiondef_hex.json",
-    "src/lib/financial-f3-recognition.ts",
-  ];
+  const known = REQUIRED_RUNTIME_READ_INPUTS.map((item) => item.path);
   for (const rel of known) {
     if (stripped.includes(rel) || stripped.includes(path.basename(rel))) {
       found.push({ path: rel, kind: "filesystem" });
@@ -4245,6 +4391,10 @@ function parseFilesystemReadRelPaths(source, fromRel) {
  */
 export function buildFunctionalRecursiveRuntimeClosure({
   entrypoint = "scripts/qualify-f3-db-push-disposable.mjs",
+  additionalEntrypoints = [
+    "scripts/test-f3-db-push-harness.mjs",
+    LOCAL_PSQL_POISON_PROOF_HELPER_RELPATH,
+  ],
 } = {}) {
   const pkgJson = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"));
   const local = new Map();
@@ -4333,6 +4483,14 @@ export function buildFunctionalRecursiveRuntimeClosure({
   }
 
   walk(entrypoint, null, "hosted qualification entrypoint");
+  for (const extra of additionalEntrypoints || []) {
+    if (extra && extra !== entrypoint) {
+      walk(extra, null, "required local qualification / proof entrypoint");
+    }
+  }
+  for (const item of REQUIRED_RUNTIME_READ_INPUTS) {
+    walk(item.path, entrypoint, item.why || "required deterministic runtime read");
+  }
 
   let uncommitted_functional_diffs = 0;
   let hosted_tree_mismatches = 0;

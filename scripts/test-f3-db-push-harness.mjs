@@ -223,6 +223,14 @@ import {
   verifyEvidenceIndex,
   writeSuiteMetaForOutFile,
   writeDurableArtifactBytes,
+  DURABLE_WRITE_COUNTER_SCOPE,
+  F11_EVIDENCE_LABEL,
+  F11_PREVIOUSLY_OMITTED_CLOSURE_INPUTS,
+  F10_INCOMPLETE_27_FILE_CLOSURE_DIGEST,
+  LOCAL_PSQL_POISON_PROOF_HELPER_RELPATH,
+  buildAuthoritativeOuterEvidencePointer,
+  buildNonAuthoritativeStagingSummary,
+  assertLocalSyntheticEvidenceDirName,
   writeQualifyEvidenceArtifacts,
   packageF10LocalSuiteLog,
   verifySuiteToLogBinding,
@@ -291,7 +299,10 @@ import {
   F9_FINAL_MIGRATION_EVENT_ORDER,
   createEmptyRunnerCounters,
   expectedRunnerCountersForFile,
+  expectedF10OrchestrationCounters,
   encodeSanitizedProcessResult,
+  encodeSanitizedProcessError,
+  SANITIZED_PROCESS_ERROR_ENCODING,
   isCompleteProcessResult,
   createRunnerEventRecorder,
   assertRunnerEventsAllowRepair,
@@ -306,14 +317,20 @@ import {
   F10_CHECKPOINT_HOLD,
   GATE_CALLS_BOUNDARY,
   assertCheckpointAComplete,
+  assertFrozenMigrationIdentity,
   persistCheckpointA,
   persistCheckpointB,
   verifyPersistedCheckpointA,
   verifyPersistedCheckpointB,
+  authenticateCheckpointBAgainstRereadA,
   buildCheckpointARecord,
   buildCheckpointBRecord,
+  buildDefaultF10PreContinuationRecord,
   invokeRecordedOperation,
   runF10RepairRetryContinuation,
+  runHostedF10RepairRetryContinuation,
+  F11_SHARED_ORCHESTRATION_ID,
+  F11_HOSTED_DELEGATES_TO_SHARED,
 } from "./qualify-f3-db-push-disposable.mjs";
 import { BOOTSTRAP_WITH_LOCAL_SHIM } from "./_f3_apply_current_main_floor.mjs";
 import {
@@ -7318,11 +7335,13 @@ test("F9 runner event order comes from actual calls and blocks missing/reordered
   const qualifySrc = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
   assert.match(qualifySrc, /createRunnerEventRecorder/);
   assert.match(qualifySrc, /persistPreContinuationRecord/);
-  assert.match(qualifySrc, /fsyncSync/);
-  assert.match(qualifySrc, /renameSync/);
+  assert.match(qualifySrc, /writeDurableArtifactBytes/);
+  const gateSrc = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-repair-safety-gate.mjs"), "utf8");
+  assert.match(gateSrc, /fsyncSync/);
+  assert.match(gateSrc, /renameSync/);
   assert.equal(F9_RUNNER_EVENT_SCHEMA_VERSION, "f3-runner-event-v1");
   assert.equal(F9_PRE_CONTINUATION_SCHEMA_VERSION, "f3-pre-continuation-record-v1");
-  assert.match(qualifySrc, /recordRunnerEvent\("continuation_authorized"/);
+  assert.match(qualifySrc, /["']continuation_authorized["']/);
 
   const records = [];
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f9-events-"));
@@ -7635,6 +7654,8 @@ function f10AdapterArgs(dir, extra = {}) {
     },
     persistHooksA: extra.persistHooksA || {},
     persistHooksB: extra.persistHooksB || {},
+    persistHooksPre: extra.persistHooksPre || {},
+    destPreContinuation: extra.destPreContinuation,
     onAfterRepairStarted: extra.onAfterRepairStarted,
     onAfterRetryStarted: extra.onAfterRetryStarted,
     onAfterContinuationStarted: extra.onAfterContinuationStarted,
@@ -8004,4 +8025,367 @@ test("F10 suite-log pipeline binds metadata to committed bytes with provenance",
     assert.equal(records.some((row) => row.caseId === required), true, required);
   }
   console.log(JSON.stringify({ publishedF10SuiteBinding: records }, null, 2));
+});
+
+test("F11 hosted main delegates to the same shared orchestration tests spy", async () => {
+  const records = [];
+  const qualifySrc = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
+  const mainMatch = qualifySrc.match(/async function main\([\s\S]*$/);
+  const mainSrc = mainMatch ? mainMatch[0] : "";
+  assert.equal(F11_HOSTED_DELEGATES_TO_SHARED, true);
+  assert.equal(F11_SHARED_ORCHESTRATION_ID, "runF10RepairRetryContinuation");
+  assert.equal(runHostedF10RepairRetryContinuation, runF10RepairRetryContinuation);
+  assert.match(mainSrc, /runHostedF10RepairRetryContinuation\(/);
+  assert.doesNotMatch(mainSrc, /persistCheckpointA\(/);
+  assert.doesNotMatch(mainSrc, /persistCheckpointB\(/);
+  records.push({ caseId: "F11-O01-HOSTED-MAIN-DELEGATES-TO-SHARED-ORCHESTRATION", result: "ok" });
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f11-orch-"));
+  let pendingRepair = null;
+  const happy = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    onAfterRepairStarted: ({ events }) => {
+      pendingRepair = {
+        started: events.some((event) => event.event_type === "repair_started"),
+        completed: events.some((event) => event.event_type === "repair_completed"),
+      };
+    },
+  }));
+  assert.equal(happy.ok, true);
+  assert.equal(pendingRepair.started, true);
+  assert.equal(pendingRepair.completed, false);
+  const started = happy.events.findIndex((event) => event.event_type === "repair_started");
+  const completed = happy.events.findIndex((event) => event.event_type === "repair_completed");
+  assert.ok(started >= 0 && completed > started);
+  records.push({ caseId: "F11-O02-SPIES-START-BEFORE-INVOKE", result: "ok" });
+  records.push({ caseId: "F11-O03-COMPLETION-AFTER-AWAIT", result: "ok" });
+
+  const failed = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "fail-a.json"),
+    destB: path.join(dir, "fail-b.json"),
+    destPreContinuation: path.join(dir, "fail-pre.json"),
+    repair: () => {
+      throw new Error("injected repair throw");
+    },
+  }));
+  assert.equal(failed.ok, false);
+  assert.equal(failed.spies.retryCalls, 0);
+  assert.equal(failed.spies.continuationAuthorizationCalls, 0);
+  assert.equal(failed.spies.checkpointAWritesVerified, 0);
+  assert.equal(failed.events.some((event) => event.event_type === "repair_completed"), true);
+  records.push({ caseId: "F11-O04-TRUTHFUL-FAILURE-SUPPRESSES-SUBSEQUENT", result: "rejected" });
+  records.push({ caseId: "F11-O05-NO-TEST-ONLY-ALTERNATE-SEQUENCE", result: "ok" });
+
+  const persistFail = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "p-a.json"),
+    destB: path.join(dir, "p-b.json"),
+    persistHooksA: { failWrite: true },
+  }));
+  assert.equal(persistFail.ok, false);
+  assert.equal(persistFail.spies.retryCalls, 0);
+  assert.equal(persistFail.sharedOrchestration || F11_SHARED_ORCHESTRATION_ID, F11_SHARED_ORCHESTRATION_ID);
+  records.push({ caseId: "F11-O06-PERSISTENCE-FAILURE-THROUGH-SHARED-PATH", result: "rejected" });
+
+  fs.rmSync(dir, { recursive: true, force: true });
+  console.log(JSON.stringify({ publishedF11Orchestration: records }, null, 2));
+});
+
+test("F11 durable-write counters separate attempts from verified writes at persist boundary", async () => {
+  const records = [];
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f11-counters-"));
+  assert.equal(DURABLE_WRITE_COUNTER_SCOPE.counted_at.includes("writeDurableArtifactBytes"), true);
+  assert.equal(DURABLE_WRITE_COUNTER_SCOPE.minimum_verified_writes_in_present_flow, 3);
+  assert.match(GATE_CALLS_BOUNDARY, /not every evaluateRepairSafetyGate/);
+
+  const happy = await runF10RepairRetryContinuation(f10AdapterArgs(dir));
+  assert.equal(happy.ok, true);
+  assert.equal(happy.counters.durableWriteAttempts, 3);
+  assert.equal(happy.counters.durableWritesVerified, 3);
+  assert.equal(happy.counters.durableRecordWrites, 3);
+  assert.deepEqual({
+    durableWriteAttempts: happy.counters.durableWriteAttempts,
+    durableWritesVerified: happy.counters.durableWritesVerified,
+    durableRecordWrites: happy.counters.durableRecordWrites,
+  }, {
+    durableWriteAttempts: expectedF10OrchestrationCounters(FILE118).durableWriteAttempts,
+    durableWritesVerified: expectedF10OrchestrationCounters(FILE118).durableWritesVerified,
+    durableRecordWrites: expectedF10OrchestrationCounters(FILE118).durableRecordWrites,
+  });
+  assert.equal(happy.spies.checkpointAWriteAttempts, 1);
+  assert.equal(happy.spies.checkpointAWritesVerified, 1);
+  assert.equal(happy.spies.checkpointBWriteAttempts, 1);
+  assert.equal(happy.spies.checkpointBWritesVerified, 1);
+  assert.equal(happy.spies.preContinuationWriteAttempts, 1);
+  assert.equal(happy.spies.preContinuationWritesVerified, 1);
+  assert.ok(
+    (happy.persistA.record.runnerCounters.durableWritesVerified || 0)
+      < happy.counters.durableWritesVerified,
+  );
+  records.push({ caseId: "F11-C01-ATTEMPTS-SEPARATE-FROM-VERIFIED", result: "ok" });
+  records.push({ caseId: "F11-C02-THREE-DURABLE-RECORDS-COUNTED", result: "ok" });
+  records.push({ caseId: "F11-C03-SNAPSHOT-BEFORE-OWN-WRITE-VERIFIED", result: "ok" });
+  records.push({ caseId: "F11-C07-WRITER-SPIES-RECONCILE", result: "ok" });
+  records.push({ caseId: "F11-C08-GATECALLS-DISTINCT-FROM-INTERNAL", result: "ok" });
+
+  const failA = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "c-a.json"),
+    destB: path.join(dir, "c-b.json"),
+    persistHooksA: { failFsync: true },
+  }));
+  assert.equal(failA.ok, false);
+  assert.equal(failA.counters.durableWriteAttempts >= 1, true);
+  assert.equal(failA.counters.durableWritesVerified, 0);
+  assert.equal(failA.spies.retryCalls, 0);
+  records.push({ caseId: "F11-C04-A-FAILURE-ATTEMPT-NOT-VERIFIED", result: "rejected" });
+
+  const failB = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "c2-a.json"),
+    destB: path.join(dir, "c2-b.json"),
+    persistHooksB: { failRename: true },
+  }));
+  assert.equal(failB.ok, false);
+  assert.equal(failB.counters.durableWritesVerified, 1);
+  assert.equal(failB.spies.checkpointAWritesVerified, 1);
+  assert.equal(failB.spies.continuationAuthorizationCalls, 0);
+  records.push({ caseId: "F11-C05-B-FAILURE-A-VERIFIED-B-NOT", result: "rejected" });
+
+  const failPre = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "c3-a.json"),
+    destB: path.join(dir, "c3-b.json"),
+    destPreContinuation: path.join(dir, "c3-pre.json"),
+    persistHooksPre: { failReread: true },
+  }));
+  assert.equal(failPre.ok, false);
+  assert.equal(failPre.counters.durableWritesVerified, 2);
+  assert.equal(failPre.spies.preContinuationWriteAttempts, 1);
+  assert.equal(failPre.spies.preContinuationWritesVerified, 0);
+  assert.equal(failPre.spies.continuationAuthorizationCalls, 0);
+  records.push({ caseId: "F11-C06-PRE-FAILURE-A-B-VERIFIED-PRE-NOT", result: "rejected" });
+
+  fs.rmSync(dir, { recursive: true, force: true });
+  console.log(JSON.stringify({ publishedF11Counters: records }, null, 2));
+});
+
+test("F11 record validators reject malformed A/B identities and process evidence", async () => {
+  const records = [];
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-f11-validate-"));
+  const rejectIds = [];
+  const reject = (caseId, check) => {
+    assert.equal(check.ok, false, caseId);
+    rejectIds.push(caseId);
+    records.push({ caseId, result: "rejected", reason: check.reason || check.hold || "rejected" });
+  };
+
+  reject("F11-V01-EMPTY-IDENTITY-REJECTED", assertFrozenMigrationIdentity(""));
+  reject("F11-V02-ABSENT-IDENTITY-REJECTED", assertFrozenMigrationIdentity(null));
+  reject("F11-V03-MISMATCHED-IDENTITY-REJECTED", assertFrozenMigrationIdentity({
+    file: FILE118,
+    version: "99999999999999",
+  }, FILE118, PREASSIGNED_VERSIONS[FILE118]));
+  reject("F11-V04-INCOMPLETE-IDENTITY-REJECTED", assertFrozenMigrationIdentity({ file: FILE118 }));
+  reject("F11-V05-B-REJECTS-NONEXISTENT-A", authenticateCheckpointBAgainstRereadA({
+    recordB: buildCheckpointBRecord({
+      file: FILE118,
+      version: PREASSIGNED_VERSIONS[FILE118],
+      retryProcessResult: encodeSanitizedProcessResult(f10Process("retry", 0)),
+      postRetryProof: { ok: true },
+      checkpointA: { dest: path.join(dir, "no-such-a.json"), sha256: "ab".repeat(32), bytes: 12 },
+    }),
+    destA: path.join(dir, "no-such-a.json"),
+    expectedFile: FILE118,
+    expectedVersion: PREASSIGNED_VERSIONS[FILE118],
+  }));
+  reject("F11-V06-B-REJECTS-ZERO-DIGEST", persistCheckpointB({
+    dest: path.join(dir, "zero-b.json"),
+    expected: { file: FILE118, version: PREASSIGNED_VERSIONS[FILE118] },
+    record: {
+      ...buildCheckpointBRecord({
+        file: FILE118,
+        version: PREASSIGNED_VERSIONS[FILE118],
+        retryProcessResult: encodeSanitizedProcessResult(f10Process("retry", 0)),
+        postRetryProof: { ok: true },
+        checkpointA: { dest: path.join(dir, "a.json"), sha256: "0".repeat(64), bytes: 0 },
+      }),
+    },
+  }));
+  reject("F11-V07-B-REJECTS-WRONG-MIGRATION", assertCheckpointAComplete({
+    schema_version: F10_CHECKPOINT_A_SCHEMA_VERSION,
+    checkpoint: "A",
+    boundary: "after_repair_before_retry",
+    migrationIdentity: { file: FILE123, version: PREASSIGNED_VERSIONS[FILE123] },
+    repairProcessResult: encodeSanitizedProcessResult(f10Process("repair", 0)),
+  }, { file: FILE118, version: PREASSIGNED_VERSIONS[FILE118] }));
+  reject("F11-V08-B-REJECTS-WRONG-PHASE", assertCheckpointBComplete({
+    schema_version: F10_CHECKPOINT_B_SCHEMA_VERSION,
+    checkpoint: "A",
+    boundary: "after_retry_post_retry_before_continuation",
+    migrationIdentity: { file: FILE118, version: PREASSIGNED_VERSIONS[FILE118] },
+    retryProcessResult: encodeSanitizedProcessResult(f10Process("retry", 0)),
+    postRetryProof: { ok: true },
+    checkpointA: { dest: "x", sha256: "ab".repeat(32), bytes: 1 },
+  }, { file: FILE118, version: PREASSIGNED_VERSIONS[FILE118] }));
+  reject("F11-V09-INCOMPLETE-PROCESS-EVIDENCE", assertCheckpointAComplete({
+    schema_version: F10_CHECKPOINT_A_SCHEMA_VERSION,
+    checkpoint: "A",
+    boundary: "after_repair_before_retry",
+    migrationIdentity: { file: FILE118, version: PREASSIGNED_VERSIONS[FILE118] },
+    repairProcessResult: { status: 0, command: "x" },
+  }, { file: FILE118, version: PREASSIGNED_VERSIONS[FILE118] }));
+  const hashed = encodeSanitizedProcessResult(f10Process("repair", 0, { stdout: "ok\n" }));
+  reject("F11-V10-INCONSISTENT-PROCESS-HASHES", assertCheckpointAComplete({
+    schema_version: F10_CHECKPOINT_A_SCHEMA_VERSION,
+    checkpoint: "A",
+    boundary: "after_repair_before_retry",
+    migrationIdentity: { file: FILE118, version: PREASSIGNED_VERSIONS[FILE118] },
+    repairProcessResult: { ...hashed, stdoutSha256: "ff".repeat(32) },
+  }, { file: FILE118, version: PREASSIGNED_VERSIONS[FILE118] }));
+  reject("F11-V11-CONTRADICTORY-SUCCESS-STATUS0-TIMEOUT", assertCheckpointAComplete({
+    schema_version: F10_CHECKPOINT_A_SCHEMA_VERSION,
+    checkpoint: "A",
+    boundary: "after_repair_before_retry",
+    migrationIdentity: { file: FILE118, version: PREASSIGNED_VERSIONS[FILE118] },
+    repairProcessResult: encodeSanitizedProcessResult(f10Process("repair", 0, { timeout: true })),
+  }, { file: FILE118, version: PREASSIGNED_VERSIONS[FILE118] }));
+  reject("F11-V12-CONTRADICTORY-SUCCESS-STATUS0-SIGNAL", assertCheckpointAComplete({
+    schema_version: F10_CHECKPOINT_A_SCHEMA_VERSION,
+    checkpoint: "A",
+    boundary: "after_repair_before_retry",
+    migrationIdentity: { file: FILE118, version: PREASSIGNED_VERSIONS[FILE118] },
+    repairProcessResult: encodeSanitizedProcessResult(f10Process("repair", 0, { signal: "SIGTERM" })),
+  }, { file: FILE118, version: PREASSIGNED_VERSIONS[FILE118] }));
+  reject("F11-V13-CONTRADICTORY-SUCCESS-STATUS0-ERROR", assertCheckpointAComplete({
+    schema_version: F10_CHECKPOINT_A_SCHEMA_VERSION,
+    checkpoint: "A",
+    boundary: "after_repair_before_retry",
+    migrationIdentity: { file: FILE118, version: PREASSIGNED_VERSIONS[FILE118] },
+    repairProcessResult: encodeSanitizedProcessResult(f10Process("repair", 0, { error: "process error" })),
+  }, { file: FILE118, version: PREASSIGNED_VERSIONS[FILE118] }));
+
+  const encodedObj = encodeSanitizedProcessError({ message: "EACCES", code: "EACCES", syscall: "open" });
+  assert.notEqual(encodedObj.error, "[object Object]");
+  assert.equal(encodedObj.errorStructured.encoding, SANITIZED_PROCESS_ERROR_ENCODING);
+  assert.match(encodedObj.error, /EACCES/);
+  assert.equal(isCompleteProcessResult(encodeSanitizedProcessResult({
+    command: "cmd",
+    status: 1,
+    stdout: "",
+    stderr: "",
+    error: { message: "EACCES", code: "EACCES", syscall: "open" },
+    signal: null,
+    timeout: false,
+  })), true);
+  records.push({ caseId: "F11-V14-OBJECT-ERROR-NOT-OBJECT-OBJECT", result: "ok" });
+  rejectIds.push("F11-V14-OBJECT-ERROR-NOT-OBJECT-OBJECT");
+  const withError = encodeSanitizedProcessResult({
+    command: "cmd",
+    status: 1,
+    stdout: "",
+    stderr: "e",
+    error: { message: "boom", code: "ERR", syscall: "write" },
+    signal: null,
+    timeout: false,
+  });
+  assert.equal(isCompleteProcessResult({ ...withError, errorSha256: "aa".repeat(32) }), false);
+  records.push({ caseId: "F11-V15-ERROR-BODY-HASH-LENGTH-VERIFIED", result: "ok" });
+  rejectIds.push("F11-V15-ERROR-BODY-HASH-LENGTH-VERIFIED");
+
+  const rejectedRetry = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "bad-id-a.json"),
+    destB: path.join(dir, "bad-id-b.json"),
+    file: "not-a-frozen-migration.sql",
+    version: "1",
+  }));
+  assert.equal(rejectedRetry.ok, false);
+  assert.equal(rejectedRetry.spies.retryCalls, 0);
+  records.push({ caseId: "F11-V16-REJECTED-RECORD-NO-RETRY", result: "rejected" });
+  rejectIds.push("F11-V16-REJECTED-RECORD-NO-RETRY");
+
+  const rejectedCont = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "rej-cont-a.json"),
+    destB: path.join(dir, "rej-cont-b.json"),
+    persistHooksB: { failDigest: true },
+  }));
+  assert.equal(rejectedCont.ok, false);
+  assert.equal(rejectedCont.spies.continuationAuthorizationCalls, 0);
+  records.push({ caseId: "F11-V17-REJECTED-RECORD-NO-CONTINUATION", result: "rejected" });
+  rejectIds.push("F11-V17-REJECTED-RECORD-NO-CONTINUATION");
+
+  const happy = await runF10RepairRetryContinuation(f10AdapterArgs(dir, {
+    destA: path.join(dir, "auth-a.json"),
+    destB: path.join(dir, "auth-b.json"),
+  }));
+  const callerSupplied = {
+    ...happy.persistB.record,
+    checkpointA: { dest: happy.persistA.dest, sha256: "cd".repeat(32), bytes: 99 },
+  };
+  const auth = authenticateCheckpointBAgainstRereadA({
+    recordB: callerSupplied,
+    destA: happy.persistA.dest,
+    expectedFile: FILE118,
+    expectedVersion: PREASSIGNED_VERSIONS[FILE118],
+  });
+  assert.equal(auth.ok, false);
+  records.push({ caseId: "F11-V18-B-AUTHENTICATES-REREAD-A-NOT-CALLER-SUPPLIED", result: "rejected" });
+  rejectIds.push("F11-V18-B-AUTHENTICATES-REREAD-A-NOT-CALLER-SUPPLIED");
+
+  const qualifySrc = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
+  assert.match(qualifySrc, /preserveOriginalProcessStdout/);
+  assert.match(qualifySrc, /hashOriginalStdout/);
+  records.push({ caseId: "F11-V19-STRICT-ORIGINAL-BYTE-POISON-PRESERVED", result: "ok" });
+  rejectIds.push("F11-V19-STRICT-ORIGINAL-BYTE-POISON-PRESERVED");
+
+  fs.rmSync(dir, { recursive: true, force: true });
+  console.log(JSON.stringify({ publishedF11Validators: records, malformedRecordRejectionIds: rejectIds }, null, 2));
+});
+
+test("F11 closure recomputes complete runtime inputs and authoritative outer metadata", () => {
+  const records = [];
+  const recursive = buildFunctionalRecursiveRuntimeClosure();
+  assert.equal(recursive.files.includes("package.json"), true);
+  records.push({ caseId: "F11-L01-CLOSURE-INCLUDES-PACKAGE-JSON", result: "ok" });
+  assert.equal(recursive.files.includes("src/lib/financial-f3-recognition.ts"), true);
+  records.push({ caseId: "F11-L02-CLOSURE-INCLUDES-RECOGNITION", result: "ok" });
+  assert.equal(F3_FORWARD_FILES.every((file) => recursive.files.includes(`supabase/migrations/${file}`)), true);
+  assert.equal(recursive.files.includes("supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql"), true);
+  assert.equal(recursive.files.includes("supabase/migrations/00117_m2_notification_policy_foundation.sql"), true);
+  records.push({ caseId: "F11-L03-CLOSURE-INCLUDES-FROZEN-SQL", result: "ok" });
+  assert.equal(recursive.files.includes("scripts/test-f3-db-push-harness.mjs"), true);
+  records.push({ caseId: "F11-L04-CLOSURE-INCLUDES-HARNESS", result: "ok" });
+  assert.equal(recursive.files.includes(LOCAL_PSQL_POISON_PROOF_HELPER_RELPATH), true);
+  records.push({ caseId: "F11-L05-CLOSURE-INCLUDES-LOCAL-PROOF-HELPER", result: "ok" });
+  assert.notEqual(recursive.closure_sha256, F10_INCOMPLETE_27_FILE_CLOSURE_DIGEST);
+  assert.notEqual(recursive.files.length, 27);
+  assert.equal(F11_PREVIOUSLY_OMITTED_CLOSURE_INPUTS.every((rel) => recursive.files.includes(rel)), true);
+  assert.equal(recursive.closure_sha256.startsWith("c542aff7"), false);
+  assert.equal(recursive.closure_sha256.startsWith("69279457"), false);
+  records.push({
+    caseId: "F11-L06-FRESH-DIGEST-NOT-27-FILE-IDENTITY",
+    result: "ok",
+    file_count: recursive.files.length,
+    closure_sha256: recursive.closure_sha256,
+  });
+
+  const pointer = buildAuthoritativeOuterEvidencePointer();
+  assert.equal(pointer.authoritative, true);
+  assert.equal(pointer.embeds_index_digest, false);
+  assert.equal(pointer.label, F11_EVIDENCE_LABEL);
+  assert.equal(Object.prototype.hasOwnProperty.call(pointer, "digest"), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(pointer, "sha256"), false);
+  records.push({ caseId: "F11-L07-AUTHORITATIVE-OUTER-INDEX-NO-SELF-HASH", result: "ok" });
+  const staging = buildNonAuthoritativeStagingSummary();
+  assert.equal(staging.authoritative, false);
+  assert.equal(staging.historical_staging, true);
+  assert.equal(staging.see, "evidence-index.json");
+  records.push({ caseId: "F11-L08-STAGING-SUMMARY-NOT-PRESENTED-AS-FINAL", result: "ok" });
+  records.push({ caseId: "F11-L09-POINTER-HAS-NO-INDEX-DIGEST", result: "ok" });
+  assert.equal(assertLocalSyntheticEvidenceDirName("local-synthetic-f11").ok, true);
+  assert.equal(assertLocalSyntheticEvidenceDirName("hosted").ok, false);
+  assert.equal(assertLocalSyntheticEvidenceDirName("local/hosted/qualify").ok, false);
+  records.push({ caseId: "F11-L10-LOCAL-SYNTHETIC-LABEL-NOT-HOSTED", result: "ok" });
+
+  console.log(JSON.stringify({
+    publishedF11Closure: records,
+    f11ClosureFileCount: recursive.files.length,
+    f11ClosureDigest: recursive.closure_sha256,
+    f11ClosureFiles: recursive.files,
+  }, null, 2));
 });

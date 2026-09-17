@@ -1626,14 +1626,164 @@ export function allowlistIdentities() {
   return FINITE_OBJECT_ALLOWLIST.map((o) => o.identity);
 }
 
+/**
+ * Catalog-backed function identity used by inventory, planning, and TX.
+ * Built from pg_proc.proargtypes + format_type — argument names are not
+ * part of identity. Matches FINITE_OBJECT_ALLOWLIST forms:
+ * schema.name(type,type,...) including zero-arg, arrays, and custom types.
+ */
+export const CANONICAL_FUNCTION_IDENTITY_SQL = `(n.nspname || '.' || p.proname || '(' || COALESCE((
+    SELECT string_agg(pg_catalog.format_type(u.typoid, NULL), ',' ORDER BY u.ord)
+    FROM unnest(p.proargtypes) WITH ORDINALITY AS u(typoid, ord)
+  ), '') || ')')`;
+
+const MULTIWORD_TYPE_ALIASES = Object.freeze([
+  "timestamp with time zone",
+  "timestamp without time zone",
+  "time with time zone",
+  "time without time zone",
+  "double precision",
+  "character varying",
+  "bit varying",
+]);
+
+const TYPE_NAME_ALIASES = Object.freeze({
+  timestamptz: "timestamp with time zone",
+  timestamp: "timestamp without time zone",
+  timetz: "time with time zone",
+  "time": "time without time zone",
+  int2: "smallint",
+  int4: "integer",
+  int8: "bigint",
+  bool: "boolean",
+  float4: "real",
+  float8: "double precision",
+  varchar: "character varying",
+  varbit: "bit varying",
+});
+
+function isIdent(token) {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(token);
+}
+
+function normalizeTypeToken(typeText) {
+  let t = String(typeText ?? "").trim().replace(/\s+/g, " ");
+  if (!t) return "";
+  const arraySuffix = [];
+  while (/\[\]$/.test(t) || /\sARRAY$/i.test(t)) {
+    if (/\[\]$/.test(t)) {
+      t = t.slice(0, -2).trim();
+      arraySuffix.push("[]");
+    } else {
+      t = t.replace(/\sARRAY$/i, "").trim();
+      arraySuffix.push("[]");
+    }
+  }
+  const parts = t.split(".");
+  const last = parts[parts.length - 1];
+  const aliased = TYPE_NAME_ALIASES[last] || last;
+  if (parts.length > 1 && (parts[0] === "pg_catalog" || parts[0] === "public")) {
+    t = aliased;
+  } else if (parts.length > 1) {
+    t = `${parts.slice(0, -1).join(".")}.${aliased}`;
+  } else {
+    t = aliased;
+  }
+  return `${t}${arraySuffix.join("")}`;
+}
+
+function looksLikeType(text) {
+  const t = String(text ?? "").trim().toLowerCase();
+  if (!t || t === "array") return false;
+  if (MULTIWORD_TYPE_ALIASES.some((mw) => t === mw || t.startsWith(`${mw}[`) || t.startsWith(`${mw} array`))) {
+    return true;
+  }
+  const unsuffixed = t.replace(/(\s*\[\]|\s+array)+$/g, "");
+  if (TYPE_NAME_ALIASES[t] || TYPE_NAME_ALIASES[unsuffixed]) return true;
+  if (/^[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)*(\s*\[\]|\s+array)*$/i.test(t)) return true;
+  return false;
+}
+
+function splitIdentityArgs(argList) {
+  const out = [];
+  let current = "";
+  let depth = 0;
+  for (const ch of String(argList ?? "")) {
+    if (ch === "(" || ch === "[") depth += 1;
+    else if (ch === ")" || ch === "]") depth = Math.max(0, depth - 1);
+    if (ch === "," && depth === 0) {
+      out.push(current);
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  if (current.trim()) out.push(current);
+  return out;
+}
+
+function canonicalizeArgType(rawArg) {
+  const raw = String(rawArg ?? "").trim();
+  if (!raw) return "";
+  const lower = raw.toLowerCase();
+  for (const mw of MULTIWORD_TYPE_ALIASES) {
+    const idx = lower.lastIndexOf(mw);
+    if (idx >= 0) {
+      const prefix = raw.slice(0, idx).trim();
+      const typePart = raw.slice(idx).trim();
+      if (!prefix || isIdent(prefix.split(/\s+/).pop())) {
+        return normalizeTypeToken(typePart);
+      }
+    }
+  }
+  const tokens = raw.split(/\s+/);
+  if (tokens.length >= 2 && isIdent(tokens[0]) && looksLikeType(tokens.slice(1).join(" "))) {
+    return normalizeTypeToken(tokens.slice(1).join(" "));
+  }
+  return normalizeTypeToken(raw);
+}
+
+export function parseFunctionIdentity(identity) {
+  const text = String(identity ?? "").trim();
+  const match = text.match(/^([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\((.*)\)\s*$/);
+  if (!match) return null;
+  const argTypes = match[3].trim() === ""
+    ? []
+    : splitIdentityArgs(match[3]).map((arg) => canonicalizeArgType(arg)).filter((arg) => arg !== "");
+  return {
+    schema: match[1],
+    name: match[2],
+    argTypes,
+    identity: `${match[1]}.${match[2]}(${argTypes.join(",")})`,
+  };
+}
+
+export function canonicalizeFunctionIdentity(identity) {
+  const parsed = parseFunctionIdentity(identity);
+  return parsed ? parsed.identity : String(identity ?? "");
+}
+
+export function functionIdentitiesEqual(a, b) {
+  const left = parseFunctionIdentity(a);
+  const right = parseFunctionIdentity(b);
+  if (left && right) return left.identity === right.identity;
+  return String(a ?? "") === String(b ?? "");
+}
+
+export function allowlistIdentityMatches(observed, allowed) {
+  if (String(observed ?? "") === String(allowed ?? "")) return true;
+  if (functionIdentitiesEqual(observed, allowed)) return true;
+  return false;
+}
+
 export function isFinancialPrefixSelector(value) {
   const s = String(value ?? "").trim();
   return s === "financial_*" || /^financial_\*$/.test(s) || s === "financial_object";
 }
 
 export function validateObjectAllowlist(observedObjects = [], observedDependencies = []) {
-  const allowed = new Set(allowlistIdentities());
-  const allowedDep = new Set(FINITE_DEPENDENCY_ALLOWLIST.map((d) => d.identity));
+  const allowed = allowlistIdentities();
+  const allowedDep = FINITE_DEPENDENCY_ALLOWLIST.map((d) => d.identity);
   const unexpectedObjects = [];
   for (const item of observedObjects) {
     const identity = typeof item === "string" ? item : item?.identity;
@@ -1645,14 +1795,14 @@ export function validateObjectAllowlist(observedObjects = [], observedDependenci
       unexpectedObjects.push({ identity, reason: "financial_* prefix is not a destructive allowlist" });
       continue;
     }
-    if (!allowed.has(identity)) {
+    if (!allowed.some((allowedIdentity) => allowlistIdentityMatches(identity, allowedIdentity))) {
       unexpectedObjects.push({ identity, reason: "not in FINITE_OBJECT_ALLOWLIST" });
     }
   }
   const unexpectedDependencies = [];
   for (const dep of observedDependencies) {
     const identity = typeof dep === "string" ? dep : dep?.identity;
-    if (!identity || !allowedDep.has(identity)) {
+    if (!identity || !allowedDep.some((allowedIdentity) => allowlistIdentityMatches(identity, allowedIdentity))) {
       unexpectedDependencies.push({
         identity: identity || String(dep),
         reason: "not in FINITE_DEPENDENCY_ALLOWLIST",

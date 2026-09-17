@@ -49,6 +49,7 @@ import {
   PRODUCTION_REF,
   RECOGNITION_ALLOWLIST,
   TARGET_OBJECT_PROBES,
+  TRANSACTION_POOLER_PORT,
 } from "./lib/f3-db-push-pins.mjs";
 import {
   assertDbPushGates,
@@ -118,13 +119,20 @@ import {
   isCleanBaseline,
 } from "./lib/f3-db-push-inventory.mjs";
 import {
+  F13_F14_RUNTIME_CLOSURE_LABEL,
+  F13_F14_VERIFICATION_UNION_LABEL,
   F13_RESET_ALREADY_CLEAN_VERDICT,
   F13_RESET_SUCCESS_VERDICT,
   F13_RUNTIME_LABEL,
   F13_SHARED_ORCHESTRATION_ID,
+  F13_SUMMARY_FILE_HASH_FORBIDDEN,
   F13_WIPE_STILL_REJECTED,
+  F14_RUNTIME_LABEL,
+  QUALIFICATION_RESET_APPLY_PSQL_ARGV,
+  QUALIFICATION_RESET_LOCAL_PROOF_HELPER_RELPATH,
   evaluateQualificationResetArgv,
   parseFounderAuthorizationArtifactArg,
+  publishQualificationResetClosures,
   runQualificationResetQualifyPath,
   scopeSqlIdentityDigest,
 } from "./lib/f3-db-push-qualification-reset.mjs";
@@ -329,12 +337,19 @@ export function readBoundFunctionalCandidateSha({ cwd = root } = {}) {
 }
 
 export function qualificationResetRuntimeContext(overrides = {}) {
+  const published = publishQualificationResetClosures();
+  const synthetic = overrides.syntheticBinding === true || overrides.bindingRole === "negative-test-input";
   return {
     repoRoot: root,
     targetRef: APPROVED_DISPOSABLE_PROJECT_REF,
     functionalCandidateSha: overrides.functionalCandidateSha || readBoundFunctionalCandidateSha(),
-    closureDigest: overrides.closureDigest || F3_FUNCTIONAL_RECURSIVE_CLOSURE.closure_sha256,
+    closureDigest: overrides.closureDigest || published.runtime.sha256,
+    closureLabel: published.runtime.label,
     scopeSqlIdentitySha256: overrides.scopeSqlIdentitySha256 || scopeSqlIdentityDigest(),
+    syntheticBinding: synthetic,
+    bindingRole: synthetic ? "negative-test-input" : (overrides.bindingRole || "runtime-identity"),
+    notSummaryFileHash: true,
+    forbiddenSummaryHash: F13_SUMMARY_FILE_HASH_FORBIDDEN,
     ...overrides,
   };
 }
@@ -670,6 +685,189 @@ export function renderProposedConstrainedResetPlanMarkdown(procedure) {
     "",
     `Offline validation recorded: noResetOccurred=${plan.noResetOccurred} noServiceConnection=${plan.noServiceConnection}.`,
   ].join("\n");
+}
+
+export const F14_PROPOSED_HOSTED_PLAN_STATUS = "PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE";
+export const F14_PROPOSED_RESET_COMMAND = "scripts/qualify-f3-db-push-disposable.mjs";
+export const F14_PROPOSED_EVIDENCE_DESTINATIONS = Object.freeze({
+  resetEvidence: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F14_QUALIFICATION_RESET_HOSTED_REQUAL/hosted/qualification-reset/qualify-result.json",
+  founderAuthArtifact: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F14_QUALIFICATION_RESET_HOSTED_REQUAL/hosted/qualification-reset/FOUNDER_AUTH.json",
+  completeQualEvidence: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F14_QUALIFICATION_RESET_HOSTED_REQUAL/hosted/qualify-from-00118/qualify-result.json",
+  planRecord: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F14_QUALIFICATION_RESET_HOSTED_REQUAL/PROPOSED_HOSTED_REQUAL_PLAN.md",
+});
+
+export function buildProposedQualificationResetHostedPlan({
+  functionalTip = readBoundFunctionalCandidateSha(),
+  closures = publishQualificationResetClosures(),
+} = {}) {
+  const wipe = evaluateWipeToBaselineArg(true);
+  const scope = scopeSqlIdentityDigest();
+  const resetArgv = [
+    "node",
+    F14_PROPOSED_RESET_COMMAND,
+    "--qualification-reset",
+    `--founder-authorization-artifact=${F14_PROPOSED_EVIDENCE_DESTINATIONS.founderAuthArtifact}`,
+    `--evidence-out=${F14_PROPOSED_EVIDENCE_DESTINATIONS.resetEvidence}`,
+  ];
+  const completeQualArgv = [
+    "node",
+    F14_PROPOSED_RESET_COMMAND,
+    "--no-wipe",
+    "--prep-floor",
+    "--sequence-f3",
+    "--floor-mode=stub-live-pin",
+    `--evidence-out=${F14_PROPOSED_EVIDENCE_DESTINATIONS.completeQualEvidence}`,
+  ];
+  const expectedDeliberateFailures = [
+    {
+      argv: ["node", F14_PROPOSED_RESET_COMMAND, "--wipe-to-baseline"],
+      expectedCode: WIPE_TO_BASELINE_REJECTION_CODE,
+    },
+    {
+      argv: ["node", F14_PROPOSED_RESET_COMMAND, "--qualification-reset"],
+      expectedCode: "F13_FLAG_NOT_AUTHORIZATION",
+    },
+    {
+      argv: ["node", F14_PROPOSED_RESET_COMMAND, "--qualification-reset", "--prep-floor", `--founder-authorization-artifact=${F14_PROPOSED_EVIDENCE_DESTINATIONS.founderAuthArtifact}`],
+      expectedCode: "F13_INVALID_FLAG_COMBINATION",
+    },
+  ];
+  return {
+    status: F14_PROPOSED_HOSTED_PLAN_STATUS,
+    authorized: false,
+    executed: false,
+    proposedOnly: true,
+    transportsDisabled: true,
+    noServiceConnection: true,
+    noResetOccurred: true,
+    label: F14_RUNTIME_LABEL,
+    functionalTip,
+    runtimeClosure: {
+      label: closures.runtime.label,
+      sha256: closures.runtime.sha256,
+      count: closures.runtime.count,
+      notSummaryFileHash: true,
+      forbiddenSummaryHash: F13_SUMMARY_FILE_HASH_FORBIDDEN,
+    },
+    verificationUnion: {
+      label: closures.completeVerificationUnion.label,
+      sha256: closures.completeVerificationUnion.sha256,
+      count: closures.completeVerificationUnion.count,
+    },
+    scopeSqlIdentitySha256: scope,
+    cliPin: CLI_PIN,
+    proofHelper: QUALIFICATION_RESET_LOCAL_PROOF_HELPER_RELPATH,
+    applyPsqlArgv: [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", "[FILE]"],
+    placeholders: {
+      dbUrl: "[REDACTED]",
+      password: "[REDACTED]",
+      founderAuthSecretsForbidden: true,
+    },
+    target: {
+      accept: APPROVED_DISPOSABLE_PROJECT_REF,
+      reject: [PRODUCTION_REF, `transaction pooler :${TRANSACTION_POOLER_PORT}`],
+    },
+    wipeToBaselineRejected: wipe.rejected === true && wipe.code === WIPE_TO_BASELINE_REJECTION_CODE,
+    wipeRejectionCode: WIPE_TO_BASELINE_REJECTION_CODE,
+    budget: {
+      constrainedResets: 1,
+      completeQualsFrom00118: 1,
+      secondReset: false,
+      alreadyCleanDoesNotConsumeReset: true,
+      consumedResetOnlyAfterCommittedMutation: true,
+    },
+    preconditions: [
+      "HEAD equals bound functionalTip",
+      "founder authorization artifact binds target+functionalTip+runtimeClosure+scopeSqlIdentity+budget",
+      "inventory capture uses QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL with machine-readable psql argv",
+      "CLEAN_BASELINE alreadyClean is a no-op and does not consume the reset budget",
+      "RESET_ELIGIBLE leftovers require eligible===true before one gated apply",
+    ],
+    commands: {
+      reset: resetArgv,
+      completeQualFrom00118: completeQualArgv,
+    },
+    evidenceDestinations: F14_PROPOSED_EVIDENCE_DESTINATIONS,
+    expectedDeliberateFailures,
+    stopOnUnexpected: true,
+    uncertainOutcomeNoReplay: true,
+    sequencing: [
+      "offline validate this plan with disabled hosted transports",
+      "confirm disposable target only; refuse production immediately",
+      "run exactly one constrained --qualification-reset if leftovers are eligible, or record alreadyClean no-op",
+      "if reset commits, consume constrainedResets=1; do not run a second reset",
+      "if alreadyClean, constrainedResets remains unused; still run exactly one complete qual-from-00118",
+      "run exactly one complete qualify-from-00118: --no-wipe --prep-floor --sequence-f3 --floor-mode=stub-live-pin",
+      "stop on first unexpected failure; UNCERTAIN_COMMIT forbids replay",
+      "finalize evidence bytes, then Chief/QA review; do not execute this plan from local correction",
+    ],
+  };
+}
+
+export function validateProposedQualificationResetHostedPlanOffline(
+  plan = buildProposedQualificationResetHostedPlan(),
+) {
+  const wipe = evaluateWipeToBaselineArg(true);
+  if (!wipe.rejected || wipe.code !== WIPE_TO_BASELINE_REJECTION_CODE) {
+    return { ok: false, reason: "wipe-to-baseline rejection guard missing" };
+  }
+  if (plan.status !== F14_PROPOSED_HOSTED_PLAN_STATUS || plan.authorized === true || plan.executed === true) {
+    return { ok: false, reason: "plan must remain proposed-only and unauthorized" };
+  }
+  if (!/^[0-9a-f]{40}$/.test(String(plan.functionalTip || ""))) {
+    return { ok: false, reason: "functional tip must be a full 40-character SHA" };
+  }
+  if (!/^[0-9a-f]{64}$/.test(String(plan.runtimeClosure?.sha256 || "")) || plan.runtimeClosure.sha256 === F13_SUMMARY_FILE_HASH_FORBIDDEN) {
+    return { ok: false, reason: "runtime closure must be the entrypoint digest, never the summary-file hash" };
+  }
+  if (plan.runtimeClosure.label !== F13_F14_RUNTIME_CLOSURE_LABEL) {
+    return { ok: false, reason: "runtime closure label mismatch" };
+  }
+  if (plan.verificationUnion.label !== F13_F14_VERIFICATION_UNION_LABEL) {
+    return { ok: false, reason: "verification-union label mismatch" };
+  }
+  const reset = plan.commands?.reset || [];
+  const qual = plan.commands?.completeQualFrom00118 || [];
+  if (reset[1] !== F14_PROPOSED_RESET_COMMAND || !reset.includes("--qualification-reset")) {
+    return { ok: false, reason: "reset command must be the real qualify entrypoint with --qualification-reset" };
+  }
+  if (qual[1] !== F14_PROPOSED_RESET_COMMAND || !qual.includes("--no-wipe") || !qual.includes("--prep-floor") || !qual.includes("--sequence-f3")) {
+    return { ok: false, reason: "complete qual-from-00118 command is incomplete" };
+  }
+  if (plan.budget.constrainedResets !== 1 || plan.budget.completeQualsFrom00118 !== 1 || plan.budget.secondReset !== false) {
+    return { ok: false, reason: "budget must be one reset and one qualify" };
+  }
+  for (const failure of plan.expectedDeliberateFailures || []) {
+    const parsed = parseArgs(failure.argv.slice(2));
+    if (failure.expectedCode === WIPE_TO_BASELINE_REJECTION_CODE) {
+      const rejected = evaluateWipeToBaselineArg(parsed.wipeToBaseline === true);
+      if (rejected.code !== WIPE_TO_BASELINE_REJECTION_CODE) {
+        return { ok: false, reason: "wipe deliberate failure is not produced by the actual runner" };
+      }
+    } else {
+      const cli = evaluateQualificationResetCli(parsed, qualificationResetRuntimeContext({
+        functionalCandidateSha: plan.functionalTip,
+        closureDigest: plan.runtimeClosure.sha256,
+        syntheticBinding: true,
+        bindingRole: "negative-test-input",
+      }));
+      if (cli.ok !== false || cli.code !== failure.expectedCode) {
+        return { ok: false, reason: `expected deliberate failure ${failure.expectedCode}, got ${cli.code}` };
+      }
+    }
+  }
+  if (plan.transportsDisabled !== true || plan.noServiceConnection !== true) {
+    return { ok: false, reason: "offline validator must record that hosted transports stayed disabled" };
+  }
+  return {
+    ok: true,
+    noResetOccurred: true,
+    noServiceConnection: true,
+    transportsDisabled: true,
+    wipeToBaselineStillRejected: true,
+    procedureStatus: plan.status,
+    runtimeClosureSha256: plan.runtimeClosure.sha256,
+  };
 }
 
 function collectPhaseFingerprint(file, queryResult, phase) {

@@ -29,11 +29,13 @@ import {
 } from "./f3-db-push-pins.mjs";
 import {
   AUTHENTICATED_HISTORY_KEYS,
+  CANONICAL_FUNCTION_IDENTITY_SQL,
   FINITE_DEPENDENCY_ALLOWLIST,
   FINITE_OBJECT_ALLOWLIST,
   F13_WIPE_REJECTION_CODE,
   TRANSACTION_PHASES,
   UNCERTAIN_COMMIT_POLICY,
+  canonicalizeFunctionIdentity,
   isFinancialPrefixSelector,
   scopeSqlIdentityDigest,
   sha256Utf8,
@@ -47,11 +49,17 @@ import {
 import {
   INVENTORY_CAPTURE_SQL,
   QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL,
+  QUALIFICATION_RESET_INVENTORY_SCHEMA,
+  QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION,
+  buildQualificationResetInventoryPsqlCommand,
   evaluateQualificationResetEligibility,
   observedFromQualificationResetCapture,
+  parseQualificationResetInventoryProcessResult,
+  validateQualificationResetInventoryBody,
 } from "./f3-db-push-inventory.mjs";
-import { GATED_PSQL_FILE_RENDERED, runGatedRemoteSqlText } from "./f3-db-push-remote-sql-file.mjs";
-import { assertDbPushGates, refuseProduction, sanitizeForLog } from "./f3-db-push-target-guard.mjs";
+import { GATED_PSQL_FILE_RENDERED, writeGatedSqlFile } from "./f3-db-push-remote-sql-file.mjs";
+import { assertDbPushGates, refuseProduction, sanitizeForLog, spawnGatedRemotePsqlSync } from "./f3-db-push-target-guard.mjs";
+import { buildFunctionalRecursiveRuntimeClosure } from "./f3-db-push-repair-safety-gate.mjs";
 
 const RESET_MODULE_DIR = fileURLToPath(new URL(".", import.meta.url));
 const DEFAULT_REPO_ROOT = path.resolve(RESET_MODULE_DIR, "../..");
@@ -59,10 +67,42 @@ const DEFAULT_REPO_ROOT = path.resolve(RESET_MODULE_DIR, "../..");
 export { scopeSqlIdentityDigest, AUTHENTICATED_HISTORY_KEYS };
 
 export const F13_RUNTIME_PHASE = 2;
-export const F13_RUNTIME_LABEL =
-  "F13 RESET IMPLEMENTATION CANDIDATE — LOCAL VERIFICATION PENDING CHIEF / QA";
+export const F14_RUNTIME_LABEL =
+  "F14 LOCAL CORRECTION CANDIDATE — AWAITING QA / LOCAL PROOF";
+export const F13_RUNTIME_LABEL = F14_RUNTIME_LABEL;
 export const F13_SHARED_ORCHESTRATION_ID = "runQualificationReset";
 export const F13_WIPE_STILL_REJECTED = F13_WIPE_REJECTION_CODE;
+export const F13_F14_RUNTIME_CLOSURE_LABEL = "F14_QUALIFICATION_RESET_RUNTIME_CLOSURE";
+export const F13_F14_VERIFICATION_UNION_LABEL = "F14_QUALIFICATION_RESET_VERIFICATION_UNION";
+export const F13_BASELINE_RUNTIME_CLOSURE = Object.freeze({
+  count: 45,
+  sha256: "51c4a98fe2f249978dad09451b1a5e4a88617b833f66cafb6252870e6be7ed6d",
+  notExpectedF14: true,
+});
+export const F13_BASELINE_VERIFICATION_UNION = Object.freeze({
+  count: 47,
+  sha256: "a317ff4f2008e15579e39769f1ed0b151f612a23e5ed444db238cae39c7387fe",
+  notExpectedF14: true,
+});
+export const F13_SUMMARY_FILE_HASH_FORBIDDEN =
+  "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d";
+export const TX_OBSERVATION_SCHEMA = "f14-qualification-reset-tx-observation-v1";
+export const QUALIFICATION_RESET_APPLY_PSQL_ARGV = Object.freeze([
+  "-X",
+  "-q",
+  "-t",
+  "-A",
+  "-w",
+  "-v",
+  "ON_ERROR_STOP=1",
+]);
+export const QUALIFICATION_RESET_LOCAL_PROOF_HELPER_RELPATH =
+  "scripts/prove-f3-qualification-reset-local.mjs";
+export const QUALIFICATION_RESET_VERIFICATION_ONLY_FILES = Object.freeze([
+  "scripts/test-f3-qualification-reset.mjs",
+  "scripts/test-f3-qualification-reset-design.mjs",
+  QUALIFICATION_RESET_LOCAL_PROOF_HELPER_RELPATH,
+]);
 export const F13_RESET_SUCCESS_VERDICT = "CLEAN_BASELINE";
 export const F13_RESET_ALREADY_CLEAN_VERDICT = "CLEAN_BASELINE";
 export const F13_INVENTORY_CAPTURE_REQUIRED = "F13_INVENTORY_CAPTURE_REQUIRED";
@@ -71,6 +111,11 @@ export const F13_INVENTORY_CAPTURE_SQL_ARTIFACT =
 export {
   INVENTORY_CAPTURE_SQL,
   QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL,
+  QUALIFICATION_RESET_INVENTORY_SCHEMA,
+  QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION,
+  buildQualificationResetInventoryPsqlCommand,
+  parseQualificationResetInventoryProcessResult,
+  validateQualificationResetInventoryBody,
 };
 
 export const F13_TX_TIMEOUTS = Object.freeze({
@@ -132,8 +177,8 @@ function sqlTextArray(values) {
 
 function identityOf(item) {
   if (item == null) return "";
-  if (typeof item === "string") return item;
-  return String(item.identity || "");
+  const raw = typeof item === "string" ? item : String(item.identity || "");
+  return raw.includes("(") ? canonicalizeFunctionIdentity(raw) : raw;
 }
 
 function snapshotObserved(input = {}) {
@@ -399,6 +444,8 @@ export function planQualificationReset(input = {}) {
     observedObjectIdentities: input.observedObjects || [],
     observedDependencies: input.observedDependencies || [],
     observedHistoryRows: input.observedHistoryRows || [],
+    inventoryCaptured: input.inventoryCaptured === true,
+    captureComplete: input.captureComplete === true,
   });
   if (!eligibility.ok) {
     return fail(eligibility.code, eligibility.reason, eligibility);
@@ -552,6 +599,16 @@ function dropStatement(row) {
   throw new Error(`unsupported allowlist kind ${row.kind}`);
 }
 
+function txObservationSql(phase, event, extra = {}) {
+  const payload = {
+    schema: TX_OBSERVATION_SCHEMA,
+    phase,
+    event,
+    ...extra,
+  };
+  return `SELECT ${sqlString(JSON.stringify(payload))}::text;`;
+}
+
 function advisoryLockKeys(digest) {
   const hex = String(digest || "0").replace(/[^0-9a-f]/gi, "").padEnd(16, "0").slice(0, 16);
   const k1 = Number.parseInt(hex.slice(0, 8), 16) << 0;
@@ -591,6 +648,7 @@ export function buildQualificationResetSql({
   lines.push(`SET LOCAL statement_timeout = ${sqlString(F13_TX_TIMEOUTS.statement_timeout)};`);
   lines.push(`SET LOCAL idle_in_transaction_session_timeout = ${sqlString(F13_TX_TIMEOUTS.idle_in_transaction_session_timeout)};`);
   lines.push(`SELECT pg_advisory_xact_lock(${lockK1}, ${lockK2});`);
+  lines.push(txObservationSql("T1_BEGIN", "began"));
   lines.push("-- T2_LOCK");
   lines.push("DO $f13_lock$");
   lines.push("BEGIN");
@@ -605,6 +663,7 @@ export function buildQualificationResetSql({
   }
   lines.push("END");
   lines.push("$f13_lock$;");
+  lines.push(txObservationSql("T2_LOCK", "locked"));
   lines.push("-- T3_REVALIDATE");
   lines.push("DO $f13_revalidate$");
   lines.push("DECLARE");
@@ -622,11 +681,20 @@ export function buildQualificationResetSql({
   lines.push("  IF extra IS NOT NULL THEN");
   lines.push("    RAISE EXCEPTION 'F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: %', extra;");
   lines.push("  END IF;");
-  lines.push("  SELECT n.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' INTO extra");
+  lines.push(`  SELECT n.nspname || '.' || c.relname INTO extra`);
+  lines.push("  FROM pg_class c");
+  lines.push("  JOIN pg_namespace n ON n.oid = c.relnamespace");
+  lines.push("  WHERE n.nspname IN ('financial_core', 'financial_private', 'public')");
+  lines.push("    AND c.relkind = 'v'");
+  lines.push("  LIMIT 1;");
+  lines.push("  IF extra IS NOT NULL THEN");
+  lines.push("    RAISE EXCEPTION 'F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: %', extra;");
+  lines.push("  END IF;");
+  lines.push(`  SELECT ${CANONICAL_FUNCTION_IDENTITY_SQL} INTO extra`);
   lines.push("  FROM pg_proc p");
   lines.push("  JOIN pg_namespace n ON n.oid = p.pronamespace");
   lines.push("  WHERE n.nspname IN ('financial_core', 'financial_private', 'public')");
-  lines.push(`    AND (n.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')') <> ALL (${sqlTextArray(functionIdentities)})`);
+  lines.push(`    AND ${CANONICAL_FUNCTION_IDENTITY_SQL} <> ALL (${sqlTextArray(functionIdentities)})`);
   lines.push("  LIMIT 1;");
   lines.push("  IF extra IS NOT NULL THEN");
   lines.push("    RAISE EXCEPTION 'F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: %', extra;");
@@ -684,7 +752,9 @@ export function buildQualificationResetSql({
   }
   lines.push("END");
   lines.push("$f13_revalidate$;");
+  lines.push(txObservationSql("T3_REVALIDATE", "revalidated"));
   lines.push("-- T4_MUTATE / T5_AFFECTED");
+  lines.push(txObservationSql("T4_MUTATE", "mutate_attempted"));
   lines.push("DO $f13_mutate$");
   lines.push("DECLARE");
   lines.push("  deleted_count integer;");
@@ -737,6 +807,7 @@ export function buildQualificationResetSql({
   }
   lines.push("END");
   lines.push("$f13_mutate$;");
+  lines.push(txObservationSql("T5_AFFECTED", "affected_checked"));
   lines.push("-- T6_FINAL");
   lines.push("DO $f13_final$");
   lines.push("DECLARE");
@@ -755,8 +826,11 @@ export function buildQualificationResetSql({
   lines.push("  leftover := NULL;");
   lines.push("END");
   lines.push("$f13_final$;");
+  lines.push(txObservationSql("T6_FINAL", "final_ok"));
   lines.push("-- T7_COMMIT");
+  lines.push(txObservationSql("T7_COMMIT", "commit_attempted"));
   lines.push("COMMIT;");
+  lines.push(txObservationSql("T7_COMMIT", "committed", { committed: true }));
 
   const sql = `${lines.join("\n")}\n`;
   const cascade = validateNoBroadCascade(sql);
@@ -778,33 +852,127 @@ export function buildQualificationResetSql({
 }
 
 function encodeProcessResult(result, commandIdentity) {
-  const stdout = String(sanitizeForLog(String(result?.stdout ?? "")) ?? "");
-  const stderr = String(sanitizeForLog(String(result?.stderr ?? "")) ?? "");
+  const stdoutRaw = result?.stdout ?? "";
+  const stderrRaw = result?.stderr ?? "";
+  const stdout = String(sanitizeForLog(String(stdoutRaw)) ?? "");
+  const stderr = String(sanitizeForLog(String(stderrRaw)) ?? "");
   const errorRaw = result?.error ?? null;
-  const error = errorRaw == null
+  const structuredError = errorRaw == null
     ? null
-    : String(sanitizeForLog(typeof errorRaw === "object" ? String(errorRaw.message || errorRaw.code || "") : String(errorRaw)) ?? "");
+    : {
+      code: errorRaw.code ?? null,
+      name: errorRaw.name ?? null,
+      syscall: errorRaw.syscall ?? null,
+      message: String(sanitizeForLog(String(errorRaw.message || errorRaw.code || errorRaw)) ?? ""),
+    };
+  const error = structuredError?.message ?? null;
   return {
     commandIdentity,
-    argv: Array.isArray(result?.argv) ? result.argv.map((item) => String(sanitizeForLog(String(item)) ?? "")) : ["-X", "-v", "ON_ERROR_STOP=1", "-f", "[FILE]"],
-    status: Number.isInteger(result?.status) ? result.status : 1,
+    argv: Array.isArray(result?.argv)
+      ? result.argv.map((item) => String(sanitizeForLog(String(item)) ?? ""))
+      : [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", "[FILE]"],
+    status: Object.prototype.hasOwnProperty.call(result || {}, "status") && Number.isInteger(result.status)
+      ? result.status
+      : null,
     stdout,
     stderr,
+    originalStdout: stdoutRaw,
+    originalStderr: stderrRaw,
     error,
+    structuredError,
     signal: result?.signal ?? null,
-    timeout: result?.timeout === true,
+    timeout: result?.timeout === true || result?.timedOut === true,
+    thrown: result?.thrown === true,
   };
 }
 
-function isUncertainCommit(result) {
-  const blob = `${result?.stderr || ""} ${result?.error || ""} ${result?.signal || ""}`;
-  return UNCERTAIN_COMMIT_RE.test(blob) || result?.uncertainCommit === true;
+function extractTxObservations(stdout) {
+  const raw = String(stdout ?? "");
+  const observations = [];
+  const jsonObjects = raw.match(/\{[^{}]*"schema"\s*:\s*"f14-qualification-reset-tx-observation-v1"[^{}]*\}/g) || [];
+  for (const chunk of jsonObjects) {
+    try {
+      const parsed = JSON.parse(chunk);
+      if (parsed?.schema === TX_OBSERVATION_SCHEMA && typeof parsed.phase === "string" && typeof parsed.event === "string") {
+        observations.push(parsed);
+      }
+    } catch {
+      // incomplete / truncated JSON is not an observation
+    }
+  }
+  return observations;
+}
+
+export function interpretQualificationResetTransportResult(processResult, { thrown = null } = {}) {
+  const encoded = encodeProcessResult(
+    thrown
+      ? {
+        status: processResult?.status ?? null,
+        stdout: processResult?.stdout ?? "",
+        stderr: processResult?.stderr ?? String(thrown.message || thrown),
+        error: thrown,
+        signal: processResult?.signal ?? null,
+        timeout: processResult?.timeout === true,
+        thrown: true,
+        argv: processResult?.argv,
+      }
+      : processResult,
+    processResult?.commandIdentity || GATED_PSQL_FILE_RENDERED,
+  );
+  const observations = extractTxObservations(encoded.stdout);
+  const events = observations.map((obs) => obs.event);
+  const phases = observations.map((obs) => obs.phase);
+  const began = events.includes("began");
+  const mutateAttempted = events.includes("mutate_attempted");
+  const commitAttempted = events.includes("commit_attempted");
+  const committedObserved = observations.some((obs) => obs.event === "committed" && obs.committed === true);
+  const rollbackObserved = observations.some((obs) => obs.event === "rolled_back" && obs.rolledBack === true);
+  const connectionLoss = UNCERTAIN_COMMIT_RE.test(`${encoded.stderr} ${encoded.error || ""} ${encoded.signal || ""}`)
+    || /ECONNRESET/i.test(`${encoded.stderr} ${encoded.error || ""} ${thrown?.code || ""} ${thrown?.message || ""}`);
+  const processOk = thrown == null
+    && encoded.status === 0
+    && !encoded.signal
+    && encoded.timeout !== true;
+  const truncatedCommit = commitAttempted && !committedObserved;
+  const uncertainCommit = !committedObserved && (
+    truncatedCommit
+    || (commitAttempted && (connectionLoss || encoded.timeout === true || encoded.signal || thrown))
+    || (connectionLoss && /COMMIT/i.test(`${encoded.stderr} ${encoded.error || ""}`))
+  );
+
+  return {
+    planned: { phases: TRANSACTION_PHASES.map((p) => p.id) },
+    attempted: {
+      processSpawned: true,
+      status: encoded.status,
+      signal: encoded.signal,
+      timeout: encoded.timeout === true,
+      thrown: thrown != null,
+    },
+    observed: {
+      phases,
+      events,
+      observations,
+      began,
+      mutateAttempted,
+      commitAttempted,
+      committed: committedObserved,
+      rolledBack: rollbackObserved,
+    },
+    committed: processOk && committedObserved,
+    rolledBack: rollbackObserved ? true : null,
+    uncertainCommit,
+    phaseReached: phases.at(-1) || null,
+    processResult: encoded,
+    fabricatedFromExitAlone: false,
+  };
 }
 
 function emptySpies() {
   return {
     planCalls: 0,
     validateCalls: 0,
+    captureCalls: 0,
     transportCalls: 0,
     applyCalls: 0,
     sqlCalls: 0,
@@ -820,6 +988,10 @@ function emptySpies() {
   };
 }
 
+function observationLine(phase, event, extra = {}) {
+  return `${JSON.stringify({ schema: TX_OBSERVATION_SCHEMA, phase, event, ...extra })}\n`;
+}
+
 export function createDisabledQualificationResetTransportAdapter(script = {}) {
   return {
     kind: "disabled",
@@ -828,36 +1000,31 @@ export function createDisabledQualificationResetTransportAdapter(script = {}) {
     inventoryAtTx: script.inventoryAtTx || null,
     sentinel: script.sentinel || { id: "storage.buckets", preserved: true },
     execute({ sql, plan, inventoryAtTx } = {}) {
+      const argv = [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", "[FILE]"];
+      const base = {
+        argv,
+        error: null,
+        signal: null,
+        timeout: false,
+      };
       const cascade = validateNoBroadCascade(sql || "");
       if (!cascade.ok) {
         return {
+          ...base,
           status: 1,
           stdout: "",
           stderr: cascade.reason,
           error: cascade,
-          signal: null,
-          timeout: false,
-          phaseReached: "T0_BIND",
-          rolledBack: true,
-          committed: false,
-          replayed: false,
-          sentinelPreserved: true,
         };
       }
       const historyPred = validateHistorySqlPredicate(sql || "");
       if (!historyPred.ok) {
         return {
+          ...base,
           status: 1,
           stdout: "",
           stderr: historyPred.reason,
           error: historyPred,
-          signal: null,
-          timeout: false,
-          phaseReached: "T0_BIND",
-          rolledBack: true,
-          committed: false,
-          replayed: false,
-          sentinelPreserved: true,
         };
       }
       const observedAtTx = inventoryAtTx || script.inventoryAtTx || plan?.observed;
@@ -867,119 +1034,137 @@ export function createDisabledQualificationResetTransportAdapter(script = {}) {
         observedHistoryRows: observedAtTx.history || observedAtTx.observedHistoryRows,
       }))) {
         return {
+          ...base,
           status: 1,
-          stdout: "",
-          stderr: "F13_STATE_CHANGED_BEFORE_TX",
+          stdout: observationLine("T1_BEGIN", "began") + observationLine("T3_REVALIDATE", "revalidated"),
+          stderr: "ERROR:  F13_STATE_CHANGED_BEFORE_TX",
           error: { code: "F13_STATE_CHANGED_BEFORE_TX" },
-          signal: null,
-          timeout: false,
-          phaseReached: "T3_REVALIDATE",
-          began: true,
-          rolledBack: true,
-          committed: false,
-          replayed: false,
-          sentinelPreserved: true,
         };
       }
       const failAt = script.failAt;
+      if (failAt === "throw_econnreset") {
+        const err = new Error("read ECONNRESET");
+        err.code = "ECONNRESET";
+        err.syscall = "read";
+        throw err;
+      }
+      if (failAt === "timeout") {
+        return {
+          ...base,
+          status: null,
+          stdout: observationLine("T1_BEGIN", "began") + observationLine("T4_MUTATE", "mutate_attempted") + observationLine("T7_COMMIT", "commit_attempted"),
+          stderr: "timeout: psql terminated",
+          timeout: true,
+          signal: "SIGTERM",
+          error: { code: "ETIMEDOUT", message: "timeout during COMMIT" },
+        };
+      }
+      if (failAt === "truncated") {
+        return {
+          ...base,
+          status: 0,
+          stdout: observationLine("T1_BEGIN", "began")
+            + observationLine("T7_COMMIT", "commit_attempted")
+            + '{"schema":"f14-qualification-reset-tx-observation-v1","phase":"T7_COMMIT","event":"comm',
+          stderr: "",
+        };
+      }
+      if (failAt === "rollback_observed") {
+        return {
+          ...base,
+          status: 1,
+          stdout: observationLine("T1_BEGIN", "began")
+            + observationLine("T4_MUTATE", "mutate_attempted")
+            + observationLine("T4_MUTATE", "rolled_back", { rolledBack: true }),
+          stderr: "ERROR:  F13_RESET_SQL_FAILED",
+          error: { code: "F13_RESET_SQL_FAILED" },
+        };
+      }
+      if (failAt === "success_status_only") {
+        return {
+          ...base,
+          status: 0,
+          stdout: "COMMIT\n",
+          stderr: "",
+        };
+      }
       if (failAt === "before_mutation" || failAt === "T0_BIND") {
         return {
+          ...base,
           status: 1,
           stdout: "",
-          stderr: "F13_FAILURE_BEFORE_MUTATION",
+          stderr: "ERROR:  F13_FAILURE_BEFORE_MUTATION",
           error: { code: "F13_FAILURE_BEFORE_MUTATION" },
-          signal: null,
-          timeout: false,
-          phaseReached: "T0_BIND",
-          began: false,
-          rolledBack: false,
-          committed: false,
-          replayed: false,
-          sentinelPreserved: true,
         };
       }
       if (failAt === "after_begin" || failAt === "T1_BEGIN" || failAt === "T2_LOCK" || failAt === "T3_REVALIDATE") {
         return {
+          ...base,
           status: 1,
-          stdout: "",
-          stderr: "F13_FAILURE_AFTER_BEGIN",
+          stdout: observationLine("T1_BEGIN", "began") + observationLine("T3_REVALIDATE", "revalidated"),
+          stderr: "ERROR:  F13_FAILURE_AFTER_BEGIN",
           error: { code: "F13_FAILURE_AFTER_BEGIN" },
-          signal: null,
-          timeout: false,
-          phaseReached: failAt === "after_begin" ? "T3_REVALIDATE" : failAt,
-          began: true,
-          rolledBack: true,
-          committed: false,
-          replayed: false,
-          sentinelPreserved: true,
         };
       }
       if (failAt === "affected_row" || failAt === "T5_AFFECTED") {
         return {
+          ...base,
           status: 1,
-          stdout: "",
-          stderr: "F13_AFFECTED_ROW_MISMATCH",
+          stdout: observationLine("T1_BEGIN", "began") + observationLine("T4_MUTATE", "mutate_attempted"),
+          stderr: "ERROR:  F13_AFFECTED_ROW_MISMATCH",
           error: { code: "F13_AFFECTED_ROW_MISMATCH" },
-          signal: null,
-          timeout: false,
-          phaseReached: "T5_AFFECTED",
-          began: true,
-          mutated: true,
-          rolledBack: true,
-          committed: false,
-          replayed: false,
-          sentinelPreserved: true,
         };
       }
       if (failAt === "final" || failAt === "T6_FINAL") {
         return {
+          ...base,
           status: 1,
-          stdout: "",
-          stderr: "F13_FINAL_BASELINE_FAILED",
+          stdout: observationLine("T1_BEGIN", "began") + observationLine("T4_MUTATE", "mutate_attempted"),
+          stderr: "ERROR:  F13_FINAL_BASELINE_FAILED",
           error: { code: "F13_FINAL_BASELINE_FAILED" },
-          signal: null,
-          timeout: false,
-          phaseReached: "T6_FINAL",
-          began: true,
-          mutated: true,
-          rolledBack: true,
-          committed: false,
-          replayed: false,
-          sentinelPreserved: true,
+        };
+      }
+      if (failAt === "sql_failure") {
+        return {
+          ...base,
+          status: 1,
+          stdout: observationLine("T1_BEGIN", "began"),
+          stderr: "ERROR:  syntax error at or near \"NOT_A_COMMAND\"",
+          error: { code: "F13_RESET_SQL_FAILED" },
         };
       }
       if (failAt === "uncertain_commit" || failAt === "T7_COMMIT") {
         return {
+          ...base,
           status: 1,
-          stdout: "",
-          stderr: "connection to server was lost during COMMIT 08006",
+          stdout: observationLine("T1_BEGIN", "began")
+            + observationLine("T4_MUTATE", "mutate_attempted")
+            + observationLine("T7_COMMIT", "commit_attempted"),
+          stderr: "psql: error: connection to server was lost during COMMIT 08006",
           error: { code: "08006", message: "connection to server was lost during COMMIT" },
-          signal: null,
-          timeout: false,
-          phaseReached: "T7_COMMIT",
-          began: true,
-          mutated: true,
-          uncertainCommit: true,
-          rolledBack: null,
-          committed: false,
-          replayed: false,
-          sentinelPreserved: null,
+        };
+      }
+      if (script.replayed === true) {
+        return {
+          ...base,
+          status: 1,
+          stdout: observationLine("T7_COMMIT", "commit_attempted"),
+          stderr: "replay attempted",
+          replayed: true,
         };
       }
       return {
+        ...base,
         status: 0,
-        stdout: "f13_qualification_reset_ok",
+        stdout: observationLine("T1_BEGIN", "began")
+          + observationLine("T2_LOCK", "locked")
+          + observationLine("T3_REVALIDATE", "revalidated")
+          + observationLine("T4_MUTATE", "mutate_attempted")
+          + observationLine("T5_AFFECTED", "affected_checked")
+          + observationLine("T6_FINAL", "final_ok")
+          + observationLine("T7_COMMIT", "commit_attempted")
+          + observationLine("T7_COMMIT", "committed", { committed: true }),
         stderr: "",
-        error: null,
-        signal: null,
-        timeout: false,
-        phaseReached: "T7_COMMIT",
-        began: true,
-        mutated: true,
-        rolledBack: false,
-        committed: true,
-        replayed: false,
-        sentinelPreserved: script.sentinel?.preserved !== false,
       };
     },
   };
@@ -996,7 +1181,19 @@ export function createLiveQualificationResetTransportAdapter({ workdir } = {}) {
           code: "F13_WORKDIR_REQUIRED",
         });
       }
-      return runGatedRemoteSqlText(workdir, "f13-qualification-reset.sql", sql);
+      const abs = writeGatedSqlFile(workdir, "f13-qualification-reset.sql", sql);
+      const argv = [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", abs];
+      const res = spawnGatedRemotePsqlSync(argv);
+      return {
+        commandIdentity: GATED_PSQL_FILE_RENDERED,
+        argv,
+        status: res.status,
+        stdout: res.stdout || "",
+        stderr: res.stderr || "",
+        signal: res.signal || null,
+        timeout: res.timeout === true,
+        error: res.error || null,
+      };
     },
   };
 }
@@ -1116,31 +1313,37 @@ export async function runQualificationReset({
   } catch (err) {
     thrown = err;
     raw = {
-      status: 1,
+      status: null,
       stdout: "",
       stderr: String(err?.message || err),
       error: err,
       signal: null,
       timeout: false,
-      rolledBack: true,
-      committed: false,
     };
   }
 
   spies.transportCalls += 1;
   spies.applyCalls += 1;
   spies.sqlCalls += 1;
-  if (raw?.began) spies.beginObserved += 1;
-  if (raw?.mutated) spies.mutateAttempted += 1;
-  if (raw?.phaseReached === "T7_COMMIT" || raw?.committed === true || raw?.uncertainCommit === true) {
-    spies.commitAttempted += 1;
-  }
-  if (raw?.rolledBack === true) spies.rollbackObserved += 1;
 
-  const encoded = encodeProcessResult(raw, commandIdentity);
+  const interpreted = interpretQualificationResetTransportResult(raw, { thrown });
+  const encoded = interpreted.processResult;
+  if (interpreted.observed.began) spies.beginObserved += 1;
+  if (interpreted.observed.mutateAttempted) spies.mutateAttempted += 1;
+  if (interpreted.observed.commitAttempted || interpreted.uncertainCommit) spies.commitAttempted += 1;
+  if (interpreted.rolledBack === true) spies.rollbackObserved += 1;
+
   recordEvent(recorder, "qualification_reset_completed", {
     phase: "qualification_reset",
     processResult: encoded,
+    transportInterpretation: {
+      planned: interpreted.planned,
+      attempted: interpreted.attempted,
+      observed: interpreted.observed,
+      committed: interpreted.committed,
+      rolledBack: interpreted.rolledBack,
+      uncertainCommit: interpreted.uncertainCommit,
+    },
   });
   spies.completedAfterAwait = true;
 
@@ -1149,41 +1352,51 @@ export async function runQualificationReset({
     return failRun("F13_AUTOMATIC_REPLAY_FORBIDDEN", "Uncertain commit must not automatically replay", {
       plan,
       processResult: encoded,
+      transportInterpretation: interpreted,
     });
   }
 
-  if (thrown || encoded.status !== 0) {
-    if ((raw?.uncertainCommit === true || isUncertainCommit(raw) || isUncertainCommit(encoded)) && spies.commitAttempted > 0) {
-      return {
-        ok: false,
-        executed: true,
-        committed: false,
-        code: UNCERTAIN_COMMIT_POLICY.requiredLabel,
-        reason: UNCERTAIN_COMMIT_POLICY.nextStep,
-        uncertainCommit: true,
-        automaticReplay: false,
-        unverifiableRollbackClaimForbidden: true,
-        rolledBack: null,
-        spies,
-        plan,
-        processResult: encoded,
-        events: recorder.events || [],
-      };
-    }
-    return failRun(raw?.error?.code || "F13_RESET_SQL_FAILED", raw?.stderr || thrown?.message || "Qualification reset SQL failed", {
+  if (interpreted.uncertainCommit) {
+    return {
+      ok: false,
       executed: true,
-      rolledBack: raw?.rolledBack === true,
-      processResult: encoded,
+      committed: false,
+      code: UNCERTAIN_COMMIT_POLICY.requiredLabel,
+      reason: UNCERTAIN_COMMIT_POLICY.nextStep,
+      uncertainCommit: true,
+      automaticReplay: false,
+      unverifiableRollbackClaimForbidden: true,
+      rolledBack: null,
+      verdict: "HOLD",
+      spies,
       plan,
-      sentinelPreserved: raw?.sentinelPreserved !== false,
+      processResult: encoded,
+      transportInterpretation: interpreted,
+      events: recorder.events || [],
+    };
+  }
+
+  if (thrown || encoded.status !== 0 || encoded.status == null) {
+    const sqlCode = raw?.error?.code && String(raw.error.code).startsWith("F13_")
+      ? raw.error.code
+      : (thrown?.code && String(thrown.code).startsWith("F13_") ? thrown.code : "F13_RESET_SQL_FAILED");
+    return failRun(sqlCode, encoded.stderr || thrown?.message || "Qualification reset SQL failed", {
+      executed: true,
+      rolledBack: interpreted.rolledBack,
+      processResult: encoded,
+      transportInterpretation: interpreted,
+      plan,
+      verdict: "HOLD",
     });
   }
 
-  if (raw?.committed !== true) {
-    return failRun("F13_RESET_NOT_COMMITTED", "Transport returned success without a confirmed commit", {
+  if (interpreted.committed !== true) {
+    return failRun("F13_RESET_NOT_COMMITTED", "Transport returned success without a confirmed commit observation", {
       executed: true,
       processResult: encoded,
+      transportInterpretation: interpreted,
       plan,
+      verdict: "HOLD",
     });
   }
 
@@ -1207,7 +1420,7 @@ export async function runQualificationReset({
     spies,
     plan,
     processResult: encoded,
-    sentinelPreserved: raw?.sentinelPreserved !== false,
+    transportInterpretation: interpreted,
     events: recorder.events || recorder.snapshot?.() || [],
     sharedOrchestration: F13_SHARED_ORCHESTRATION_ID,
   };
@@ -1226,45 +1439,31 @@ export function createQualificationResetRecorder() {
   };
 }
 
-function parseQualificationResetCaptureBody(raw) {
-  if (raw == null) return null;
-  if (typeof raw === "string") {
-    const trimmed = raw.trim();
-    if (!trimmed) return null;
-    try {
-      return parseQualificationResetCaptureBody(JSON.parse(trimmed));
-    } catch {
-      const start = trimmed.search(/[\[{]/);
-      if (start < 0) return null;
-      try {
-        return parseQualificationResetCaptureBody(JSON.parse(trimmed.slice(start)));
-      } catch {
-        return null;
-      }
-    }
+function resolveQualificationResetCaptureBody(raw) {
+  if (raw == null) {
+    return {
+      ok: false,
+      inventoryCaptured: false,
+      code: F13_INVENTORY_CAPTURE_REQUIRED,
+      reason: "Qualification reset inventory capture is missing",
+    };
   }
-  if (typeof raw !== "object") return null;
-  if (Array.isArray(raw)) return parseQualificationResetCaptureBody(raw[0]);
-  if (
-    Array.isArray(raw.observed_objects)
-    || Array.isArray(raw.observed_history_rows)
-    || Array.isArray(raw.observed_dependencies)
-    || (raw.inventory && typeof raw.inventory === "object")
-    || raw.schema
-  ) {
-    return raw;
+  if (typeof raw === "object" && !Array.isArray(raw) && Object.prototype.hasOwnProperty.call(raw, "status")) {
+    return parseQualificationResetInventoryProcessResult(raw);
   }
-  if (raw.body != null) return parseQualificationResetCaptureBody(raw.body);
-  if (raw.stdout != null) return parseQualificationResetCaptureBody(raw.stdout);
-  if (Array.isArray(raw.rows) && raw.rows[0]) {
-    const first = raw.rows[0];
-    const val = first.jsonb_build_object
-      || first["?column?"]
-      || first.jsonb_build_object_1
-      || Object.values(first)[0];
-    return parseQualificationResetCaptureBody(val);
+  if (typeof raw === "string" || Buffer.isBuffer(raw)) {
+    return parseQualificationResetInventoryProcessResult({
+      status: 0,
+      stdout: raw,
+      stderr: "",
+      signal: null,
+      timeout: false,
+    });
   }
-  return raw;
+  if (typeof raw === "object" && !Array.isArray(raw) && raw.body != null && raw.status != null) {
+    return parseQualificationResetInventoryProcessResult(raw);
+  }
+  return validateQualificationResetInventoryBody(raw);
 }
 
 export function qualificationResetInventoryCaptureRequest() {
@@ -1302,7 +1501,16 @@ export async function captureQualificationResetInventory({
         inventoryCaptureSqlArtifact: F13_INVENTORY_CAPTURE_SQL_ARTIFACT,
       };
     }
-    const observed = observedFromQualificationResetCapture(parseQualificationResetCaptureBody(raw));
+    const resolved = resolveQualificationResetCaptureBody(raw);
+    if (!resolved.ok) {
+      return {
+        ...resolved,
+        inventoryCaptured: false,
+        captureSqlWired: true,
+        inventoryCaptureSqlArtifact: F13_INVENTORY_CAPTURE_SQL_ARTIFACT,
+      };
+    }
+    const observed = observedFromQualificationResetCapture(resolved.body || raw);
     return {
       ...observed,
       captureSqlWired: true,
@@ -1330,16 +1538,33 @@ export async function captureQualificationResetInventory({
     };
   }
   try {
-    const raw = await Promise.resolve(runGatedRemoteSqlText(
-      workdir,
-      "f13-qualification-reset-inventory.sql",
-      QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL,
-    ));
-    const observed = observedFromQualificationResetCapture(parseQualificationResetCaptureBody(raw?.stdout ?? raw));
+    assertDbPushGates({ optIn: true });
+    const abs = writeGatedSqlFile(workdir, "f13-qualification-reset-inventory.sql", QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL);
+    const command = buildQualificationResetInventoryPsqlCommand({ sqlFile: abs });
+    const raw = spawnGatedRemotePsqlSync(command.argv);
+    const resolved = parseQualificationResetInventoryProcessResult({
+      status: raw.status,
+      stdout: raw.stdout || "",
+      stderr: raw.stderr || "",
+      signal: raw.signal || null,
+      timeout: raw.timeout === true,
+      argv: command.argv,
+    });
+    if (!resolved.ok) {
+      return {
+        ...resolved,
+        inventoryCaptured: false,
+        captureSqlWired: true,
+        inventoryCaptureSqlArtifact: F13_INVENTORY_CAPTURE_SQL_ARTIFACT,
+        captureCommand: command,
+      };
+    }
+    const observed = observedFromQualificationResetCapture(resolved.body);
     return {
       ...observed,
       captureSqlWired: true,
       inventoryCaptureSqlArtifact: F13_INVENTORY_CAPTURE_SQL_ARTIFACT,
+      captureCommand: command,
     };
   } catch (err) {
     return {
@@ -1378,14 +1603,17 @@ export async function runQualificationResetQualifyPath({
     workdir,
     allowLiveCapture,
   });
+  const captureSpies = emptySpies();
+  captureSpies.captureCalls += 1;
   if (!captured.ok || captured.inventoryCaptured !== true) {
     return {
       ...fail(
         captured.code || F13_INVENTORY_CAPTURE_REQUIRED,
         captured.reason || "Qualification reset inventory capture is required before plan/emit/execute",
       ),
-      spies: emptySpies(),
+      spies: captureSpies,
       inventoryCaptured: false,
+      captureComplete: false,
       captureSqlWired: captured.captureSqlWired === true,
       inventoryCaptureSqlArtifact: F13_INVENTORY_CAPTURE_SQL_ARTIFACT,
       verdict: "HOLD",
@@ -1401,6 +1629,7 @@ export async function runQualificationResetQualifyPath({
     observedDependencies: captured.observedDependencies,
     observedHistoryRows: captured.observedHistoryRows,
     inventoryCaptured: true,
+    captureComplete: captured.captureComplete === true,
     inventoryAtTx: {
       observedObjects: captured.observedObjects,
       observedDependencies: captured.observedDependencies,
@@ -1419,6 +1648,7 @@ export async function runQualificationResetQualifyPath({
   return {
     ...result,
     inventoryCaptured: true,
+    captureComplete: captured.captureComplete === true,
     captureSqlWired: true,
     inventoryCaptureSqlArtifact: F13_INVENTORY_CAPTURE_SQL_ARTIFACT,
     observedFromCapture: {
@@ -1426,10 +1656,97 @@ export async function runQualificationResetQualifyPath({
       observedDependencies: captured.observedDependencies,
       observedHistoryRows: captured.observedHistoryRows,
     },
+    spies: {
+      ...(result.spies || emptySpies()),
+      captureCalls: captureSpies.captureCalls,
+    },
     verdict: result.ok === true
       ? (result.verdict || F13_RESET_SUCCESS_VERDICT)
       : (result.verdict && result.verdict !== F13_RESET_SUCCESS_VERDICT
         ? result.verdict
         : "HOLD"),
+  };
+}
+
+function sha256Bytes(buf) {
+  return createHash("sha256").update(buf).digest("hex");
+}
+
+function gitBlobSha1(buf) {
+  const header = Buffer.from(`blob ${buf.length}\0`, "utf8");
+  return createHash("sha1").update(Buffer.concat([header, buf])).digest("hex");
+}
+
+function fileByteIdentities(rel, repoRoot = DEFAULT_REPO_ROOT) {
+  const abs = path.join(repoRoot, rel);
+  const worktree = fs.readFileSync(abs);
+  const crlf = worktree.includes(0x0d);
+  return {
+    path: rel,
+    worktreeSha256: sha256Bytes(worktree),
+    executedByteSha256: sha256Bytes(worktree),
+    gitBlobSha1: gitBlobSha1(worktree),
+    bytes: worktree.byteLength,
+    crlfDetected: crlf,
+    crlfNormalizedForPass: false,
+  };
+}
+
+export function publishQualificationResetClosures({
+  repoRoot = DEFAULT_REPO_ROOT,
+} = {}) {
+  const runtime = buildFunctionalRecursiveRuntimeClosure({
+    entrypoint: "scripts/qualify-f3-db-push-disposable.mjs",
+  });
+  const runtimeFiles = [...runtime.files];
+  const unionSet = new Set(runtimeFiles);
+  for (const rel of QUALIFICATION_RESET_VERIFICATION_ONLY_FILES) {
+    unionSet.add(rel);
+  }
+  const unionFiles = [...unionSet].sort();
+  const sourceSha256 = {};
+  const identities = {};
+  for (const rel of unionFiles) {
+    const id = fileByteIdentities(rel, repoRoot);
+    sourceSha256[rel] = id.worktreeSha256;
+    identities[rel] = id;
+  }
+  const digestOf = (files) => sha256Bytes(Buffer.from(files.map((rel) => `${rel}:${sourceSha256[rel]}`).join("\n"), "utf8"));
+  const helperInRuntime = runtimeFiles.includes(QUALIFICATION_RESET_LOCAL_PROOF_HELPER_RELPATH);
+  return {
+    runtime: {
+      label: F13_F14_RUNTIME_CLOSURE_LABEL,
+      notSummaryFileHash: true,
+      forbiddenSummaryHash: F13_SUMMARY_FILE_HASH_FORBIDDEN,
+      entrypoint: "scripts/qualify-f3-db-push-disposable.mjs",
+      count: runtimeFiles.length,
+      sha256: runtime.closure_sha256,
+      files: runtimeFiles,
+      proofHelperIncludedBecauseRead: helperInRuntime,
+    },
+    completeVerificationUnion: {
+      label: F13_F14_VERIFICATION_UNION_LABEL,
+      notSummaryFileHash: true,
+      count: unionFiles.length,
+      sha256: digestOf(unionFiles),
+      files: unionFiles,
+      verificationOnly: QUALIFICATION_RESET_VERIFICATION_ONLY_FILES.filter((rel) => !runtimeFiles.includes(rel)),
+      proofHelperIncluded: unionFiles.includes(QUALIFICATION_RESET_LOCAL_PROOF_HELPER_RELPATH),
+    },
+    identities: {
+      gitBlob: "gitBlobSha1",
+      workingTree: "worktreeSha256",
+      executedByte: "executedByteSha256",
+      files: identities,
+    },
+    crlf: {
+      detected: Object.values(identities).some((id) => id.crlfDetected),
+      normalizedForPass: false,
+      policy: "byte-exact; CRLF is a distinct identity and is never normalized to obtain PASS",
+    },
+    f13BaselineCitedNotExpected: {
+      runtime: F13_BASELINE_RUNTIME_CLOSURE,
+      union: F13_BASELINE_VERIFICATION_UNION,
+    },
   };
 }

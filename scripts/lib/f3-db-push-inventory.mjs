@@ -8,8 +8,10 @@
 import { RECOGNITION_ALLOWLIST } from "./f3-db-push-pins.mjs";
 import {
   AUTHENTICATED_HISTORY_KEYS,
+  CANONICAL_FUNCTION_IDENTITY_SQL,
   FINITE_DEPENDENCY_ALLOWLIST,
   FINITE_OBJECT_ALLOWLIST,
+  canonicalizeFunctionIdentity,
   isFinancialPrefixSelector,
   validateHistoryKeys,
   validateObjectAllowlist,
@@ -308,17 +310,190 @@ const NAMED_DEPENDENCY_IDENTITIES = FINITE_DEPENDENCY_ALLOWLIST
   .map((dep) => dep.identity)
   .filter((identity) => identity && !/[\s>]/.test(identity));
 
+export const QUALIFICATION_RESET_INVENTORY_SCHEMA = "f13-qualification-reset-inventory-v1";
+export const QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION = 1;
+export const QUALIFICATION_RESET_INVENTORY_MANDATORY_FIELDS = Object.freeze([
+  "schema",
+  "schema_version",
+  "inventory_capture_sql",
+  "inventory",
+  "discovered_objects",
+  "discovered_dependencies",
+  "observed_objects",
+  "observed_dependencies",
+  "observed_history_rows",
+  "capture_complete",
+]);
+export const QUALIFICATION_RESET_INVENTORY_INVENTORY_FIELDS = Object.freeze([
+  "recognition_pin",
+  "schemas",
+  "public_tables",
+  "public_views",
+  "public_types",
+  "public_functions",
+  "unnest_uuid_shim",
+  "auth_handle_new_user_trigger",
+  "schema_migrations_present",
+  "schema_migrations_rows",
+  "financial_private",
+  "financial_core",
+  "financial_ledger_epochs",
+  "exchange_rates",
+  "committees_budget_allocation",
+  "organizations_base_country",
+  "groups_group_level",
+  "storage_policies",
+  "storage_buckets",
+]);
+
 /**
- * Reset inventory: existing INVENTORY_CAPTURE_SQL object plus exact
- * allowlist presence probes and schema_migrations version+name rows.
- * Used by the qualify --qualification-reset path. Not a wipe selector.
+ * Machine-readable psql framing for inventory capture. `-X` ignores
+ * ~/.psqlrc; `-q -t -A` is tuples-only unaligned; isolated HOME/PSQLRC
+ * prevent user startup/output config from changing framing.
+ */
+export const QUALIFICATION_RESET_INVENTORY_PSQL_ARGV = Object.freeze([
+  "-X",
+  "-q",
+  "-t",
+  "-A",
+  "-w",
+  "-v",
+  "ON_ERROR_STOP=1",
+]);
+
+export const QUALIFICATION_RESET_INVENTORY_PSQL_ISOLATED_ENV_KEYS = Object.freeze([
+  "PGHOST",
+  "PGPORT",
+  "PGDATABASE",
+  "PGUSER",
+  "PGPASSWORD",
+  "PGSSLMODE",
+  "PGCONNECT_TIMEOUT",
+  "PATH",
+  "HOME",
+  "PSQLRC",
+  "PAGER",
+]);
+
+export function buildQualificationResetInventoryPsqlCommand({
+  sqlFile = "[FILE]",
+  isolatedHome = "[ISOLATED_HOME]",
+} = {}) {
+  return {
+    command: "psql",
+    argv: [...QUALIFICATION_RESET_INVENTORY_PSQL_ARGV, "-f", sqlFile],
+    envKeys: [...QUALIFICATION_RESET_INVENTORY_PSQL_ISOLATED_ENV_KEYS],
+    isolatedHome,
+    psqlrc: `${isolatedHome}/.psqlrc`,
+    ignoreUserPsqlrc: true,
+    tuplesOnlyUnaligned: true,
+    onErrorStop: true,
+    readOnlyCapture: true,
+  };
+}
+
+const DISCOVERED_OBJECT_SQL = `(
+    SELECT coalesce(jsonb_agg(obj ORDER BY obj->>'kind', obj->>'identity'), '[]'::jsonb)
+    FROM (
+      SELECT jsonb_build_object(
+        'kind', 'table',
+        'identity', n.nspname || '.' || c.relname
+      ) AS obj
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname IN ('public', 'financial_core', 'financial_private')
+        AND c.relkind = 'r'
+      UNION ALL
+      SELECT jsonb_build_object(
+        'kind', 'view',
+        'identity', n.nspname || '.' || c.relname
+      )
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname IN ('public', 'financial_core', 'financial_private')
+        AND c.relkind = 'v'
+      UNION ALL
+      SELECT jsonb_build_object(
+        'kind', 'sequence',
+        'identity', n.nspname || '.' || c.relname
+      )
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname IN ('public', 'financial_core', 'financial_private')
+        AND c.relkind = 'S'
+      UNION ALL
+      SELECT jsonb_build_object(
+        'kind', 'type',
+        'identity', n.nspname || '.' || t.typname
+      )
+      FROM pg_type t
+      JOIN pg_namespace n ON n.oid = t.typnamespace
+      WHERE n.nspname IN ('public', 'financial_core', 'financial_private')
+        AND t.typtype IN ('e', 'c')
+        AND NOT EXISTS (
+          SELECT 1 FROM pg_class c WHERE c.reltype = t.oid AND c.relkind = 'r'
+        )
+      UNION ALL
+      SELECT jsonb_build_object(
+        'kind', 'function',
+        'identity', ${CANONICAL_FUNCTION_IDENTITY_SQL}
+      )
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname IN ('public', 'financial_core', 'financial_private')
+      UNION ALL
+      SELECT jsonb_build_object(
+        'kind', 'schema',
+        'identity', n.nspname
+      )
+      FROM pg_namespace n
+      WHERE n.nspname IN ('financial_core', 'financial_private')
+      UNION ALL
+      SELECT jsonb_build_object(
+        'kind', 'extension',
+        'identity', e.extname
+      )
+      FROM pg_extension e
+      WHERE e.extname = 'btree_gist'
+    ) discovered
+  )`;
+
+const DISCOVERED_DEPENDENCY_SQL = `(
+    SELECT coalesce(jsonb_agg(
+      jsonb_build_object(
+        'kind', 'foreign_key',
+        'identity', con.conname,
+        'from', n.nspname || '.' || rel.relname,
+        'to', fn.nspname || '.' || frel.relname
+      ) ORDER BY con.conname
+    ), '[]'::jsonb)
+    FROM pg_constraint con
+    JOIN pg_class rel ON rel.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = rel.relnamespace
+    JOIN pg_class frel ON frel.oid = con.confrelid
+    JOIN pg_namespace fn ON fn.oid = frel.relnamespace
+    WHERE con.contype = 'f'
+      AND n.nspname IN ('public', 'financial_core', 'financial_private')
+  )`;
+
+/**
+ * Reset inventory: existing INVENTORY_CAPTURE_SQL object plus the
+ * complete discovered object/dependency universe (not allowlist-only
+ * presence probes). Classification against FINITE_* allowlists happens
+ * after discovery. Used by --qualification-reset. Not a wipe selector.
  */
 export const QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL = `
 SELECT jsonb_build_object(
-  'schema', 'f13-qualification-reset-inventory-v1',
+  'schema', '${QUALIFICATION_RESET_INVENTORY_SCHEMA}',
+  'schema_version', ${QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION},
   'inventory_capture_sql', 'scripts/lib/f3-db-push-inventory.mjs INVENTORY_CAPTURE_SQL',
+  'capture_complete', true,
   'inventory', ${INVENTORY_CAPTURE_OBJECT_SQL},
-  'observed_objects', (
+  'discovered_objects', ${DISCOVERED_OBJECT_SQL},
+  'discovered_dependencies', ${DISCOVERED_DEPENDENCY_SQL},
+  'observed_objects', ${DISCOVERED_OBJECT_SQL},
+  'observed_dependencies', ${DISCOVERED_DEPENDENCY_SQL},
+  'allowlist_presence', (
     SELECT coalesce(jsonb_agg(identity ORDER BY identity), '[]'::jsonb)
     FROM (
       VALUES
@@ -334,16 +509,6 @@ ${ALLOWLIST_PRESENCE_VALUES}
         FROM supabase_migrations.schema_migrations
       ), '[]'::jsonb)
     END
-  ),
-  'observed_dependencies', (
-    SELECT coalesce(jsonb_agg(con.conname ORDER BY con.conname), '[]'::jsonb)
-    FROM pg_constraint con
-    WHERE con.contype = 'f'
-      AND con.conname = ANY (${
-        NAMED_DEPENDENCY_IDENTITIES.length
-          ? `ARRAY[${NAMED_DEPENDENCY_IDENTITIES.map(sqlInventoryString).join(", ")}]`
-          : "ARRAY[]::text[]"
-      })
   )
 )::text
 `;
@@ -354,7 +519,7 @@ export function deriveObservedObjectsFromInventoryCapture(inventory = {}) {
   for (const name of asList(inventory.public_types)) objects.push(`public.${name}`);
   const functions = Array.isArray(inventory.public_functions) ? inventory.public_functions : [];
   for (const fn of functions) {
-    if (fn && fn.identity) objects.push(String(fn.identity));
+    if (fn && fn.identity) objects.push(canonicalizeFunctionIdentity(String(fn.identity)));
     else if (fn && fn.name) objects.push(`public.${fn.name}`);
   }
   if (inventory.financial_core) objects.push("financial_core");
@@ -363,46 +528,283 @@ export function deriveObservedObjectsFromInventoryCapture(inventory = {}) {
   return objects;
 }
 
-export function observedFromQualificationResetCapture(body = {}) {
-  if (body == null || typeof body !== "object" || Array.isArray(body)) {
-    return {
-      ok: false,
-      inventoryCaptured: false,
-      code: "F13_INVENTORY_CAPTURE_REQUIRED",
-      reason: "Qualification reset inventory capture is missing or malformed",
-    };
-  }
-  const inventory = body.inventory && typeof body.inventory === "object"
-    ? body.inventory
-    : body;
-  const exactObjects = Array.isArray(body.observed_objects)
-    ? body.observed_objects.map((item) => (typeof item === "string" ? item : item?.identity)).filter(Boolean)
-    : [];
-  const derivedObjects = deriveObservedObjectsFromInventoryCapture(inventory);
-  const observedObjects = exactObjects.length ? exactObjects : derivedObjects;
-  const observedDependencies = Array.isArray(body.observed_dependencies)
-    ? body.observed_dependencies.map((item) => (typeof item === "string" ? item : item?.identity)).filter(Boolean)
-    : [];
-  const historySource = Array.isArray(body.observed_history_rows)
-    ? body.observed_history_rows
-    : Array.isArray(body.history_rows)
-      ? body.history_rows
-      : [];
-  const observedHistoryRows = historySource.map((row) => ({
-    version: row?.version == null ? "" : String(row.version),
-    name: row?.name == null ? null : String(row.name),
-  }));
+function captureFail(code, reason, extra = {}) {
   return {
-    ok: true,
-    inventoryCaptured: true,
-    observedObjects,
-    observedDependencies,
-    observedHistoryRows,
-    inventory,
-    captureSchema: body.schema || null,
+    ok: false,
+    inventoryCaptured: false,
+    alreadyClean: false,
+    eligible: false,
+    code,
+    reason,
+    ...extra,
   };
 }
 
+function isPlainObject(value) {
+  return value != null && typeof value === "object" && !Array.isArray(value);
+}
+
+function identityFromDiscovered(item) {
+  if (typeof item === "string") return item;
+  if (item && typeof item.identity === "string") {
+    return item.kind === "function" ? canonicalizeFunctionIdentity(item.identity) : item.identity;
+  }
+  return null;
+}
+
+export function looksLikeAlignedPsqlFraming(text) {
+  const raw = String(text ?? "");
+  return /jsonb_build_object|\(\d+\s+rows?\)|-{3,}|^\s*[|+]/.test(raw)
+    && /[\u2500-\u257F]|\(\d+\s+rows?\)/i.test(raw);
+}
+
+export function validateQualificationResetInventoryBody(body) {
+  if (body == null || typeof body !== "object" || Array.isArray(body)) {
+    return captureFail("F13_INVENTORY_CAPTURE_MALFORMED", "Qualification reset inventory capture is missing or malformed");
+  }
+  if (body.schema !== QUALIFICATION_RESET_INVENTORY_SCHEMA) {
+    return captureFail("F13_INVENTORY_SCHEMA_MISMATCH", "Inventory capture schema/version is not the required exact schema", {
+      expectedSchema: QUALIFICATION_RESET_INVENTORY_SCHEMA,
+      actualSchema: body.schema ?? null,
+    });
+  }
+  if (body.schema_version !== QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION) {
+    return captureFail("F13_INVENTORY_SCHEMA_MISMATCH", "Inventory capture schema_version is not the required exact version", {
+      expectedVersion: QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION,
+      actualVersion: body.schema_version ?? null,
+    });
+  }
+  const missing = QUALIFICATION_RESET_INVENTORY_MANDATORY_FIELDS.filter((key) => !Object.prototype.hasOwnProperty.call(body, key));
+  if (missing.length) {
+    return captureFail("F13_INVENTORY_CAPTURE_INCOMPLETE", "Inventory capture is missing mandatory fields", { missing });
+  }
+  if (body.inventory_capture_sql !== "scripts/lib/f3-db-push-inventory.mjs INVENTORY_CAPTURE_SQL") {
+    return captureFail("F13_INVENTORY_CAPTURE_INCOMPLETE", "inventory_capture_sql artifact identity is required");
+  }
+  if (body.capture_complete !== true) {
+    return captureFail("F13_INVENTORY_CAPTURE_INCOMPLETE", "capture_complete must be true; empty defaults are forbidden");
+  }
+  if (!isPlainObject(body.inventory)) {
+    return captureFail("F13_INVENTORY_CAPTURE_MALFORMED", "inventory must be an object");
+  }
+  const missingInventory = QUALIFICATION_RESET_INVENTORY_INVENTORY_FIELDS.filter((key) => (
+    !Object.prototype.hasOwnProperty.call(body.inventory, key)
+  ));
+  if (missingInventory.length) {
+    return captureFail("F13_INVENTORY_CAPTURE_INCOMPLETE", "inventory object is missing mandatory fields", {
+      missingInventory,
+    });
+  }
+  for (const key of ["discovered_objects", "discovered_dependencies", "observed_objects", "observed_dependencies", "observed_history_rows"]) {
+    if (!Array.isArray(body[key])) {
+      return captureFail("F13_INVENTORY_CAPTURE_MALFORMED", `${key} must be an array; missing/malformed values are not empty`, {
+        field: key,
+      });
+    }
+  }
+  const listFields = ["schemas", "public_tables", "public_views", "public_types", "storage_policies", "storage_buckets"];
+  for (const key of listFields) {
+    if (!Array.isArray(body.inventory[key])) {
+      return captureFail("F13_INVENTORY_CAPTURE_MALFORMED", `inventory.${key} must be an array`, { field: key });
+    }
+  }
+  if (!Array.isArray(body.inventory.public_functions)) {
+    return captureFail("F13_INVENTORY_CAPTURE_MALFORMED", "inventory.public_functions must be an array");
+  }
+  if (typeof body.inventory.schema_migrations_rows !== "number" || !Number.isFinite(body.inventory.schema_migrations_rows)) {
+    return captureFail("F13_INVENTORY_CAPTURE_MALFORMED", "inventory.schema_migrations_rows must be a number");
+  }
+  for (const key of ["unnest_uuid_shim", "auth_handle_new_user_trigger", "schema_migrations_present", "financial_private", "financial_core", "financial_ledger_epochs", "exchange_rates", "committees_budget_allocation", "organizations_base_country", "groups_group_level"]) {
+    if (typeof body.inventory[key] !== "boolean") {
+      return captureFail("F13_INVENTORY_CAPTURE_MALFORMED", `inventory.${key} must be a boolean`, { field: key });
+    }
+  }
+  return { ok: true, body };
+}
+
+export function parseQualificationResetInventoryProcessResult(result) {
+  if (result == null || typeof result !== "object" || Array.isArray(result)) {
+    return captureFail("F13_INVENTORY_CAPTURE_REQUIRED", "Inventory capture process result is missing");
+  }
+  const status = result.status;
+  if (!Number.isInteger(status) || status !== 0) {
+    return captureFail("F13_INVENTORY_CAPTURE_PROCESS_FAILED", "Inventory capture process was unsuccessful", {
+      status: status ?? null,
+      signal: result.signal ?? null,
+      timeout: result.timeout === true,
+      stderr: result.stderr ?? "",
+      stdout: result.stdout ?? "",
+    });
+  }
+  if (result.signal || result.timeout === true || result.timedOut === true) {
+    return captureFail("F13_INVENTORY_CAPTURE_PROCESS_FAILED", "Inventory capture process was signaled or timed out", {
+      signal: result.signal ?? null,
+      timeout: true,
+      stdout: result.stdout ?? "",
+      stderr: result.stderr ?? "",
+    });
+  }
+  const stdout = result.stdout;
+  if (!(typeof stdout === "string" || Buffer.isBuffer(stdout))) {
+    return captureFail("F13_INVENTORY_CAPTURE_MALFORMED", "Inventory capture stdout is missing");
+  }
+  const raw = Buffer.isBuffer(stdout) ? stdout.toString("utf8") : stdout;
+  if (looksLikeAlignedPsqlFraming(raw)) {
+    return captureFail("F13_INVENTORY_CAPTURE_FRAMING", "Aligned/headed psql output is not machine-readable inventory", {
+      stdout: raw,
+    });
+  }
+  if (!raw.length) {
+    return captureFail("F13_INVENTORY_CAPTURE_INCOMPLETE", "Inventory capture stdout is empty; empty is not a complete empty universe");
+  }
+  const trimmed = raw.endsWith("\n") && !raw.endsWith("\n\n") ? raw.slice(0, -1) : raw;
+  if (trimmed !== trimmed.trim() || trimmed.includes("\n")) {
+    return captureFail("F13_INVENTORY_CAPTURE_FRAMING", "Inventory capture stdout has unexpected prefix, suffix, or extra rows", {
+      stdout: raw,
+    });
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    return captureFail("F13_INVENTORY_CAPTURE_MALFORMED", "Inventory capture stdout is not a single JSON object", {
+      stdout: raw,
+    });
+  }
+  const validated = validateQualificationResetInventoryBody(parsed);
+  if (!validated.ok) {
+    return { ...validated, stdout: raw };
+  }
+  return { ok: true, body: parsed, stdout: raw, processStatus: status };
+}
+
+export function observedFromQualificationResetCapture(body = {}) {
+  const validated = validateQualificationResetInventoryBody(body);
+  if (!validated.ok) return validated;
+  const discovered = body.discovered_objects;
+  const discoveredDeps = body.discovered_dependencies;
+  const observedField = body.observed_objects;
+  const observedDepField = body.observed_dependencies;
+  const discoveredIdentities = discovered.map(identityFromDiscovered);
+  const observedIdentities = observedField.map(identityFromDiscovered);
+  if (discoveredIdentities.some((id) => !id) || observedIdentities.some((id) => !id)) {
+    return captureFail("F13_INVENTORY_CAPTURE_MALFORMED", "Discovered object identities are incomplete");
+  }
+  if (JSON.stringify(discoveredIdentities) !== JSON.stringify(observedIdentities)) {
+    return captureFail(
+      "F13_INVENTORY_CAPTURE_INCOMPLETE",
+      "observed_objects must preserve the complete discovered object universe",
+    );
+  }
+  const discoveredDepIdentities = discoveredDeps.map(identityFromDiscovered);
+  const observedDepIdentities = observedDepField.map(identityFromDiscovered);
+  if (discoveredDepIdentities.some((id) => !id) || observedDepIdentities.some((id) => !id)) {
+    return captureFail("F13_INVENTORY_CAPTURE_MALFORMED", "Discovered dependency identities are incomplete");
+  }
+  if (JSON.stringify(discoveredDepIdentities) !== JSON.stringify(observedDepIdentities)) {
+    return captureFail(
+      "F13_INVENTORY_CAPTURE_INCOMPLETE",
+      "observed_dependencies must preserve the complete discovered dependency universe",
+    );
+  }
+  const history = body.observed_history_rows.map((row) => {
+    if (!isPlainObject(row) || !Object.prototype.hasOwnProperty.call(row, "version") || !Object.prototype.hasOwnProperty.call(row, "name")) {
+      return null;
+    }
+    return {
+      version: row.version == null ? "" : String(row.version),
+      name: row.name == null ? null : String(row.name),
+    };
+  });
+  if (history.some((row) => row == null)) {
+    return captureFail("F13_INVENTORY_CAPTURE_MALFORMED", "observed_history_rows must be {version,name} objects");
+  }
+  return {
+    ok: true,
+    inventoryCaptured: true,
+    captureComplete: true,
+    observedObjects: discoveredIdentities,
+    observedDependencies: discoveredDepIdentities,
+    observedHistoryRows: history,
+    discoveredObjects: discovered,
+    discoveredDependencies: discoveredDeps,
+    inventory: body.inventory,
+    captureSchema: body.schema,
+    schemaVersion: body.schema_version,
+    allowlistPresence: Array.isArray(body.allowlist_presence) ? body.allowlist_presence : undefined,
+  };
+}
+
+
+export function emptyQualificationResetInventoryObject(overrides = {}) {
+  return {
+    recognition_pin: "financial_ledger_epochs",
+    schemas: ["public"],
+    public_tables: [],
+    public_views: [],
+    public_types: [],
+    public_functions: [],
+    unnest_uuid_shim: false,
+    auth_handle_new_user_trigger: false,
+    schema_migrations_present: true,
+    schema_migrations_rows: 0,
+    financial_private: false,
+    financial_core: false,
+    financial_ledger_epochs: false,
+    exchange_rates: false,
+    committees_budget_allocation: false,
+    organizations_base_country: false,
+    groups_group_level: false,
+    storage_policies: [],
+    storage_buckets: [],
+    ...overrides,
+  };
+}
+
+/**
+ * Complete inventory-capture body for tests and the local proof helper.
+ * Missing/malformed arrays are never defaulted to empty here — callers
+ * must supply discovered/observed fields explicitly or accept [].
+ */
+export function completeCaptureBody(overrides = {}) {
+  const discovered = Object.prototype.hasOwnProperty.call(overrides, "discovered_objects")
+    ? overrides.discovered_objects
+    : [];
+  const deps = Object.prototype.hasOwnProperty.call(overrides, "discovered_dependencies")
+    ? overrides.discovered_dependencies
+    : [];
+  const reserved = new Set([
+    "inventory",
+    "discovered_objects",
+    "discovered_dependencies",
+    "observed_objects",
+    "observed_dependencies",
+    "observed_history_rows",
+    "allowlist_presence",
+  ]);
+  return {
+    schema: QUALIFICATION_RESET_INVENTORY_SCHEMA,
+    schema_version: QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION,
+    inventory_capture_sql: "scripts/lib/f3-db-push-inventory.mjs INVENTORY_CAPTURE_SQL",
+    capture_complete: true,
+    inventory: emptyQualificationResetInventoryObject(overrides.inventory || {}),
+    discovered_objects: discovered,
+    discovered_dependencies: deps,
+    observed_objects: Object.prototype.hasOwnProperty.call(overrides, "observed_objects")
+      ? overrides.observed_objects
+      : discovered,
+    observed_dependencies: Object.prototype.hasOwnProperty.call(overrides, "observed_dependencies")
+      ? overrides.observed_dependencies
+      : deps,
+    observed_history_rows: Object.prototype.hasOwnProperty.call(overrides, "observed_history_rows")
+      ? overrides.observed_history_rows
+      : [],
+    allowlist_presence: Object.prototype.hasOwnProperty.call(overrides, "allowlist_presence")
+      ? overrides.allowlist_presence
+      : [],
+    ...Object.fromEntries(Object.entries(overrides).filter(([key]) => !reserved.has(key))),
+  };
+}
 
 export function asList(value) {
   if (Array.isArray(value)) return value.map(String);
@@ -533,25 +935,53 @@ export function evaluateQualificationResetEligibility({
   observedObjectIdentities = [],
   observedDependencies = [],
   observedHistoryRows = [],
+  inventoryCaptured = false,
+  captureComplete = false,
 } = {}) {
-  const identities = (observedObjectIdentities || []).map((item) => (
-    typeof item === "string" ? item : item?.identity
-  ));
+  if (!Array.isArray(observedObjectIdentities) || !Array.isArray(observedDependencies) || !Array.isArray(observedHistoryRows)) {
+    return {
+      ok: false,
+      eligible: false,
+      alreadyClean: false,
+      verdict: "HOLD",
+      code: "F13_INVENTORY_CAPTURE_INCOMPLETE",
+      reason: "incomplete discovered object/dependency/history representation blocks eligibility",
+      financialPrefixUsedAsSelector: false,
+    };
+  }
+  const identities = observedObjectIdentities.map((item) => {
+    const raw = typeof item === "string" ? item : item?.identity;
+    if (!raw) return raw;
+    return String(raw).includes("(") ? canonicalizeFunctionIdentity(raw) : raw;
+  });
+  if (identities.some((identity) => identity == null || identity === "")) {
+    return {
+      ok: false,
+      eligible: false,
+      alreadyClean: false,
+      verdict: "HOLD",
+      code: "F13_INVENTORY_CAPTURE_INCOMPLETE",
+      reason: "incomplete object identity representation blocks eligibility",
+      financialPrefixUsedAsSelector: false,
+    };
+  }
   if (identities.some((identity) => isFinancialPrefixSelector(identity))) {
     return {
       ok: false,
       eligible: false,
+      alreadyClean: false,
       verdict: "HOLD",
       code: "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY",
       reason: "financial_* prefix is not a destructive allowlist",
       financialPrefixUsedAsSelector: false,
     };
   }
-  const objects = validateObjectAllowlist(observedObjectIdentities, observedDependencies);
+  const objects = validateObjectAllowlist(identities, observedDependencies);
   if (!objects.ok) {
     return {
       ok: false,
       eligible: false,
+      alreadyClean: false,
       verdict: "HOLD",
       code: objects.code,
       reason: objects.reason,
@@ -565,6 +995,7 @@ export function evaluateQualificationResetEligibility({
     return {
       ok: false,
       eligible: false,
+      alreadyClean: false,
       verdict: "HOLD",
       code: history.code,
       reason: history.reason,
@@ -573,16 +1004,40 @@ export function evaluateQualificationResetEligibility({
     };
   }
   const leftovers = identities.filter(Boolean);
-  if (leftovers.length === 0 && (observedHistoryRows || []).length === 0) {
+  if (leftovers.length === 0 && observedHistoryRows.length === 0) {
+    if (inventoryCaptured !== true || captureComplete !== true) {
+      return {
+        ok: false,
+        eligible: false,
+        alreadyClean: false,
+        verdict: "HOLD",
+        code: "F13_INVENTORY_CAPTURE_REQUIRED",
+        reason: "alreadyClean requires positive evidence of a complete empty capture",
+        financialPrefixUsedAsSelector: false,
+      };
+    }
     return {
       ok: true,
       eligible: false,
       alreadyClean: true,
       verdict: "CLEAN_BASELINE",
-      reason: "no allowlisted leftovers or permitted history rows; reset mutation not required",
+      reason: "complete empty discovered universe; reset mutation not required",
       financialPrefixUsedAsSelector: false,
       allowedCount: FINITE_OBJECT_ALLOWLIST.length,
       historyKeyCount: AUTHENTICATED_HISTORY_KEYS.length,
+      captureComplete: true,
+    };
+  }
+  if (inventoryCaptured !== true || captureComplete !== true) {
+    return {
+      ok: false,
+      eligible: false,
+      alreadyClean: false,
+      verdict: "HOLD",
+      code: "F13_INVENTORY_CAPTURE_REQUIRED",
+      reason: "eligible===true requires a complete discovered-universe capture",
+      leftoverCount: leftovers.length,
+      financialPrefixUsedAsSelector: false,
     };
   }
   return {
@@ -596,5 +1051,6 @@ export function evaluateQualificationResetEligibility({
     allowedCount: FINITE_OBJECT_ALLOWLIST.length,
     historyMatched: history.matched,
     historyKeyCount: AUTHENTICATED_HISTORY_KEYS.length,
+    captureComplete: true,
   };
 }

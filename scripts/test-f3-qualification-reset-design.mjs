@@ -16,6 +16,7 @@ import {
 } from "./lib/f3-db-push-pins.mjs";
 import {
   AUTHENTICATED_HISTORY_KEYS,
+  CANONICAL_FUNCTION_IDENTITY_SQL,
   F13_DESIGN_LABEL,
   F13_MUTATION_ENTRYPOINT_OPEN,
   F13_SUPPORTED_INTERFACE,
@@ -26,8 +27,12 @@ import {
   NULL_OR_EMPTY_NAME_PROVENANCE,
   TRANSACTION_PHASES,
   UNCERTAIN_COMMIT_POLICY,
+  allowlistIdentityMatches,
+  canonicalizeFunctionIdentity,
   exportDesignArtifact,
+  functionIdentitiesEqual,
   isFinancialPrefixSelector,
+  parseFunctionIdentity,
   planQualificationResetDesign,
   rejectLiveContact,
   scopeSqlIdentityDigest,
@@ -379,4 +384,63 @@ test("F13-E04 design artifact export stays offline and labeled", () => {
   assert.equal(artifact.mutationEntrypointOpen, false);
   assert.equal(artifact.wipeToBaselineRejected, true);
   assert.ok(scopeSqlIdentityDigest().length === 64);
+});
+
+test("F14-A01 named-arg and catalog identities compare as the same function", () => {
+  assert.match(CANONICAL_FUNCTION_IDENTITY_SQL, /format_type/);
+  assert.match(CANONICAL_FUNCTION_IDENTITY_SQL, /proargtypes/);
+  assert.doesNotMatch(CANONICAL_FUNCTION_IDENTITY_SQL, /pg_get_function_identity_arguments/);
+  const named = parseFunctionIdentity("public.post_financial_opening_cash(p_command jsonb)");
+  assert.equal(named.identity, "public.post_financial_opening_cash(jsonb)");
+  assert.deepEqual(named.argTypes, ["jsonb"]);
+  assert.equal(
+    canonicalizeFunctionIdentity("public.post_financial_opening_cash(p_command jsonb)"),
+    "public.post_financial_opening_cash(jsonb)",
+  );
+  assert.equal(
+    functionIdentitiesEqual(
+      "public.post_financial_opening_cash(p_command jsonb)",
+      "public.post_financial_opening_cash(jsonb)",
+    ),
+    true,
+  );
+  assert.equal(
+    allowlistIdentityMatches(
+      "public.post_financial_opening_cash(p_command jsonb)",
+      "public.post_financial_opening_cash(jsonb)",
+    ),
+    true,
+  );
+});
+
+test("F14-A02 allowed function surface includes zero-arg, custom types, and timestamptz aliases", () => {
+  const zeroArg = FINITE_OBJECT_ALLOWLIST.find((row) => row.identity === "public.notification_policy_set_updated_at()");
+  assert.ok(zeroArg);
+  assert.equal(canonicalizeFunctionIdentity("public.notification_policy_set_updated_at()"), zeroArg.identity);
+
+  const custom = "public.enqueue_outbound_notification(text,uuid,public.notification_channel,uuid,text)";
+  assert.equal(
+    canonicalizeFunctionIdentity(custom),
+    "public.enqueue_outbound_notification(text,uuid,notification_channel,uuid,text)",
+  );
+  assert.equal(
+    validateObjectAllowlist([
+      "public.enqueue_outbound_notification(p_kind text, p_group uuid, p_channel notification_channel, p_member uuid, p_body text)",
+    ], []).ok,
+    true,
+  );
+
+  const cashbook = "public.get_financial_cashbook(uuid,timestamptz,timestamptz,uuid,text,int4,int4)";
+  assert.equal(
+    functionIdentitiesEqual(
+      cashbook,
+      "public.get_financial_cashbook(uuid,timestamp with time zone,timestamp with time zone,uuid,text,integer,integer)",
+    ),
+    true,
+  );
+  assert.equal(validateObjectAllowlist([cashbook], []).ok, true);
+
+  const arrayForm = canonicalizeFunctionIdentity("financial_core.probe(pg_catalog.text[])");
+  assert.equal(arrayForm, "financial_core.probe(text[])");
+  assert.equal(validateObjectAllowlist(["public.zero_arg_probe()"], []).ok, false);
 });

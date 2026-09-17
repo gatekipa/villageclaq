@@ -12,8 +12,8 @@
     },
     {
       "path": "PINS.json",
-      "bytes": 1041,
-      "sha256": "2414afa52e6b13f73cf078b93df28aa63bd9203631f7a26206fe1cedf04c97e3"
+      "bytes": 1392,
+      "sha256": "f2d900b4d3bf0ef0320a5829dc6805908ccce90355caf24c804dfbc3a8ff52db"
     },
     {
       "path": "PROPOSED_HOSTED_PLAN_BLOB.json",
@@ -49,11 +49,6 @@
       "path": "closure/DIGESTS.json",
       "bytes": 6601,
       "sha256": "520d96bb1a751c2c2d0cafcfbd1e116727420eb18ec3bcd4d30d0e727b67b31e"
-    },
-    {
-      "path": "evidence-index.json",
-      "bytes": 8833,
-      "sha256": "80f8ef3e6a10c06737a1dca8a4a5e015dcac6016a0cf39f94cfa279085da46b3"
     },
     {
       "path": "local-pg-proof/CLOSURES.json",
@@ -109,6 +104,11 @@
       "path": "local-pg-proof/emitted-qualification-reset.sql",
       "bytes": 59791,
       "sha256": "bb5741475b291e13d277f1a692baca4d2b3420f22d73cc4cf52dec897f89b573"
+    },
+    {
+      "path": "pack-summary.json",
+      "bytes": 7003,
+      "sha256": "57242cb4b6d7bd1a20fdea34eebc32fc5af596fc69a1b487574c59e22ba8c1c9"
     },
     {
       "path": "qa-accept/CITATION.json",

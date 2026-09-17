@@ -1,0 +1,9 @@
+{
+  "artifact": "multi-arg-overload-identity-proof",
+  "functional_sha": "c59afad411a07838688aeb5583ab179683f25a7f",
+  "N1_acl_multi_arg": true,
+  "N14_object_probe_multi_arg": true,
+  "00121_cashbook_args": "p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer, p_limit integer",
+  "overloads_distinct": true,
+  "note": " ; retargeted SHA marker for c59afad requal evidence continuity"
+}

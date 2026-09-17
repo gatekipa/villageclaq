@@ -1,0 +1,6 @@
+{
+  "artifact": "production-history-limitation",
+  "functional_sha": "c59afad411a07838688aeb5583ab179683f25a7f",
+  "limitation": "WARNING: disposable proves prefix-complete staging for F3 qualification history only. Before any production db push, a separately authorized read-only production preflight must prove every production-recorded migration has an authoritative local timestamp file, frozen SQL digest, and order. Empty placeholders and guessed history are forbidden. Do not invent production migrations.",
+  "managementApiApply": "PERMANENTLY DISQUALIFIED: Management API POST /database/migrations {query,name} \u2014 SQL can COMMIT while history INSERT fails with no recoverable version (Chief live probe 2026-09-13 on jkorwnwwmdeflfntxntl)."
+}

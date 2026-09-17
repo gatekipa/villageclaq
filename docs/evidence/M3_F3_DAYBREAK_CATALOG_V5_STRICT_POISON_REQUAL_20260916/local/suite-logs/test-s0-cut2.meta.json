@@ -1,0 +1,12 @@
+{
+  "exit": 1,
+  "classification": "ENV_DEPENDENT_FAIL",
+  "counts": {
+    "tests": 21,
+    "pass": 14,
+    "fail": 7,
+    "skipped": 0
+  },
+  "sha256": "06d340d454c6b3c520b74d497c0e790197d87a09a9b5f23bdfc34a906b587608",
+  "bytes": 15687
+}

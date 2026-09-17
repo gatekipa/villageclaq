@@ -1,0 +1,26 @@
+{
+  "schema": "executable-byte-manifest-v1",
+  "note": "functional tip files for F6; evidence dir excluded from functional closure",
+  "F6": "1f965219d73ec4c4c3455d8119e232757bba6ee6",
+  "files": [
+    "scripts/lib/f3-db-push-query-parse.mjs",
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs",
+    "scripts/lib/f3-full-catalog-independent-reference.mjs"
+  ],
+  "sha256": {
+    "scripts/lib/f3-db-push-query-parse.mjs": "516c907bcfb358a1803ab656eed89199f8508279ea321c96771d50ee0e837671",
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs": "78d11102576e6d04337dfd8e9cb5dbbd17d99d1bb1f80f3078c54d2953d0942c",
+    "scripts/qualify-f3-db-push-disposable.mjs": "e61f34a2dbcddd331b77763f4309199d50e6a9fdf91a133f2b2e5d4b7ad8a353",
+    "scripts/test-f3-db-push-harness.mjs": "fae09a2e6e7327856ab66dfabc084c4077bca30fe6b362f085e852b4dc8f186d",
+    "scripts/lib/f3-full-catalog-independent-reference.mjs": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91"
+  },
+  "git_blob": {
+    "scripts/lib/f3-db-push-query-parse.mjs": "f95681126d43c92ee293dd7bd645a55759c4c071",
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs": "f9e25a78955bc8ae316990f12cf98a126eba8f0d",
+    "scripts/qualify-f3-db-push-disposable.mjs": "17f29660a396de430bb87c4ef6af2a2cc067d9b9",
+    "scripts/test-f3-db-push-harness.mjs": "26246143fc8ce5b917183b7739ceb80edfd23162",
+    "scripts/lib/f3-full-catalog-independent-reference.mjs": "09b6e97ee0605d4af81b027746e49a6e43ff6ff1"
+  }
+}

@@ -1,0 +1,18 @@
+=== START test-f3-mapi-harness ===
+=== END test-f3-mapi-harness exit=0 ===
+=== START test-f3-recognition ===
+=== END test-f3-recognition exit=0 ===
+=== START test-m2-static-security ===
+=== END test-m2-static-security exit=0 ===
+=== START test-m2 ===
+=== END test-m2 exit=0 ===
+=== START test-s0-cut1 ===
+=== END test-s0-cut1 exit=0 ===
+=== START test-s0-cut2 ===
+=== END test-s0-cut2 exit=1 ===
+=== START test-storage-buckets ===
+=== END test-storage-buckets exit=0 ===
+=== START test-f3-oracles ===
+=== END test-f3-oracles exit=0 ===
+=== START tsc-noEmit ===
+=== END tsc-noEmit exit=0 ===

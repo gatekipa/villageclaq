@@ -1,0 +1,90 @@
+{
+  "schema": "f3-f12-reset-proposal-pins-v1",
+  "repo": "gatekipa/villageclaq",
+  "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "f12_functional": "1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+  "f12_evidence_head": "2c5d5ec92f0a113245aa7b22ae73643208bbb7d1",
+  "closure_file_count": 43,
+  "closure_digest": "08c2d46d7ff0d7e80d4df30342ca804cd7f1ddc408951491f77d5bb92ce1157b",
+  "disposable": "jkorwnwwmdeflfntxntl",
+  "production": "llbnliixczcqfftxpsmb",
+  "cli": "2.117.0",
+  "hold_id": "F12-RESET-HOLD-HISTORY-OR-F3-OBJECTS",
+  "wipe_reject": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
+  "preassigned": [
+    {
+      "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+      "version": "20260913173000",
+      "name": "f3_bounded_financial_epoch_foundation"
+    },
+    {
+      "file": "00119_f3_01_core_ledger_foundation.sql",
+      "version": "20260913173001",
+      "name": "f3_01_core_ledger_foundation"
+    },
+    {
+      "file": "00120_f3_02_secure_posting_idempotency.sql",
+      "version": "20260913173002",
+      "name": "f3_02_secure_posting_idempotency"
+    },
+    {
+      "file": "00121_f3_03_projection_read_proof.sql",
+      "version": "20260913173003",
+      "name": "f3_03_projection_read_proof"
+    },
+    {
+      "file": "00122_f3_04_correction_reversal.sql",
+      "version": "20260913173004",
+      "name": "f3_04_correction_reversal"
+    },
+    {
+      "file": "00123_f3_05_opening_cash_command.sql",
+      "version": "20260913173005",
+      "name": "f3_05_opening_cash_command"
+    }
+  ],
+  "tip_blobs": {
+    "scripts/qualify-f3-db-push-disposable.mjs": {
+      "git_blob": "163448d92c6d3035ee418435545a2166d53d1c6a",
+      "sha256": "3116906451a3d08c481548583a60be1efbef1cffa760a8b3fdd6846992526299",
+      "bytes": 148611
+    },
+    "scripts/test-f3-db-push-harness.mjs": {
+      "git_blob": "c76e6814dfee117916ecfab8f34225b4eb7f4bdb",
+      "sha256": "a507653ff237c1223d596358ce61f00cfe1588e49739d51ad6588b1d42aeb4ba",
+      "bytes": 380897
+    },
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs": {
+      "git_blob": "d22fb1660f06ba36403c94c9b5ca9bdafaad8a21",
+      "sha256": "405e1c5a672c30895ca2089c1eb078605551a2725699672bb51dfd7c43f205df",
+      "bytes": 2039958
+    },
+    "scripts/lib/f3-db-push-wipe.mjs": {
+      "git_blob": "43f728335922ec53338a0ca1766b6e3fe99c772a",
+      "sha256": "c0d2224bcabefa0de4cfac6cac86db174d6334bb6634cd8d81b93b106c36e7bb",
+      "bytes": 5708
+    },
+    "scripts/lib/f3-db-push-inventory.mjs": {
+      "git_blob": "2825b2691458439bb3c3b3a2b1faa8b76b6662ff",
+      "sha256": "28e7a9606dc343c57595bd60adeb345ff0bd37798a7cd22825b2fc1fa2615da2",
+      "bytes": 13050
+    },
+    "scripts/lib/f3-db-push-pins.mjs": {
+      "git_blob": "14c99b61638b0b14ad8a55054bfe0a6e4d41aab2",
+      "sha256": "9ce282bed1c4ea3b81f0e2ba9bedd5c7a928ecdccc1e23c867c86ac0f8969412",
+      "bytes": 8485
+    }
+  },
+  "existing_f12_plan_sha256": "344b1072e204803e82bb7f994481dd8a3cd6307566d058443b40b90d329deea7",
+  "existing_f12_evidence_index_sha256": "2527aa7056939eeb88dcf2822ed3cf10358b2945f340ef66f745d431b0d8ae0d",
+  "historical_f8f9_sql_sha256": "0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011",
+  "proposed_sql_sha256": "1b8cc9c21a14f1016329f7b49681566d37841de8877b369c596f687e57d72ae1",
+  "proposed_sql_label": "NEW and UNAPPROVED",
+  "additional_implementation_required_for_supported_path": true,
+  "operates_with_unchanged_f12_functional_as_supported_command": false,
+  "hosted_requalification_run": false,
+  "reset_executed": false,
+  "credentials_obtained": false,
+  "disposable_probed": false
+}

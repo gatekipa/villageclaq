@@ -1,0 +1,17 @@
+{
+  "schema": "f3-non-authoritative-staging-summary-v1",
+  "authoritative": false,
+  "see": "evidence-index.json",
+  "mode": "LOCAL_ONLY_SYNTHETIC",
+  "nested_ok": true,
+  "outer_ok": true,
+  "absolute_path_leaks": 0,
+  "secret_scan": "clean",
+  "artifact_count": 108,
+  "unindexed_count": 0,
+  "nested_indexes_in_outer": true,
+  "closure_file_count": 43,
+  "closure_digest": "08c2d46d7ff0d7e80d4df30342ca804cd7f1ddc408951491f77d5bb92ce1157b",
+  "functional_tip": "1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+  "suite_bindings": 12
+}

@@ -1,0 +1,34 @@
+{
+  "id": "F12-RESET-HOLD-HISTORY-OR-F3-OBJECTS",
+  "f12_functional_tip": "1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+  "wipe_to_baseline_rejection": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
+  "conditions": [
+    "classifyInventory: financial_private || financial_core || financial_ledger_epochs => ambiguous financial_object => HOLD",
+    "classifyInventory: schema_migrations_rows > 0 => ambiguous schema_migrations_rows => HOLD",
+    "planWipe action HOLD when verdict not CLEAN_BASELINE and not WIPE_ELIGIBLE",
+    "buildWipeSql throws F3_WIPE_AMBIGUOUS_HOLD on HOLD",
+    "wipe assert refuses DROP SCHEMA even for eligible SQL",
+    "no authorized DELETE for PREASSIGNED 20260913173000-005 / PREASSIGNED_NAMES in pinned source"
+  ],
+  "sources": [
+    "scripts/lib/f3-db-push-inventory.mjs classifyInventory @ 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+    "scripts/lib/f3-db-push-wipe.mjs planWipe/buildWipeSql @ 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+    "scripts/qualify-f3-db-push-disposable.mjs remainingHold id F12-RESET-HOLD-HISTORY-OR-F3-OBJECTS @ 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+    "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F12_LOCAL_SYNTHETIC_20260917/PROPOSED_HOSTED_REQUAL_PLAN.md",
+    "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F12_LOCAL_SYNTHETIC_20260917/offline-reset/F12-RESET-HOLD-DISCLOSURE.json"
+  ],
+  "supported": [
+    "CLEAN_BASELINE no-op",
+    "WIPE_ELIGIBLE failed-floor only via gated psql -f"
+  ],
+  "rejected": [
+    "--wipe-to-baseline",
+    "DROP SCHEMA in wipe SQL",
+    "llbnliixczcqfftxpsmb"
+  ],
+  "missing": [
+    "PREASSIGNED history DELETE",
+    "financial_* qualification-reset DROP",
+    "supported qualification-reset entrypoint"
+  ]
+}

@@ -6,13 +6,16 @@
  * leftover OR pure stock). Does not apply migrations.
  */
 import { RECOGNITION_ALLOWLIST } from "./f3-db-push-pins.mjs";
+import { parseDuplicateKeySafeJson } from "./f3-db-push-query-parse.mjs";
 import {
   AUTHENTICATED_HISTORY_KEYS,
   CANONICAL_FUNCTION_IDENTITY_SQL,
   FINITE_DEPENDENCY_ALLOWLIST,
   FINITE_OBJECT_ALLOWLIST,
+  canonicalDependencyTuple,
   canonicalizeFunctionIdentity,
   isFinancialPrefixSelector,
+  snapshotDependencyTuple,
   validateHistoryKeys,
   validateObjectAllowlist,
 } from "./f3-db-push-qualification-reset-design.mjs";
@@ -552,6 +555,188 @@ function identityFromDiscovered(item) {
   return null;
 }
 
+function discoveredObjectRecord(item) {
+  if (typeof item === "string") {
+    if (item.includes("(")) {
+      return { kind: "function", identity: canonicalizeFunctionIdentity(item) };
+    }
+    if (item === "financial_core" || item === "financial_private") {
+      return { kind: "schema", identity: item };
+    }
+    if (item === "btree_gist") {
+      return { kind: "extension", identity: item };
+    }
+    return { kind: null, identity: item };
+  }
+  if (item && typeof item.identity === "string") {
+    return {
+      kind: item.kind == null ? null : String(item.kind),
+      identity: item.kind === "function" ? canonicalizeFunctionIdentity(item.identity) : item.identity,
+    };
+  }
+  return null;
+}
+
+/**
+ * Broader inventory.* fields are independent evidence with documented
+ * meaning from INVENTORY_CAPTURE_OBJECT_SQL. They must agree with the
+ * canonical discovered/observed universe. Empty discovered arrays must
+ * not hide populated inventory facts.
+ */
+export function reconcileQualificationResetInventoryFacts(body) {
+  const inventory = body?.inventory || {};
+  const discovered = Array.isArray(body?.discovered_objects) ? body.discovered_objects : [];
+  const history = Array.isArray(body?.observed_history_rows) ? body.observed_history_rows : [];
+  const records = discovered.map(discoveredObjectRecord);
+  if (records.some((row) => row == null || !row.identity)) {
+    return captureFail("F13_INVENTORY_CAPTURE_MALFORMED", "Discovered object identities are incomplete");
+  }
+  const identities = new Set(records.map((row) => row.identity));
+  const contradictions = [];
+
+  const requireIdentity = (field, identity, meaning) => {
+    if (!identities.has(identity)) {
+      contradictions.push({ field, identity, meaning, inventoryFactRetained: true });
+    }
+  };
+
+  for (const name of asList(inventory.public_tables)) {
+    requireIdentity("public_tables", `public.${name}`, "inventory.public_tables is the public relkind=r set");
+  }
+  for (const name of asList(inventory.public_views)) {
+    requireIdentity("public_views", `public.${name}`, "inventory.public_views is the public relkind=v set");
+  }
+  for (const name of asList(inventory.public_types)) {
+    requireIdentity("public_types", `public.${name}`, "inventory.public_types is the public enum/composite set");
+  }
+  const functions = Array.isArray(inventory.public_functions) ? inventory.public_functions : [];
+  for (const fn of functions) {
+    if (fn && fn.identity) {
+      requireIdentity(
+        "public_functions",
+        canonicalizeFunctionIdentity(String(fn.identity)),
+        "inventory.public_functions[].identity is a public function",
+      );
+    } else if (fn && fn.name) {
+      const match = [...identities].some((id) => id === `public.${fn.name}` || id.startsWith(`public.${fn.name}(`));
+      if (!match) {
+        contradictions.push({
+          field: "public_functions",
+          identity: `public.${fn.name}`,
+          meaning: "inventory.public_functions[].name is a public function",
+          inventoryFactRetained: true,
+        });
+      }
+    }
+  }
+  if (inventory.financial_core === true) {
+    const present = identities.has("financial_core")
+      || [...identities].some((id) => id === "financial_core" || id.startsWith("financial_core."));
+    if (!present) {
+      contradictions.push({
+        field: "financial_core",
+        identity: "financial_core",
+        meaning: "inventory.financial_core means to_regnamespace('financial_core')",
+        inventoryFactRetained: true,
+      });
+    }
+  }
+  if (inventory.financial_private === true) {
+    const present = identities.has("financial_private")
+      || [...identities].some((id) => id === "financial_private" || id.startsWith("financial_private."));
+    if (!present) {
+      contradictions.push({
+        field: "financial_private",
+        identity: "financial_private",
+        meaning: "inventory.financial_private means to_regnamespace('financial_private')",
+        inventoryFactRetained: true,
+      });
+    }
+  }
+  if (inventory.financial_ledger_epochs === true) {
+    requireIdentity("financial_ledger_epochs", "public.financial_ledger_epochs", "inventory.financial_ledger_epochs means the table exists");
+  }
+  if (inventory.exchange_rates === true) {
+    requireIdentity("exchange_rates", "public.exchange_rates", "inventory.exchange_rates means the table exists");
+  }
+
+  const expectedHistoryCount = Number(inventory.schema_migrations_rows);
+  if (Number.isFinite(expectedHistoryCount) && expectedHistoryCount !== history.length) {
+    contradictions.push({
+      field: "schema_migrations_rows",
+      identity: String(expectedHistoryCount),
+      meaning: "inventory.schema_migrations_rows is the schema_migrations row count",
+      observedHistoryCount: history.length,
+      inventoryFactRetained: true,
+    });
+  }
+
+  for (const row of records) {
+    const identity = row.identity;
+    if (row.kind === "table" && identity.startsWith("public.")) {
+      const name = identity.slice("public.".length);
+      if (!asList(inventory.public_tables).includes(name) && name !== "exchange_rates" && name !== "financial_ledger_epochs") {
+        if (inventory.financial_ledger_epochs === true && name === "financial_ledger_epochs") continue;
+        contradictions.push({
+          field: "public_tables",
+          identity,
+          meaning: "discovered public table must appear in inventory.public_tables",
+          inventoryFactRetained: true,
+        });
+      }
+    }
+    if (row.kind === "view" && identity.startsWith("public.")) {
+      const name = identity.slice("public.".length);
+      if (!asList(inventory.public_views).includes(name)) {
+        contradictions.push({
+          field: "public_views",
+          identity,
+          meaning: "discovered public view must appear in inventory.public_views",
+          inventoryFactRetained: true,
+        });
+      }
+    }
+    if (row.kind === "schema" && identity === "financial_core" && inventory.financial_core !== true) {
+      contradictions.push({
+        field: "financial_core",
+        identity,
+        meaning: "discovered financial_core schema requires inventory.financial_core=true",
+        inventoryFactRetained: true,
+      });
+    }
+    if (row.kind === "schema" && identity === "financial_private" && inventory.financial_private !== true) {
+      contradictions.push({
+        field: "financial_private",
+        identity,
+        meaning: "discovered financial_private schema requires inventory.financial_private=true",
+        inventoryFactRetained: true,
+      });
+    }
+    if (identity === "public.financial_ledger_epochs" && inventory.financial_ledger_epochs !== true) {
+      contradictions.push({
+        field: "financial_ledger_epochs",
+        identity,
+        meaning: "discovered financial_ledger_epochs requires inventory.financial_ledger_epochs=true",
+        inventoryFactRetained: true,
+      });
+    }
+  }
+
+  if (contradictions.length) {
+    return captureFail(
+      "F13_INVENTORY_CAPTURE_CONTRADICTION",
+      "Broader inventory facts contradict the discovered/observed universe; facts were not discarded",
+      {
+        contradictions,
+        alreadyClean: false,
+        eligible: false,
+        verdict: "HOLD",
+      },
+    );
+  }
+  return { ok: true };
+}
+
 export function looksLikeAlignedPsqlFraming(text) {
   const raw = String(text ?? "");
   return /jsonb_build_object|\(\d+\s+rows?\)|-{3,}|^\s*[|+]/.test(raw)
@@ -663,14 +848,21 @@ export function parseQualificationResetInventoryProcessResult(result) {
       stdout: raw,
     });
   }
-  let parsed;
-  try {
-    parsed = JSON.parse(trimmed);
-  } catch {
+  const duplicateSafe = parseDuplicateKeySafeJson(raw.endsWith("\n") ? raw : `${raw}\n`);
+  if (!duplicateSafe.ok) {
+    if (duplicateSafe.parser_verdict === "duplicate_keys") {
+      return captureFail(
+        "F13_INVENTORY_CAPTURE_DUPLICATE_KEYS",
+        "Duplicate JSON member names are rejected before parse can discard an earlier value",
+        { parser_verdict: duplicateSafe.parser_verdict, stdout: raw },
+      );
+    }
     return captureFail("F13_INVENTORY_CAPTURE_MALFORMED", "Inventory capture stdout is not a single JSON object", {
       stdout: raw,
+      parser_verdict: duplicateSafe.parser_verdict || null,
     });
   }
+  const parsed = duplicateSafe.value;
   const validated = validateQualificationResetInventoryBody(parsed);
   if (!validated.ok) {
     return { ...validated, stdout: raw };
@@ -681,6 +873,8 @@ export function parseQualificationResetInventoryProcessResult(result) {
 export function observedFromQualificationResetCapture(body = {}) {
   const validated = validateQualificationResetInventoryBody(body);
   if (!validated.ok) return validated;
+  const reconciled = reconcileQualificationResetInventoryFacts(body);
+  if (!reconciled.ok) return reconciled;
   const discovered = body.discovered_objects;
   const discoveredDeps = body.discovered_dependencies;
   const observedField = body.observed_objects;
@@ -696,12 +890,23 @@ export function observedFromQualificationResetCapture(body = {}) {
       "observed_objects must preserve the complete discovered object universe",
     );
   }
-  const discoveredDepIdentities = discoveredDeps.map(identityFromDiscovered);
-  const observedDepIdentities = observedDepField.map(identityFromDiscovered);
-  if (discoveredDepIdentities.some((id) => !id) || observedDepIdentities.some((id) => !id)) {
-    return captureFail("F13_INVENTORY_CAPTURE_MALFORMED", "Discovered dependency identities are incomplete");
+  const discoveredDepTuples = discoveredDeps.map((item) => {
+    if (item == null || (typeof item === "object" && Object.keys(item).length === 0)) return null;
+    return snapshotDependencyTuple(item);
+  });
+  const observedDepTuples = observedDepField.map((item) => {
+    if (item == null || (typeof item === "object" && Object.keys(item).length === 0)) return null;
+    return snapshotDependencyTuple(item);
+  });
+  if (discoveredDeps.length === 0 && observedDepField.length === 0) {
+    // empty dependency universe is complete
+  } else if (discoveredDepTuples.some((row) => row == null) || observedDepTuples.some((row) => row == null)) {
+    return captureFail(
+      "F13_INVENTORY_CAPTURE_MALFORMED",
+      "Discovered dependency identities are incomplete; name-only fallback is forbidden",
+    );
   }
-  if (JSON.stringify(discoveredDepIdentities) !== JSON.stringify(observedDepIdentities)) {
+  if (JSON.stringify(discoveredDepTuples) !== JSON.stringify(observedDepTuples)) {
     return captureFail(
       "F13_INVENTORY_CAPTURE_INCOMPLETE",
       "observed_dependencies must preserve the complete discovered dependency universe",
@@ -724,7 +929,7 @@ export function observedFromQualificationResetCapture(body = {}) {
     inventoryCaptured: true,
     captureComplete: true,
     observedObjects: discoveredIdentities,
-    observedDependencies: discoveredDepIdentities,
+    observedDependencies: discoveredDepTuples.filter(Boolean),
     observedHistoryRows: history,
     discoveredObjects: discovered,
     discoveredDependencies: discoveredDeps,
@@ -935,6 +1140,7 @@ export function evaluateQualificationResetEligibility({
   observedObjectIdentities = [],
   observedDependencies = [],
   observedHistoryRows = [],
+  inventory = null,
   inventoryCaptured = false,
   captureComplete = false,
 } = {}) {
@@ -964,6 +1170,25 @@ export function evaluateQualificationResetEligibility({
       reason: "incomplete object identity representation blocks eligibility",
       financialPrefixUsedAsSelector: false,
     };
+  }
+  if (inventory != null) {
+    const reconciled = reconcileQualificationResetInventoryFacts({
+      inventory,
+      discovered_objects: observedObjectIdentities,
+      observed_history_rows: observedHistoryRows,
+    });
+    if (!reconciled.ok) {
+      return {
+        ok: false,
+        eligible: false,
+        alreadyClean: false,
+        verdict: "HOLD",
+        code: reconciled.code,
+        reason: reconciled.reason,
+        contradictions: reconciled.contradictions,
+        financialPrefixUsedAsSelector: false,
+      };
+    }
   }
   if (identities.some((identity) => isFinancialPrefixSelector(identity))) {
     return {

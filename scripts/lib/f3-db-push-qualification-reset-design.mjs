@@ -1413,78 +1413,402 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
   }),
 ]);
 
+function dep({
+  id,
+  from,
+  to,
+  kind = "foreign_key",
+  identity,
+  handling,
+  historicalNoticeOnly = false,
+  provenance,
+  naming,
+}) {
+  return Object.freeze({
+    id,
+    from,
+    to,
+    kind,
+    identity,
+    handling,
+    historicalNoticeOnly,
+    provenance,
+    naming,
+  });
+}
+
+const F12_TIP = "1ec0e4da782ed7715a543be23f79bc0f10a28af2";
+const HIST_DEP = `historical F8/F9 leftover FK retained as complete tuple @ F12 tip ${F12_TIP}`;
+const M118 = `supabase/migrations/00118_f3_bounded_financial_epoch_foundation.sql @ F12 tip ${F12_TIP}`;
+const M119 = `supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip ${F12_TIP}`;
+const M120 = `supabase/migrations/00120_f3_02_secure_posting_idempotency.sql @ F12 tip ${F12_TIP}`;
+const M122 = `supabase/migrations/00122_f3_04_correction_reversal.sql @ F12 tip ${F12_TIP}`;
+const M123 = `supabase/migrations/00123_f3_05_opening_cash_command.sql @ F12 tip ${F12_TIP}`;
+
+/**
+ * F15 mapping: F14 used two descriptive aggregates that are not catalog
+ * identities (`posting_command_payloads.event_id -> …` and
+ * `correction_command_payloads_fks`). Those are replaced by the actual
+ * PostgreSQL names created by UNCHANGED migration SQL. Count rises
+ * because the complete 00118–00123 FK set among allowlisted objects was
+ * reviewed; object allowlist / destructive scope is unchanged.
+ */
+export const DEPENDENCY_ALLOWLIST_PROVENANCE = Object.freeze({
+  f14AggregatesReplaced: Object.freeze([
+    "posting_command_payloads.event_id -> public.financial_events.id",
+    "correction_command_payloads target/reversal/replacement -> public.financial_events",
+    "dep.financial_events.correction_command_payloads_fks",
+  ]),
+  catalogIdentitiesForThoseAggregates: Object.freeze([
+    "posting_command_payloads_event_id_fkey",
+    "correction_command_payloads_target_event_id_group_id_fkey",
+    "correction_command_payloads_reversal_event_id_group_id_fkey",
+    "correction_command_payloads_replacement_event_id_group_id_fkey",
+  ]),
+  countChangeReason: "aggregates were not catalog identities; complete migration-created FK tuples among allowlisted objects are listed instead. Object allowlist unchanged.",
+  migrationsUnchanged: true,
+  databaseConstraintsNotRenamed: true,
+});
+
 export const FINITE_DEPENDENCY_ALLOWLIST = Object.freeze([
-  Object.freeze({
+  dep({
     id: "dep.groups.memberships_group_id_fkey",
     from: "public.memberships",
     to: "public.groups",
-    kind: "foreign_key",
     identity: "memberships_group_id_fkey",
     handling: "drop public.memberships before public.groups; no CASCADE",
     historicalNoticeOnly: true,
+    provenance: HIST_DEP,
+    naming: "historical catalog name",
   }),
-  Object.freeze({
+  dep({
     id: "dep.groups.projects_group_id_fkey",
     from: "public.projects",
     to: "public.groups",
-    kind: "foreign_key",
     identity: "projects_group_id_fkey",
     handling: "drop public.projects before public.groups; no CASCADE",
     historicalNoticeOnly: true,
+    provenance: HIST_DEP,
+    naming: "historical catalog name",
   }),
-  Object.freeze({
+  dep({
     id: "dep.groups.notification_policies_group_id_fkey",
     from: "public.notification_policies",
     to: "public.groups",
-    kind: "foreign_key",
     identity: "notification_policies_group_id_fkey",
     handling: "drop public.notification_policies before public.groups; no CASCADE",
     historicalNoticeOnly: true,
+    provenance: HIST_DEP,
+    naming: "historical catalog name",
   }),
-  Object.freeze({
+  dep({
     id: "dep.groups.notification_policy_occurrences_group_id_fkey",
     from: "public.notification_policy_occurrences",
     to: "public.groups",
-    kind: "foreign_key",
     identity: "notification_policy_occurrences_group_id_fkey",
     handling: "drop public.notification_policy_occurrences before public.groups; no CASCADE",
     historicalNoticeOnly: true,
+    provenance: HIST_DEP,
+    naming: "historical catalog name",
   }),
-  Object.freeze({
+  dep({
     id: "dep.memberships.position_assignments_membership_id_fkey",
     from: "public.position_assignments",
     to: "public.memberships",
-    kind: "foreign_key",
     identity: "position_assignments_membership_id_fkey",
     handling: "drop public.position_assignments before public.memberships; no CASCADE",
     historicalNoticeOnly: true,
+    provenance: HIST_DEP,
+    naming: "historical catalog name",
   }),
-  Object.freeze({
+  dep({
     id: "dep.notification_policies.notification_policy_triggers_policy_id_fkey",
     from: "public.notification_policy_triggers",
     to: "public.notification_policies",
-    kind: "foreign_key",
     identity: "notification_policy_triggers_policy_id_fkey",
     handling: "drop public.notification_policy_triggers before public.notification_policies; no CASCADE",
     historicalNoticeOnly: true,
+    provenance: HIST_DEP,
+    naming: "historical catalog name",
   }),
-  Object.freeze({
+  dep({
+    id: "dep.financial_ledger_epochs.group_id",
+    from: "public.financial_ledger_epochs",
+    to: "public.groups",
+    identity: "financial_ledger_epochs_group_id_fkey",
+    handling: "owned by public.financial_ledger_epochs; drop table RESTRICT; no CASCADE",
+    provenance: M118,
+    naming: "PostgreSQL default {table}_{column}_fkey from REFERENCES public.groups(id)",
+  }),
+  dep({
+    id: "dep.financial_ledger_epochs.created_by",
+    from: "public.financial_ledger_epochs",
+    to: "public.profiles",
+    identity: "financial_ledger_epochs_created_by_fkey",
+    handling: "owned by public.financial_ledger_epochs; drop table RESTRICT; no CASCADE",
+    provenance: M118,
+    naming: "PostgreSQL default {table}_{column}_fkey from REFERENCES public.profiles(id)",
+  }),
+  dep({
+    id: "dep.financial_ledger_epochs.approved_by",
+    from: "public.financial_ledger_epochs",
+    to: "public.profiles",
+    identity: "financial_ledger_epochs_approved_by_fkey",
+    handling: "owned by public.financial_ledger_epochs; drop table RESTRICT; no CASCADE",
+    provenance: M118,
+    naming: "PostgreSQL default {table}_{column}_fkey from REFERENCES public.profiles(id)",
+  }),
+  dep({
+    id: "dep.internal_financial_tenants.organization_id",
+    from: "financial_private.internal_financial_tenants",
+    to: "public.organizations",
+    identity: "internal_financial_tenants_organization_id_fkey",
+    handling: "owned by financial_private.internal_financial_tenants; drop table RESTRICT; no CASCADE",
+    provenance: M118,
+    naming: "PostgreSQL default {table}_{column}_fkey from REFERENCES public.organizations(id)",
+  }),
+  dep({
+    id: "dep.internal_financial_tenants.created_by",
+    from: "financial_private.internal_financial_tenants",
+    to: "public.profiles",
+    identity: "internal_financial_tenants_created_by_fkey",
+    handling: "owned by financial_private.internal_financial_tenants; drop table RESTRICT; no CASCADE",
+    provenance: M118,
+    naming: "PostgreSQL default {table}_{column}_fkey from REFERENCES public.profiles(id)",
+  }),
+  dep({
+    id: "dep.financial_accounts.group_id",
+    from: "public.financial_accounts",
+    to: "public.groups",
+    identity: "financial_accounts_group_id_fkey",
+    handling: "owned by public.financial_accounts; drop table RESTRICT; no CASCADE",
+    provenance: M119,
+    naming: "PostgreSQL default {table}_{column}_fkey from REFERENCES public.groups(id)",
+  }),
+  dep({
+    id: "dep.financial_accounts.created_by",
+    from: "public.financial_accounts",
+    to: "public.profiles",
+    identity: "financial_accounts_created_by_fkey",
+    handling: "owned by public.financial_accounts; drop table RESTRICT; no CASCADE",
+    provenance: M119,
+    naming: "PostgreSQL default {table}_{column}_fkey from REFERENCES public.profiles(id)",
+  }),
+  dep({
+    id: "dep.financial_accounts.epoch_scope",
+    from: "public.financial_accounts",
+    to: "public.financial_ledger_epochs",
+    identity: "financial_accounts_epoch_scope",
+    handling: "owned by public.financial_accounts; drop table RESTRICT; no CASCADE",
+    provenance: M119,
+    naming: "named CONSTRAINT financial_accounts_epoch_scope",
+  }),
+  dep({
+    id: "dep.financial_funds.group_id",
+    from: "public.financial_funds",
+    to: "public.groups",
+    identity: "financial_funds_group_id_fkey",
+    handling: "owned by public.financial_funds; drop table RESTRICT; no CASCADE",
+    provenance: M119,
+    naming: "PostgreSQL default {table}_{column}_fkey from REFERENCES public.groups(id)",
+  }),
+  dep({
+    id: "dep.financial_funds.created_by",
+    from: "public.financial_funds",
+    to: "public.profiles",
+    identity: "financial_funds_created_by_fkey",
+    handling: "owned by public.financial_funds; drop table RESTRICT; no CASCADE",
+    provenance: M119,
+    naming: "PostgreSQL default {table}_{column}_fkey from REFERENCES public.profiles(id)",
+  }),
+  dep({
+    id: "dep.financial_categories.group_id",
+    from: "public.financial_categories",
+    to: "public.groups",
+    identity: "financial_categories_group_id_fkey",
+    handling: "owned by public.financial_categories; drop table RESTRICT; no CASCADE",
+    provenance: M119,
+    naming: "PostgreSQL default {table}_{column}_fkey from REFERENCES public.groups(id)",
+  }),
+  dep({
+    id: "dep.financial_categories.created_by",
+    from: "public.financial_categories",
+    to: "public.profiles",
+    identity: "financial_categories_created_by_fkey",
+    handling: "owned by public.financial_categories; drop table RESTRICT; no CASCADE",
+    provenance: M119,
+    naming: "PostgreSQL default {table}_{column}_fkey from REFERENCES public.profiles(id)",
+  }),
+  dep({
+    id: "dep.financial_events.group_id",
+    from: "public.financial_events",
+    to: "public.groups",
+    identity: "financial_events_group_id_fkey",
+    handling: "owned by public.financial_events; drop table RESTRICT; no CASCADE",
+    provenance: M119,
+    naming: "PostgreSQL default {table}_{column}_fkey from REFERENCES public.groups(id)",
+  }),
+  dep({
+    id: "dep.financial_events.created_by",
+    from: "public.financial_events",
+    to: "public.profiles",
+    identity: "financial_events_created_by_fkey",
+    handling: "owned by public.financial_events; drop table RESTRICT; no CASCADE",
+    provenance: M119,
+    naming: "PostgreSQL default {table}_{column}_fkey from REFERENCES public.profiles(id)",
+  }),
+  dep({
+    id: "dep.financial_events.epoch_scope",
+    from: "public.financial_events",
+    to: "public.financial_ledger_epochs",
+    identity: "financial_events_epoch_scope",
+    handling: "owned by public.financial_events; drop table RESTRICT; no CASCADE",
+    provenance: M119,
+    naming: "named CONSTRAINT financial_events_epoch_scope",
+  }),
+  dep({
+    id: "dep.financial_events.reversal_scope",
+    from: "public.financial_events",
+    to: "public.financial_events",
+    identity: "financial_events_reversal_scope",
+    handling: "owned by public.financial_events; drop table RESTRICT; no CASCADE",
+    provenance: M119,
+    naming: "named CONSTRAINT financial_events_reversal_scope",
+  }),
+  dep({
+    id: "dep.financial_events.replacement_scope",
+    from: "public.financial_events",
+    to: "public.financial_events",
+    identity: "financial_events_replacement_scope",
+    handling: "owned by public.financial_events; drop table RESTRICT; no CASCADE",
+    provenance: M119,
+    naming: "named CONSTRAINT financial_events_replacement_scope",
+  }),
+  dep({
+    id: "dep.financial_postings.event_scope",
+    from: "public.financial_postings",
+    to: "public.financial_events",
+    identity: "financial_postings_event_scope",
+    handling: "owned by public.financial_postings; drop table RESTRICT; no CASCADE",
+    provenance: M119,
+    naming: "named CONSTRAINT financial_postings_event_scope",
+  }),
+  dep({
+    id: "dep.financial_postings.account_scope",
+    from: "public.financial_postings",
+    to: "public.financial_accounts",
+    identity: "financial_postings_account_scope",
+    handling: "owned by public.financial_postings; drop table RESTRICT; no CASCADE",
+    provenance: M119,
+    naming: "named CONSTRAINT financial_postings_account_scope",
+  }),
+  dep({
+    id: "dep.financial_postings.fund_scope",
+    from: "public.financial_postings",
+    to: "public.financial_funds",
+    identity: "financial_postings_fund_scope",
+    handling: "owned by public.financial_postings; drop table RESTRICT; no CASCADE",
+    provenance: M119,
+    naming: "named CONSTRAINT financial_postings_fund_scope",
+  }),
+  dep({
+    id: "dep.financial_postings.category_scope",
+    from: "public.financial_postings",
+    to: "public.financial_categories",
+    identity: "financial_postings_category_scope",
+    handling: "owned by public.financial_postings; drop table RESTRICT; no CASCADE",
+    provenance: M119,
+    naming: "named CONSTRAINT financial_postings_category_scope",
+  }),
+  dep({
+    id: "dep.financial_postings.member_scope",
+    from: "public.financial_postings",
+    to: "public.memberships",
+    identity: "financial_postings_member_scope",
+    handling: "owned by public.financial_postings; drop table RESTRICT; no CASCADE",
+    provenance: M119,
+    naming: "named CONSTRAINT financial_postings_member_scope",
+  }),
+  dep({
+    id: "dep.financial_postings.project_scope",
+    from: "public.financial_postings",
+    to: "public.projects",
+    identity: "financial_postings_project_scope",
+    handling: "owned by public.financial_postings; drop table RESTRICT; no CASCADE",
+    provenance: M119,
+    naming: "named CONSTRAINT financial_postings_project_scope",
+  }),
+  dep({
     id: "dep.financial_events.posting_command_payloads_event_id_fkey",
     from: "financial_core.posting_command_payloads",
     to: "public.financial_events",
-    kind: "foreign_key",
-    identity: "posting_command_payloads.event_id -> public.financial_events.id",
+    identity: "posting_command_payloads_event_id_fkey",
     handling: "drop financial_core.posting_command_payloads before public.financial_events; no CASCADE",
-    historicalNoticeOnly: false,
+    provenance: M120,
+    naming: "PostgreSQL default {table}_{column}_fkey from event_id REFERENCES public.financial_events(id)",
   }),
-  Object.freeze({
-    id: "dep.financial_events.correction_command_payloads_fks",
+  dep({
+    id: "dep.correction_command_payloads.group_id",
+    from: "financial_core.correction_command_payloads",
+    to: "public.groups",
+    identity: "correction_command_payloads_group_id_fkey",
+    handling: "owned by financial_core.correction_command_payloads; drop table RESTRICT; no CASCADE",
+    provenance: M122,
+    naming: "PostgreSQL default {table}_{column}_fkey from REFERENCES public.groups(id)",
+  }),
+  dep({
+    id: "dep.correction_command_payloads.correction_actor",
+    from: "financial_core.correction_command_payloads",
+    to: "public.profiles",
+    identity: "correction_command_payloads_correction_actor_fkey",
+    handling: "owned by financial_core.correction_command_payloads; drop table RESTRICT; no CASCADE",
+    provenance: M122,
+    naming: "PostgreSQL default {table}_{column}_fkey from REFERENCES public.profiles(id)",
+  }),
+  dep({
+    id: "dep.correction_command_payloads.target_event",
     from: "financial_core.correction_command_payloads",
     to: "public.financial_events",
-    kind: "foreign_key",
-    identity: "correction_command_payloads target/reversal/replacement -> public.financial_events",
+    identity: "correction_command_payloads_target_event_id_group_id_fkey",
     handling: "drop financial_core.correction_command_payloads before public.financial_events; no CASCADE",
-    historicalNoticeOnly: false,
+    provenance: M122,
+    naming: "PostgreSQL default {table}_{col1}_{col2}_fkey from unnamed FOREIGN KEY(target_event_id,group_id)",
+  }),
+  dep({
+    id: "dep.correction_command_payloads.reversal_event",
+    from: "financial_core.correction_command_payloads",
+    to: "public.financial_events",
+    identity: "correction_command_payloads_reversal_event_id_group_id_fkey",
+    handling: "drop financial_core.correction_command_payloads before public.financial_events; no CASCADE",
+    provenance: M122,
+    naming: "PostgreSQL default {table}_{col1}_{col2}_fkey from unnamed FOREIGN KEY(reversal_event_id,group_id)",
+  }),
+  dep({
+    id: "dep.correction_command_payloads.replacement_event",
+    from: "financial_core.correction_command_payloads",
+    to: "public.financial_events",
+    identity: "correction_command_payloads_replacement_event_id_group_id_fkey",
+    handling: "drop financial_core.correction_command_payloads before public.financial_events; no CASCADE",
+    provenance: M122,
+    naming: "PostgreSQL default {table}_{col1}_{col2}_fkey from unnamed FOREIGN KEY(replacement_event_id,group_id)",
+  }),
+  dep({
+    id: "dep.opening_provenances.group_id",
+    from: "financial_core.opening_provenances",
+    to: "public.groups",
+    identity: "opening_provenances_group_id_fkey",
+    handling: "owned by financial_core.opening_provenances; drop table RESTRICT; no CASCADE",
+    provenance: M123,
+    naming: "PostgreSQL default {table}_{column}_fkey from REFERENCES public.groups(id)",
+  }),
+  dep({
+    id: "dep.opening_provenances.recorded_by",
+    from: "financial_core.opening_provenances",
+    to: "public.profiles",
+    identity: "opening_provenances_recorded_by_fkey",
+    handling: "owned by financial_core.opening_provenances; drop table RESTRICT; no CASCADE",
+    provenance: M123,
+    naming: "PostgreSQL default {table}_{column}_fkey from REFERENCES public.profiles(id)",
   }),
 ]);
 
@@ -1776,6 +2100,30 @@ export function allowlistIdentityMatches(observed, allowed) {
   return false;
 }
 
+export function canonicalDependencyTuple(dep) {
+  if (dep == null || typeof dep === "string") return null;
+  if (typeof dep !== "object" || Array.isArray(dep)) return null;
+  const kind = dep.kind == null ? "" : String(dep.kind);
+  const identity = dep.identity == null ? "" : String(dep.identity);
+  const from = dep.from == null ? "" : String(dep.from);
+  const to = dep.to == null ? "" : String(dep.to);
+  if (!kind || !identity || !from || !to) return null;
+  if (/\s|->/.test(identity)) return null;
+  return Object.freeze({ kind, identity, from, to });
+}
+
+export function dependencyTuplesEqual(left, right) {
+  const a = canonicalDependencyTuple(left);
+  const b = canonicalDependencyTuple(right);
+  if (!a || !b) return false;
+  return a.kind === b.kind && a.identity === b.identity && a.from === b.from && a.to === b.to;
+}
+
+export function snapshotDependencyTuple(dep) {
+  const tuple = canonicalDependencyTuple(dep);
+  return tuple ? { ...tuple } : null;
+}
+
 export function isFinancialPrefixSelector(value) {
   const s = String(value ?? "").trim();
   return s === "financial_*" || /^financial_\*$/.test(s) || s === "financial_object";
@@ -1783,7 +2131,6 @@ export function isFinancialPrefixSelector(value) {
 
 export function validateObjectAllowlist(observedObjects = [], observedDependencies = []) {
   const allowed = allowlistIdentities();
-  const allowedDep = FINITE_DEPENDENCY_ALLOWLIST.map((d) => d.identity);
   const unexpectedObjects = [];
   for (const item of observedObjects) {
     const identity = typeof item === "string" ? item : item?.identity;
@@ -1801,11 +2148,20 @@ export function validateObjectAllowlist(observedObjects = [], observedDependenci
   }
   const unexpectedDependencies = [];
   for (const dep of observedDependencies) {
-    const identity = typeof dep === "string" ? dep : dep?.identity;
-    if (!identity || !allowedDep.some((allowedIdentity) => allowlistIdentityMatches(identity, allowedIdentity))) {
+    const tuple = canonicalDependencyTuple(dep);
+    if (!tuple) {
       unexpectedDependencies.push({
-        identity: identity || String(dep),
-        reason: "not in FINITE_DEPENDENCY_ALLOWLIST",
+        identity: typeof dep === "string" ? dep : (dep?.identity || String(dep)),
+        reason: "dependency identity is incomplete; name-only fallback is forbidden; not in FINITE_DEPENDENCY_ALLOWLIST",
+        observed: typeof dep === "string" ? { identity: dep } : dep,
+      });
+      continue;
+    }
+    if (!FINITE_DEPENDENCY_ALLOWLIST.some((allowed) => dependencyTuplesEqual(tuple, allowed))) {
+      unexpectedDependencies.push({
+        identity: tuple.identity,
+        reason: "not in FINITE_DEPENDENCY_ALLOWLIST as a complete (kind,identity,from,to) tuple",
+        observed: tuple,
       });
     }
   }
@@ -2092,7 +2448,13 @@ export function exportDesignArtifact() {
 export function scopeSqlIdentityDigest() {
   const canonical = JSON.stringify({
     objects: FINITE_OBJECT_ALLOWLIST.map((o) => ({ id: o.id, identity: o.identity, action: o.intendedAction, dropOrder: o.dropOrder })),
-    dependencies: FINITE_DEPENDENCY_ALLOWLIST.map((d) => ({ id: d.id, identity: d.identity })),
+    dependencies: FINITE_DEPENDENCY_ALLOWLIST.map((d) => ({
+      id: d.id,
+      kind: d.kind,
+      identity: d.identity,
+      from: d.from,
+      to: d.to,
+    })),
     history: AUTHENTICATED_HISTORY_KEYS,
   });
   return sha256Utf8(canonical);

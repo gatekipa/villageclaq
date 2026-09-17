@@ -124,7 +124,12 @@ test("F13-A01 financial_* prefix is not a destructive allowlist", () => {
 test("F13-A02 exact schema-qualified identities are accepted", () => {
   const ok = validateObjectAllowlist(
     ["public.financial_accounts", "financial_core.post_f3_command(jsonb,jsonb)"],
-    ["memberships_group_id_fkey"],
+    [{
+      kind: "foreign_key",
+      identity: "memberships_group_id_fkey",
+      from: "public.memberships",
+      to: "public.groups",
+    }],
   );
   assert.equal(ok.ok, true);
   assert.equal(ok.allowedCount, FINITE_OBJECT_ALLOWLIST.length);

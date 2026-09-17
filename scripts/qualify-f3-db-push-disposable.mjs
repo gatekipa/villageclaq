@@ -121,6 +121,8 @@ import {
 import {
   F13_F14_RUNTIME_CLOSURE_LABEL,
   F13_F14_VERIFICATION_UNION_LABEL,
+  F13_F15_RUNTIME_CLOSURE_LABEL,
+  F13_F15_VERIFICATION_UNION_LABEL,
   F13_RESET_ALREADY_CLEAN_VERDICT,
   F13_RESET_SUCCESS_VERDICT,
   F13_RUNTIME_LABEL,
@@ -128,6 +130,7 @@ import {
   F13_SUMMARY_FILE_HASH_FORBIDDEN,
   F13_WIPE_STILL_REJECTED,
   F14_RUNTIME_LABEL,
+  F15_RUNTIME_LABEL,
   QUALIFICATION_RESET_APPLY_PSQL_ARGV,
   QUALIFICATION_RESET_LOCAL_PROOF_HELPER_RELPATH,
   evaluateQualificationResetArgv,
@@ -136,6 +139,12 @@ import {
   runQualificationResetQualifyPath,
   scopeSqlIdentityDigest,
 } from "./lib/f3-db-push-qualification-reset.mjs";
+import {
+  AUTHENTICATED_HISTORY_KEYS,
+  DEPENDENCY_ALLOWLIST_PROVENANCE,
+  FINITE_DEPENDENCY_ALLOWLIST,
+  FINITE_OBJECT_ALLOWLIST,
+} from "./lib/f3-db-push-qualification-reset-design.mjs";
 import {
   WIPE_AUTHORITY,
   WIPE_HOLD,
@@ -687,14 +696,17 @@ export function renderProposedConstrainedResetPlanMarkdown(procedure) {
   ].join("\n");
 }
 
-export const F14_PROPOSED_HOSTED_PLAN_STATUS = "PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE";
-export const F14_PROPOSED_RESET_COMMAND = "scripts/qualify-f3-db-push-disposable.mjs";
-export const F14_PROPOSED_EVIDENCE_DESTINATIONS = Object.freeze({
-  resetEvidence: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F14_QUALIFICATION_RESET_HOSTED_REQUAL/hosted/qualification-reset/qualify-result.json",
-  founderAuthArtifact: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F14_QUALIFICATION_RESET_HOSTED_REQUAL/hosted/qualification-reset/FOUNDER_AUTH.json",
-  completeQualEvidence: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F14_QUALIFICATION_RESET_HOSTED_REQUAL/hosted/qualify-from-00118/qualify-result.json",
-  planRecord: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F14_QUALIFICATION_RESET_HOSTED_REQUAL/PROPOSED_HOSTED_REQUAL_PLAN.md",
+export const F15_PROPOSED_HOSTED_PLAN_STATUS = "PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE";
+export const F14_PROPOSED_HOSTED_PLAN_STATUS = F15_PROPOSED_HOSTED_PLAN_STATUS;
+export const F15_PROPOSED_RESET_COMMAND = "scripts/qualify-f3-db-push-disposable.mjs";
+export const F14_PROPOSED_RESET_COMMAND = F15_PROPOSED_RESET_COMMAND;
+export const F15_PROPOSED_EVIDENCE_DESTINATIONS = Object.freeze({
+  resetEvidence: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F15_QUALIFICATION_RESET_HOSTED_REQUAL/hosted/qualification-reset/qualify-result.json",
+  founderAuthArtifact: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F15_QUALIFICATION_RESET_HOSTED_REQUAL/hosted/qualification-reset/FOUNDER_AUTH.json",
+  completeQualEvidence: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F15_QUALIFICATION_RESET_HOSTED_REQUAL/hosted/qualify-from-00118/qualify-result.json",
+  planRecord: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F15_QUALIFICATION_RESET_PROPOSED_PLAN_20260917/PROPOSED_HOSTED_REQUAL_PLAN.md",
 });
+export const F14_PROPOSED_EVIDENCE_DESTINATIONS = F15_PROPOSED_EVIDENCE_DESTINATIONS;
 
 export function buildProposedQualificationResetHostedPlan({
   functionalTip = readBoundFunctionalCandidateSha(),
@@ -704,43 +716,43 @@ export function buildProposedQualificationResetHostedPlan({
   const scope = scopeSqlIdentityDigest();
   const resetArgv = [
     "node",
-    F14_PROPOSED_RESET_COMMAND,
+    F15_PROPOSED_RESET_COMMAND,
     "--qualification-reset",
-    `--founder-authorization-artifact=${F14_PROPOSED_EVIDENCE_DESTINATIONS.founderAuthArtifact}`,
-    `--evidence-out=${F14_PROPOSED_EVIDENCE_DESTINATIONS.resetEvidence}`,
+    `--founder-authorization-artifact=${F15_PROPOSED_EVIDENCE_DESTINATIONS.founderAuthArtifact}`,
+    `--evidence-out=${F15_PROPOSED_EVIDENCE_DESTINATIONS.resetEvidence}`,
   ];
   const completeQualArgv = [
     "node",
-    F14_PROPOSED_RESET_COMMAND,
+    F15_PROPOSED_RESET_COMMAND,
     "--no-wipe",
     "--prep-floor",
     "--sequence-f3",
     "--floor-mode=stub-live-pin",
-    `--evidence-out=${F14_PROPOSED_EVIDENCE_DESTINATIONS.completeQualEvidence}`,
+    `--evidence-out=${F15_PROPOSED_EVIDENCE_DESTINATIONS.completeQualEvidence}`,
   ];
   const expectedDeliberateFailures = [
     {
-      argv: ["node", F14_PROPOSED_RESET_COMMAND, "--wipe-to-baseline"],
+      argv: ["node", F15_PROPOSED_RESET_COMMAND, "--wipe-to-baseline"],
       expectedCode: WIPE_TO_BASELINE_REJECTION_CODE,
     },
     {
-      argv: ["node", F14_PROPOSED_RESET_COMMAND, "--qualification-reset"],
+      argv: ["node", F15_PROPOSED_RESET_COMMAND, "--qualification-reset"],
       expectedCode: "F13_FLAG_NOT_AUTHORIZATION",
     },
     {
-      argv: ["node", F14_PROPOSED_RESET_COMMAND, "--qualification-reset", "--prep-floor", `--founder-authorization-artifact=${F14_PROPOSED_EVIDENCE_DESTINATIONS.founderAuthArtifact}`],
+      argv: ["node", F15_PROPOSED_RESET_COMMAND, "--qualification-reset", "--prep-floor", `--founder-authorization-artifact=${F15_PROPOSED_EVIDENCE_DESTINATIONS.founderAuthArtifact}`],
       expectedCode: "F13_INVALID_FLAG_COMBINATION",
     },
   ];
   return {
-    status: F14_PROPOSED_HOSTED_PLAN_STATUS,
+    status: F15_PROPOSED_HOSTED_PLAN_STATUS,
     authorized: false,
     executed: false,
     proposedOnly: true,
     transportsDisabled: true,
     noServiceConnection: true,
     noResetOccurred: true,
-    label: F14_RUNTIME_LABEL,
+    label: F15_RUNTIME_LABEL,
     functionalTip,
     runtimeClosure: {
       label: closures.runtime.label,
@@ -787,10 +799,35 @@ export function buildProposedQualificationResetHostedPlan({
       reset: resetArgv,
       completeQualFrom00118: completeQualArgv,
     },
-    evidenceDestinations: F14_PROPOSED_EVIDENCE_DESTINATIONS,
+    evidenceDestinations: F15_PROPOSED_EVIDENCE_DESTINATIONS,
     expectedDeliberateFailures,
     stopOnUnexpected: true,
     uncertainOutcomeNoReplay: true,
+    applyRepairSeparation: true,
+    managementApiApply: false,
+    cliApplyRepairSeparation: "CLI 2.117.0 apply and repair remain separate commands; Management API apply is never authorized",
+    objectScopeCount: FINITE_OBJECT_ALLOWLIST.length,
+    dependencyScopeCount: FINITE_DEPENDENCY_ALLOWLIST.length,
+    historyKeyCount: AUTHENTICATED_HISTORY_KEYS.length,
+    objectScope: FINITE_OBJECT_ALLOWLIST.map((row) => ({
+      kind: row.kind,
+      identity: row.identity,
+      dropOrder: row.dropOrder,
+    })),
+    dependencyScope: FINITE_DEPENDENCY_ALLOWLIST.map((row) => ({
+      kind: row.kind,
+      identity: row.identity,
+      from: row.from,
+      to: row.to,
+    })),
+    historyScope: AUTHENTICATED_HISTORY_KEYS.map((row) => ({
+      version: row.version,
+      name: row.name,
+      file: row.file,
+    })),
+    dependencyProvenance: DEPENDENCY_ALLOWLIST_PROVENANCE,
+    f14RuntimeBaselineCitedNotExpected: "f6205869b233eaccf375b299112f7b9c352d58c6f2659471e06d2ca7a241e31d",
+    f14UnionBaselineCitedNotExpected: "f6ff6e42b4b5ec14b1a67fe88377d7deafe5f12f2c2c35c834e7c763711e7caa",
     sequencing: [
       "offline validate this plan with disabled hosted transports",
       "confirm disposable target only; refuse production immediately",
@@ -802,6 +839,129 @@ export function buildProposedQualificationResetHostedPlan({
       "finalize evidence bytes, then Chief/QA review; do not execute this plan from local correction",
     ],
   };
+}
+
+export function renderProposedQualificationResetHostedPlanMarkdown(
+  plan = buildProposedQualificationResetHostedPlan(),
+) {
+  const resetCmd = (plan.commands?.reset || []).join(" ");
+  const qualCmd = (plan.commands?.completeQualFrom00118 || []).join(" ");
+  const failures = (plan.expectedDeliberateFailures || []).map((row) => (
+    `- \`${(row.argv || []).join(" ")}\` → \`${row.expectedCode}\``
+  ));
+  const objects = (plan.objectScope || []).map((row) => (
+    `- \`${row.kind}\` \`${row.identity}\` dropOrder=${row.dropOrder}`
+  ));
+  const deps = (plan.dependencyScope || []).map((row) => (
+    `- \`${row.kind}\` \`${row.identity}\` from \`${row.from}\` to \`${row.to}\``
+  ));
+  const history = (plan.historyScope || []).map((row) => (
+    `- \`${row.version}\` / \`${row.name}\` ← \`${row.file}\``
+  ));
+  return [
+    "# PROPOSED HOSTED REQUALIFICATION PLAN — PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE",
+    "",
+    `**Status:** ${plan.status}`,
+    `**Label:** ${plan.label}`,
+    "**This document does not authorize wipe, hosted reset, credential use, Daybreak/Astra contact, or Management API apply.**",
+    "",
+    "## Bound identities",
+    "",
+    `- Functional tip SHA: \`${plan.functionalTip}\``,
+    `- Runtime closure label: \`${plan.runtimeClosure?.label}\``,
+    `- Runtime closure SHA-256: \`${plan.runtimeClosure?.sha256}\` (count ${plan.runtimeClosure?.count})`,
+    `- Verification-union label: \`${plan.verificationUnion?.label}\``,
+    `- Verification-union SHA-256: \`${plan.verificationUnion?.sha256}\` (count ${plan.verificationUnion?.count})`,
+    `- Runtime and union identities are distinct and must not be collapsed`,
+    `- F14 runtime baseline (cited, not expected): \`${plan.f14RuntimeBaselineCitedNotExpected}\``,
+    `- F14 union baseline (cited, not expected): \`${plan.f14UnionBaselineCitedNotExpected}\``,
+    `- Scope/SQL identity SHA-256: \`${plan.scopeSqlIdentitySha256}\``,
+    `- CLI pin: \`${plan.cliPin}\``,
+    `- Proof helper: \`${plan.proofHelper}\``,
+    `- Apply argv: \`${(plan.applyPsqlArgv || []).join(" ")}\``,
+    "",
+    "## Target",
+    "",
+    `- Accept disposable only: \`${plan.target?.accept}\` (jkorwnwwmdeflfntxntl)`,
+    `- Reject production: \`${PRODUCTION_REF}\` (llbnliixczcqfftxpsmb)`,
+    `- Reject: ${(plan.target?.reject || []).map((item) => `\`${item}\``).join(", ")}`,
+    "",
+    "## Secure placeholders",
+    "",
+    `- Database URL: \`${plan.placeholders?.dbUrl}\``,
+    `- Password: \`${plan.placeholders?.password}\``,
+    `- Founder authorization artifact must not contain connection material`,
+    "",
+    "## Wipe / budget / CLEAN_BASELINE",
+    "",
+    `- Wipe remains \`${plan.wipeRejectionCode}\``,
+    `- alreadyClean CLEAN_BASELINE is a no-op and does not consume the reset budget`,
+    `- Consumed reset only after a confirmed committed mutation`,
+    `- Budget: constrainedResets=${plan.budget?.constrainedResets}, completeQualsFrom00118=${plan.budget?.completeQualsFrom00118}, secondReset=${plan.budget?.secondReset}`,
+    "",
+    "## Exact reset command",
+    "",
+    "```bash",
+    resetCmd,
+    "```",
+    "",
+    "## Exact qualify-from-00118 command",
+    "",
+    "```bash",
+    qualCmd,
+    "```",
+    "",
+    "## CLI / Management API",
+    "",
+    `- ${plan.cliApplyRepairSeparation}`,
+    `- applyRepairSeparation=${plan.applyRepairSeparation}`,
+    `- Management API apply authorized: ${plan.managementApiApply}`,
+    "",
+    "## Object / dependency / history scope",
+    "",
+    `- Object count: ${plan.objectScopeCount}`,
+    `- Dependency count: ${plan.dependencyScopeCount}`,
+    `- History key count: ${plan.historyKeyCount}`,
+    `- Dependency count change vs F14 aggregates: ${plan.dependencyProvenance?.countChangeReason}`,
+    "",
+    "### Objects",
+    "",
+    ...objects,
+    "",
+    "### Dependencies (complete kind/identity/from/to)",
+    "",
+    ...deps,
+    "",
+    "### History keys",
+    "",
+    ...history,
+    "",
+    "## Preconditions",
+    "",
+    ...(plan.preconditions || []).map((row) => `- ${row}`),
+    "",
+    "## Expected deliberate failures from the actual runner",
+    "",
+    ...failures,
+    "",
+    "## Sequencing / evidence finalization",
+    "",
+    ...(plan.sequencing || []).map((row, idx) => `${idx + 1}. ${row}`),
+    "",
+    `- stopOnUnexpected=${plan.stopOnUnexpected}`,
+    `- uncertainOutcomeNoReplay=${plan.uncertainOutcomeNoReplay}`,
+    `- authorized=${plan.authorized} executed=${plan.executed} transportsDisabled=${plan.transportsDisabled}`,
+    "",
+    "## Evidence destinations (not created by this local correction)",
+    "",
+    `- Reset evidence: \`${plan.evidenceDestinations?.resetEvidence}\``,
+    `- Founder auth artifact: \`${plan.evidenceDestinations?.founderAuthArtifact}\``,
+    `- Complete qual evidence: \`${plan.evidenceDestinations?.completeQualEvidence}\``,
+    `- Plan record: \`${plan.evidenceDestinations?.planRecord}\``,
+    "",
+    "Offline validation must keep hosted transports disabled. Do not execute this plan.",
+    "",
+  ].join("\n");
 }
 
 export function validateProposedQualificationResetHostedPlanOffline(

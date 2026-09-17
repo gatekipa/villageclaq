@@ -34,6 +34,8 @@ import {
 import {
   F13_F14_RUNTIME_CLOSURE_LABEL,
   F13_F14_VERIFICATION_UNION_LABEL,
+  F13_F15_RUNTIME_CLOSURE_LABEL,
+  F13_F15_VERIFICATION_UNION_LABEL,
   F13_INVENTORY_CAPTURE_REQUIRED,
   F13_RESET_ALREADY_CLEAN_VERDICT,
   F13_RESET_SUCCESS_VERDICT,
@@ -674,6 +676,11 @@ test("F13-R20 qualify-main empty capture is alreadyClean no-mutation; missing ca
 test("F13-R21 qualify-main leftover path requires eligible===true; extras HOLD with no DROP", async () => {
   const extra = await runQualifyMainPath({
     captureBody: leftoverCaptureBody({
+      inventory: {
+        public_tables: ["not_on_allowlist"],
+        schema_migrations_rows: AUTHENTICATED_HISTORY_KEYS.length,
+      },
+      discovered_objects: ["public.not_on_allowlist"],
       observed_objects: ["public.not_on_allowlist"],
     }),
   });
@@ -894,7 +901,7 @@ test("F14-R04 real transport contract: status0, SQL fail, truncate, COMMIT loss,
 test("F14-R05 committed local proof helper reports wipe rejection and MUST_LOCAL honestly", async () => {
   const { proveQualificationResetLocal } = await import("./prove-f3-qualification-reset-local.mjs");
   const proof = await proveQualificationResetLocal();
-  assert.equal(proof.schema, "f14-qualification-reset-local-proof-v1");
+  assert.equal(proof.schema, "f15-qualification-reset-local-proof-v1");
   assert.equal(proof.hostedIdentityProof, false);
   assert.equal(proof.disposableContact, false);
   assert.equal(proof.wipeRejectionCode, F13_WIPE_REJECTION_CODE);
@@ -909,6 +916,8 @@ test("F14-R05 committed local proof helper reports wipe rejection and MUST_LOCAL
 
 test("F14-R06 runtime closure is entrypoint digest, not summary-file hash", () => {
   const closures = publishQualificationResetClosures();
+  assert.equal(closures.runtime.label, F13_F15_RUNTIME_CLOSURE_LABEL);
+  assert.equal(closures.completeVerificationUnion.label, F13_F15_VERIFICATION_UNION_LABEL);
   assert.equal(closures.runtime.label, F13_F14_RUNTIME_CLOSURE_LABEL);
   assert.equal(closures.completeVerificationUnion.label, F13_F14_VERIFICATION_UNION_LABEL);
   assert.notEqual(closures.runtime.label, closures.completeVerificationUnion.label);
@@ -924,6 +933,9 @@ test("F14-R06 runtime closure is entrypoint digest, not summary-file hash", () =
   assert.equal(closures.f13BaselineCitedNotExpected.runtime.sha256, "51c4a98fe2f249978dad09451b1a5e4a88617b833f66cafb6252870e6be7ed6d");
   assert.equal(closures.f13BaselineCitedNotExpected.union.sha256, "a317ff4f2008e15579e39769f1ed0b151f612a23e5ed444db238cae39c7387fe");
   assert.equal(closures.f13BaselineCitedNotExpected.runtime.notExpectedF14, true);
+  assert.equal(closures.f14BaselineCitedNotExpected.runtime.sha256, "f6205869b233eaccf375b299112f7b9c352d58c6f2659471e06d2ca7a241e31d");
+  assert.equal(closures.f14BaselineCitedNotExpected.union.sha256, "f6ff6e42b4b5ec14b1a67fe88377d7deafe5f12f2c2c35c834e7c763711e7caa");
+  assert.equal(closures.f14BaselineCitedNotExpected.runtime.notExpectedF15, true);
   const publishedCtx = qualificationResetRuntimeContext();
   assert.equal(publishedCtx.closureDigest, closures.runtime.sha256);
   assert.notEqual(publishedCtx.closureDigest, F13_SUMMARY_FILE_HASH_FORBIDDEN);

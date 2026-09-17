@@ -39,6 +39,7 @@ import {
   isFinancialPrefixSelector,
   scopeSqlIdentityDigest,
   sha256Utf8,
+  snapshotDependencyTuple,
   validateFounderAuthorizationBinding,
   validateHistoryKeys,
   validateHistorySqlPredicate,
@@ -53,10 +54,13 @@ import {
   QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION,
   buildQualificationResetInventoryPsqlCommand,
   evaluateQualificationResetEligibility,
+  looksLikeAlignedPsqlFraming,
   observedFromQualificationResetCapture,
   parseQualificationResetInventoryProcessResult,
   validateQualificationResetInventoryBody,
 } from "./f3-db-push-inventory.mjs";
+import { parseDuplicateKeySafeJson } from "./f3-db-push-query-parse.mjs";
+import { spawnLocalPsqlSync } from "./f3-local-connection-guard.mjs";
 import { GATED_PSQL_FILE_RENDERED, writeGatedSqlFile } from "./f3-db-push-remote-sql-file.mjs";
 import { assertDbPushGates, refuseProduction, sanitizeForLog, spawnGatedRemotePsqlSync } from "./f3-db-push-target-guard.mjs";
 import { buildFunctionalRecursiveRuntimeClosure } from "./f3-db-push-repair-safety-gate.mjs";
@@ -67,13 +71,16 @@ const DEFAULT_REPO_ROOT = path.resolve(RESET_MODULE_DIR, "../..");
 export { scopeSqlIdentityDigest, AUTHENTICATED_HISTORY_KEYS };
 
 export const F13_RUNTIME_PHASE = 2;
-export const F14_RUNTIME_LABEL =
-  "F14 LOCAL CORRECTION CANDIDATE — AWAITING QA / LOCAL PROOF";
-export const F13_RUNTIME_LABEL = F14_RUNTIME_LABEL;
+export const F15_RUNTIME_LABEL =
+  "F15 LOCAL CORRECTION CANDIDATE — AWAITING QA / LOCAL 3-TX PROOF";
+export const F14_RUNTIME_LABEL = F15_RUNTIME_LABEL;
+export const F13_RUNTIME_LABEL = F15_RUNTIME_LABEL;
 export const F13_SHARED_ORCHESTRATION_ID = "runQualificationReset";
 export const F13_WIPE_STILL_REJECTED = F13_WIPE_REJECTION_CODE;
-export const F13_F14_RUNTIME_CLOSURE_LABEL = "F14_QUALIFICATION_RESET_RUNTIME_CLOSURE";
-export const F13_F14_VERIFICATION_UNION_LABEL = "F14_QUALIFICATION_RESET_VERIFICATION_UNION";
+export const F13_F15_RUNTIME_CLOSURE_LABEL = "F15_QUALIFICATION_RESET_RUNTIME_CLOSURE";
+export const F13_F15_VERIFICATION_UNION_LABEL = "F15_QUALIFICATION_RESET_VERIFICATION_UNION";
+export const F13_F14_RUNTIME_CLOSURE_LABEL = F13_F15_RUNTIME_CLOSURE_LABEL;
+export const F13_F14_VERIFICATION_UNION_LABEL = F13_F15_VERIFICATION_UNION_LABEL;
 export const F13_BASELINE_RUNTIME_CLOSURE = Object.freeze({
   count: 45,
   sha256: "51c4a98fe2f249978dad09451b1a5e4a88617b833f66cafb6252870e6be7ed6d",
@@ -83,10 +90,32 @@ export const F13_BASELINE_VERIFICATION_UNION = Object.freeze({
   count: 47,
   sha256: "a317ff4f2008e15579e39769f1ed0b151f612a23e5ed444db238cae39c7387fe",
   notExpectedF14: true,
+  notExpectedF15: true,
+});
+export const F14_BASELINE_RUNTIME_CLOSURE = Object.freeze({
+  count: 45,
+  sha256: "f6205869b233eaccf375b299112f7b9c352d58c6f2659471e06d2ca7a241e31d",
+  notExpectedF15: true,
+});
+export const F14_BASELINE_VERIFICATION_UNION = Object.freeze({
+  count: 48,
+  sha256: "f6ff6e42b4b5ec14b1a67fe88377d7deafe5f12f2c2c35c834e7c763711e7caa",
+  notExpectedF15: true,
 });
 export const F13_SUMMARY_FILE_HASH_FORBIDDEN =
   "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d";
-export const TX_OBSERVATION_SCHEMA = "f14-qualification-reset-tx-observation-v1";
+export const TX_OBSERVATION_SCHEMA_F14 = "f14-qualification-reset-tx-observation-v1";
+export const TX_OBSERVATION_SCHEMA = "f15-qualification-reset-tx-observation-v1";
+export const TX_OBSERVATION_SUCCESS_SEQUENCE = Object.freeze([
+  Object.freeze({ phase: "T1_BEGIN", event: "began" }),
+  Object.freeze({ phase: "T2_LOCK", event: "locked" }),
+  Object.freeze({ phase: "T3_REVALIDATE", event: "revalidated" }),
+  Object.freeze({ phase: "T4_MUTATE", event: "mutate_attempted" }),
+  Object.freeze({ phase: "T5_AFFECTED", event: "affected_checked" }),
+  Object.freeze({ phase: "T6_FINAL", event: "final_ok" }),
+  Object.freeze({ phase: "T7_COMMIT", event: "commit_attempted" }),
+  Object.freeze({ phase: "T7_COMMIT", event: "committed", committed: true }),
+]);
 export const QUALIFICATION_RESET_APPLY_PSQL_ARGV = Object.freeze([
   "-X",
   "-q",
@@ -184,7 +213,17 @@ function identityOf(item) {
 function snapshotObserved(input = {}) {
   return {
     objects: (input.observedObjects || []).map(identityOf),
-    dependencies: (input.observedDependencies || []).map(identityOf),
+    dependencies: (input.observedDependencies || []).map((dep) => {
+      const tuple = snapshotDependencyTuple(dep);
+      if (tuple) return tuple;
+      return {
+        incomplete: true,
+        identity: typeof dep === "string" ? dep : (dep?.identity ?? null),
+        kind: typeof dep === "object" && dep ? dep.kind ?? null : null,
+        from: typeof dep === "object" && dep ? dep.from ?? null : null,
+        to: typeof dep === "object" && dep ? dep.to ?? null : null,
+      };
+    }),
     history: (input.observedHistoryRows || []).map((row) => ({
       version: row?.version == null ? "" : String(row.version),
       name: row?.name == null ? null : String(row.name),
@@ -444,6 +483,7 @@ export function planQualificationReset(input = {}) {
     observedObjectIdentities: input.observedObjects || [],
     observedDependencies: input.observedDependencies || [],
     observedHistoryRows: input.observedHistoryRows || [],
+    inventory: input.inventory || null,
     inventoryCaptured: input.inventoryCaptured === true,
     captureComplete: input.captureComplete === true,
   });
@@ -886,21 +926,120 @@ function encodeProcessResult(result, commandIdentity) {
   };
 }
 
-function extractTxObservations(stdout) {
+export function parseQualificationResetTxObservationStdout(stdout) {
   const raw = String(stdout ?? "");
+  if (!raw.length) {
+    return { ok: false, code: "F13_TX_OBSERVATION_FRAMING", observations: [], reason: "empty stdout" };
+  }
+  if (looksLikeAlignedPsqlFraming(raw)) {
+    return { ok: false, code: "F13_TX_OBSERVATION_FRAMING", observations: [], reason: "aligned psql framing" };
+  }
+  const body = raw.endsWith("\n") ? raw.slice(0, -1) : raw;
+  if (!body.length) {
+    return { ok: false, code: "F13_TX_OBSERVATION_FRAMING", observations: [], reason: "empty stdout" };
+  }
+  const lines = body.split("\n");
   const observations = [];
-  const jsonObjects = raw.match(/\{[^{}]*"schema"\s*:\s*"f14-qualification-reset-tx-observation-v1"[^{}]*\}/g) || [];
-  for (const chunk of jsonObjects) {
-    try {
-      const parsed = JSON.parse(chunk);
-      if (parsed?.schema === TX_OBSERVATION_SCHEMA && typeof parsed.phase === "string" && typeof parsed.event === "string") {
-        observations.push(parsed);
+  for (const line of lines) {
+    if (line === "") {
+      return {
+        ok: false,
+        code: "F13_TX_OBSERVATION_FRAMING",
+        observations,
+        reason: "blank line is not an observation record",
+      };
+    }
+    const parsed = parseDuplicateKeySafeJson(`${line}\n`);
+    if (!parsed.ok) {
+      return {
+        ok: false,
+        code: parsed.parser_verdict === "duplicate_keys"
+          ? "F13_TX_OBSERVATION_DUPLICATE_KEYS"
+          : "F13_TX_OBSERVATION_FRAMING",
+        observations,
+        reason: parsed.reason || "observation line is not a single JSON object",
+        truncated: /comm$/.test(line) || parsed.parser_verdict === "non-JSON",
+      };
+    }
+    const rec = parsed.value;
+    if (rec?.schema === TX_OBSERVATION_SCHEMA_F14) {
+      return {
+        ok: false,
+        code: "F13_TX_OBSERVATION_SCHEMA",
+        observations,
+        reason: "f14 observation schema is retained only as a regression payload",
+      };
+    }
+    if (rec?.schema !== TX_OBSERVATION_SCHEMA) {
+      return {
+        ok: false,
+        code: "F13_TX_OBSERVATION_SCHEMA",
+        observations,
+        reason: "observation schema is not the F15 protocol",
+      };
+    }
+    if (typeof rec.phase !== "string" || typeof rec.event !== "string") {
+      return {
+        ok: false,
+        code: "F13_TX_OBSERVATION_INVALID",
+        observations,
+        reason: "phase and event are required strings",
+      };
+    }
+    observations.push(rec);
+  }
+  return { ok: true, observations };
+}
+
+export function authenticateTxObservationSequence(observations = []) {
+  const expected = TX_OBSERVATION_SUCCESS_SEQUENCE;
+  const validPhases = new Set(TRANSACTION_PHASES.map((phase) => phase.id));
+  let rolledBack = false;
+  for (let i = 0; i < observations.length; i += 1) {
+    const obs = observations[i];
+    if (!validPhases.has(obs.phase)) {
+      return { ok: false, completeSuccess: false, reason: "invalid_phase", rolledBack: false };
+    }
+    if (obs.event === "rolled_back") {
+      if (obs.rolledBack !== true) {
+        return { ok: false, completeSuccess: false, reason: "invalid_rollback", rolledBack: false };
       }
-    } catch {
-      // incomplete / truncated JSON is not an observation
+      if (observations.slice(i + 1).some((row) => row.event === "committed")) {
+        return { ok: false, completeSuccess: false, reason: "committed_after_rollback", rolledBack: false };
+      }
+      rolledBack = true;
+      continue;
+    }
+    if (rolledBack) {
+      return { ok: false, completeSuccess: false, reason: "observation_after_rollback", rolledBack: true };
+    }
+    if (i >= expected.length) {
+      return { ok: false, completeSuccess: false, reason: "extra_observation", rolledBack: false };
+    }
+    const exp = expected[i];
+    if (obs.phase !== exp.phase || obs.event !== exp.event) {
+      return { ok: false, completeSuccess: false, reason: "missing_duplicate_or_reordered", rolledBack: false };
+    }
+    if (exp.committed === true) {
+      if (obs.committed !== true) {
+        return { ok: false, completeSuccess: false, reason: "commit_not_confirmed", rolledBack: false };
+      }
+      const prior = observations[i - 1];
+      if (!prior || prior.phase !== "T7_COMMIT" || prior.event !== "commit_attempted") {
+        return { ok: false, completeSuccess: false, reason: "committed_before_ack", rolledBack: false };
+      }
     }
   }
-  return observations;
+  const seen = new Set(observations.map((obs) => `${obs.phase}:${obs.event}`));
+  if (seen.size !== observations.filter((obs) => obs.event !== "rolled_back").length && !rolledBack) {
+    return { ok: false, completeSuccess: false, reason: "duplicate_observation", rolledBack: false };
+  }
+  const completeSuccess = !rolledBack
+    && observations.length === expected.length
+    && observations.at(-1)?.event === "committed"
+    && observations.at(-1)?.committed === true
+    && observations.at(-2)?.event === "commit_attempted";
+  return { ok: true, completeSuccess, rolledBack, prefix: observations.length < expected.length };
 }
 
 export function interpretQualificationResetTransportResult(processResult, { thrown = null } = {}) {
@@ -919,21 +1058,32 @@ export function interpretQualificationResetTransportResult(processResult, { thro
       : processResult,
     processResult?.commandIdentity || GATED_PSQL_FILE_RENDERED,
   );
-  const observations = extractTxObservations(encoded.stdout);
+  const extracted = parseQualificationResetTxObservationStdout(encoded.stdout);
+  const observations = extracted.observations || [];
+  const sequence = authenticateTxObservationSequence(observations);
   const events = observations.map((obs) => obs.event);
   const phases = observations.map((obs) => obs.phase);
-  const began = events.includes("began");
-  const mutateAttempted = events.includes("mutate_attempted");
-  const commitAttempted = events.includes("commit_attempted");
-  const committedObserved = observations.some((obs) => obs.event === "committed" && obs.committed === true);
-  const rollbackObserved = observations.some((obs) => obs.event === "rolled_back" && obs.rolledBack === true);
+  const began = observations.some((obs) => obs.phase === "T1_BEGIN" && obs.event === "began");
+  const mutateAttempted = observations.some((obs) => obs.phase === "T4_MUTATE" && obs.event === "mutate_attempted");
+  const commitAttempted = observations.some((obs) => obs.phase === "T7_COMMIT" && obs.event === "commit_attempted");
+  const committedObserved = sequence.completeSuccess === true
+    && extracted.ok === true
+    && observations.at(-1)?.phase === "T7_COMMIT"
+    && observations.at(-1)?.event === "committed"
+    && observations.at(-1)?.committed === true;
+  const rollbackObserved = sequence.rolledBack === true
+    || observations.some((obs) => obs.event === "rolled_back" && obs.rolledBack === true);
   const connectionLoss = UNCERTAIN_COMMIT_RE.test(`${encoded.stderr} ${encoded.error || ""} ${encoded.signal || ""}`)
     || /ECONNRESET/i.test(`${encoded.stderr} ${encoded.error || ""} ${thrown?.code || ""} ${thrown?.message || ""}`);
-  const processOk = thrown == null
-    && encoded.status === 0
-    && !encoded.signal
-    && encoded.timeout !== true;
-  const truncatedCommit = commitAttempted && !committedObserved;
+  const processErrorPresent = thrown != null
+    || encoded.status !== 0
+    || encoded.status == null
+    || Boolean(encoded.signal)
+    || encoded.timeout === true
+    || Boolean(encoded.structuredError)
+    || Boolean(encoded.error && String(encoded.error).trim());
+  const processOk = !processErrorPresent;
+  const truncatedCommit = extracted.truncated === true || (commitAttempted && !committedObserved);
   const uncertainCommit = !committedObserved && (
     truncatedCommit
     || (commitAttempted && (connectionLoss || encoded.timeout === true || encoded.signal || thrown))
@@ -948,6 +1098,7 @@ export function interpretQualificationResetTransportResult(processResult, { thro
       signal: encoded.signal,
       timeout: encoded.timeout === true,
       thrown: thrown != null,
+      processErrorPresent,
     },
     observed: {
       phases,
@@ -958,8 +1109,11 @@ export function interpretQualificationResetTransportResult(processResult, { thro
       commitAttempted,
       committed: committedObserved,
       rolledBack: rollbackObserved,
+      framingOk: extracted.ok === true,
+      framingCode: extracted.ok === true ? null : (extracted.code || null),
+      sequence,
     },
-    committed: processOk && committedObserved,
+    committed: processOk && extracted.ok === true && committedObserved,
     rolledBack: rollbackObserved ? true : null,
     uncertainCommit,
     phaseReached: phases.at(-1) || null,
@@ -1065,7 +1219,7 @@ export function createDisabledQualificationResetTransportAdapter(script = {}) {
           status: 0,
           stdout: observationLine("T1_BEGIN", "began")
             + observationLine("T7_COMMIT", "commit_attempted")
-            + '{"schema":"f14-qualification-reset-tx-observation-v1","phase":"T7_COMMIT","event":"comm',
+            + `{"schema":"${TX_OBSERVATION_SCHEMA}","phase":"T7_COMMIT","event":"comm`,
           stderr: "",
         };
       }
@@ -1165,6 +1319,44 @@ export function createDisabledQualificationResetTransportAdapter(script = {}) {
           + observationLine("T7_COMMIT", "commit_attempted")
           + observationLine("T7_COMMIT", "committed", { committed: true }),
         stderr: "",
+      };
+    },
+  };
+}
+
+export function createLocalFixtureQualificationResetTransportAdapter({
+  url,
+  workdir,
+} = {}) {
+  return {
+    kind: "local-fixture-psql",
+    disabled: false,
+    localFixtureRoutingOnly: true,
+    notProductionBypass: true,
+    execute({ sql } = {}) {
+      if (!url) {
+        throw Object.assign(new Error("local fixture URL is required"), {
+          code: "F13_LOCAL_FIXTURE_URL_REQUIRED",
+        });
+      }
+      if (!workdir) {
+        throw Object.assign(new Error("isolated workdir is required for local qualification reset"), {
+          code: "F13_WORKDIR_REQUIRED",
+        });
+      }
+      const abs = writeGatedSqlFile(workdir, "f15-qualification-reset.sql", sql);
+      const extra = ["-t", "-A", "-w", "-f", abs];
+      const spawned = spawnLocalPsqlSync(url, extra, { role: "work" });
+      const res = spawned.result || {};
+      return {
+        commandIdentity: "local-fixture-psql-file",
+        argv: [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", abs],
+        status: Object.prototype.hasOwnProperty.call(res, "status") ? res.status : null,
+        stdout: res.stdout || "",
+        stderr: res.stderr || "",
+        signal: res.signal || null,
+        timeout: res.timeout === true,
+        error: res.error || null,
       };
     },
   };
@@ -1628,6 +1820,7 @@ export async function runQualificationResetQualifyPath({
     observedObjects: captured.observedObjects,
     observedDependencies: captured.observedDependencies,
     observedHistoryRows: captured.observedHistoryRows,
+    inventory: captured.inventory || null,
     inventoryCaptured: true,
     captureComplete: captured.captureComplete === true,
     inventoryAtTx: {
@@ -1715,7 +1908,7 @@ export function publishQualificationResetClosures({
   const helperInRuntime = runtimeFiles.includes(QUALIFICATION_RESET_LOCAL_PROOF_HELPER_RELPATH);
   return {
     runtime: {
-      label: F13_F14_RUNTIME_CLOSURE_LABEL,
+      label: F13_F15_RUNTIME_CLOSURE_LABEL,
       notSummaryFileHash: true,
       forbiddenSummaryHash: F13_SUMMARY_FILE_HASH_FORBIDDEN,
       entrypoint: "scripts/qualify-f3-db-push-disposable.mjs",
@@ -1725,7 +1918,7 @@ export function publishQualificationResetClosures({
       proofHelperIncludedBecauseRead: helperInRuntime,
     },
     completeVerificationUnion: {
-      label: F13_F14_VERIFICATION_UNION_LABEL,
+      label: F13_F15_VERIFICATION_UNION_LABEL,
       notSummaryFileHash: true,
       count: unionFiles.length,
       sha256: digestOf(unionFiles),
@@ -1747,6 +1940,10 @@ export function publishQualificationResetClosures({
     f13BaselineCitedNotExpected: {
       runtime: F13_BASELINE_RUNTIME_CLOSURE,
       union: F13_BASELINE_VERIFICATION_UNION,
+    },
+    f14BaselineCitedNotExpected: {
+      runtime: F14_BASELINE_RUNTIME_CLOSURE,
+      union: F14_BASELINE_VERIFICATION_UNION,
     },
   };
 }

@@ -1,0 +1,29 @@
+{
+  "pin": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "defectsStillPresent": true,
+  "thrownOnlyAuthorizesSuccess": {
+    "interpretedCommitted": true,
+    "processErrorPresent": false,
+    "processFailed": false,
+    "attestationOk": true,
+    "genuineSuccess": true,
+    "finalizationOk": true,
+    "defect": true
+  },
+  "recordDropsThrown": {
+    "evidenceThrown": true,
+    "storedHasThrownKey": false,
+    "defect": true
+  },
+  "processEvidenceMutatesAfterPackagedHashes": {
+    "originalStderrSha256": "fbb170870a3748b00c847d63a5777c2f32d1345acd07f6d86378532e6cf1cf37",
+    "packagedStderr": "psql:[REDACTED_PATH]/f19-qual-reset-redact/file.sql:12: ERROR: boom DATABASE_URL=postgresql://example.invalid/db\n",
+    "packagedStderrSha256": "2be8fca3a328d67a4deef97b058c7a07bbc91bbfabd2bb9c033edec746ebfe08",
+    "helperPathOnlyRedaction": "psql:[REDACTED_PATH]/file.sql:12: ERROR: boom DATABASE_URL=postgresql://example.invalid/db\n",
+    "helperLeavesRemainderOrSecret": true,
+    "recoveredAfterSecretsRemoved": "psql:[REDACTED_PATH]/f19-qual-reset-redact/file.sql:12: ERROR: boom [REDACTED]=[REDACTED]example.invalid/db\n",
+    "recoveredSha256": "d300f71e3505c254d573ba2e16fd6c85961a5d569d82b82188a934f1f03c5425",
+    "packagedHashMatchesRecovered": false,
+    "defect": true
+  }
+}

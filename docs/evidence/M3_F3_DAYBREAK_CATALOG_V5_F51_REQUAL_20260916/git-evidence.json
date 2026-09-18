@@ -1,0 +1,29 @@
+{
+  "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "E4": "11c99b9579360ed9ccad2a527db0162b7d8e884f",
+  "F5": "228549412cf3b7a3cfa3a1c6c6bdee553a1c0a65",
+  "F5_1": "55995cf0ab5f89dd0b59775eb99a7f63a5e0d5b1",
+  "E5_parent_for_this_commit": "3e8e1ce8620784ee88b50feec4e67e479fd7dfa3",
+  "f5_to_f51_diff": {
+    "name_status": [
+      "M\tscripts/lib/f3-db-push-repair-safety-gate.mjs"
+    ],
+    "file_count": 1,
+    "only_poison_sql_file": true,
+    "diff_stat": "scripts/lib/f3-db-push-repair-safety-gate.mjs | 4 +++-\n 1 file changed, 3 insertions(+), 1 deletion(-)",
+    "diff_contains_current_database": true,
+    "diff_contains_current_user": true,
+    "full_diff": "diff --git a/scripts/lib/f3-db-push-repair-safety-gate.mjs b/scripts/lib/f3-db-push-repair-safety-gate.mjs\nindex 0343324..c758799 100644\n--- a/scripts/lib/f3-db-push-repair-safety-gate.mjs\n+++ b/scripts/lib/f3-db-push-repair-safety-gate.mjs\n@@ -6342,7 +6342,9 @@ SELECT jsonb_build_object(\n         AND NOT t.tgisinternal\n     )\n     OR to_regprocedure('${POISON_FUNCTION_REGPROCEDURE}') IS NOT NULL\n-  )\n+  ),\n+  'current_database', current_database(),\n+  'current_user', current_user\n );\n `;"
+  },
+  "ancestry": {
+    "E4_is_parent_of_F5": true,
+    "F5_is_parent_of_F51": true,
+    "F51_is_parent_of_E5": true,
+    "E4_ancestor_F5": true,
+    "F5_ancestor_F51": true,
+    "F51_ancestor_E5": true,
+    "main_pin_ok": true,
+    "pr83_ok": true
+  }
+}

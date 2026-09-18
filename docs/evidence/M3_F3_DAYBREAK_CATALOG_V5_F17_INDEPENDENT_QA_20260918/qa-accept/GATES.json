@@ -1,0 +1,25 @@
+{
+  "executableCommit": "83b9f79483f3ba53f4f8cd60016450ff38a723b4",
+  "platform": "linux",
+  "node": "v22.14.0",
+  "localPg": {
+    "available": true,
+    "version": "PostgreSQL 17.11",
+    "classification": "LOCAL_PG_EXECUTED"
+  },
+  "nativeWindowsExecuted": false,
+  "comparedToBuilderClaims": {
+    "resetDesign": { "claimed": "30/30", "observed": "30/30/0" },
+    "reset": { "claimed": "59/59", "observed": "59/59/0", "f17B02AfterPgMs": 6510 },
+    "dbPush": {
+      "claimed": "240/240/0",
+      "firstRunWithoutToken": "240 tests / 239 pass / 0 fail / 1 skip",
+      "skipName": "identity GET is skipped without token and fetch ledger stays empty",
+      "disposition": "environmental skip of an already-named skip test; not an F17 functional HOLD"
+    },
+    "helper": {
+      "claimed": "20 checks / 9 scenarios / 8 executed TX LOCAL_PG_EXECUTED",
+      "observed": "20/9/8 TX LOCAL_PG_EXECUTED overallOk true failCount 0"
+    }
+  }
+}

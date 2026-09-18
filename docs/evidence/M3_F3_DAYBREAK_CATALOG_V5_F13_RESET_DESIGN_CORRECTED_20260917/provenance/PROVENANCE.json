@@ -1,0 +1,40 @@
+{
+  "schema": "f13-reset-design-provenance-v1",
+  "mode": "LOCAL_SYNTHETIC",
+  "transformation_provenance_invented": false,
+  "historical_complete_argv": "CANNOT CONFIRM",
+  "historical_complete_argv_reason": "No authentic complete qualification-reset argv artifact found. F9 hosted STATUS records a poison-probe argv, not the reset invocation.",
+  "f9_reset_result": {
+    "role": "finalized_sanitized_artifact",
+    "source_commit": "f5727733a036536c0374d93570f61e80a127d428",
+    "repo_relative_path": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F9_EVENT_DURABLE_REQUAL_20260916/hosted/reset/reset-result.json",
+    "sha256": "dddf20e1c0762515a4132c77550f96665d2c56476780a9abc65f03a92bb127b6",
+    "bytes": 2749,
+    "copy_in_this_package": "provenance/F9-reset-result.sanitized.json",
+    "copy_method": "byte-for-byte filesystem copy of the source blob",
+    "copy_sha256": "dddf20e1c0762515a4132c77550f96665d2c56476780a9abc65f03a92bb127b6"
+  },
+  "f12_altered_f9_copy_not_used": {
+    "repo_relative_path": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F12_RESET_PROPOSAL_20260917/historical-f8-f9/F9-reset-result.json",
+    "sha256": "eb2c6fac88d37a0a1be67d5c3c55ca6a08e3442f5858dc3577bee8f95bc46d05",
+    "reason": "Observably not the finalized sanitized bytes. Not recopied. No transformation story invented."
+  },
+  "f8_reset_result_cited_not_copied": {
+    "source_commit": "080dd6adc79931bbcff25893d407aecf91bc7c14",
+    "repo_relative_path": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F8_LOCALPROOF_PERREPAIR_REQUAL_20260916/hosted/reset/reset-result.json",
+    "sha256": "5b1c174a99c95e43802e38f36ea9e7db738a2bdf1a06decec5d21d05f7da04d0",
+    "copied_into_this_package": false,
+    "reason": "Source bytes contain absolute executor paths. Citation only preserves digest without re-disclosing those paths."
+  },
+  "historical_sql": {
+    "repo_relative_path": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F12_RESET_PROPOSAL_20260917/historical-f8-f9/qualification-reset.F8F9.historical.sql",
+    "also_at": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F9_EVENT_DURABLE_REQUAL_20260916/hosted/reset/qualification-reset.sql",
+    "sha256": "0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011",
+    "status": "historical evidence; rejected as current procedure"
+  },
+  "reviewed_f12_proposed_sql": {
+    "repo_relative_path": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F12_RESET_PROPOSAL_20260917/proposed-procedure/PROPOSED_QUALIFICATION_RESET.sql",
+    "sha256": "1b8cc9c21a14f1016329f7b49681566d37841de8877b369c596f687e57d72ae1",
+    "status": "reviewed and rejected as current procedure"
+  }
+}

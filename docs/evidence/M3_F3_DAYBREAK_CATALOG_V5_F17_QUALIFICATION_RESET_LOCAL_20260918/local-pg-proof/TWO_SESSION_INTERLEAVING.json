@@ -1,0 +1,69 @@
+{
+  "isolation": "READ COMMITTED",
+  "unapprovedFk": {
+    "id": "TX_T3_LOCKWAIT_UNAPPROVED_FK_ROLLBACK",
+    "ok": true,
+    "lockWaitObserved": true,
+    "interleaving": {
+      "t1ReachedThenWaited": true,
+      "holderPid": 128073,
+      "waiterPids": [
+        128477
+      ],
+      "waitEvents": [
+        {
+          "pid": 128477,
+          "wait_event_type": "Lock",
+          "wait_event": "relation",
+          "state": "active"
+        }
+      ],
+      "isolation": "READ COMMITTED"
+    },
+    "preResetCommittedDrift": {
+      "retained": "unapproved_accounts_groups_fkey",
+      "observedAfterHolderCommit": "unapproved_accounts_groups_fkey"
+    },
+    "mutationPhaseReached": false,
+    "observedPhase": "T2_LOCK",
+    "rollback": null,
+    "processStatus": 3
+  },
+  "retargetedFk": {
+    "id": "TX_T3_LOCKWAIT_RETARGETED_FK_ROLLBACK",
+    "ok": true,
+    "lockWaitObserved": true,
+    "interleaving": {
+      "t1ReachedThenWaited": true,
+      "holderPid": 128523,
+      "waiterPids": [
+        128927
+      ],
+      "waitEvents": [
+        {
+          "pid": 128927,
+          "wait_event_type": "Lock",
+          "wait_event": "relation",
+          "state": "active"
+        }
+      ],
+      "isolation": "READ COMMITTED"
+    },
+    "preResetCommittedDrift": {
+      "retained": "public.profiles",
+      "observedAfterHolderCommit": "public.profiles"
+    },
+    "mutationPhaseReached": false,
+    "observedPhase": "T2_LOCK",
+    "rollback": null,
+    "processStatus": 3
+  },
+  "unchangedApprovedSet": {
+    "id": "TX_T3_APPROVED_SET_SUCCESS",
+    "ok": true,
+    "verdict": "CLEAN_BASELINE",
+    "commit": true,
+    "mutationPhaseReached": true
+  },
+  "rolledBackUnprovenRemainsNull": true
+}

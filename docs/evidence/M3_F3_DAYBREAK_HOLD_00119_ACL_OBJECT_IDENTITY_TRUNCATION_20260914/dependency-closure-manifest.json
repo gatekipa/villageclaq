@@ -1,0 +1,38 @@
+{
+  "artifact": "dependency-closure-manifest",
+  "functional_sha": "8e67138929d5c0925a89adb0d34eeff9a2d3cab4",
+  "tip_authorized_files": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "closure": [
+    "scripts/_f3_apply_current_main_floor.mjs",
+    "scripts/_m2_apply_disposable_floor.mjs",
+    "scripts/fixtures/disposable-postgres.mjs",
+    "scripts/fixtures/f3-forward-prerequisites.mjs",
+    "scripts/lib/f3-00030-floor-replay-transform.mjs",
+    "scripts/lib/f3-00057-floor-replay-transform.mjs",
+    "scripts/lib/f3-db-push-cli.mjs",
+    "scripts/lib/f3-db-push-floor.mjs",
+    "scripts/lib/f3-db-push-history-inject.mjs",
+    "scripts/lib/f3-db-push-identity.mjs",
+    "scripts/lib/f3-db-push-inventory.mjs",
+    "scripts/lib/f3-db-push-pins.mjs",
+    "scripts/lib/f3-db-push-pre-stub-floor-clean-check.mjs",
+    "scripts/lib/f3-db-push-query-parse.mjs",
+    "scripts/lib/f3-db-push-remote-sql-file.mjs",
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/lib/f3-db-push-stub-live-pin-floor.mjs",
+    "scripts/lib/f3-db-push-target-guard.mjs",
+    "scripts/lib/f3-db-push-version-map.mjs",
+    "scripts/lib/f3-local-connection-guard.mjs",
+    "scripts/lib/f3-management-api-disposable-floor.mjs",
+    "scripts/lib/f3-management-api-remote-harness.mjs",
+    "scripts/lib/f3-unnest-floor-scan.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "zero_mismatch": true,
+  "note": "Import closure from authorized tip files; tip tree not modified"
+}

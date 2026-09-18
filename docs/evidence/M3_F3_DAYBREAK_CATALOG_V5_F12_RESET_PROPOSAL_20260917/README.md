@@ -1,0 +1,9 @@
+# F12 RESET PROPOSAL PACKAGE (documentation only)
+
+**PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE**
+
+Status: **RESET PROPOSAL READY — DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN**
+
+Descended from F12 evidence head `2c5d5ec92f0a113245aa7b22ae73643208bbb7d1`. Does not modify F12 functional tip `1ec0e4da782ed7715a543be23f79bc0f10a28af2` or historical F12 package `docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F12_LOCAL_SYNTHETIC_20260917/`.
+
+Start: `PROPOSED_RESET_SCOPE.md`

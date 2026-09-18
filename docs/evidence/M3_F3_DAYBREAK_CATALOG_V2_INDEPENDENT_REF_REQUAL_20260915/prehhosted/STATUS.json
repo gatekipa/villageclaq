@@ -1,0 +1,191 @@
+{
+  "artifact": "prehhosted-STATUS",
+  "verdict": "CONTINUE",
+  "hold_reason": null,
+  "functional_sha_F2": "a4104b452c29e9bb103cb7b232004368875dc53f",
+  "phase_e_verdict": "READY_TO_FF",
+  "checks": {
+    "local_pg_17_6_verify_READY_TO_FF": true,
+    "primary_eq_independent_all_six": true,
+    "tip_eq_independent_all_six": true,
+    "cloud_eq_independent_all_six": true,
+    "envelope_digest_eb58900b": true,
+    "no_REDACTED_in_semantic_envelope": true,
+    "catalog_v2_completeness": true,
+    "recognition_manual_income": true,
+    "negative_matrix_repairCalls_0": true,
+    "negative_matrix_dbPushCalls_0": true,
+    "sanitizer_semantic_unchanged": true,
+    "sanitizer_no_semantic_REDACTED": true,
+    "cli_2_117_0": true,
+    "qualification_suites_pass": true
+  },
+  "suite_metas": {
+    "next-build": {
+      "suite": "next-build",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": null,
+      "pass": null,
+      "fail": null,
+      "skipped": null,
+      "sha256": "0fc19e73bf01f8ea7a6ad60ced836ae6e2d6c2350cf73b1ef84f21f7e287432d",
+      "bytes": 7206
+    },
+    "test-f3-db-push-rerun": {
+      "suite": "test-f3-db-push-rerun",
+      "exit_code": 0,
+      "classification": "PASS_WITH_SKIPS",
+      "tests": 121,
+      "pass": 120,
+      "fail": 0,
+      "skipped": 1,
+      "sha256": "dd4b428ae013b2a33b93cffc6b9a867906ac26fc4491d470ec0e933ccc70140f",
+      "bytes": 42796
+    },
+    "test-f3-db-push": {
+      "suite": "test-f3-db-push",
+      "exit_code": 0,
+      "classification": "PASS_WITH_SKIPS",
+      "tests": 121,
+      "pass": 120,
+      "fail": 0,
+      "skipped": 1,
+      "sha256": "fd1b8df656daf057085528d4fc032965b13d9f00b710bcaa5870d7655c4f5613",
+      "bytes": 40977
+    },
+    "test-f3-local-safety": {
+      "suite": "test-f3-local-safety",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": 45,
+      "pass": 45,
+      "fail": 0,
+      "skipped": 0,
+      "sha256": "3a160bfcc6571055c2c8da648a933d7304abf5f4078511289e75d1064914f109",
+      "bytes": 9544
+    },
+    "test-f3-mapi-harness": {
+      "suite": "test-f3-mapi-harness",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": 22,
+      "pass": 22,
+      "fail": 0,
+      "skipped": 0,
+      "sha256": "e0d32e9c43567f83da088185a5c06f2511c9c2f74ae03d9a98f5d09658f62828",
+      "bytes": 4226
+    },
+    "test-f3-oracles": {
+      "suite": "test-f3-oracles",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": 577,
+      "pass": 577,
+      "fail": 0,
+      "skipped": 0,
+      "sha256": "5349b37e42f61383ea259d0835403b790f4c721a6783c02bd3ed4b3eca22ac2c",
+      "bytes": 87521
+    },
+    "test-f3-recognition": {
+      "suite": "test-f3-recognition",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": 40,
+      "pass": 40,
+      "fail": 0,
+      "skipped": 0,
+      "sha256": "17715170187d20a9d3d3db94155fc9a6bdf26f5d4e9e58d0d3d0065652354e52",
+      "bytes": 7566
+    },
+    "test-m2-static-security": {
+      "suite": "test-m2-static-security",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "skipped": 0,
+      "sha256": "8379307f882e0d4708a91bc363005e4b8ef8f940a97eaf38f97a73d325217f9d",
+      "bytes": 1916
+    },
+    "test-m2": {
+      "suite": "test-m2",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": 111,
+      "pass": 111,
+      "fail": 0,
+      "skipped": 0,
+      "sha256": "f25d7a156f901ab2d758ba20e4a2cf46186cd40ca11fc927fcd3fbcf8c1b6a09",
+      "bytes": 22508
+    },
+    "test-s0-cut1": {
+      "suite": "test-s0-cut1",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0,
+      "sha256": "cb0d2ba523528e0313a8fe5597e25c20527169a491521a209f61c423c08c38b3",
+      "bytes": 2242
+    },
+    "test-s0-cut2": {
+      "suite": "test-s0-cut2",
+      "exit_code": 1,
+      "classification": "ENV_DEPENDENT_FAIL",
+      "tests": 21,
+      "pass": 14,
+      "fail": 7,
+      "skipped": 0,
+      "sha256": "0a1a3e99563759a6bcd005a5f6d4ec8a236167f44be50761ab9f2f45079487cc",
+      "bytes": 15784
+    },
+    "test-storage-buckets": {
+      "suite": "test-storage-buckets",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0,
+      "sha256": "19817320367ea5916b893d87b7c414e3a8d107e63e09172041a2f5204eb38843",
+      "bytes": 2261
+    },
+    "tsc-noEmit": {
+      "suite": "tsc-noEmit",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": null,
+      "pass": null,
+      "fail": null,
+      "skipped": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  },
+  "env_dependent_non_blocking": [
+    {
+      "suite": "test-s0-cut2",
+      "exit_code": 1,
+      "classification": "ENV_DEPENDENT_FAIL",
+      "tests": 21,
+      "pass": 14,
+      "fail": 7,
+      "skipped": 0,
+      "sha256": "0a1a3e99563759a6bcd005a5f6d4ec8a236167f44be50761ab9f2f45079487cc",
+      "bytes": 15784
+    }
+  ],
+  "note_cut2": "test-s0-cut2 classified ENV_DEPENDENT_FAIL (CUT2_DISPOSABLE_DATABASE_URL absent); not an F3 qualification gate \u2014 documented, not treated as PASS",
+  "absolute_bans_ack": {
+    "production_ref": "llbnliixczcqfftxpsmb",
+    "no_merge_deploy_delete_pause": true,
+    "no_daybreak_blue_astra": true,
+    "no_force_push": true,
+    "no_second_hosted_retry_if_discrepancy": true,
+    "no_reseal_from_hosted": true
+  },
+  "captured_at_et": "9/15/2026, 8:56:45 PM ET"
+}

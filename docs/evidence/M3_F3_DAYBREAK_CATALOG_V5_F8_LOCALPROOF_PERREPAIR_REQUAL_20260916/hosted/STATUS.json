@@ -1,0 +1,63 @@
+{
+  "artifact": "phase-hosted-STATUS",
+  "verdict": "FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION",
+  "process_exit": 0,
+  "evidence_out_file": "phase-c/qualify-evidence/qualify-result.json",
+  "evidence_out_durable_write": true,
+  "evidence_out_was_directory": false,
+  "floorLabel": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "schema": "f3-full-catalog-v5",
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "not_production": true,
+  "reset_count": 1,
+  "second_reset": false,
+  "clean_baseline": true,
+  "ambiguous_objects": "none",
+  "recognition": [
+    "manual_income"
+  ],
+  "hosted_on_functional_sha": "83c48192ef0309ae2ebdd1f087994319b19fc024",
+  "F8": "83c48192ef0309ae2ebdd1f087994319b19fc024",
+  "tip103_blob_source": "83c48192ef0309ae2ebdd1f087994319b19fc024",
+  "sequence_length": 6,
+  "evidence_status": "FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION",
+  "evidence_verdict": "FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION",
+  "hold_reason": null,
+  "candidateOnly": true,
+  "productionApproved": false,
+  "poisonPsqlTransport": {
+    "argv": [
+      "-X",
+      "-q",
+      "-t",
+      "-A",
+      "-w",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-c",
+      "\nSELECT json_build_object(\n  'schema_version', 'f3-poison-envelope-v1',\n  'poisonPresent', (\n    EXISTS (\n      SELECT 1\n      FROM pg_trigger t\n      JOIN pg_class c ON c.oid = t.tgrelid\n      JOIN pg_namespace n ON n.oid = c.relnamespace\n      WHERE t.tgname = 'trg_f3_dbpush_fail_target_history'\n        AND n.nspname = 'supabase_migrations'\n        AND NOT t.tgisinternal\n    )\n    OR to_regprocedure('supabase_migrations.f3_dbpush_fail_target_history()') IS NOT NULL\n  ),\n  'current_database', current_database(),\n  'current_user', current_user,\n  'probe_marker', 'f3_poison_absent_probe'\n)::text;\n"
+    ],
+    "psqlVersion": "psql (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+    "envKeys": [
+      "HOME",
+      "PATH",
+      "PGCONNECT_TIMEOUT",
+      "PGDATABASE",
+      "PGHOST",
+      "PGPASSWORD",
+      "PGPORT",
+      "PGSSLMODE",
+      "PGUSER"
+    ],
+    "transport": "isolated-psql",
+    "must_local_psql_proof_on_17_6": true
+  },
+  "finalPoisonProbe": {
+    "ok": true,
+    "poisonPresent": false,
+    "parser_verdict": "valid_json_exact_schema",
+    "stdoutSha256": "b13be10ffcd515af2b0e34b54400484c7bf7715ae6d786ff585c661551f70d02",
+    "stdoutByteLength": 175,
+    "stderrByteLength": null
+  }
+}

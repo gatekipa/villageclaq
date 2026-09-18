@@ -1,0 +1,158 @@
+{
+  "fields": [
+    {
+      "field": "public_tables",
+      "cleanEvidence": "[]",
+      "classifier": true,
+      "dirtyBlocksCleanBaseline": true,
+      "unsupportedManagedLeftover": false
+    },
+    {
+      "field": "public_views",
+      "cleanEvidence": "[]",
+      "classifier": true,
+      "dirtyBlocksCleanBaseline": true,
+      "unsupportedManagedLeftover": false
+    },
+    {
+      "field": "public_types",
+      "cleanEvidence": "[]",
+      "classifier": true,
+      "dirtyBlocksCleanBaseline": true,
+      "unsupportedManagedLeftover": false
+    },
+    {
+      "field": "public_functions",
+      "cleanEvidence": "[]",
+      "classifier": true,
+      "dirtyBlocksCleanBaseline": true,
+      "unsupportedManagedLeftover": false
+    },
+    {
+      "field": "unnest_uuid_shim",
+      "cleanEvidence": false,
+      "classifier": true,
+      "dirtyBlocksCleanBaseline": true,
+      "unsupportedManagedLeftover": true,
+      "holdWithoutDeletion": true,
+      "wipeRouted": false
+    },
+    {
+      "field": "auth_handle_new_user_trigger",
+      "cleanEvidence": false,
+      "classifier": true,
+      "dirtyBlocksCleanBaseline": true,
+      "unsupportedManagedLeftover": true,
+      "holdWithoutDeletion": true,
+      "wipeRouted": false
+    },
+    {
+      "field": "schema_migrations_present",
+      "cleanEvidence": "boolean (true or false)",
+      "classifier": true,
+      "dirtyBlocksCleanBaseline": true,
+      "unsupportedManagedLeftover": false
+    },
+    {
+      "field": "schema_migrations_rows",
+      "cleanEvidence": 0,
+      "classifier": true,
+      "dirtyBlocksCleanBaseline": true,
+      "unsupportedManagedLeftover": false
+    },
+    {
+      "field": "financial_private",
+      "cleanEvidence": false,
+      "classifier": true,
+      "dirtyBlocksCleanBaseline": true,
+      "unsupportedManagedLeftover": false
+    },
+    {
+      "field": "financial_core",
+      "cleanEvidence": false,
+      "classifier": true,
+      "dirtyBlocksCleanBaseline": true,
+      "unsupportedManagedLeftover": false
+    },
+    {
+      "field": "financial_ledger_epochs",
+      "cleanEvidence": false,
+      "classifier": true,
+      "dirtyBlocksCleanBaseline": true,
+      "unsupportedManagedLeftover": false
+    },
+    {
+      "field": "exchange_rates",
+      "cleanEvidence": false,
+      "classifier": true,
+      "dirtyBlocksCleanBaseline": true,
+      "unsupportedManagedLeftover": false
+    },
+    {
+      "field": "organizations_base_country",
+      "cleanEvidence": false,
+      "classifier": true,
+      "dirtyBlocksCleanBaseline": true,
+      "unsupportedManagedLeftover": false
+    },
+    {
+      "field": "groups_group_level",
+      "cleanEvidence": false,
+      "classifier": true,
+      "dirtyBlocksCleanBaseline": true,
+      "unsupportedManagedLeftover": false
+    },
+    {
+      "field": "committees_budget_allocation",
+      "cleanEvidence": false,
+      "classifier": false,
+      "dirtyBlocksCleanBaseline": true,
+      "unsupportedManagedLeftover": false,
+      "reconcileOnly": true
+    },
+    {
+      "field": "storage_policies",
+      "cleanEvidence": "[] or named failed-floor residuals only",
+      "classifier": true,
+      "dirtyBlocksCleanBaseline": true,
+      "unsupportedManagedLeftover": true,
+      "namedFloorResidualAllowed": true,
+      "holdWithoutDeletion": true,
+      "wipeRouted": false
+    },
+    {
+      "field": "storage_buckets",
+      "cleanEvidence": "[] or named failed-floor residuals only",
+      "classifier": true,
+      "dirtyBlocksCleanBaseline": true,
+      "unsupportedManagedLeftover": true,
+      "namedFloorResidualAllowed": true,
+      "holdWithoutDeletion": true,
+      "wipeRouted": false,
+      "permittedIdentitiesFrom": "FAILED_FLOOR_STORAGE_BUCKETS",
+      "nonDeletedIsNotNonBlocking": true
+    }
+  ],
+  "namedFloorStoragePolicies": [
+    "Authenticated users can upload receipts",
+    "Authenticated users can view receipts",
+    "Authenticated users can delete own receipts",
+    "Anyone can view avatars",
+    "Authenticated users can upload avatars",
+    "Users can update own avatars",
+    "Users can delete own avatars",
+    "Authenticated users can upload group documents",
+    "Authenticated users can view group documents",
+    "Authenticated users can delete group documents"
+  ],
+  "approvedBaselineStorageBuckets": [
+    "avatars",
+    "group-documents",
+    "receipts"
+  ],
+  "omittedDirtyBlocksCleanBaseline": [],
+  "cleanBaselineRequiresAllFacts": true,
+  "emptyObjectHistoryInsufficient": true,
+  "duplicateJsonRejectedAtProcessByteBoundary": true,
+  "storageBucketsNonDeletedIsNotNonBlocking": true
+}

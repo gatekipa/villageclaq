@@ -1,0 +1,557 @@
+[
+  {
+    "name": "USD CORRECT",
+    "fixture": {},
+    "payload": {
+      "contract_version": "f3-correction-v1",
+      "group_id": "00000000-0000-4000-8000-000000000001",
+      "correction_request_id": "00000000-0000-4000-8000-000000001601",
+      "target_event_id": "00000000-0000-4000-8000-000000000901",
+      "target_economic_fingerprint": "571cb2466e6b33fa878971427b51c42a5dc4e8e076c184fc2b8a36f9a0e4dac9",
+      "intent": "CORRECT",
+      "correction_reason": "Correct recorded amount",
+      "replacement": {
+        "action": "money_in",
+        "amount": "450.00",
+        "occurred_at": "2026-01-10T12:00:00.000000Z",
+        "currency": "USD",
+        "account_id": "00000000-0000-4000-8000-000000000101",
+        "destination_account_id": null,
+        "fund_id": "00000000-0000-4000-8000-000000000202",
+        "category_id": "00000000-0000-4000-8000-000000000301",
+        "member_id": null,
+        "project_id": null,
+        "ledger_epoch_id": "00000000-0000-4000-8000-000000000021"
+      }
+    },
+    "canonical_bytes": "{\"contract_version\":\"f3-correction-v1\",\"correction_reason\":\"Correct recorded amount\",\"correction_request_id\":\"00000000-0000-4000-8000-000000001601\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"intent\":\"CORRECT\",\"replacement\":{\"account_id\":\"00000000-0000-4000-8000-000000000101\",\"action\":\"money_in\",\"amount\":\"450.00\",\"category_id\":\"00000000-0000-4000-8000-000000000301\",\"currency\":\"USD\",\"destination_account_id\":null,\"fund_id\":\"00000000-0000-4000-8000-000000000202\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null},\"target_economic_fingerprint\":\"571cb2466e6b33fa878971427b51c42a5dc4e8e076c184fc2b8a36f9a0e4dac9\",\"target_event_id\":\"00000000-0000-4000-8000-000000000901\"}",
+    "fingerprint": "d9de94259f815640ff402c158975f176438c8313f0f55cf2b8011fdffc91bd6c",
+    "reversal": {
+      "payload": {
+        "contract_version": "f3-correction-child-v1",
+        "correction_request_id": "00000000-0000-4000-8000-000000001601",
+        "target_event_id": "00000000-0000-4000-8000-000000000901",
+        "target_economic_fingerprint": "571cb2466e6b33fa878971427b51c42a5dc4e8e076c184fc2b8a36f9a0e4dac9",
+        "role": "reversal",
+        "event": {
+          "id": "43cc2abb-ff3b-55aa-83b8-43f15f41335b",
+          "group_id": "00000000-0000-4000-8000-000000000001",
+          "ledger_epoch_id": "00000000-0000-4000-8000-000000000021",
+          "currency": "USD",
+          "occurred_at": "2026-01-10T12:00:00.000000Z",
+          "event_class": "opening_adjustment",
+          "source_module": "manual_finance_correction",
+          "source_record_id": "00000000-0000-4000-8000-000000001601/reversal",
+          "effect_kind": "correction_reversal",
+          "request_id": null,
+          "reversal_of_event_id": "00000000-0000-4000-8000-000000000901"
+        },
+        "economic": null,
+        "postings": [
+          {
+            "group_id": "00000000-0000-4000-8000-000000000001",
+            "ledger_epoch_id": "00000000-0000-4000-8000-000000000021",
+            "currency": "USD",
+            "occurred_at": "2026-01-10T12:00:00.000000Z",
+            "amount_signed": "-500.00",
+            "control_class": "custody",
+            "account_id": "00000000-0000-4000-8000-000000000101",
+            "fund_id": "00000000-0000-4000-8000-000000000202",
+            "category_id": null,
+            "category_class": null,
+            "member_id": null,
+            "project_id": null,
+            "event_id": "43cc2abb-ff3b-55aa-83b8-43f15f41335b",
+            "id": "8447acb9-61d7-51f2-8867-9388fd18c008"
+          },
+          {
+            "group_id": "00000000-0000-4000-8000-000000000001",
+            "ledger_epoch_id": "00000000-0000-4000-8000-000000000021",
+            "currency": "USD",
+            "occurred_at": "2026-01-10T12:00:00.000000Z",
+            "amount_signed": "500.00",
+            "control_class": "income",
+            "account_id": null,
+            "fund_id": "00000000-0000-4000-8000-000000000202",
+            "category_id": "00000000-0000-4000-8000-000000000301",
+            "category_class": "income",
+            "member_id": null,
+            "project_id": null,
+            "event_id": "43cc2abb-ff3b-55aa-83b8-43f15f41335b",
+            "id": "d8830956-5736-5176-a267-c66b61cd97b4"
+          }
+        ]
+      },
+      "canonical_bytes": "{\"contract_version\":\"f3-correction-child-v1\",\"correction_request_id\":\"00000000-0000-4000-8000-000000001601\",\"economic\":null,\"event\":{\"currency\":\"USD\",\"effect_kind\":\"correction_reversal\",\"event_class\":\"opening_adjustment\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"id\":\"43cc2abb-ff3b-55aa-83b8-43f15f41335b\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"request_id\":null,\"reversal_of_event_id\":\"00000000-0000-4000-8000-000000000901\",\"source_module\":\"manual_finance_correction\",\"source_record_id\":\"00000000-0000-4000-8000-000000001601/reversal\"},\"postings\":[{\"account_id\":\"00000000-0000-4000-8000-000000000101\",\"amount_signed\":\"-500.00\",\"category_class\":null,\"category_id\":null,\"control_class\":\"custody\",\"currency\":\"USD\",\"event_id\":\"43cc2abb-ff3b-55aa-83b8-43f15f41335b\",\"fund_id\":\"00000000-0000-4000-8000-000000000202\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"id\":\"8447acb9-61d7-51f2-8867-9388fd18c008\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null},{\"account_id\":null,\"amount_signed\":\"500.00\",\"category_class\":\"income\",\"category_id\":\"00000000-0000-4000-8000-000000000301\",\"control_class\":\"income\",\"currency\":\"USD\",\"event_id\":\"43cc2abb-ff3b-55aa-83b8-43f15f41335b\",\"fund_id\":\"00000000-0000-4000-8000-000000000202\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"id\":\"d8830956-5736-5176-a267-c66b61cd97b4\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null}],\"role\":\"reversal\",\"target_economic_fingerprint\":\"571cb2466e6b33fa878971427b51c42a5dc4e8e076c184fc2b8a36f9a0e4dac9\",\"target_event_id\":\"00000000-0000-4000-8000-000000000901\"}",
+      "fingerprint": "7673ae7ff263d6a013d14ef0057f11b9ed8072f6ea8444be6d33cf3e8333abfe"
+    },
+    "replacement": {
+      "payload": {
+        "contract_version": "f3-correction-child-v1",
+        "correction_request_id": "00000000-0000-4000-8000-000000001601",
+        "target_event_id": "00000000-0000-4000-8000-000000000901",
+        "target_economic_fingerprint": "571cb2466e6b33fa878971427b51c42a5dc4e8e076c184fc2b8a36f9a0e4dac9",
+        "role": "replacement",
+        "event": {
+          "id": "d7583961-4a36-5f6d-a280-47329910e179",
+          "group_id": "00000000-0000-4000-8000-000000000001",
+          "ledger_epoch_id": "00000000-0000-4000-8000-000000000021",
+          "currency": "USD",
+          "occurred_at": "2026-01-10T12:00:00.000000Z",
+          "event_class": "money_in",
+          "source_module": "manual_finance_correction",
+          "source_record_id": "00000000-0000-4000-8000-000000001601/replacement",
+          "effect_kind": "correction_replacement",
+          "request_id": null,
+          "reversal_of_event_id": null
+        },
+        "economic": {
+          "action": "money_in",
+          "amount": "450.00",
+          "occurred_at": "2026-01-10T12:00:00.000000Z",
+          "currency": "USD",
+          "account_id": "00000000-0000-4000-8000-000000000101",
+          "destination_account_id": null,
+          "fund_id": "00000000-0000-4000-8000-000000000202",
+          "category_id": "00000000-0000-4000-8000-000000000301",
+          "member_id": null,
+          "project_id": null
+        },
+        "postings": [
+          {
+            "group_id": "00000000-0000-4000-8000-000000000001",
+            "ledger_epoch_id": "00000000-0000-4000-8000-000000000021",
+            "currency": "USD",
+            "occurred_at": "2026-01-10T12:00:00.000000Z",
+            "amount_signed": "450.00",
+            "control_class": "custody",
+            "account_id": "00000000-0000-4000-8000-000000000101",
+            "fund_id": "00000000-0000-4000-8000-000000000202",
+            "category_id": null,
+            "category_class": null,
+            "member_id": null,
+            "project_id": null,
+            "event_id": "d7583961-4a36-5f6d-a280-47329910e179",
+            "id": "3e3cbce2-e253-5b0d-aeb6-0556f738868d"
+          },
+          {
+            "group_id": "00000000-0000-4000-8000-000000000001",
+            "ledger_epoch_id": "00000000-0000-4000-8000-000000000021",
+            "currency": "USD",
+            "occurred_at": "2026-01-10T12:00:00.000000Z",
+            "amount_signed": "-450.00",
+            "control_class": "income",
+            "account_id": null,
+            "fund_id": "00000000-0000-4000-8000-000000000202",
+            "category_id": "00000000-0000-4000-8000-000000000301",
+            "category_class": "income",
+            "member_id": null,
+            "project_id": null,
+            "event_id": "d7583961-4a36-5f6d-a280-47329910e179",
+            "id": "91c6c854-93f9-5d93-835d-419fcdd5d8bc"
+          }
+        ]
+      },
+      "canonical_bytes": "{\"contract_version\":\"f3-correction-child-v1\",\"correction_request_id\":\"00000000-0000-4000-8000-000000001601\",\"economic\":{\"account_id\":\"00000000-0000-4000-8000-000000000101\",\"action\":\"money_in\",\"amount\":\"450.00\",\"category_id\":\"00000000-0000-4000-8000-000000000301\",\"currency\":\"USD\",\"destination_account_id\":null,\"fund_id\":\"00000000-0000-4000-8000-000000000202\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null},\"event\":{\"currency\":\"USD\",\"effect_kind\":\"correction_replacement\",\"event_class\":\"money_in\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"id\":\"d7583961-4a36-5f6d-a280-47329910e179\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"request_id\":null,\"reversal_of_event_id\":null,\"source_module\":\"manual_finance_correction\",\"source_record_id\":\"00000000-0000-4000-8000-000000001601/replacement\"},\"postings\":[{\"account_id\":\"00000000-0000-4000-8000-000000000101\",\"amount_signed\":\"450.00\",\"category_class\":null,\"category_id\":null,\"control_class\":\"custody\",\"currency\":\"USD\",\"event_id\":\"d7583961-4a36-5f6d-a280-47329910e179\",\"fund_id\":\"00000000-0000-4000-8000-000000000202\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"id\":\"3e3cbce2-e253-5b0d-aeb6-0556f738868d\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null},{\"account_id\":null,\"amount_signed\":\"-450.00\",\"category_class\":\"income\",\"category_id\":\"00000000-0000-4000-8000-000000000301\",\"control_class\":\"income\",\"currency\":\"USD\",\"event_id\":\"d7583961-4a36-5f6d-a280-47329910e179\",\"fund_id\":\"00000000-0000-4000-8000-000000000202\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"id\":\"91c6c854-93f9-5d93-835d-419fcdd5d8bc\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null}],\"role\":\"replacement\",\"target_economic_fingerprint\":\"571cb2466e6b33fa878971427b51c42a5dc4e8e076c184fc2b8a36f9a0e4dac9\",\"target_event_id\":\"00000000-0000-4000-8000-000000000901\"}",
+      "fingerprint": "bdfbf04e158edcfa4c3fe4bb94509165eb1d131ffb38e7dfd00ca2e90bc71c57"
+    }
+  },
+  {
+    "name": "USD REVERSE",
+    "fixture": {
+      "intent": "REVERSE"
+    },
+    "payload": {
+      "contract_version": "f3-correction-v1",
+      "group_id": "00000000-0000-4000-8000-000000000001",
+      "correction_request_id": "00000000-0000-4000-8000-000000001601",
+      "target_event_id": "00000000-0000-4000-8000-000000000901",
+      "target_economic_fingerprint": "571cb2466e6b33fa878971427b51c42a5dc4e8e076c184fc2b8a36f9a0e4dac9",
+      "intent": "REVERSE",
+      "correction_reason": "Correct recorded amount",
+      "replacement": null
+    },
+    "canonical_bytes": "{\"contract_version\":\"f3-correction-v1\",\"correction_reason\":\"Correct recorded amount\",\"correction_request_id\":\"00000000-0000-4000-8000-000000001601\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"intent\":\"REVERSE\",\"replacement\":null,\"target_economic_fingerprint\":\"571cb2466e6b33fa878971427b51c42a5dc4e8e076c184fc2b8a36f9a0e4dac9\",\"target_event_id\":\"00000000-0000-4000-8000-000000000901\"}",
+    "fingerprint": "5727792df6efbf5e3b18c16f1274833ed88cde8222418e2893e5140c38699b6a",
+    "reversal": {
+      "payload": {
+        "contract_version": "f3-correction-child-v1",
+        "correction_request_id": "00000000-0000-4000-8000-000000001601",
+        "target_event_id": "00000000-0000-4000-8000-000000000901",
+        "target_economic_fingerprint": "571cb2466e6b33fa878971427b51c42a5dc4e8e076c184fc2b8a36f9a0e4dac9",
+        "role": "reversal",
+        "event": {
+          "id": "43cc2abb-ff3b-55aa-83b8-43f15f41335b",
+          "group_id": "00000000-0000-4000-8000-000000000001",
+          "ledger_epoch_id": "00000000-0000-4000-8000-000000000021",
+          "currency": "USD",
+          "occurred_at": "2026-01-10T12:00:00.000000Z",
+          "event_class": "opening_adjustment",
+          "source_module": "manual_finance_correction",
+          "source_record_id": "00000000-0000-4000-8000-000000001601/reversal",
+          "effect_kind": "correction_reversal",
+          "request_id": null,
+          "reversal_of_event_id": "00000000-0000-4000-8000-000000000901"
+        },
+        "economic": null,
+        "postings": [
+          {
+            "group_id": "00000000-0000-4000-8000-000000000001",
+            "ledger_epoch_id": "00000000-0000-4000-8000-000000000021",
+            "currency": "USD",
+            "occurred_at": "2026-01-10T12:00:00.000000Z",
+            "amount_signed": "-500.00",
+            "control_class": "custody",
+            "account_id": "00000000-0000-4000-8000-000000000101",
+            "fund_id": "00000000-0000-4000-8000-000000000202",
+            "category_id": null,
+            "category_class": null,
+            "member_id": null,
+            "project_id": null,
+            "event_id": "43cc2abb-ff3b-55aa-83b8-43f15f41335b",
+            "id": "8447acb9-61d7-51f2-8867-9388fd18c008"
+          },
+          {
+            "group_id": "00000000-0000-4000-8000-000000000001",
+            "ledger_epoch_id": "00000000-0000-4000-8000-000000000021",
+            "currency": "USD",
+            "occurred_at": "2026-01-10T12:00:00.000000Z",
+            "amount_signed": "500.00",
+            "control_class": "income",
+            "account_id": null,
+            "fund_id": "00000000-0000-4000-8000-000000000202",
+            "category_id": "00000000-0000-4000-8000-000000000301",
+            "category_class": "income",
+            "member_id": null,
+            "project_id": null,
+            "event_id": "43cc2abb-ff3b-55aa-83b8-43f15f41335b",
+            "id": "d8830956-5736-5176-a267-c66b61cd97b4"
+          }
+        ]
+      },
+      "canonical_bytes": "{\"contract_version\":\"f3-correction-child-v1\",\"correction_request_id\":\"00000000-0000-4000-8000-000000001601\",\"economic\":null,\"event\":{\"currency\":\"USD\",\"effect_kind\":\"correction_reversal\",\"event_class\":\"opening_adjustment\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"id\":\"43cc2abb-ff3b-55aa-83b8-43f15f41335b\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"request_id\":null,\"reversal_of_event_id\":\"00000000-0000-4000-8000-000000000901\",\"source_module\":\"manual_finance_correction\",\"source_record_id\":\"00000000-0000-4000-8000-000000001601/reversal\"},\"postings\":[{\"account_id\":\"00000000-0000-4000-8000-000000000101\",\"amount_signed\":\"-500.00\",\"category_class\":null,\"category_id\":null,\"control_class\":\"custody\",\"currency\":\"USD\",\"event_id\":\"43cc2abb-ff3b-55aa-83b8-43f15f41335b\",\"fund_id\":\"00000000-0000-4000-8000-000000000202\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"id\":\"8447acb9-61d7-51f2-8867-9388fd18c008\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null},{\"account_id\":null,\"amount_signed\":\"500.00\",\"category_class\":\"income\",\"category_id\":\"00000000-0000-4000-8000-000000000301\",\"control_class\":\"income\",\"currency\":\"USD\",\"event_id\":\"43cc2abb-ff3b-55aa-83b8-43f15f41335b\",\"fund_id\":\"00000000-0000-4000-8000-000000000202\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"id\":\"d8830956-5736-5176-a267-c66b61cd97b4\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null}],\"role\":\"reversal\",\"target_economic_fingerprint\":\"571cb2466e6b33fa878971427b51c42a5dc4e8e076c184fc2b8a36f9a0e4dac9\",\"target_event_id\":\"00000000-0000-4000-8000-000000000901\"}",
+      "fingerprint": "7673ae7ff263d6a013d14ef0057f11b9ed8072f6ea8444be6d33cf3e8333abfe"
+    },
+    "replacement": null
+  },
+  {
+    "name": "XAF CORRECT",
+    "fixture": {
+      "xaf": true
+    },
+    "payload": {
+      "contract_version": "f3-correction-v1",
+      "group_id": "00000000-0000-4000-8000-000000000003",
+      "correction_request_id": "00000000-0000-4000-8000-000000001601",
+      "target_event_id": "00000000-0000-4000-8000-000000000901",
+      "target_economic_fingerprint": "53f6a98583296af4c3dfd0f11c8e9850f2aa20c587baead81c5a8985d03cea28",
+      "intent": "CORRECT",
+      "correction_reason": "Correct recorded amount",
+      "replacement": {
+        "action": "money_in",
+        "amount": "450",
+        "occurred_at": "2026-01-10T12:00:00.000000Z",
+        "currency": "XAF",
+        "account_id": "00000000-0000-4000-8000-000000000104",
+        "destination_account_id": null,
+        "fund_id": "00000000-0000-4000-8000-000000000204",
+        "category_id": "00000000-0000-4000-8000-000000000304",
+        "member_id": null,
+        "project_id": null,
+        "ledger_epoch_id": "00000000-0000-4000-8000-000000000023"
+      }
+    },
+    "canonical_bytes": "{\"contract_version\":\"f3-correction-v1\",\"correction_reason\":\"Correct recorded amount\",\"correction_request_id\":\"00000000-0000-4000-8000-000000001601\",\"group_id\":\"00000000-0000-4000-8000-000000000003\",\"intent\":\"CORRECT\",\"replacement\":{\"account_id\":\"00000000-0000-4000-8000-000000000104\",\"action\":\"money_in\",\"amount\":\"450\",\"category_id\":\"00000000-0000-4000-8000-000000000304\",\"currency\":\"XAF\",\"destination_account_id\":null,\"fund_id\":\"00000000-0000-4000-8000-000000000204\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000023\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null},\"target_economic_fingerprint\":\"53f6a98583296af4c3dfd0f11c8e9850f2aa20c587baead81c5a8985d03cea28\",\"target_event_id\":\"00000000-0000-4000-8000-000000000901\"}",
+    "fingerprint": "fded39d5f8b848f9e33958fcf7a9b0c9d660d7a3460deea590571f5bb2218d96",
+    "reversal": {
+      "payload": {
+        "contract_version": "f3-correction-child-v1",
+        "correction_request_id": "00000000-0000-4000-8000-000000001601",
+        "target_event_id": "00000000-0000-4000-8000-000000000901",
+        "target_economic_fingerprint": "53f6a98583296af4c3dfd0f11c8e9850f2aa20c587baead81c5a8985d03cea28",
+        "role": "reversal",
+        "event": {
+          "id": "72439dde-8e53-5b23-adc9-7daf01c5ea6e",
+          "group_id": "00000000-0000-4000-8000-000000000003",
+          "ledger_epoch_id": "00000000-0000-4000-8000-000000000023",
+          "currency": "XAF",
+          "occurred_at": "2026-01-10T12:00:00.000000Z",
+          "event_class": "opening_adjustment",
+          "source_module": "manual_finance_correction",
+          "source_record_id": "00000000-0000-4000-8000-000000001601/reversal",
+          "effect_kind": "correction_reversal",
+          "request_id": null,
+          "reversal_of_event_id": "00000000-0000-4000-8000-000000000901"
+        },
+        "economic": null,
+        "postings": [
+          {
+            "group_id": "00000000-0000-4000-8000-000000000003",
+            "ledger_epoch_id": "00000000-0000-4000-8000-000000000023",
+            "currency": "XAF",
+            "occurred_at": "2026-01-10T12:00:00.000000Z",
+            "amount_signed": "-500",
+            "control_class": "custody",
+            "account_id": "00000000-0000-4000-8000-000000000104",
+            "fund_id": "00000000-0000-4000-8000-000000000204",
+            "category_id": null,
+            "category_class": null,
+            "member_id": null,
+            "project_id": null,
+            "event_id": "72439dde-8e53-5b23-adc9-7daf01c5ea6e",
+            "id": "bccf9b6e-dc2b-53c4-9ef6-3abd04684436"
+          },
+          {
+            "group_id": "00000000-0000-4000-8000-000000000003",
+            "ledger_epoch_id": "00000000-0000-4000-8000-000000000023",
+            "currency": "XAF",
+            "occurred_at": "2026-01-10T12:00:00.000000Z",
+            "amount_signed": "500",
+            "control_class": "income",
+            "account_id": null,
+            "fund_id": "00000000-0000-4000-8000-000000000204",
+            "category_id": "00000000-0000-4000-8000-000000000304",
+            "category_class": "income",
+            "member_id": null,
+            "project_id": null,
+            "event_id": "72439dde-8e53-5b23-adc9-7daf01c5ea6e",
+            "id": "29dc5832-d3ab-50d5-8821-1dc24c01b16a"
+          }
+        ]
+      },
+      "canonical_bytes": "{\"contract_version\":\"f3-correction-child-v1\",\"correction_request_id\":\"00000000-0000-4000-8000-000000001601\",\"economic\":null,\"event\":{\"currency\":\"XAF\",\"effect_kind\":\"correction_reversal\",\"event_class\":\"opening_adjustment\",\"group_id\":\"00000000-0000-4000-8000-000000000003\",\"id\":\"72439dde-8e53-5b23-adc9-7daf01c5ea6e\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000023\",\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"request_id\":null,\"reversal_of_event_id\":\"00000000-0000-4000-8000-000000000901\",\"source_module\":\"manual_finance_correction\",\"source_record_id\":\"00000000-0000-4000-8000-000000001601/reversal\"},\"postings\":[{\"account_id\":\"00000000-0000-4000-8000-000000000104\",\"amount_signed\":\"-500\",\"category_class\":null,\"category_id\":null,\"control_class\":\"custody\",\"currency\":\"XAF\",\"event_id\":\"72439dde-8e53-5b23-adc9-7daf01c5ea6e\",\"fund_id\":\"00000000-0000-4000-8000-000000000204\",\"group_id\":\"00000000-0000-4000-8000-000000000003\",\"id\":\"bccf9b6e-dc2b-53c4-9ef6-3abd04684436\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000023\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null},{\"account_id\":null,\"amount_signed\":\"500\",\"category_class\":\"income\",\"category_id\":\"00000000-0000-4000-8000-000000000304\",\"control_class\":\"income\",\"currency\":\"XAF\",\"event_id\":\"72439dde-8e53-5b23-adc9-7daf01c5ea6e\",\"fund_id\":\"00000000-0000-4000-8000-000000000204\",\"group_id\":\"00000000-0000-4000-8000-000000000003\",\"id\":\"29dc5832-d3ab-50d5-8821-1dc24c01b16a\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000023\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null}],\"role\":\"reversal\",\"target_economic_fingerprint\":\"53f6a98583296af4c3dfd0f11c8e9850f2aa20c587baead81c5a8985d03cea28\",\"target_event_id\":\"00000000-0000-4000-8000-000000000901\"}",
+      "fingerprint": "65b8c7c0ef2f03d7af5b47562e8bded5c6441530eb106a0093aec9f0627e93a1"
+    },
+    "replacement": {
+      "payload": {
+        "contract_version": "f3-correction-child-v1",
+        "correction_request_id": "00000000-0000-4000-8000-000000001601",
+        "target_event_id": "00000000-0000-4000-8000-000000000901",
+        "target_economic_fingerprint": "53f6a98583296af4c3dfd0f11c8e9850f2aa20c587baead81c5a8985d03cea28",
+        "role": "replacement",
+        "event": {
+          "id": "c85068f5-dc43-5098-85d5-4b8e4d8b3505",
+          "group_id": "00000000-0000-4000-8000-000000000003",
+          "ledger_epoch_id": "00000000-0000-4000-8000-000000000023",
+          "currency": "XAF",
+          "occurred_at": "2026-01-10T12:00:00.000000Z",
+          "event_class": "money_in",
+          "source_module": "manual_finance_correction",
+          "source_record_id": "00000000-0000-4000-8000-000000001601/replacement",
+          "effect_kind": "correction_replacement",
+          "request_id": null,
+          "reversal_of_event_id": null
+        },
+        "economic": {
+          "action": "money_in",
+          "amount": "450",
+          "occurred_at": "2026-01-10T12:00:00.000000Z",
+          "currency": "XAF",
+          "account_id": "00000000-0000-4000-8000-000000000104",
+          "destination_account_id": null,
+          "fund_id": "00000000-0000-4000-8000-000000000204",
+          "category_id": "00000000-0000-4000-8000-000000000304",
+          "member_id": null,
+          "project_id": null
+        },
+        "postings": [
+          {
+            "group_id": "00000000-0000-4000-8000-000000000003",
+            "ledger_epoch_id": "00000000-0000-4000-8000-000000000023",
+            "currency": "XAF",
+            "occurred_at": "2026-01-10T12:00:00.000000Z",
+            "amount_signed": "450",
+            "control_class": "custody",
+            "account_id": "00000000-0000-4000-8000-000000000104",
+            "fund_id": "00000000-0000-4000-8000-000000000204",
+            "category_id": null,
+            "category_class": null,
+            "member_id": null,
+            "project_id": null,
+            "event_id": "c85068f5-dc43-5098-85d5-4b8e4d8b3505",
+            "id": "e9b4069c-0335-5f9b-a92c-0c04474b4208"
+          },
+          {
+            "group_id": "00000000-0000-4000-8000-000000000003",
+            "ledger_epoch_id": "00000000-0000-4000-8000-000000000023",
+            "currency": "XAF",
+            "occurred_at": "2026-01-10T12:00:00.000000Z",
+            "amount_signed": "-450",
+            "control_class": "income",
+            "account_id": null,
+            "fund_id": "00000000-0000-4000-8000-000000000204",
+            "category_id": "00000000-0000-4000-8000-000000000304",
+            "category_class": "income",
+            "member_id": null,
+            "project_id": null,
+            "event_id": "c85068f5-dc43-5098-85d5-4b8e4d8b3505",
+            "id": "b8a191d6-51b9-55df-8a04-706c984b733a"
+          }
+        ]
+      },
+      "canonical_bytes": "{\"contract_version\":\"f3-correction-child-v1\",\"correction_request_id\":\"00000000-0000-4000-8000-000000001601\",\"economic\":{\"account_id\":\"00000000-0000-4000-8000-000000000104\",\"action\":\"money_in\",\"amount\":\"450\",\"category_id\":\"00000000-0000-4000-8000-000000000304\",\"currency\":\"XAF\",\"destination_account_id\":null,\"fund_id\":\"00000000-0000-4000-8000-000000000204\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null},\"event\":{\"currency\":\"XAF\",\"effect_kind\":\"correction_replacement\",\"event_class\":\"money_in\",\"group_id\":\"00000000-0000-4000-8000-000000000003\",\"id\":\"c85068f5-dc43-5098-85d5-4b8e4d8b3505\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000023\",\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"request_id\":null,\"reversal_of_event_id\":null,\"source_module\":\"manual_finance_correction\",\"source_record_id\":\"00000000-0000-4000-8000-000000001601/replacement\"},\"postings\":[{\"account_id\":\"00000000-0000-4000-8000-000000000104\",\"amount_signed\":\"450\",\"category_class\":null,\"category_id\":null,\"control_class\":\"custody\",\"currency\":\"XAF\",\"event_id\":\"c85068f5-dc43-5098-85d5-4b8e4d8b3505\",\"fund_id\":\"00000000-0000-4000-8000-000000000204\",\"group_id\":\"00000000-0000-4000-8000-000000000003\",\"id\":\"e9b4069c-0335-5f9b-a92c-0c04474b4208\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000023\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null},{\"account_id\":null,\"amount_signed\":\"-450\",\"category_class\":\"income\",\"category_id\":\"00000000-0000-4000-8000-000000000304\",\"control_class\":\"income\",\"currency\":\"XAF\",\"event_id\":\"c85068f5-dc43-5098-85d5-4b8e4d8b3505\",\"fund_id\":\"00000000-0000-4000-8000-000000000204\",\"group_id\":\"00000000-0000-4000-8000-000000000003\",\"id\":\"b8a191d6-51b9-55df-8a04-706c984b733a\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000023\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null}],\"role\":\"replacement\",\"target_economic_fingerprint\":\"53f6a98583296af4c3dfd0f11c8e9850f2aa20c587baead81c5a8985d03cea28\",\"target_event_id\":\"00000000-0000-4000-8000-000000000901\"}",
+      "fingerprint": "edcc3036e485e1d5d572995c92079ea6f491b18aaecae32399131106108b6b43"
+    }
+  },
+  {
+    "name": "Unicode reason",
+    "fixture": {
+      "input": {
+        "correction_reason": "  Café\tfix  "
+      }
+    },
+    "payload": {
+      "contract_version": "f3-correction-v1",
+      "group_id": "00000000-0000-4000-8000-000000000001",
+      "correction_request_id": "00000000-0000-4000-8000-000000001601",
+      "target_event_id": "00000000-0000-4000-8000-000000000901",
+      "target_economic_fingerprint": "571cb2466e6b33fa878971427b51c42a5dc4e8e076c184fc2b8a36f9a0e4dac9",
+      "intent": "CORRECT",
+      "correction_reason": "Café fix",
+      "replacement": {
+        "action": "money_in",
+        "amount": "450.00",
+        "occurred_at": "2026-01-10T12:00:00.000000Z",
+        "currency": "USD",
+        "account_id": "00000000-0000-4000-8000-000000000101",
+        "destination_account_id": null,
+        "fund_id": "00000000-0000-4000-8000-000000000202",
+        "category_id": "00000000-0000-4000-8000-000000000301",
+        "member_id": null,
+        "project_id": null,
+        "ledger_epoch_id": "00000000-0000-4000-8000-000000000021"
+      }
+    },
+    "canonical_bytes": "{\"contract_version\":\"f3-correction-v1\",\"correction_reason\":\"Café fix\",\"correction_request_id\":\"00000000-0000-4000-8000-000000001601\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"intent\":\"CORRECT\",\"replacement\":{\"account_id\":\"00000000-0000-4000-8000-000000000101\",\"action\":\"money_in\",\"amount\":\"450.00\",\"category_id\":\"00000000-0000-4000-8000-000000000301\",\"currency\":\"USD\",\"destination_account_id\":null,\"fund_id\":\"00000000-0000-4000-8000-000000000202\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null},\"target_economic_fingerprint\":\"571cb2466e6b33fa878971427b51c42a5dc4e8e076c184fc2b8a36f9a0e4dac9\",\"target_event_id\":\"00000000-0000-4000-8000-000000000901\"}",
+    "fingerprint": "6b1a1d590b91bd9a62571fd9170588fec83c8e9db64082be3c5d8bbcbaf3d137",
+    "reversal": {
+      "payload": {
+        "contract_version": "f3-correction-child-v1",
+        "correction_request_id": "00000000-0000-4000-8000-000000001601",
+        "target_event_id": "00000000-0000-4000-8000-000000000901",
+        "target_economic_fingerprint": "571cb2466e6b33fa878971427b51c42a5dc4e8e076c184fc2b8a36f9a0e4dac9",
+        "role": "reversal",
+        "event": {
+          "id": "43cc2abb-ff3b-55aa-83b8-43f15f41335b",
+          "group_id": "00000000-0000-4000-8000-000000000001",
+          "ledger_epoch_id": "00000000-0000-4000-8000-000000000021",
+          "currency": "USD",
+          "occurred_at": "2026-01-10T12:00:00.000000Z",
+          "event_class": "opening_adjustment",
+          "source_module": "manual_finance_correction",
+          "source_record_id": "00000000-0000-4000-8000-000000001601/reversal",
+          "effect_kind": "correction_reversal",
+          "request_id": null,
+          "reversal_of_event_id": "00000000-0000-4000-8000-000000000901"
+        },
+        "economic": null,
+        "postings": [
+          {
+            "group_id": "00000000-0000-4000-8000-000000000001",
+            "ledger_epoch_id": "00000000-0000-4000-8000-000000000021",
+            "currency": "USD",
+            "occurred_at": "2026-01-10T12:00:00.000000Z",
+            "amount_signed": "-500.00",
+            "control_class": "custody",
+            "account_id": "00000000-0000-4000-8000-000000000101",
+            "fund_id": "00000000-0000-4000-8000-000000000202",
+            "category_id": null,
+            "category_class": null,
+            "member_id": null,
+            "project_id": null,
+            "event_id": "43cc2abb-ff3b-55aa-83b8-43f15f41335b",
+            "id": "8447acb9-61d7-51f2-8867-9388fd18c008"
+          },
+          {
+            "group_id": "00000000-0000-4000-8000-000000000001",
+            "ledger_epoch_id": "00000000-0000-4000-8000-000000000021",
+            "currency": "USD",
+            "occurred_at": "2026-01-10T12:00:00.000000Z",
+            "amount_signed": "500.00",
+            "control_class": "income",
+            "account_id": null,
+            "fund_id": "00000000-0000-4000-8000-000000000202",
+            "category_id": "00000000-0000-4000-8000-000000000301",
+            "category_class": "income",
+            "member_id": null,
+            "project_id": null,
+            "event_id": "43cc2abb-ff3b-55aa-83b8-43f15f41335b",
+            "id": "d8830956-5736-5176-a267-c66b61cd97b4"
+          }
+        ]
+      },
+      "canonical_bytes": "{\"contract_version\":\"f3-correction-child-v1\",\"correction_request_id\":\"00000000-0000-4000-8000-000000001601\",\"economic\":null,\"event\":{\"currency\":\"USD\",\"effect_kind\":\"correction_reversal\",\"event_class\":\"opening_adjustment\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"id\":\"43cc2abb-ff3b-55aa-83b8-43f15f41335b\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"request_id\":null,\"reversal_of_event_id\":\"00000000-0000-4000-8000-000000000901\",\"source_module\":\"manual_finance_correction\",\"source_record_id\":\"00000000-0000-4000-8000-000000001601/reversal\"},\"postings\":[{\"account_id\":\"00000000-0000-4000-8000-000000000101\",\"amount_signed\":\"-500.00\",\"category_class\":null,\"category_id\":null,\"control_class\":\"custody\",\"currency\":\"USD\",\"event_id\":\"43cc2abb-ff3b-55aa-83b8-43f15f41335b\",\"fund_id\":\"00000000-0000-4000-8000-000000000202\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"id\":\"8447acb9-61d7-51f2-8867-9388fd18c008\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null},{\"account_id\":null,\"amount_signed\":\"500.00\",\"category_class\":\"income\",\"category_id\":\"00000000-0000-4000-8000-000000000301\",\"control_class\":\"income\",\"currency\":\"USD\",\"event_id\":\"43cc2abb-ff3b-55aa-83b8-43f15f41335b\",\"fund_id\":\"00000000-0000-4000-8000-000000000202\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"id\":\"d8830956-5736-5176-a267-c66b61cd97b4\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null}],\"role\":\"reversal\",\"target_economic_fingerprint\":\"571cb2466e6b33fa878971427b51c42a5dc4e8e076c184fc2b8a36f9a0e4dac9\",\"target_event_id\":\"00000000-0000-4000-8000-000000000901\"}",
+      "fingerprint": "7673ae7ff263d6a013d14ef0057f11b9ed8072f6ea8444be6d33cf3e8333abfe"
+    },
+    "replacement": {
+      "payload": {
+        "contract_version": "f3-correction-child-v1",
+        "correction_request_id": "00000000-0000-4000-8000-000000001601",
+        "target_event_id": "00000000-0000-4000-8000-000000000901",
+        "target_economic_fingerprint": "571cb2466e6b33fa878971427b51c42a5dc4e8e076c184fc2b8a36f9a0e4dac9",
+        "role": "replacement",
+        "event": {
+          "id": "d7583961-4a36-5f6d-a280-47329910e179",
+          "group_id": "00000000-0000-4000-8000-000000000001",
+          "ledger_epoch_id": "00000000-0000-4000-8000-000000000021",
+          "currency": "USD",
+          "occurred_at": "2026-01-10T12:00:00.000000Z",
+          "event_class": "money_in",
+          "source_module": "manual_finance_correction",
+          "source_record_id": "00000000-0000-4000-8000-000000001601/replacement",
+          "effect_kind": "correction_replacement",
+          "request_id": null,
+          "reversal_of_event_id": null
+        },
+        "economic": {
+          "action": "money_in",
+          "amount": "450.00",
+          "occurred_at": "2026-01-10T12:00:00.000000Z",
+          "currency": "USD",
+          "account_id": "00000000-0000-4000-8000-000000000101",
+          "destination_account_id": null,
+          "fund_id": "00000000-0000-4000-8000-000000000202",
+          "category_id": "00000000-0000-4000-8000-000000000301",
+          "member_id": null,
+          "project_id": null
+        },
+        "postings": [
+          {
+            "group_id": "00000000-0000-4000-8000-000000000001",
+            "ledger_epoch_id": "00000000-0000-4000-8000-000000000021",
+            "currency": "USD",
+            "occurred_at": "2026-01-10T12:00:00.000000Z",
+            "amount_signed": "450.00",
+            "control_class": "custody",
+            "account_id": "00000000-0000-4000-8000-000000000101",
+            "fund_id": "00000000-0000-4000-8000-000000000202",
+            "category_id": null,
+            "category_class": null,
+            "member_id": null,
+            "project_id": null,
+            "event_id": "d7583961-4a36-5f6d-a280-47329910e179",
+            "id": "3e3cbce2-e253-5b0d-aeb6-0556f738868d"
+          },
+          {
+            "group_id": "00000000-0000-4000-8000-000000000001",
+            "ledger_epoch_id": "00000000-0000-4000-8000-000000000021",
+            "currency": "USD",
+            "occurred_at": "2026-01-10T12:00:00.000000Z",
+            "amount_signed": "-450.00",
+            "control_class": "income",
+            "account_id": null,
+            "fund_id": "00000000-0000-4000-8000-000000000202",
+            "category_id": "00000000-0000-4000-8000-000000000301",
+            "category_class": "income",
+            "member_id": null,
+            "project_id": null,
+            "event_id": "d7583961-4a36-5f6d-a280-47329910e179",
+            "id": "91c6c854-93f9-5d93-835d-419fcdd5d8bc"
+          }
+        ]
+      },
+      "canonical_bytes": "{\"contract_version\":\"f3-correction-child-v1\",\"correction_request_id\":\"00000000-0000-4000-8000-000000001601\",\"economic\":{\"account_id\":\"00000000-0000-4000-8000-000000000101\",\"action\":\"money_in\",\"amount\":\"450.00\",\"category_id\":\"00000000-0000-4000-8000-000000000301\",\"currency\":\"USD\",\"destination_account_id\":null,\"fund_id\":\"00000000-0000-4000-8000-000000000202\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null},\"event\":{\"currency\":\"USD\",\"effect_kind\":\"correction_replacement\",\"event_class\":\"money_in\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"id\":\"d7583961-4a36-5f6d-a280-47329910e179\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"request_id\":null,\"reversal_of_event_id\":null,\"source_module\":\"manual_finance_correction\",\"source_record_id\":\"00000000-0000-4000-8000-000000001601/replacement\"},\"postings\":[{\"account_id\":\"00000000-0000-4000-8000-000000000101\",\"amount_signed\":\"450.00\",\"category_class\":null,\"category_id\":null,\"control_class\":\"custody\",\"currency\":\"USD\",\"event_id\":\"d7583961-4a36-5f6d-a280-47329910e179\",\"fund_id\":\"00000000-0000-4000-8000-000000000202\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"id\":\"3e3cbce2-e253-5b0d-aeb6-0556f738868d\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null},{\"account_id\":null,\"amount_signed\":\"-450.00\",\"category_class\":\"income\",\"category_id\":\"00000000-0000-4000-8000-000000000301\",\"control_class\":\"income\",\"currency\":\"USD\",\"event_id\":\"d7583961-4a36-5f6d-a280-47329910e179\",\"fund_id\":\"00000000-0000-4000-8000-000000000202\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"id\":\"91c6c854-93f9-5d93-835d-419fcdd5d8bc\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"member_id\":null,\"occurred_at\":\"2026-01-10T12:00:00.000000Z\",\"project_id\":null}],\"role\":\"replacement\",\"target_economic_fingerprint\":\"571cb2466e6b33fa878971427b51c42a5dc4e8e076c184fc2b8a36f9a0e4dac9\",\"target_event_id\":\"00000000-0000-4000-8000-000000000901\"}",
+      "fingerprint": "bdfbf04e158edcfa4c3fe4bb94509165eb1d131ffb38e7dfd00ca2e90bc71c57"
+    }
+  }
+]

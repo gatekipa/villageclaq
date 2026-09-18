@@ -1,0 +1,30 @@
+{
+  "artifact": "phase-d-failure-classification",
+  "functional_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315",
+  "verdict": "HOLD",
+  "stop_at": "00121_f3_03_projection_read_proof.sql",
+  "version": "20260913173003",
+  "failedGates": [
+    "expected_objects",
+    "security_postconditions"
+  ],
+  "fingerprint_exact": true,
+  "root_cause": {
+    "class": "object_probe_identity_alias_mismatch",
+    "detail": "to_regprocedure::text returns timestamp with time zone; TARGET_OBJECT_PROBES uses timestamptz abbreviation; valueIsExactIdentity rejects observed p0/p1 even though routines exist",
+    "observed_p0": "get_financial_projection_bundle(uuid,timestamp with time zone,timestamp with time zone,timestamp with time zone)",
+    "allowed_from_probe_expr": "public.get_financial_projection_bundle(uuid,timestamptz,timestamptz,timestamptz) / get_financial_projection_bundle(uuid,timestamptz,...)",
+    "NOT_acl_truncation": true,
+    "acl_structured_identity_proven": true
+  },
+  "prior_pass": {
+    "00118": "PASS fingerprint_exact repair continuation",
+    "00119": "PASS fingerprint_exact; lock_financial_occurrence full identity_arguments (no comma truncation)",
+    "00120": "PASS fingerprint_exact repair continuation"
+  },
+  "not_run": [
+    "00122",
+    "00123"
+  ],
+  "silent_patch_or_rerun": false
+}

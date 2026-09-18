@@ -1,0 +1,13 @@
+{
+  "F6": "1f965219d73ec4c4c3455d8119e232757bba6ee6",
+  "parent": "f8f04604199cc575c2134bac7b055c901f2207f7",
+  "tip_blob_source": "43ebd223b66edcd5581dc03f80110c3a39975f47",
+  "files": [
+    "scripts/lib/f3-db-push-query-parse.mjs",
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "hold_title_retained": "DAYBREAK HOLD \u2014 catalog-v5 self-FK RI roles + fail-closed",
+  "pr101_left_open_draft": true
+}

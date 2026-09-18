@@ -44,13 +44,13 @@
     },
     {
       "path": "pack-scan.json",
-      "sha256": "61f7bc70e3a668d889ed91cacee6236b046abed8d45c372872b3b8038a380576",
-      "bytes": 903
+      "sha256": "002133f722e92a8fd8b482b2e8e300ab9e05ec266f8d83e0db59f5eb320dadd3",
+      "bytes": 755
     },
     {
       "path": "pack-summary.json",
-      "sha256": "2190bf0178f5bb2d79f99e361b7ef7819ce3474949f2a1b7e3ede71a826848d4",
-      "bytes": 2630
+      "sha256": "79bf7f33aff68ff3007c3c1a1de210aa57c09096616fecadd83ecb2808778cd6",
+      "bytes": 2621
     },
     {
       "path": "PINS.json",

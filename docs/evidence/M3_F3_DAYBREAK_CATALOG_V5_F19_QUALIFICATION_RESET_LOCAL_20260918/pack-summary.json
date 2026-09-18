@@ -64,5 +64,5 @@
     "notEqualF18": true
   },
   "f18Concurrency": "INHERITED PASSED — not re-run",
-  "checksumDistinctionPolicy": "digest inside evidence-index.sha256 is sha256 of evidence-index.json bytes (interior digest); digest of that checksum file's bytes is a different identity and is recorded only in pack-scan.json"
+  "checksumDistinctionPolicy": "evidence-index.sha256 contains the sha256 of evidence-index.json bytes; the final index digest and checksum-file byte digest are reported outside the indexed package after finalization"
 }

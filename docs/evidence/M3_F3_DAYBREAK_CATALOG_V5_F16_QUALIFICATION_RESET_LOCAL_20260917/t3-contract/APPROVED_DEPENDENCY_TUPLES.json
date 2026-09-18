@@ -1,0 +1,267 @@
+{
+  "count": 37,
+  "migrationCreated": 31,
+  "historical": 6,
+  "objectCount": 113,
+  "tuples": [
+    {
+      "kind": "foreign_key",
+      "identity": "memberships_group_id_fkey",
+      "from": "public.memberships",
+      "to": "public.groups",
+      "historicalNoticeOnly": true
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "projects_group_id_fkey",
+      "from": "public.projects",
+      "to": "public.groups",
+      "historicalNoticeOnly": true
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "notification_policies_group_id_fkey",
+      "from": "public.notification_policies",
+      "to": "public.groups",
+      "historicalNoticeOnly": true
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "notification_policy_occurrences_group_id_fkey",
+      "from": "public.notification_policy_occurrences",
+      "to": "public.groups",
+      "historicalNoticeOnly": true
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "position_assignments_membership_id_fkey",
+      "from": "public.position_assignments",
+      "to": "public.memberships",
+      "historicalNoticeOnly": true
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "notification_policy_triggers_policy_id_fkey",
+      "from": "public.notification_policy_triggers",
+      "to": "public.notification_policies",
+      "historicalNoticeOnly": true
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_ledger_epochs_group_id_fkey",
+      "from": "public.financial_ledger_epochs",
+      "to": "public.groups",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_ledger_epochs_created_by_fkey",
+      "from": "public.financial_ledger_epochs",
+      "to": "public.profiles",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_ledger_epochs_approved_by_fkey",
+      "from": "public.financial_ledger_epochs",
+      "to": "public.profiles",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "internal_financial_tenants_organization_id_fkey",
+      "from": "financial_private.internal_financial_tenants",
+      "to": "public.organizations",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "internal_financial_tenants_created_by_fkey",
+      "from": "financial_private.internal_financial_tenants",
+      "to": "public.profiles",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_accounts_group_id_fkey",
+      "from": "public.financial_accounts",
+      "to": "public.groups",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_accounts_created_by_fkey",
+      "from": "public.financial_accounts",
+      "to": "public.profiles",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_accounts_epoch_scope",
+      "from": "public.financial_accounts",
+      "to": "public.financial_ledger_epochs",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_funds_group_id_fkey",
+      "from": "public.financial_funds",
+      "to": "public.groups",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_funds_created_by_fkey",
+      "from": "public.financial_funds",
+      "to": "public.profiles",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_categories_group_id_fkey",
+      "from": "public.financial_categories",
+      "to": "public.groups",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_categories_created_by_fkey",
+      "from": "public.financial_categories",
+      "to": "public.profiles",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_events_group_id_fkey",
+      "from": "public.financial_events",
+      "to": "public.groups",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_events_created_by_fkey",
+      "from": "public.financial_events",
+      "to": "public.profiles",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_events_epoch_scope",
+      "from": "public.financial_events",
+      "to": "public.financial_ledger_epochs",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_events_reversal_scope",
+      "from": "public.financial_events",
+      "to": "public.financial_events",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_events_replacement_scope",
+      "from": "public.financial_events",
+      "to": "public.financial_events",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_postings_event_scope",
+      "from": "public.financial_postings",
+      "to": "public.financial_events",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_postings_account_scope",
+      "from": "public.financial_postings",
+      "to": "public.financial_accounts",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_postings_fund_scope",
+      "from": "public.financial_postings",
+      "to": "public.financial_funds",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_postings_category_scope",
+      "from": "public.financial_postings",
+      "to": "public.financial_categories",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_postings_member_scope",
+      "from": "public.financial_postings",
+      "to": "public.memberships",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "financial_postings_project_scope",
+      "from": "public.financial_postings",
+      "to": "public.projects",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "posting_command_payloads_event_id_fkey",
+      "from": "financial_core.posting_command_payloads",
+      "to": "public.financial_events",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "correction_command_payloads_group_id_fkey",
+      "from": "financial_core.correction_command_payloads",
+      "to": "public.groups",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "correction_command_payloads_correction_actor_fkey",
+      "from": "financial_core.correction_command_payloads",
+      "to": "public.profiles",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "correction_command_payloads_target_event_id_group_id_fkey",
+      "from": "financial_core.correction_command_payloads",
+      "to": "public.financial_events",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "correction_command_payloads_reversal_event_id_group_id_fkey",
+      "from": "financial_core.correction_command_payloads",
+      "to": "public.financial_events",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "correction_command_payloads_replacement_event_id_group_id_fkey",
+      "from": "financial_core.correction_command_payloads",
+      "to": "public.financial_events",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "opening_provenances_group_id_fkey",
+      "from": "financial_core.opening_provenances",
+      "to": "public.groups",
+      "historicalNoticeOnly": false
+    },
+    {
+      "kind": "foreign_key",
+      "identity": "opening_provenances_recorded_by_fkey",
+      "from": "financial_core.opening_provenances",
+      "to": "public.profiles",
+      "historicalNoticeOnly": false
+    }
+  ]
+}

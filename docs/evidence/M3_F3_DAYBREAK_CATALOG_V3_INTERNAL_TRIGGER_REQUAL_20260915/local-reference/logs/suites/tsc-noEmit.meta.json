@@ -1,0 +1,11 @@
+{
+  "suite": "tsc-noEmit",
+  "exit_code": 0,
+  "classification": "PASS",
+  "tests": null,
+  "pass": null,
+  "fail": null,
+  "skipped": null,
+  "sha256": "194ff5bca66278888f0f00be5c7ca523d15098ece958b14952533811089f6106",
+  "bytes": 7
+}

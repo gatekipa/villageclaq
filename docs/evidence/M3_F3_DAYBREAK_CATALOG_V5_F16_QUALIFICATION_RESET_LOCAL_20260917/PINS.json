@@ -1,0 +1,15 @@
+{
+  "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "f12Functional": "1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+  "f15FunctionalContentPin": "49a91169fbb53dba149f4e7bbcf3016f988f4922",
+  "f15PlanContentPin": "206dce13d424f5303520d2b63a43768a078dda35",
+  "startingRef": "1fe866ff93af77dfba55437888d3315804507222",
+  "f16Functional": "b74c6854869acf0e826446ea0488c42469621a3b",
+  "pr111": "non-authoritative",
+  "runtimeClosure": "1ca2a1ceddca278889c7ea92fc10e6a59150e06c5b4f13d4426b293fda29ee78",
+  "verificationUnion": "989c6c99ead2b84190486b856d7e04a1e76824f870f3bbf9438935808c8fb7ff",
+  "forbiddenSummary": "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d",
+  "independentReference": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+  "note": "New commits descend normally from starting_ref 1fe866ff. F15 49a91169 / 206dce13 are content pins, not literal ancestors. No force-push. No merge."
+}

@@ -1,0 +1,18 @@
+{
+  "artifact": "M3_F3_03_RESULTS_20260913",
+  "ticket": "F3-03",
+  "date": "2026-09-13",
+  "functional_sha": "fc3d4ff8cb59ad09abdc07033cbfd20cec75e585",
+  "supersedes": {
+    "artifact": "M3_F3_03_RESULTS_20260912",
+    "old_functional_sha": "a1e9311552a2698a8296e8f87eb1d000a5c259fe"
+  },
+  "migration": "supabase/migrations/00121_f3_03_projection_read_proof.sql",
+  "migration_sha256": "568ae0b15b1b6e6c0a7effd9e9b5644a294cc22d76dbbf0e6714a28888825cf5",
+  "db_suite": "scripts/test-financial-f3-projection-db.mjs",
+  "db_result": "25/25 PASS",
+  "astra_suite": "tests/finance/f3-03/projection-oracle.test.mjs",
+  "astra_result": "80/80 PASS",
+  "fresh": true,
+  "change": "transaction boundary only"
+}

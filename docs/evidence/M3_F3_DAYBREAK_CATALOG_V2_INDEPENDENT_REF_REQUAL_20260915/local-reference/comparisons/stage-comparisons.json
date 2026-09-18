@@ -1,0 +1,62 @@
+{
+  "00118_f3_bounded_financial_epoch_foundation.sql": {
+    "ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "primaryHash": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+    "independentHash": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+    "primarySha256": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+    "independentSha256": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf"
+  },
+  "00119_f3_01_core_ledger_foundation.sql": {
+    "ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "primaryHash": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+    "independentHash": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+    "primarySha256": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+    "independentSha256": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd"
+  },
+  "00120_f3_02_secure_posting_idempotency.sql": {
+    "ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "primaryHash": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+    "independentHash": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+    "primarySha256": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+    "independentSha256": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2"
+  },
+  "00121_f3_03_projection_read_proof.sql": {
+    "ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "primaryHash": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+    "independentHash": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+    "primarySha256": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+    "independentSha256": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c"
+  },
+  "00122_f3_04_correction_reversal.sql": {
+    "ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "primaryHash": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+    "independentHash": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+    "primarySha256": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+    "independentSha256": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be"
+  },
+  "00123_f3_05_opening_cash_command.sql": {
+    "ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "primaryHash": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa",
+    "independentHash": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa",
+    "primarySha256": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa",
+    "independentSha256": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa"
+  }
+}

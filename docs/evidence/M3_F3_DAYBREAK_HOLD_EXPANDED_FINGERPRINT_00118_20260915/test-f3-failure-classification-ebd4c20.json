@@ -1,0 +1,18 @@
+{
+  "tip": "ebd4c20bcf72500b77ea24bd7269094f3dc13b3e",
+  "generatedAt": "2026-09-15T01:18:53.267701Z",
+  "test_f3_db_push": {
+    "classification": "pass",
+    "reason": "0 fail; expanded catalog + N1-N24/FC + evidence-pipeline fixtures green",
+    "fail": 0,
+    "pass": 109,
+    "skipped": 1,
+    "tests": 110,
+    "not_tip_regression": true,
+    "per_test": [],
+    "meta_sha256": "06208107bc7fd15874a6975f22148fcac62f66f693b5624835b41b268d90c8e1",
+    "meta_bytes": 24472,
+    "sanitized_before_hash": true,
+    "exact_error_policy": "real PG/FATAL text via extractExactPostgresError; never YAML marker alone"
+  }
+}

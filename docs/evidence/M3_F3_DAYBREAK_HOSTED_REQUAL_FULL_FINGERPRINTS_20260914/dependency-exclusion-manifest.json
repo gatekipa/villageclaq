@@ -1,0 +1,94 @@
+{
+  "artifact": "dependency-exclusion-manifest",
+  "functional_commit": "c59afad411a07838688aeb5583ab179683f25a7f",
+  "sealedAt": "2026-09-14T21:30:24Z",
+  "allowed_kinds": [
+    "node_builtin",
+    "npm_package",
+    "npm_package_path",
+    "os_binary",
+    "os_binary_cli",
+    "outside_tree",
+    "secrets"
+  ],
+  "unexplained_exclusions": [],
+  "exclusions": [
+    {
+      "kind": "node_builtin",
+      "spec": "node:os",
+      "from_path": "scripts/lib/f3-db-push-version-map.mjs"
+    },
+    {
+      "kind": "node_builtin",
+      "spec": "node:path",
+      "from_path": "scripts/lib/f3-db-push-version-map.mjs"
+    },
+    {
+      "kind": "node_builtin",
+      "spec": "node:crypto",
+      "from_path": "scripts/lib/f3-db-push-version-map.mjs"
+    },
+    {
+      "kind": "node_builtin",
+      "spec": "node:url",
+      "from_path": "scripts/lib/f3-db-push-version-map.mjs"
+    },
+    {
+      "kind": "node_builtin",
+      "spec": "node:fs",
+      "from_path": "scripts/lib/f3-db-push-version-map.mjs"
+    },
+    {
+      "kind": "node_builtin",
+      "spec": "node:child_process",
+      "from_path": "scripts/lib/f3-db-push-target-guard.mjs"
+    },
+    {
+      "kind": "npm_package",
+      "spec": "node:assert/strict",
+      "version": null,
+      "integrity": null,
+      "resolved": null,
+      "from_path": "scripts/fixtures/disposable-postgres.mjs"
+    },
+    {
+      "kind": "npm_package",
+      "spec": "node:test",
+      "version": null,
+      "integrity": null,
+      "resolved": null,
+      "from_path": "scripts/test-f3-db-push-harness.mjs"
+    },
+    {
+      "kind": "os_binary_cli",
+      "spec": "<redacted-path>",
+      "version": "2.117.0",
+      "bytes": 95393248,
+      "sha256": "40efbaffd04e4cbf501b4f29a52c88ca23f81c636ef211e3b255c4e7b81eeb01",
+      "note": "supabase CLI pinned path; not tip tree bytes"
+    },
+    {
+      "kind": "os_binary",
+      "spec": "psql",
+      "note": "postgres client via gated remote spawn"
+    },
+    {
+      "kind": "secrets",
+      "spec": "<redacted-path>",
+      "note": "loaded at runtime only; never hashed into closure"
+    },
+    {
+      "kind": "secrets",
+      "spec": "<redacted-path>",
+      "note": "loaded at runtime only; never hashed into closure"
+    }
+  ],
+  "counts": {
+    "total": 12,
+    "node_builtin": 6,
+    "npm_package": 2,
+    "os_binary": 2,
+    "secrets": 2,
+    "unexplained": 0
+  }
+}

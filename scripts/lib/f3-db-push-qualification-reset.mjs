@@ -75,19 +75,22 @@ const DEFAULT_REPO_ROOT = path.resolve(RESET_MODULE_DIR, "../..");
 export { scopeSqlIdentityDigest, AUTHENTICATED_HISTORY_KEYS };
 
 export const F13_RUNTIME_PHASE = 2;
-export const F18_RUNTIME_LABEL =
-  "F18 LOCAL CORRECTION CANDIDATE — AWAITING QA / LOCAL TX PROOF";
-export const F17_RUNTIME_LABEL = F18_RUNTIME_LABEL;
-export const F16_RUNTIME_LABEL = F18_RUNTIME_LABEL;
-export const F15_RUNTIME_LABEL = F18_RUNTIME_LABEL;
-export const F14_RUNTIME_LABEL = F18_RUNTIME_LABEL;
-export const F13_RUNTIME_LABEL = F18_RUNTIME_LABEL;
+export const F19_RUNTIME_LABEL =
+  "F19 LOCAL CORRECTION CANDIDATE — AWAITING QA / LOCAL TX PROOF";
+export const F18_RUNTIME_LABEL = F19_RUNTIME_LABEL;
+export const F17_RUNTIME_LABEL = F19_RUNTIME_LABEL;
+export const F16_RUNTIME_LABEL = F19_RUNTIME_LABEL;
+export const F15_RUNTIME_LABEL = F19_RUNTIME_LABEL;
+export const F14_RUNTIME_LABEL = F19_RUNTIME_LABEL;
+export const F13_RUNTIME_LABEL = F19_RUNTIME_LABEL;
 export const F13_SHARED_ORCHESTRATION_ID = "runQualificationReset";
 export const F13_WIPE_STILL_REJECTED = F13_WIPE_REJECTION_CODE;
-export const F13_F18_RUNTIME_CLOSURE_LABEL = "F18_QUALIFICATION_RESET_RUNTIME_CLOSURE";
-export const F13_F18_VERIFICATION_UNION_LABEL = "F18_QUALIFICATION_RESET_VERIFICATION_UNION";
-export const F13_F17_RUNTIME_CLOSURE_LABEL = F13_F18_RUNTIME_CLOSURE_LABEL;
-export const F13_F17_VERIFICATION_UNION_LABEL = F13_F18_VERIFICATION_UNION_LABEL;
+export const F13_F19_RUNTIME_CLOSURE_LABEL = "F19_QUALIFICATION_RESET_RUNTIME_CLOSURE";
+export const F13_F19_VERIFICATION_UNION_LABEL = "F19_QUALIFICATION_RESET_VERIFICATION_UNION";
+export const F13_F18_RUNTIME_CLOSURE_LABEL = F13_F19_RUNTIME_CLOSURE_LABEL;
+export const F13_F18_VERIFICATION_UNION_LABEL = F13_F19_VERIFICATION_UNION_LABEL;
+export const F13_F17_RUNTIME_CLOSURE_LABEL = F13_F19_RUNTIME_CLOSURE_LABEL;
+export const F13_F17_VERIFICATION_UNION_LABEL = F13_F19_VERIFICATION_UNION_LABEL;
 export const F13_F16_RUNTIME_CLOSURE_LABEL = F13_F18_RUNTIME_CLOSURE_LABEL;
 export const F13_F16_VERIFICATION_UNION_LABEL = F13_F18_VERIFICATION_UNION_LABEL;
 export const F13_F15_RUNTIME_CLOSURE_LABEL = F13_F18_RUNTIME_CLOSURE_LABEL;
@@ -98,6 +101,8 @@ export const F16_HISTORICAL_RUNTIME_CLOSURE_LABEL = "F16_QUALIFICATION_RESET_RUN
 export const F16_HISTORICAL_VERIFICATION_UNION_LABEL = "F16_QUALIFICATION_RESET_VERIFICATION_UNION";
 export const F17_HISTORICAL_RUNTIME_CLOSURE_LABEL = "F17_QUALIFICATION_RESET_RUNTIME_CLOSURE";
 export const F17_HISTORICAL_VERIFICATION_UNION_LABEL = "F17_QUALIFICATION_RESET_VERIFICATION_UNION";
+export const F18_HISTORICAL_RUNTIME_CLOSURE_LABEL = "F18_QUALIFICATION_RESET_RUNTIME_CLOSURE";
+export const F18_HISTORICAL_VERIFICATION_UNION_LABEL = "F18_QUALIFICATION_RESET_VERIFICATION_UNION";
 export const F13_BASELINE_RUNTIME_CLOSURE = Object.freeze({
   count: 45,
   sha256: "51c4a98fe2f249978dad09451b1a5e4a88617b833f66cafb6252870e6be7ed6d",
@@ -148,13 +153,27 @@ export const F17_BASELINE_RUNTIME_CLOSURE = Object.freeze({
   count: 45,
   sha256: "0db1c600c620c0e406038fa3ebc5c4d7df6104bce64545ef9e16a63a6237c741",
   notExpectedF18: true,
+  notExpectedF19: true,
   historicalLabel: F17_HISTORICAL_RUNTIME_CLOSURE_LABEL,
 });
 export const F17_BASELINE_VERIFICATION_UNION = Object.freeze({
   count: 48,
   sha256: "d3fd2eb52a2adc2a1f963a54955b888b2d3e8eadea0283894c4a51f5effc41cb",
   notExpectedF18: true,
+  notExpectedF19: true,
   historicalLabel: F17_HISTORICAL_VERIFICATION_UNION_LABEL,
+});
+export const F18_BASELINE_RUNTIME_CLOSURE = Object.freeze({
+  count: 45,
+  sha256: "c6ecf620e41dbbce340e2207b2b9b793c8df750c703d245363139b497526a392",
+  notExpectedF19: true,
+  historicalLabel: F18_HISTORICAL_RUNTIME_CLOSURE_LABEL,
+});
+export const F18_BASELINE_VERIFICATION_UNION = Object.freeze({
+  count: 48,
+  sha256: "b9a9e6b7ad95f6e5935d05bb6c41bdabe543f0f88a086bc6b28fcb07dd03be78",
+  notExpectedF19: true,
+  historicalLabel: F18_HISTORICAL_VERIFICATION_UNION_LABEL,
 });
 export const QUALIFICATION_RESET_ISOLATION_LEVEL = "READ COMMITTED";
 export const QUALIFICATION_RESET_LOCK_ORDER = Object.freeze({
@@ -198,6 +217,8 @@ export const PROCESS_EVIDENCE_SANITIZATION_RULES = Object.freeze({
   neverReconstructsFromSummaries: true,
   neverRecomputeOriginalFromTransformed: true,
   neverReplaceExplicitTrueFlagsOrErrorFieldsWithDefaults: true,
+  completeSanitizationBeforePackagedIdentities: true,
+  replacesSecretNeedles: true,
   validateAlreadyEncodedRecords: true,
   rejectAmbiguousShapes: true,
   preserves: Object.freeze([
@@ -1235,7 +1256,10 @@ export function redactAbsoluteFilesystemPaths(text, extraRoots = []) {
     const posix = root.replace(/\\/g, "/");
     const escaped = posix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const flexible = escaped.replace(/\//g, "[\\\\/]");
-    s = s.replace(new RegExp(flexible, "gi"), PROCESS_EVIDENCE_SANITIZATION_RULES.pathRedactionToken);
+    s = s.replace(
+      new RegExp(`${flexible}(?:[\\\\/][^\\s"'\\\\]*)?`, "gi"),
+      PROCESS_EVIDENCE_SANITIZATION_RULES.pathRedactionToken,
+    );
   }
   s = s.replace(/(?:^|[^\w])((?:\/tmp\/|\/var\/folders\/|\/private\/var\/folders\/|\/home\/|\/Users\/)[^\s"'\\]+)/g, (match, captured) => (
     match.replace(captured, PROCESS_EVIDENCE_SANITIZATION_RULES.pathRedactionToken)
@@ -1244,14 +1268,29 @@ export function redactAbsoluteFilesystemPaths(text, extraRoots = []) {
   return s;
 }
 
+function redactSecretNeedles(text) {
+  let s = String(text ?? "");
+  for (const needle of SECRET_NEEDLES) {
+    if (!s.includes(needle)) continue;
+    s = s.split(needle).join("[REDACTED]");
+  }
+  return s;
+}
+
+function completeSanitizeText(text, extraRoots = []) {
+  const afterLog = String(sanitizeForLog(text ?? "") ?? "");
+  const afterPaths = redactAbsoluteFilesystemPaths(afterLog, extraRoots);
+  return redactSecretNeedles(afterPaths);
+}
+
 function sanitizeStructuredError(errorRaw, extraRoots) {
   const structured = structuredErrorFromRaw(errorRaw);
   if (!structured) return null;
   return {
     code: structured.code,
     name: structured.name,
-    syscall: structured.syscall,
-    message: redactAbsoluteFilesystemPaths(String(sanitizeForLog(structured.message ?? "") ?? ""), extraRoots),
+    syscall: structured.syscall == null ? null : completeSanitizeText(String(structured.syscall), extraRoots),
+    message: completeSanitizeText(String(structured.message ?? ""), extraRoots),
   };
 }
 
@@ -1358,7 +1397,7 @@ export function packageQualificationResetProcessEvidence(result, { commandIdenti
       ...packageFromBoundary({
         commandIdentity: commandIdentity || result.commandIdentity || GATED_PSQL_FILE_RENDERED,
         argv: Array.isArray(result.argv)
-          ? result.argv.map((item) => redactAbsoluteFilesystemPaths(String(sanitizeForLog(String(item)) ?? ""), extraRoots))
+          ? result.argv.map((item) => completeSanitizeText(String(item), extraRoots))
           : [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", "[FILE]"],
         status: own(result, "status") ? (Number.isInteger(result.status) ? result.status : null) : null,
         signal: own(result, "signal") ? result.signal ?? null : null,
@@ -1383,12 +1422,10 @@ export function packageQualificationResetProcessEvidence(result, { commandIdenti
   const originalStderrSha256 = sha256Utf8(originalStderr);
   const originalStdoutByteLength = Buffer.byteLength(originalStdout, "utf8");
   const originalStderrByteLength = Buffer.byteLength(originalStderr, "utf8");
-  const stdout = redactAbsoluteFilesystemPaths(String(sanitizeForLog(originalStdout) ?? ""), extraRoots);
-  const stderr = redactAbsoluteFilesystemPaths(String(sanitizeForLog(originalStderr) ?? ""), extraRoots);
+  const stdout = completeSanitizeText(originalStdout, extraRoots);
+  const stderr = completeSanitizeText(originalStderr, extraRoots);
   const structuredError = sanitizeStructuredError(captured.error, extraRoots);
-  const argv = (captured.argv || []).map((item) => (
-    redactAbsoluteFilesystemPaths(String(sanitizeForLog(String(item)) ?? ""), extraRoots)
-  ));
+  const argv = (captured.argv || []).map((item) => completeSanitizeText(String(item), extraRoots));
   return packageFromBoundary({
     commandIdentity: captured.commandIdentity,
     argv,
@@ -1604,6 +1641,7 @@ export function attestQualificationResetReparse(record, extra = {}) {
     || Boolean(adapted.processResult.signal)
     || adapted.processResult.timeout === true
     || adapted.processResult.timedOut === true
+    || adapted.processResult.thrown === true
     || Boolean(adapted.processResult.error);
   const t7CommittedTrue = parsed.ok === true
     && parsed.observations?.at(-1)?.phase === "T7_COMMIT"
@@ -1850,6 +1888,7 @@ export function interpretQualificationResetTransportResult(processResult, { thro
   const connectionLoss = UNCERTAIN_COMMIT_RE.test(`${encoded.stderr} ${encoded.error || ""} ${encoded.signal || ""}`)
     || /ECONNRESET/i.test(`${encoded.stderr} ${encoded.error || ""} ${thrown?.code || ""} ${thrown?.message || ""}`);
   const processErrorPresent = thrown != null
+    || encoded.thrown === true
     || encoded.status !== 0
     || encoded.status == null
     || Boolean(encoded.signal)
@@ -2416,7 +2455,7 @@ export async function runQualificationReset({
     };
   }
 
-  if (thrown || encoded.status !== 0 || encoded.status == null) {
+  if (thrown || encoded.thrown === true || encoded.status !== 0 || encoded.status == null) {
     const sqlCode = raw?.error?.code && String(raw.error.code).startsWith("F13_")
       ? raw.error.code
       : (thrown?.code && String(thrown.code).startsWith("F13_") ? thrown.code : "F13_RESET_SQL_FAILED");
@@ -2804,6 +2843,10 @@ export function publishQualificationResetClosures({
     f17BaselineCitedNotExpected: {
       runtime: F17_BASELINE_RUNTIME_CLOSURE,
       union: F17_BASELINE_VERIFICATION_UNION,
+    },
+    f18BaselineCitedNotExpected: {
+      runtime: F18_BASELINE_RUNTIME_CLOSURE,
+      union: F18_BASELINE_VERIFICATION_UNION,
     },
   };
 }

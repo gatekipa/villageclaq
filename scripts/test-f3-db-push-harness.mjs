@@ -8926,7 +8926,7 @@ test("F13 reset wiring keeps wipe rejected, extras HOLD, CASCADE refused, name m
   records.push({ caseId: "F13-H08-FLAG-NOT-AUTH", result: "rejected" });
 
   assert.equal(F13_SHARED_ORCHESTRATION_ID, "runQualificationReset");
-  assert.match(F13_RUNTIME_LABEL, /F18 LOCAL CORRECTION CANDIDATE/);
+  assert.match(F13_RUNTIME_LABEL, /F19 LOCAL CORRECTION CANDIDATE/);
   assert.equal(F13_RUNTIME_LABEL, F14_RUNTIME_LABEL);
 
   let qualifyCaptureSql = "";

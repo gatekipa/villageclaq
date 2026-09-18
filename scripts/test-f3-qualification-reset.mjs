@@ -4,7 +4,10 @@
  * Exercises the same runQualificationReset orchestration as qualify main.
  */
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -46,12 +49,17 @@ import {
   F13_F17_VERIFICATION_UNION_LABEL,
   F13_F18_RUNTIME_CLOSURE_LABEL,
   F13_F18_VERIFICATION_UNION_LABEL,
+  F13_F19_RUNTIME_CLOSURE_LABEL,
+  F13_F19_VERIFICATION_UNION_LABEL,
   F16_BASELINE_RUNTIME_CLOSURE,
   F16_BASELINE_VERIFICATION_UNION,
   F16_HISTORICAL_RUNTIME_CLOSURE_LABEL,
   F17_BASELINE_RUNTIME_CLOSURE,
   F17_BASELINE_VERIFICATION_UNION,
   F17_HISTORICAL_RUNTIME_CLOSURE_LABEL,
+  F18_BASELINE_RUNTIME_CLOSURE,
+  F18_BASELINE_VERIFICATION_UNION,
+  F18_HISTORICAL_RUNTIME_CLOSURE_LABEL,
   PROCESS_EVIDENCE_CONTRACT,
   PROCESS_EVIDENCE_SANITIZATION_RULES,
   QUALIFICATION_RESET_ISOLATION_LEVEL,
@@ -107,6 +115,7 @@ import {
   runQualificationResetQualifyPath,
   validateProposedQualificationResetHostedPlanOffline,
 } from "./qualify-f3-db-push-disposable.mjs";
+import { processEvidence, record } from "./prove-f3-qualification-reset-local.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 /** Synthetic bindings are negative-test inputs only — not runtime identity. */
@@ -987,6 +996,8 @@ test("F14-R06 runtime closure is entrypoint digest, not summary-file hash", () =
   assert.equal(closures.completeVerificationUnion.label, F13_F17_VERIFICATION_UNION_LABEL);
   assert.equal(closures.runtime.label, F13_F18_RUNTIME_CLOSURE_LABEL);
   assert.equal(closures.completeVerificationUnion.label, F13_F18_VERIFICATION_UNION_LABEL);
+  assert.equal(closures.runtime.label, F13_F19_RUNTIME_CLOSURE_LABEL);
+  assert.equal(closures.completeVerificationUnion.label, F13_F19_VERIFICATION_UNION_LABEL);
   assert.equal(closures.f15BaselineCitedNotExpected.runtime.sha256, F15_BASELINE_RUNTIME_CLOSURE.sha256);
   assert.equal(closures.f15BaselineCitedNotExpected.runtime.notExpectedF16, true);
   assert.equal(closures.f16BaselineCitedNotExpected.runtime.sha256, F16_BASELINE_RUNTIME_CLOSURE.sha256);
@@ -996,10 +1007,16 @@ test("F14-R06 runtime closure is entrypoint digest, not summary-file hash", () =
   assert.equal(closures.f17BaselineCitedNotExpected.union.sha256, F17_BASELINE_VERIFICATION_UNION.sha256);
   assert.equal(closures.f17BaselineCitedNotExpected.runtime.notExpectedF18, true);
   assert.equal(closures.f17BaselineCitedNotExpected.runtime.historicalLabel, F17_HISTORICAL_RUNTIME_CLOSURE_LABEL);
+  assert.equal(closures.f18BaselineCitedNotExpected.runtime.sha256, F18_BASELINE_RUNTIME_CLOSURE.sha256);
+  assert.equal(closures.f18BaselineCitedNotExpected.union.sha256, F18_BASELINE_VERIFICATION_UNION.sha256);
+  assert.equal(closures.f18BaselineCitedNotExpected.runtime.notExpectedF19, true);
+  assert.equal(closures.f18BaselineCitedNotExpected.runtime.historicalLabel, F18_HISTORICAL_RUNTIME_CLOSURE_LABEL);
   assert.notEqual(closures.runtime.sha256, F16_BASELINE_RUNTIME_CLOSURE.sha256);
   assert.notEqual(closures.completeVerificationUnion.sha256, F16_BASELINE_VERIFICATION_UNION.sha256);
   assert.notEqual(closures.runtime.sha256, F17_BASELINE_RUNTIME_CLOSURE.sha256);
   assert.notEqual(closures.completeVerificationUnion.sha256, F17_BASELINE_VERIFICATION_UNION.sha256);
+  assert.notEqual(closures.runtime.sha256, F18_BASELINE_RUNTIME_CLOSURE.sha256);
+  assert.notEqual(closures.completeVerificationUnion.sha256, F18_BASELINE_VERIFICATION_UNION.sha256);
   const publishedCtx = qualificationResetRuntimeContext();
   assert.equal(publishedCtx.closureDigest, closures.runtime.sha256);
   assert.notEqual(publishedCtx.closureDigest, F13_SUMMARY_FILE_HASH_FORBIDDEN);
@@ -2214,6 +2231,244 @@ test("F18-C01 success records reparse committed; failures stay rejected", async 
   assert.equal(inconsistent.code, "F18_ATTESTATION_INCONSISTENT");
   const finalized = finalizeQualificationResetAttestations([successAttest, failedAttest]);
   assert.equal(finalized.ok, true);
+});
+
+function sha256Text(text) {
+  return createHash("sha256").update(String(text ?? ""), "utf8").digest("hex");
+}
+
+function assertRecoveredStreamIdentities(reread, originalStdout, originalStderr) {
+  const recoveredStdout = String(reread.stdout ?? "");
+  const recoveredStderr = String(reread.stderr ?? "");
+  assert.equal(reread.streams.originalStdoutSha256, sha256Text(originalStdout));
+  assert.equal(reread.streams.originalStderrSha256, sha256Text(originalStderr));
+  assert.equal(reread.streams.originalStdoutByteLength, Buffer.byteLength(String(originalStdout ?? ""), "utf8"));
+  assert.equal(reread.streams.originalStderrByteLength, Buffer.byteLength(String(originalStderr ?? ""), "utf8"));
+  assert.equal(reread.streams.packagedStdoutSha256, sha256Text(recoveredStdout));
+  assert.equal(reread.streams.packagedStderrSha256, sha256Text(recoveredStderr));
+  assert.equal(reread.streams.packagedStdoutByteLength, Buffer.byteLength(recoveredStdout, "utf8"));
+  assert.equal(reread.streams.packagedStderrByteLength, Buffer.byteLength(recoveredStderr, "utf8"));
+  assert.notEqual(reread.streams.originalStdoutSha256, undefined);
+  assert.equal(reread.streams.capturedBeforeEncode, true);
+}
+
+function serializeAndRereadFromRunner(resetResult, extra = {}) {
+  const evidence = processEvidence(resetResult);
+  const stored = record(extra.id || "F19_BOUNDARY", extra.kind || "scenario", {
+    ok: extra.ok,
+    verdict: extra.verdict ?? resetResult?.verdict ?? null,
+    ...evidence,
+  });
+  const serialized = JSON.stringify(stored);
+  const reread = JSON.parse(serialized);
+  const adapted = adaptStoredProcessRecordToParserInput(reread);
+  const interpreted = adapted.ok
+    ? interpretQualificationResetTransportResult(adapted.processResult)
+    : null;
+  const attestation = attestQualificationResetReparse(reread, {
+    verdict: extra.verdict ?? resetResult?.verdict ?? null,
+    scenarioOk: extra.ok,
+  });
+  const finalization = finalizeQualificationResetAttestations([attestation]);
+  return {
+    evidence,
+    stored,
+    serialized,
+    reread,
+    adapted,
+    interpreted,
+    attestation,
+    finalization,
+  };
+}
+
+test("F19-A01 real thrown EACCES survives runner-helper-serialize-reread and cannot finalize success", async () => {
+  const deniedDir = fs.mkdtempSync(path.join(os.tmpdir(), "f19-eacces-"));
+  const deniedBin = path.join(deniedDir, "denied-psql");
+  fs.writeFileSync(deniedBin, "#!/bin/sh\nexit 0\n");
+  fs.chmodSync(deniedBin, 0);
+  const spawned = spawnSync(deniedBin, ["-X", "-q"], { encoding: "utf8" });
+  assert.ok(spawned.error, "spawn must throw EACCES against the non-executable helper");
+  assert.equal(spawned.error.code, "EACCES");
+  assert.match(String(spawned.error.syscall || ""), /spawn/);
+  assert.match(String(spawned.error.message || ""), /EACCES|permission denied/i);
+
+  let thrownMessage = "";
+  const reset = await runQualificationReset({
+    input: planInput(),
+    adapters: {
+      transport: {
+        kind: "f19-real-eacces",
+        disabled: false,
+        execute() {
+          const again = spawnSync(deniedBin, ["-X", "-q"], { encoding: "utf8" });
+          if (again.error) {
+            thrownMessage = String(again.error.message || again.error);
+            throw again.error;
+          }
+          return again;
+        },
+      },
+    },
+    recorder: createQualificationResetRecorder(),
+    allowDisabledTransport: false,
+  });
+  fs.rmSync(deniedDir, { recursive: true, force: true });
+
+  assert.equal(reset.ok, false);
+  assert.notEqual(reset.verdict, "CLEAN_BASELINE");
+  const originalStdout = "";
+  const originalStderr = thrownMessage || String(spawned.error.message || "");
+  const boundary = serializeAndRereadFromRunner(reset, {
+    id: "F19_THROWN_EACCES",
+    ok: false,
+    verdict: reset.verdict,
+  });
+  assert.equal(boundary.reread.thrown, true);
+  assert.equal(boundary.stored.thrown, true);
+  assert.equal(boundary.reread.status, null);
+  assert.equal(boundary.reread.structuredError?.code, "EACCES");
+  assert.match(String(boundary.reread.structuredError?.syscall || ""), /spawn/);
+  assert.match(String(boundary.reread.structuredError?.message || ""), /EACCES|permission denied/i);
+  assert.equal(boundary.interpreted.attempted.processErrorPresent, true);
+  assert.equal(boundary.interpreted.committed, false);
+  assert.equal(boundary.interpreted.rolledBack, null);
+  assert.equal(boundary.attestation.processFailed, true);
+  assert.equal(boundary.attestation.interpretedCommitted, false);
+  const successClaim = attestQualificationResetReparse(boundary.reread, {
+    verdict: "CLEAN_BASELINE",
+    scenarioOk: true,
+  });
+  assert.equal(successClaim.processFailed, true);
+  assert.equal(successClaim.interpretedCommitted, false);
+  assert.equal(successClaim.genuineSuccess, false);
+  assert.equal(successClaim.ok, false);
+  assert.equal(finalizeQualificationResetAttestations([successClaim]).ok, false);
+  assertRecoveredStreamIdentities(boundary.reread, originalStdout, originalStderr);
+  assert.equal(scanEvidenceValueForLeaks(boundary.reread).pathLeaks, 0);
+});
+
+test("F19-A02 path redaction preserves original identities and matches recovered sanitized bodies", async () => {
+  const workdir = path.join(os.tmpdir(), "f19-qual-reset-redact");
+  const rawStderr = `psql:${workdir}/file.sql:12: ERROR: boom DATABASE_URL=postgresql://example.invalid/db\n`;
+  const rawStdout = "";
+  const reset = await runQualificationReset({
+    input: planInput(),
+    adapters: {
+      transport: {
+        kind: "f19-path-redact",
+        disabled: false,
+        execute() {
+          return {
+            status: 1,
+            stdout: rawStdout,
+            stderr: rawStderr,
+            signal: null,
+            timeout: false,
+            timedOut: false,
+            thrown: false,
+            argv: [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", `${workdir}/file.sql`],
+          };
+        },
+      },
+    },
+    recorder: createQualificationResetRecorder(),
+    allowDisabledTransport: false,
+  });
+  const boundary = serializeAndRereadFromRunner(reset, {
+    id: "F19_PATH_REDACT",
+    ok: false,
+    verdict: reset.verdict,
+  });
+  assert.equal(boundary.reread.thrown, false);
+  assert.doesNotMatch(boundary.reread.stderr, /\/tmp\/f19-qual-reset-redact|DATABASE_URL|postgresql:\/\//);
+  assert.match(boundary.reread.stderr, /\[REDACTED_PATH\]|\[REDACTED\]/);
+  assert.notEqual(boundary.reread.streams.originalStderrSha256, boundary.reread.streams.packagedStderrSha256);
+  assertRecoveredStreamIdentities(boundary.reread, rawStdout, rawStderr);
+  assert.equal(boundary.reread.streams.originalStderrSha256, sha256Text(rawStderr));
+  assert.equal(boundary.reread.streams.packagedStderrSha256, sha256Text(boundary.reread.stderr));
+  assert.equal(scanEvidenceValueForLeaks(boundary.reread).pathLeaks, 0);
+  assert.equal(scanEvidenceValueForLeaks(boundary.reread).secrets, 0);
+});
+
+test("F19-B01 thrown:true alone cannot authorize interpretation, attestation, or finalization", () => {
+  const thrownOnly = {
+    status: 0,
+    processStatus: 0,
+    stdout: successObservationStdout(),
+    stderr: "",
+    signal: null,
+    timeout: false,
+    timedOut: false,
+    thrown: true,
+  };
+  const interpreted = interpretQualificationResetTransportResult(thrownOnly);
+  const attestation = attestQualificationResetReparse(thrownOnly, {
+    verdict: "CLEAN_BASELINE",
+    scenarioOk: true,
+  });
+  const finalization = finalizeQualificationResetAttestations([attestation]);
+  assert.equal(interpreted.attempted.thrown, true);
+  assert.equal(interpreted.attempted.processErrorPresent, true);
+  assert.equal(interpreted.committed, false);
+  assert.equal(interpreted.rolledBack, null);
+  assert.equal(attestation.processFailed, true);
+  assert.equal(attestation.interpretedCommitted, false);
+  assert.equal(attestation.ok, false);
+  assert.equal(attestation.genuineSuccess, false);
+  assert.equal(finalization.ok, false);
+
+  const evidence = processEvidence({
+    processResult: thrownOnly,
+    verdict: "CLEAN_BASELINE",
+    ok: true,
+  });
+  const stored = record("F19_THROWN_ONLY", "scenario", {
+    ok: true,
+    verdict: "CLEAN_BASELINE",
+    ...evidence,
+  });
+  const reread = JSON.parse(JSON.stringify(stored));
+  assert.equal(reread.thrown, true);
+  const rereadAttest = attestQualificationResetReparse(reread, {
+    verdict: "CLEAN_BASELINE",
+    scenarioOk: true,
+  });
+  assert.equal(rereadAttest.ok, false);
+  assert.equal(rereadAttest.processFailed, true);
+  assert.equal(finalizeQualificationResetAttestations([rereadAttest]).ok, false);
+});
+
+test("F19-B02 unchanged valid success still reparses committed CLEAN_BASELINE", async () => {
+  const success = await runProcessEvidenceE2E({
+    status: 0,
+    signal: null,
+    timeout: false,
+    timedOut: false,
+    thrown: false,
+    stdout: successObservationStdout(),
+    stderr: "",
+    argv: [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", "[FILE]"],
+  });
+  const boundary = serializeAndRereadFromRunner(success.result, {
+    id: "F19_SUCCESS",
+    ok: true,
+    verdict: "CLEAN_BASELINE",
+  });
+  assert.equal(success.result.verdict, "CLEAN_BASELINE");
+  assert.equal(success.interpreted.committed, true);
+  assert.equal(boundary.reread.thrown, false);
+  assert.equal(boundary.interpreted.committed, true);
+  assert.equal(boundary.attestation.interpretedCommitted, true);
+  assert.equal(boundary.attestation.processFailed, false);
+  assert.equal(boundary.attestation.ok, true);
+  assert.equal(boundary.attestation.t7CommittedTrue, true);
+  assert.equal(boundary.finalization.ok, true);
+  assertRecoveredStreamIdentities(
+    boundary.reread,
+    successObservationStdout(),
+    "",
+  );
 });
 
 

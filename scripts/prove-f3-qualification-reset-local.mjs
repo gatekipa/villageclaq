@@ -34,10 +34,10 @@ import {
   parseQualificationResetInventoryProcessResult,
 } from "./lib/f3-db-push-inventory.mjs";
 import {
-  F18_RUNTIME_LABEL,
-  F17_RUNTIME_LABEL,
+  F19_RUNTIME_LABEL,
   F16_BASELINE_RUNTIME_CLOSURE,
   F17_BASELINE_RUNTIME_CLOSURE,
+  F18_BASELINE_RUNTIME_CLOSURE,
   QUALIFICATION_RESET_APPLY_PSQL_ARGV,
   QUALIFICATION_RESET_ISOLATION_LEVEL,
   QUALIFICATION_RESET_LOCK_ORDER,
@@ -94,8 +94,8 @@ function processEvidence(result, { captureCalls = 1 } = {}) {
     timedOut: packaged.timedOut === true,
     thrown: packaged.thrown === true,
     structuredError: packaged.structuredError,
-    stdout: secretsRemoved(packaged.stdout || ""),
-    stderr: secretsRemoved(packaged.stderr || ""),
+    stdout: packaged.stdout || "",
+    stderr: packaged.stderr || "",
     streams: packaged.streams,
     processEvidenceRejected: packaged.rejected === true,
     captureCalls,
@@ -132,6 +132,7 @@ function record(id, kind, extra = {}) {
     processStatus: extra.processStatus ?? null,
     signal: extra.signal ?? null,
     timeout: extra.timeout ?? null,
+    thrown: extra.thrown === true,
     structuredError: extra.structuredError ?? null,
     streams: extra.streams ?? null,
     stdout: extra.stdout ?? null,
@@ -150,7 +151,7 @@ function record(id, kind, extra = {}) {
   };
 }
 
-export { completeCaptureBody };
+export { completeCaptureBody, processEvidence, record, secretsRemoved };
 
 function tryLocalPg() {
   try {
@@ -423,15 +424,18 @@ function runOfflineChecks() {
   checks.push(record("RUNTIME_CLOSURE_NOT_SUMMARY", "check", {
     ok: closures.runtime.sha256 !== "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d"
       && closures.completeVerificationUnion.proofHelperIncluded === true
-      && closures.runtime.label === "F18_QUALIFICATION_RESET_RUNTIME_CLOSURE"
+      && closures.runtime.label === "F19_QUALIFICATION_RESET_RUNTIME_CLOSURE"
       && closures.f14BaselineCitedNotExpected.runtime.sha256 === "f6205869b233eaccf375b299112f7b9c352d58c6f2659471e06d2ca7a241e31d"
       && closures.f15BaselineCitedNotExpected.runtime.sha256 === "949e68359e55870050e53ef3f93ec8179fc7a5e1587a908044e0ab26cfdbbb92"
       && closures.f16BaselineCitedNotExpected.runtime.sha256 === F16_BASELINE_RUNTIME_CLOSURE.sha256
       && closures.f16BaselineCitedNotExpected.runtime.notExpectedF17 === true
       && closures.f17BaselineCitedNotExpected.runtime.sha256 === F17_BASELINE_RUNTIME_CLOSURE.sha256
       && closures.f17BaselineCitedNotExpected.runtime.notExpectedF18 === true
+      && closures.f18BaselineCitedNotExpected.runtime.sha256 === F18_BASELINE_RUNTIME_CLOSURE.sha256
+      && closures.f18BaselineCitedNotExpected.runtime.notExpectedF19 === true
       && closures.runtime.sha256 !== F16_BASELINE_RUNTIME_CLOSURE.sha256
-      && closures.runtime.sha256 !== F17_BASELINE_RUNTIME_CLOSURE.sha256,
+      && closures.runtime.sha256 !== F17_BASELINE_RUNTIME_CLOSURE.sha256
+      && closures.runtime.sha256 !== F18_BASELINE_RUNTIME_CLOSURE.sha256,
   }));
   checks.push(record("READ_COMMITTED_LOCK_ORDER_DOCUMENTED", "check", {
     ok: QUALIFICATION_RESET_ISOLATION_LEVEL === "READ COMMITTED"
@@ -1403,7 +1407,7 @@ export async function proveQualificationResetLocal() {
   const failCount = cases.filter((row) => row.ok !== true).length;
   return {
     schema: "f18-qualification-reset-local-proof-v1",
-    label: F18_RUNTIME_LABEL,
+    label: F19_RUNTIME_LABEL,
     helper: HELPER_RELPATH,
     hostedIdentityProof: false,
     disposableContact: false,

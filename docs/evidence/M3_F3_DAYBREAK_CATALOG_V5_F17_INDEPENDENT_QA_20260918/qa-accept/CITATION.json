@@ -1,0 +1,17 @@
+{
+  "verdict": "F17 ACCEPT",
+  "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "kind": "independent-adversarial-qa",
+  "functionalTip": "83b9f79483f3ba53f4f8cd60016450ff38a723b4",
+  "startingRef": "10d2d578c18e372e633a033b31c2e515cd535a8b",
+  "builderEvidenceTip": "3fcbcbc438ccc90faf7e87d06ba0d270e3d17598",
+  "builderDraft": 114,
+  "builderDraftAuthoritative": false,
+  "f16FunctionalContentPinSuperseded": "b74c6854869acf0e826446ea0488c42469621a3b",
+  "helperClassification": "LOCAL_PG_EXECUTED",
+  "nativeWindowsExecuted": false,
+  "hostedRequal": "NOT RUN",
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "sourceLabel": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F17_INDEPENDENT_QA_20260918/qa-accept/score.md",
+  "note": "Independent QA re-executed design 30/30, reset 59/59, db-push 240/239/0+1 skip, and prove helper LOCAL_PG_EXECUTED 20/9/8 TX. A/B/C/D closed locally. No merge. No Daybreak/Astra/hosted/disposable/production contact."
+}

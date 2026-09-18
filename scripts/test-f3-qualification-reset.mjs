@@ -13,10 +13,13 @@ import {
   PRODUCTION_REF,
 } from "./lib/f3-db-push-pins.mjs";
 import {
+  BASELINE_AFFECTING_INVENTORY_FIELDS,
+  FAILED_FLOOR_STORAGE_POLICY_NAMES,
   QUALIFICATION_RESET_INVENTORY_PSQL_ARGV,
   QUALIFICATION_RESET_INVENTORY_SCHEMA,
   buildQualificationResetInventoryPsqlCommand,
   completeCaptureBody,
+  emptyQualificationResetInventoryObject,
   evaluateQualificationResetEligibility,
   observedFromQualificationResetCapture,
   parseQualificationResetInventoryProcessResult,
@@ -36,6 +39,9 @@ import {
   F13_F14_VERIFICATION_UNION_LABEL,
   F13_F15_RUNTIME_CLOSURE_LABEL,
   F13_F15_VERIFICATION_UNION_LABEL,
+  F13_F16_RUNTIME_CLOSURE_LABEL,
+  F13_F16_VERIFICATION_UNION_LABEL,
+  F15_BASELINE_RUNTIME_CLOSURE,
   F13_INVENTORY_CAPTURE_REQUIRED,
   F13_RESET_ALREADY_CLEAN_VERDICT,
   F13_RESET_SUCCESS_VERDICT,
@@ -576,10 +582,22 @@ test("F13-R17 hardcoded empty inventory is refused until capture is wired", () =
   assert.equal(uncaptured.sql, undefined);
   assert.notEqual(uncaptured.verdict, F13_RESET_SUCCESS_VERDICT);
 
+  const capturedWithoutFacts = planQualificationReset(planInput({
+    observedObjects: [],
+    observedDependencies: [],
+    observedHistoryRows: [],
+    inventoryCaptured: true,
+    captureComplete: true,
+  }));
+  assert.equal(capturedWithoutFacts.ok, false);
+  assert.notEqual(capturedWithoutFacts.alreadyClean, true);
+  assert.notEqual(capturedWithoutFacts.verdict, F13_RESET_ALREADY_CLEAN_VERDICT);
+
   const capturedClean = planQualificationReset(planInput({
     observedObjects: [],
     observedDependencies: [],
     observedHistoryRows: [],
+    inventory: emptyQualificationResetInventoryObject(),
     inventoryCaptured: true,
     captureComplete: true,
   }));
@@ -904,7 +922,7 @@ test("F14-R04 real transport contract: status0, SQL fail, truncate, COMMIT loss,
 test("F14-R05 committed local proof helper reports wipe rejection and MUST_LOCAL honestly", async () => {
   const { proveQualificationResetLocal } = await import("./prove-f3-qualification-reset-local.mjs");
   const proof = await proveQualificationResetLocal();
-  assert.equal(proof.schema, "f15-qualification-reset-local-proof-v1");
+  assert.equal(proof.schema, "f16-qualification-reset-local-proof-v1");
   assert.equal(proof.hostedIdentityProof, false);
   assert.equal(proof.disposableContact, false);
   assert.equal(proof.wipeRejectionCode, F13_WIPE_REJECTION_CODE);
@@ -939,6 +957,10 @@ test("F14-R06 runtime closure is entrypoint digest, not summary-file hash", () =
   assert.equal(closures.f14BaselineCitedNotExpected.runtime.sha256, "f6205869b233eaccf375b299112f7b9c352d58c6f2659471e06d2ca7a241e31d");
   assert.equal(closures.f14BaselineCitedNotExpected.union.sha256, "f6ff6e42b4b5ec14b1a67fe88377d7deafe5f12f2c2c35c834e7c763711e7caa");
   assert.equal(closures.f14BaselineCitedNotExpected.runtime.notExpectedF15, true);
+  assert.equal(closures.runtime.label, F13_F16_RUNTIME_CLOSURE_LABEL);
+  assert.equal(closures.completeVerificationUnion.label, F13_F16_VERIFICATION_UNION_LABEL);
+  assert.equal(closures.f15BaselineCitedNotExpected.runtime.sha256, F15_BASELINE_RUNTIME_CLOSURE.sha256);
+  assert.equal(closures.f15BaselineCitedNotExpected.runtime.notExpectedF16, true);
   const publishedCtx = qualificationResetRuntimeContext();
   assert.equal(publishedCtx.closureDigest, closures.runtime.sha256);
   assert.notEqual(publishedCtx.closureDigest, F13_SUMMARY_FILE_HASH_FORBIDDEN);
@@ -1469,6 +1491,9 @@ test("F15-C5-R01 committed helper records three real TX scenarios or MUST_LOCAL"
     "TX_SUCCESSFUL_RESET",
     "TX_UNEXPECTED_OBJECT_ROLLBACK",
     "TX_HISTORY_MISMATCH_ROLLBACK",
+    "TX_T3_UNAPPROVED_FK_ROLLBACK",
+    "TX_T3_RETARGETED_FK_ROLLBACK",
+    "TX_T3_APPROVED_SET_SUCCESS",
   ];
   for (const id of required) {
     assert.ok(proof.cases.some((row) => row.id === id), `missing ${id}`);
@@ -1485,7 +1510,7 @@ test("F15-C5-R01 committed helper records three real TX scenarios or MUST_LOCAL"
       assert.match(String(row.note || row.code || ""), /MUST_LOCAL/);
     }
   } else {
-    assert.equal(proof.distinctions.executedTransactions >= 3, true);
+    assert.equal(proof.distinctions.executedTransactions >= 6, true);
     for (const id of required) {
       const row = proof.cases.find((item) => item.id === id);
       assert.equal(row.ok, true);
@@ -1524,5 +1549,146 @@ test("F15-C6-R01 hosted plan builder emits complete unauthorized candidate plan"
   assert.doesNotMatch(markdown, /postgresql:\/\//);
   assert.match(markdown, /2\.117\.0/);
   assert.match(markdown, /Management API apply/);
+});
+
+test("F16-A01 empty discovery plus auth/unnest/unexpected storage cannot be CLEAN_BASELINE", async () => {
+  const cases = [
+    { auth_handle_new_user_trigger: true },
+    { unnest_uuid_shim: true },
+    { storage_policies: ["unexpected_access_policy"] },
+  ];
+  for (const inventoryOverrides of cases) {
+    const body = contradictoryEmptyUniverse(inventoryOverrides);
+    const observed = observedFromQualificationResetCapture(body);
+    if (inventoryOverrides.unnest_uuid_shim === true) {
+      assert.equal(observed.ok, false);
+    }
+    const { result, emit } = await runQualifyMainPath({ captureBody: body });
+    assert.equal(result.ok, false, JSON.stringify(inventoryOverrides));
+    assert.notEqual(result.alreadyClean, true);
+    assert.notEqual(result.verdict, F13_RESET_ALREADY_CLEAN_VERDICT);
+    assert.equal(result.spies.captureCalls, 1);
+    assert.equal(result.spies.applyCalls || 0, 0);
+    assert.equal(result.spies.sqlCalls || 0, 0);
+    assert.equal(result.spies.transportCalls || 0, 0);
+    assert.equal(emit.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
+    assert.notEqual(result.wipeRouted, true);
+    assert.notEqual(result.code, "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH");
+  }
+});
+
+test("F16-A02 baseline-affecting inventory matrix is table-driven and fail-closed", async () => {
+  const fields = BASELINE_AFFECTING_INVENTORY_FIELDS.filter((row) => row.dirtyBlocksCleanBaseline);
+  assert.ok(fields.length >= 15);
+  assert.ok(fields.some((row) => row.field === "auth_handle_new_user_trigger" && row.holdWithoutDeletion === true));
+  assert.ok(fields.some((row) => row.field === "unnest_uuid_shim" && row.wipeRouted === false));
+  assert.ok(fields.some((row) => row.field === "storage_policies" && row.namedFloorResidualAllowed === true));
+
+  const dirtyByField = {
+    public_tables: ["financial_accounts"],
+    public_views: ["unexpected_view"],
+    public_types: ["mystery_enum"],
+    public_functions: [{ name: "mystery_fn", identity: "public.mystery_fn()" }],
+    unnest_uuid_shim: true,
+    auth_handle_new_user_trigger: true,
+    schema_migrations_present: "not-boolean",
+    schema_migrations_rows: 6,
+    financial_private: true,
+    financial_core: true,
+    financial_ledger_epochs: true,
+    exchange_rates: true,
+    organizations_base_country: true,
+    groups_group_level: true,
+    committees_budget_allocation: true,
+    storage_policies: ["unexpected_access_policy"],
+  };
+
+  for (const row of fields) {
+    const dirty = Object.prototype.hasOwnProperty.call(dirtyByField, row.field)
+      ? { [row.field]: dirtyByField[row.field] }
+      : null;
+    assert.ok(dirty, row.field);
+    const body = contradictoryEmptyUniverse(dirty);
+    const parsed = observedFromQualificationResetCapture(body);
+    const eligibility = evaluateQualificationResetEligibility({
+      observedObjectIdentities: parsed.ok ? parsed.observedObjects : [],
+      observedDependencies: parsed.ok ? parsed.observedDependencies : [],
+      observedHistoryRows: parsed.ok ? parsed.observedHistoryRows : [],
+      inventory: body.inventory,
+      inventoryCaptured: true,
+      captureComplete: true,
+    });
+    if (row.field === "schema_migrations_present") {
+      assert.equal(parsed.ok, false);
+      continue;
+    }
+    assert.notEqual(eligibility.alreadyClean, true, row.field);
+    assert.notEqual(eligibility.verdict, F13_RESET_ALREADY_CLEAN_VERDICT, row.field);
+    const { result } = await runQualifyMainPath({ captureBody: body });
+    assert.equal(result.ok, false, row.field);
+    assert.equal(result.spies.captureCalls, 1, row.field);
+    assert.equal(result.spies.applyCalls || 0, 0, row.field);
+    assert.equal(result.spies.sqlCalls || 0, 0, row.field);
+  }
+});
+
+test("F16-A03 genuine already-clean and approved leftovers still reach supported paths", async () => {
+  const clean = await runQualifyMainPath({ captureBody: emptyCaptureBody() });
+  assert.equal(clean.result.ok, true);
+  assert.equal(clean.result.alreadyClean, true);
+  assert.equal(clean.result.spies.applyCalls || 0, 0);
+  assert.equal(clean.result.spies.sqlCalls || 0, 0);
+  assert.equal(clean.result.verdict, F13_RESET_ALREADY_CLEAN_VERDICT);
+
+  const leftover = await runQualifyMainPath({
+    captureBody: leftoverCaptureBody({
+      inventory: {
+        public_tables: ["financial_accounts"],
+        schema_migrations_rows: AUTHENTICATED_HISTORY_KEYS.length,
+        storage_policies: [...FAILED_FLOOR_STORAGE_POLICY_NAMES],
+      },
+    }),
+  });
+  assert.equal(leftover.result.ok, true);
+  assert.equal(leftover.result.plan.eligible, true);
+  assert.equal(leftover.result.spies.captureCalls, 1);
+  assert.equal(leftover.result.spies.applyCalls, 1);
+  assert.equal(leftover.result.verdict, F13_RESET_SUCCESS_VERDICT);
+
+  const leftoverPlusAuth = await runQualifyMainPath({
+    captureBody: leftoverCaptureBody({
+      inventory: {
+        public_tables: ["financial_accounts"],
+        schema_migrations_rows: AUTHENTICATED_HISTORY_KEYS.length,
+        auth_handle_new_user_trigger: true,
+      },
+    }),
+  });
+  assert.equal(leftoverPlusAuth.result.ok, false);
+  assert.equal(leftoverPlusAuth.result.eligible, false);
+  assert.equal(leftoverPlusAuth.result.spies.applyCalls || 0, 0);
+  assert.equal(leftoverPlusAuth.emit.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
+});
+
+test("F16-B01 generated T3 SQL queries live catalog tuples and captured starting state", () => {
+  const planned = planQualificationReset(planInput({
+    observedObjects: ["public.financial_accounts", "public.memberships", "public.groups"],
+    observedDependencies: [MEMBERSHIPS_GROUP_FK],
+  }));
+  assert.equal(planned.ok, true);
+  assert.match(planned.sql, /live catalog dependency tuples after lock/);
+  assert.match(planned.sql, /foreign_key\|memberships_group_id_fkey\|public\.memberships\|public\.groups/);
+  assert.match(planned.sql, /FINITE_DEPENDENCY_ALLOWLIST/);
+  assert.match(planned.sql, /IS DISTINCT FROM/);
+  assert.match(planned.sql, /missing captured approved dependency/);
+  assert.doesNotMatch(planned.sql, /\bCASCADE\b/i);
+
+  const emptyExpected = buildQualificationResetSql({
+    observedHistoryRows: authenticatedHistory(),
+    observedDependencies: [],
+    scopeSqlIdentitySha256: scopeSqlIdentityDigest(),
+  });
+  assert.equal(emptyExpected.ok, true);
+  assert.match(emptyExpected.sql, /ARRAY\[\]::text\[\]/);
 });
 

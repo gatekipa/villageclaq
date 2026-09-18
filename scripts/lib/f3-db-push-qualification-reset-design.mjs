@@ -1868,6 +1868,9 @@ export const TRANSACTION_PHASES = Object.freeze([
       "observed set must equal permitted history set plus allowlisted objects; extras BLOCK",
       "history names must equal AUTHENTICATED_HISTORY_KEYS exactly",
       "unexpected dependency BLOCKS",
+      "after locks, freshly query the transaction catalog for complete (kind,identity,from,to) tuples; do not substitute earlier JS capture",
+      "live tuples must equal the captured approved starting set AND be in FINITE_DEPENDENCY_ALLOWLIST (37 tuples: 31 migration-created + 6 historical); unexpected/missing/changed BLOCK",
+      "schema-qualified endpoints required; cross-boundary FK protection retained; allowlist not broadened",
     ]),
   }),
   Object.freeze({
@@ -2123,6 +2126,15 @@ export function snapshotDependencyTuple(dep) {
   const tuple = canonicalDependencyTuple(dep);
   return tuple ? { ...tuple } : null;
 }
+
+export function dependencyTupleKey(dep) {
+  const tuple = canonicalDependencyTuple(dep);
+  return tuple ? `${tuple.kind}|${tuple.identity}|${tuple.from}|${tuple.to}` : null;
+}
+
+export const APPROVED_DEPENDENCY_TUPLE_COUNT = FINITE_DEPENDENCY_ALLOWLIST.length;
+export const APPROVED_MIGRATION_CREATED_DEPENDENCY_COUNT = FINITE_DEPENDENCY_ALLOWLIST.filter((row) => row.historicalNoticeOnly !== true).length;
+export const APPROVED_HISTORICAL_DEPENDENCY_COUNT = FINITE_DEPENDENCY_ALLOWLIST.filter((row) => row.historicalNoticeOnly === true).length;
 
 export function isFinancialPrefixSelector(value) {
   const s = String(value ?? "").trim();

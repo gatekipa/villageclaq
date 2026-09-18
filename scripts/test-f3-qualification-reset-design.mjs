@@ -15,6 +15,9 @@ import {
   PRODUCTION_REF,
 } from "./lib/f3-db-push-pins.mjs";
 import {
+  APPROVED_DEPENDENCY_TUPLE_COUNT,
+  APPROVED_HISTORICAL_DEPENDENCY_COUNT,
+  APPROVED_MIGRATION_CREATED_DEPENDENCY_COUNT,
   AUTHENTICATED_HISTORY_KEYS,
   CANONICAL_FUNCTION_IDENTITY_SQL,
   F13_DESIGN_LABEL,
@@ -486,5 +489,16 @@ test("F15-C3-A01 allowlist carries actual catalog FK identities from migrations"
     FINITE_DEPENDENCY_ALLOWLIST.some((dep) => dep.id === "dep.financial_events.correction_command_payloads_fks"),
     false,
   );
+});
+
+test("F16-B01 finite dependency contract remains 37 complete tuples", () => {
+  assert.equal(FINITE_DEPENDENCY_ALLOWLIST.length, 37);
+  assert.equal(APPROVED_DEPENDENCY_TUPLE_COUNT, 37);
+  assert.equal(APPROVED_MIGRATION_CREATED_DEPENDENCY_COUNT, 31);
+  assert.equal(APPROVED_HISTORICAL_DEPENDENCY_COUNT, 6);
+  const t3 = TRANSACTION_PHASES.find((phase) => phase.id === "T3_REVALIDATE");
+  assert.ok(t3.checks.some((check) => /freshly query the transaction catalog/.test(check)));
+  assert.ok(t3.checks.some((check) => /captured approved starting set/.test(check)));
+  assert.ok(t3.checks.some((check) => /cross-boundary FK protection retained/.test(check)));
 });
 

@@ -1,11 +1,12 @@
 /**
- * F15 local PostgreSQL proof helper for qualification-reset.
+ * F16 local PostgreSQL proof helper for qualification-reset.
  *
  * Fresh task-owned f3_* database only. Preserves other DBs/containers.
  * NOT hosted identity proof. NOT disposable. NOT production.
  * If this VM has no local PostgreSQL, reports MUST_LOCAL honestly.
  *
- * Three real local TX scenarios execute generated reset SQL through
+ * Preserved F15 three real local TX scenarios plus F16 T3 exact
+ * dependency-tuple scenarios execute generated reset SQL through
  * shared runQualificationReset + the local-fixture psql adapter + the
  * actual process-result parser. Disabled adapter is not DB execution.
  */
@@ -23,14 +24,16 @@ import {
   scopeSqlIdentityDigest,
 } from "./lib/f3-db-push-qualification-reset-design.mjs";
 import {
+  FAILED_FLOOR_STORAGE_POLICY_NAMES,
   QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL,
   buildQualificationResetInventoryPsqlCommand,
   completeCaptureBody,
+  emptyQualificationResetInventoryObject,
   evaluateQualificationResetEligibility,
   parseQualificationResetInventoryProcessResult,
 } from "./lib/f3-db-push-inventory.mjs";
 import {
-  F15_RUNTIME_LABEL,
+  F16_RUNTIME_LABEL,
   QUALIFICATION_RESET_APPLY_PSQL_ARGV,
   QUALIFICATION_RESET_LOCAL_PROOF_HELPER_RELPATH,
   TX_OBSERVATION_SCHEMA,
@@ -50,6 +53,40 @@ import {
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const HELPER_RELPATH = QUALIFICATION_RESET_LOCAL_PROOF_HELPER_RELPATH;
 
+const SECRET_NEEDLES = Object.freeze([
+  "DATABASE_URL",
+  "DISPOSABLE_DB_URL",
+  "VILLAGECLAQ_F3_DISPOSABLE_DB_PASSWORD",
+  "PGPASSWORD",
+  "postgresql://",
+  "postgres://",
+  "pgbouncer",
+]);
+
+function secretsRemoved(value) {
+  let text = value == null ? "" : String(value);
+  for (const needle of SECRET_NEEDLES) {
+    if (!text.includes(needle)) continue;
+    text = text.split(needle).join("[REDACTED]");
+  }
+  return text;
+}
+
+function processEvidence(result, { captureCalls = 1 } = {}) {
+  const encoded = result?.processResult || result?.transportInterpretation?.processResult || {};
+  return {
+    processStatus: Number.isInteger(encoded.status) ? encoded.status : null,
+    stdout: secretsRemoved(encoded.stdout || ""),
+    stderr: secretsRemoved(encoded.stderr || ""),
+    captureCalls,
+    transportCalls: result?.spies?.transportCalls ?? 0,
+    applyCalls: result?.spies?.applyCalls ?? 0,
+    sqlCalls: result?.spies?.sqlCalls ?? 0,
+    mutationPhaseReached: result?.transportInterpretation?.observed?.mutateAttempted === true
+      || result?.spies?.mutateAttempted > 0,
+  };
+}
+
 function record(id, kind, extra = {}) {
   return {
     id,
@@ -66,6 +103,14 @@ function record(id, kind, extra = {}) {
     verdict: extra.verdict ?? null,
     executedTransaction: extra.executedTransaction === true,
     note: extra.note ?? null,
+    captureCalls: extra.captureCalls ?? null,
+    transportCalls: extra.transportCalls ?? null,
+    applyCalls: extra.applyCalls ?? extra.resetApply ?? null,
+    sqlCalls: extra.sqlCalls ?? extra.sql ?? null,
+    mutationPhaseReached: extra.mutationPhaseReached ?? false,
+    processStatus: extra.processStatus ?? null,
+    stdout: extra.stdout ?? null,
+    stderr: extra.stderr ?? null,
   };
 }
 
@@ -150,6 +195,74 @@ function runOfflineChecks() {
     code: unexpected.code,
   }));
 
+  const authHold = evaluateQualificationResetEligibility({
+    observedObjectIdentities: [],
+    observedDependencies: [],
+    observedHistoryRows: [],
+    inventory: emptyQualificationResetInventoryObject({ auth_handle_new_user_trigger: true }),
+    inventoryCaptured: true,
+    captureComplete: true,
+  });
+  checks.push(record("CLEAN_BASELINE_AUTH_TRIGGER_HOLD", "check", {
+    ok: authHold.alreadyClean !== true && authHold.verdict === "HOLD" && authHold.wipeRouted !== true,
+    code: authHold.code,
+    verdict: authHold.verdict,
+  }));
+  const unnestHold = evaluateQualificationResetEligibility({
+    observedObjectIdentities: [],
+    observedDependencies: [],
+    observedHistoryRows: [],
+    inventory: emptyQualificationResetInventoryObject({ unnest_uuid_shim: true }),
+    inventoryCaptured: true,
+    captureComplete: true,
+  });
+  checks.push(record("CLEAN_BASELINE_UNNEST_HOLD", "check", {
+    ok: unnestHold.alreadyClean !== true && unnestHold.verdict === "HOLD" && unnestHold.wipeRouted !== true,
+    code: unnestHold.code,
+    verdict: unnestHold.verdict,
+  }));
+  const storageHold = evaluateQualificationResetEligibility({
+    observedObjectIdentities: [],
+    observedDependencies: [],
+    observedHistoryRows: [],
+    inventory: emptyQualificationResetInventoryObject({ storage_policies: ["unexpected_access_policy"] }),
+    inventoryCaptured: true,
+    captureComplete: true,
+  });
+  checks.push(record("CLEAN_BASELINE_UNEXPECTED_STORAGE_HOLD", "check", {
+    ok: storageHold.alreadyClean !== true && storageHold.verdict === "HOLD" && storageHold.wipeRouted !== true,
+    code: storageHold.code,
+    verdict: storageHold.verdict,
+  }));
+  const genuineClean = evaluateQualificationResetEligibility({
+    observedObjectIdentities: [],
+    observedDependencies: [],
+    observedHistoryRows: [],
+    inventory: emptyQualificationResetInventoryObject(),
+    inventoryCaptured: true,
+    captureComplete: true,
+  });
+  checks.push(record("GENUINE_CLEAN_STILL_CLEAN", "check", {
+    ok: genuineClean.ok === true && genuineClean.alreadyClean === true && genuineClean.verdict === "CLEAN_BASELINE",
+    verdict: genuineClean.verdict,
+  }));
+  const leftoverNamedStorage = evaluateQualificationResetEligibility({
+    observedObjectIdentities: ["public.financial_accounts"],
+    observedDependencies: [],
+    observedHistoryRows: AUTHENTICATED_HISTORY_KEYS.map((key) => ({ version: key.version, name: key.name })),
+    inventory: emptyQualificationResetInventoryObject({
+      public_tables: ["financial_accounts"],
+      schema_migrations_rows: AUTHENTICATED_HISTORY_KEYS.length,
+      storage_policies: [...FAILED_FLOOR_STORAGE_POLICY_NAMES],
+    }),
+    inventoryCaptured: true,
+    captureComplete: true,
+  });
+  checks.push(record("ELIGIBLE_LEFTOVER_NAMED_STORAGE", "check", {
+    ok: leftoverNamedStorage.ok === true && leftoverNamedStorage.eligible === true,
+    verdict: leftoverNamedStorage.verdict,
+  }));
+
   const statusOnly = interpretQualificationResetTransportResult({
     status: 0,
     stdout: "COMMIT\n",
@@ -180,6 +293,12 @@ function runOfflineChecks() {
       version: key.version,
       name: key.name,
     })),
+    observedDependencies: [{
+      kind: "foreign_key",
+      identity: "memberships_group_id_fkey",
+      from: "public.memberships",
+      to: "public.groups",
+    }],
     scopeSqlIdentitySha256: scopeSqlIdentityDigest(),
   });
   const withoutDoBlocks = String(generated.sql || "").replace(/DO \$[A-Za-z0-9_]+\$[\s\S]*?\$[A-Za-z0-9_]+\$;/g, "");
@@ -187,6 +306,14 @@ function runOfflineChecks() {
     ok: generated.ok === true
       && /PERFORM\s+pg_advisory_xact_lock\s*\(/.test(generated.sql)
       && !/SELECT\s+pg_advisory_xact_lock\s*\(/.test(withoutDoBlocks),
+    sql: generated.ok === true,
+  }));
+  checks.push(record("T3_SQL_LIVE_CATALOG_TUPLES", "check", {
+    ok: generated.ok === true
+      && /live catalog dependency tuples after lock/.test(generated.sql)
+      && /foreign_key\|memberships_group_id_fkey\|public\.memberships\|public\.groups/.test(generated.sql)
+      && /IS DISTINCT FROM/.test(generated.sql)
+      && /FINITE_DEPENDENCY_ALLOWLIST/.test(generated.sql),
     sql: generated.ok === true,
   }));
 
@@ -224,8 +351,9 @@ function runOfflineChecks() {
   checks.push(record("RUNTIME_CLOSURE_NOT_SUMMARY", "check", {
     ok: closures.runtime.sha256 !== "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d"
       && closures.completeVerificationUnion.proofHelperIncluded === true
-      && closures.runtime.label === "F15_QUALIFICATION_RESET_RUNTIME_CLOSURE"
-      && closures.f14BaselineCitedNotExpected.runtime.sha256 === "f6205869b233eaccf375b299112f7b9c352d58c6f2659471e06d2ca7a241e31d",
+      && closures.runtime.label === "F16_QUALIFICATION_RESET_RUNTIME_CLOSURE"
+      && closures.f14BaselineCitedNotExpected.runtime.sha256 === "f6205869b233eaccf375b299112f7b9c352d58c6f2659471e06d2ca7a241e31d"
+      && closures.f15BaselineCitedNotExpected.runtime.sha256 === "949e68359e55870050e53ef3f93ec8179fc7a5e1587a908044e0ab26cfdbbb92",
   }));
 
   const plan = validateProposedQualificationResetHostedPlanOffline();
@@ -286,6 +414,28 @@ function seedEligibleLeftover(psql, url) {
   seedHistory(psql, url);
 }
 
+function seedApprovedDependencyState(psql, url) {
+  psql(url, "CREATE TABLE public.groups (id uuid PRIMARY KEY);");
+  psql(url, "CREATE TABLE public.profiles (id uuid PRIMARY KEY);");
+  psql(url, `CREATE TABLE public.memberships (
+    id uuid PRIMARY KEY,
+    group_id uuid NOT NULL REFERENCES public.groups(id)
+  );`);
+  psql(url, "CREATE TABLE public.financial_accounts (id uuid PRIMARY KEY);");
+  psql(url, `CREATE FUNCTION public.post_financial_opening_cash(p_command jsonb)
+    RETURNS void LANGUAGE sql AS $$ SELECT 1; $$;`);
+  seedHistory(psql, url);
+}
+
+function dropApprovedDependencyState(psql, url) {
+  psql(url, "DROP TABLE IF EXISTS public.financial_accounts RESTRICT;");
+  psql(url, "DROP TABLE IF EXISTS public.memberships RESTRICT;");
+  psql(url, "DROP TABLE IF EXISTS public.groups RESTRICT;");
+  psql(url, "DROP TABLE IF EXISTS public.profiles RESTRICT;");
+  psql(url, "DROP FUNCTION IF EXISTS public.post_financial_opening_cash(jsonb) RESTRICT;");
+  psql(url, "DELETE FROM supabase_migrations.schema_migrations;");
+}
+
 async function executeSharedReset(db, observed) {
   const workdir = fs.mkdtempSync(path.join(os.tmpdir(), "f15-qual-reset-"));
   try {
@@ -327,6 +477,9 @@ async function runLocalPgScenarios() {
         mustLocalRecord("TX_SUCCESSFUL_RESET"),
         mustLocalRecord("TX_UNEXPECTED_OBJECT_ROLLBACK"),
         mustLocalRecord("TX_HISTORY_MISMATCH_ROLLBACK"),
+        mustLocalRecord("TX_T3_UNAPPROVED_FK_ROLLBACK"),
+        mustLocalRecord("TX_T3_RETARGETED_FK_ROLLBACK"),
+        mustLocalRecord("TX_T3_APPROVED_SET_SUCCESS"),
       ],
     };
   }
@@ -339,6 +492,11 @@ async function runLocalPgScenarios() {
       version text PRIMARY KEY,
       name text
     );`);
+    // Bare local PG has no Storage API catalog. Capture SQL references
+    // storage.buckets in a CASE branch that PostgreSQL still parses.
+    // Stub only — not a wipe target and not a deletion expansion.
+    psql(db.url, "CREATE SCHEMA IF NOT EXISTS storage;");
+    psql(db.url, "CREATE TABLE IF NOT EXISTS storage.buckets (id text PRIMARY KEY);");
 
     seedEligibleLeftover(psql, db.url);
     psql(db.url, "CREATE VIEW public.unexpected_view AS SELECT 1 AS n;");
@@ -378,6 +536,7 @@ async function runLocalPgScenarios() {
     const success = successObserved.ok ? await executeSharedReset(db, successObserved) : successObserved;
     const accountsGone = psql(db.url, "SELECT to_regclass('public.financial_accounts') IS NULL;");
     const historyGone = psql(db.url, "SELECT count(*)::text FROM supabase_migrations.schema_migrations;");
+    const successEvidence = processEvidence(success);
     scenarios.push(record("TX_SUCCESSFUL_RESET", "scenario", {
       ok: success.ok === true
         && success.committed === true
@@ -394,6 +553,7 @@ async function runLocalPgScenarios() {
       verdict: success.verdict,
       executedTransaction: true,
       note: "shared runQualificationReset + local-fixture psql + generated SQL",
+      ...successEvidence,
     }));
 
     seedEligibleLeftover(psql, db.url);
@@ -405,6 +565,7 @@ async function runLocalPgScenarios() {
     const unexpectedTx = afterCaptureObserved.ok
       ? await executeSharedReset(db, afterCaptureObserved)
       : afterCaptureObserved;
+    const unexpectedEvidence = processEvidence(unexpectedTx);
     const sentinel = psql(db.url, "SELECT to_regclass('public.unexpected_view') IS NOT NULL;");
     const accountsKept = psql(db.url, "SELECT to_regclass('public.financial_accounts') IS NOT NULL;");
     scenarios.push(record("TX_UNEXPECTED_OBJECT_ROLLBACK", "scenario", {
@@ -423,6 +584,7 @@ async function runLocalPgScenarios() {
       verdict: unexpectedTx.verdict || "HOLD",
       executedTransaction: true,
       note: "object introduced after capture is TX-revalidated; sentinel preserved",
+      ...unexpectedEvidence,
     }));
     psql(db.url, "DROP VIEW IF EXISTS public.unexpected_view;");
 
@@ -436,6 +598,7 @@ async function runLocalPgScenarios() {
     const historyTx = historyObserved.ok
       ? await executeSharedReset(db, historyObserved)
       : historyObserved;
+    const historyEvidence = processEvidence(historyTx);
     const retainedName = psql(db.url, `SELECT name FROM supabase_migrations.schema_migrations
       WHERE version = '${AUTHENTICATED_HISTORY_KEYS[0].version}';`);
     const retainedCount = psql(db.url, "SELECT count(*)::text FROM supabase_migrations.schema_migrations;");
@@ -455,6 +618,123 @@ async function runLocalPgScenarios() {
       verdict: historyTx.verdict || "HOLD",
       executedTransaction: true,
       note: "history mismatch after capture rolls back; mutated history retained",
+      ...historyEvidence,
+    }));
+
+    dropApprovedDependencyState(psql, db.url);
+    seedApprovedDependencyState(psql, db.url);
+    const t3BaseCapture = captureViaLocalPsql(psql, db.url);
+    const t3BaseObserved = t3BaseCapture.ok
+      ? (await import("./lib/f3-db-push-inventory.mjs")).observedFromQualificationResetCapture(t3BaseCapture.body)
+      : t3BaseCapture;
+    psql(db.url, "ALTER TABLE public.financial_accounts ADD COLUMN group_id uuid;");
+    psql(db.url, `ALTER TABLE public.financial_accounts
+      ADD CONSTRAINT unapproved_accounts_groups_fkey
+      FOREIGN KEY (group_id) REFERENCES public.groups(id);`);
+    const t3Unapproved = t3BaseObserved.ok
+      ? await executeSharedReset(db, t3BaseObserved)
+      : t3BaseObserved;
+    const t3UnapprovedEvidence = processEvidence(t3Unapproved);
+    const unapprovedKept = psql(db.url, `SELECT conname FROM pg_constraint
+      WHERE conname = 'unapproved_accounts_groups_fkey';`);
+    const t3AccountsKept = psql(db.url, "SELECT to_regclass('public.financial_accounts') IS NOT NULL;");
+    const t3MembershipsKept = psql(db.url, "SELECT to_regclass('public.memberships') IS NOT NULL;");
+    scenarios.push(record("TX_T3_UNAPPROVED_FK_ROLLBACK", "scenario", {
+      ok: t3Unapproved.ok === false
+        && t3Unapproved.committed !== true
+        && t3UnapprovedEvidence.mutationPhaseReached !== true
+        && String(unapprovedKept).includes("unapproved_accounts_groups_fkey")
+        && String(t3AccountsKept).includes("t")
+        && String(t3MembershipsKept).includes("t"),
+      capture: "approved-set-then-unapproved-fk-after-capture-before-lock",
+      resetApply: t3Unapproved.spies?.applyCalls ?? 0,
+      sql: t3Unapproved.plan?.sql != null,
+      commit: false,
+      rollback: t3Unapproved.rolledBack ?? null,
+      replay: t3Unapproved.spies?.replayCalls === 1,
+      observedPhase: t3Unapproved.transportInterpretation?.phaseReached ?? null,
+      code: t3Unapproved.code,
+      verdict: t3Unapproved.verdict || "HOLD",
+      executedTransaction: true,
+      note: "unapproved FK between allowlisted tables after capture is T3-rejected; injected change retained",
+      ...t3UnapprovedEvidence,
+    }));
+    psql(db.url, "ALTER TABLE public.financial_accounts DROP CONSTRAINT IF EXISTS unapproved_accounts_groups_fkey;");
+    psql(db.url, "ALTER TABLE public.financial_accounts DROP COLUMN IF EXISTS group_id;");
+
+    const t3RetargetCapture = captureViaLocalPsql(psql, db.url);
+    const t3RetargetObserved = t3RetargetCapture.ok
+      ? (await import("./lib/f3-db-push-inventory.mjs")).observedFromQualificationResetCapture(t3RetargetCapture.body)
+      : t3RetargetCapture;
+    psql(db.url, "ALTER TABLE public.memberships DROP CONSTRAINT memberships_group_id_fkey;");
+    psql(db.url, `ALTER TABLE public.memberships
+      ADD CONSTRAINT memberships_group_id_fkey
+      FOREIGN KEY (group_id) REFERENCES public.profiles(id);`);
+    const t3Retarget = t3RetargetObserved.ok
+      ? await executeSharedReset(db, t3RetargetObserved)
+      : t3RetargetObserved;
+    const t3RetargetEvidence = processEvidence(t3Retarget);
+    const retargetTo = psql(db.url, `SELECT fn.nspname || '.' || frel.relname
+      FROM pg_constraint con
+      JOIN pg_class rel ON rel.oid = con.conrelid
+      JOIN pg_namespace n ON n.oid = rel.relnamespace
+      JOIN pg_class frel ON frel.oid = con.confrelid
+      JOIN pg_namespace fn ON fn.oid = frel.relnamespace
+      WHERE con.conname = 'memberships_group_id_fkey';`);
+    const retargetMembershipsKept = psql(db.url, "SELECT to_regclass('public.memberships') IS NOT NULL;");
+    scenarios.push(record("TX_T3_RETARGETED_FK_ROLLBACK", "scenario", {
+      ok: t3Retarget.ok === false
+        && t3Retarget.committed !== true
+        && t3RetargetEvidence.mutationPhaseReached !== true
+        && String(retargetTo).includes("public.profiles")
+        && String(retargetMembershipsKept).includes("t"),
+      capture: "approved-identity-then-retargeted-after-capture-before-lock",
+      resetApply: t3Retarget.spies?.applyCalls ?? 0,
+      sql: t3Retarget.plan?.sql != null,
+      commit: false,
+      rollback: t3Retarget.rolledBack ?? null,
+      replay: t3Retarget.spies?.replayCalls === 1,
+      observedPhase: t3Retarget.transportInterpretation?.phaseReached ?? null,
+      code: t3Retarget.code,
+      verdict: t3Retarget.verdict || "HOLD",
+      executedTransaction: true,
+      note: "approved FK identity retargeted after capture is T3-rejected; retarget retained",
+      ...t3RetargetEvidence,
+    }));
+    psql(db.url, "ALTER TABLE public.memberships DROP CONSTRAINT IF EXISTS memberships_group_id_fkey;");
+    psql(db.url, `ALTER TABLE public.memberships
+      ADD CONSTRAINT memberships_group_id_fkey
+      FOREIGN KEY (group_id) REFERENCES public.groups(id);`);
+
+    const t3SuccessCapture = captureViaLocalPsql(psql, db.url);
+    const t3SuccessObserved = t3SuccessCapture.ok
+      ? (await import("./lib/f3-db-push-inventory.mjs")).observedFromQualificationResetCapture(t3SuccessCapture.body)
+      : t3SuccessCapture;
+    const t3Success = t3SuccessObserved.ok
+      ? await executeSharedReset(db, t3SuccessObserved)
+      : t3SuccessObserved;
+    const t3SuccessEvidence = processEvidence(t3Success);
+    const t3AccountsGone = psql(db.url, "SELECT to_regclass('public.financial_accounts') IS NULL;");
+    const t3MembershipsGone = psql(db.url, "SELECT to_regclass('public.memberships') IS NULL;");
+    const t3HistoryGone = psql(db.url, "SELECT count(*)::text FROM supabase_migrations.schema_migrations;");
+    scenarios.push(record("TX_T3_APPROVED_SET_SUCCESS", "scenario", {
+      ok: t3Success.ok === true
+        && t3Success.committed === true
+        && t3Success.verdict === "CLEAN_BASELINE"
+        && String(t3AccountsGone).includes("t")
+        && String(t3MembershipsGone).includes("t")
+        && String(t3HistoryGone) === "0",
+      capture: "unchanged-approved-dependency-set",
+      resetApply: t3Success.spies?.applyCalls ?? 0,
+      sql: t3Success.plan?.sql != null,
+      commit: t3Success.committed === true,
+      rollback: t3Success.rolledBack ?? null,
+      replay: t3Success.spies?.replayCalls === 1,
+      observedPhase: t3Success.transportInterpretation?.phaseReached ?? null,
+      verdict: t3Success.verdict,
+      executedTransaction: true,
+      note: "unchanged approved dependency set commits CLEAN_BASELINE",
+      ...t3SuccessEvidence,
     }));
   } finally {
     try {
@@ -479,6 +759,9 @@ export async function proveQualificationResetLocal() {
         mustLocalRecord("TX_SUCCESSFUL_RESET"),
         mustLocalRecord("TX_UNEXPECTED_OBJECT_ROLLBACK"),
         mustLocalRecord("TX_HISTORY_MISMATCH_ROLLBACK"),
+        mustLocalRecord("TX_T3_UNAPPROVED_FK_ROLLBACK"),
+        mustLocalRecord("TX_T3_RETARGETED_FK_ROLLBACK"),
+        mustLocalRecord("TX_T3_APPROVED_SET_SUCCESS"),
       ],
     };
 
@@ -486,8 +769,8 @@ export async function proveQualificationResetLocal() {
   const mustLocal = pg.available !== true;
   const failCount = cases.filter((row) => row.ok !== true).length;
   return {
-    schema: "f15-qualification-reset-local-proof-v1",
-    label: F15_RUNTIME_LABEL,
+    schema: "f16-qualification-reset-local-proof-v1",
+    label: F16_RUNTIME_LABEL,
     helper: HELPER_RELPATH,
     hostedIdentityProof: false,
     disposableContact: false,

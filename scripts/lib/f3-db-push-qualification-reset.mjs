@@ -36,6 +36,7 @@ import {
   TRANSACTION_PHASES,
   UNCERTAIN_COMMIT_POLICY,
   canonicalizeFunctionIdentity,
+  dependencyTupleKey,
   isFinancialPrefixSelector,
   scopeSqlIdentityDigest,
   sha256Utf8,
@@ -71,16 +72,19 @@ const DEFAULT_REPO_ROOT = path.resolve(RESET_MODULE_DIR, "../..");
 export { scopeSqlIdentityDigest, AUTHENTICATED_HISTORY_KEYS };
 
 export const F13_RUNTIME_PHASE = 2;
-export const F15_RUNTIME_LABEL =
-  "F15 LOCAL CORRECTION CANDIDATE — AWAITING QA / LOCAL 3-TX PROOF";
-export const F14_RUNTIME_LABEL = F15_RUNTIME_LABEL;
-export const F13_RUNTIME_LABEL = F15_RUNTIME_LABEL;
+export const F16_RUNTIME_LABEL =
+  "F16 LOCAL CORRECTION CANDIDATE — AWAITING QA / LOCAL TX PROOF";
+export const F15_RUNTIME_LABEL = F16_RUNTIME_LABEL;
+export const F14_RUNTIME_LABEL = F16_RUNTIME_LABEL;
+export const F13_RUNTIME_LABEL = F16_RUNTIME_LABEL;
 export const F13_SHARED_ORCHESTRATION_ID = "runQualificationReset";
 export const F13_WIPE_STILL_REJECTED = F13_WIPE_REJECTION_CODE;
-export const F13_F15_RUNTIME_CLOSURE_LABEL = "F15_QUALIFICATION_RESET_RUNTIME_CLOSURE";
-export const F13_F15_VERIFICATION_UNION_LABEL = "F15_QUALIFICATION_RESET_VERIFICATION_UNION";
-export const F13_F14_RUNTIME_CLOSURE_LABEL = F13_F15_RUNTIME_CLOSURE_LABEL;
-export const F13_F14_VERIFICATION_UNION_LABEL = F13_F15_VERIFICATION_UNION_LABEL;
+export const F13_F16_RUNTIME_CLOSURE_LABEL = "F16_QUALIFICATION_RESET_RUNTIME_CLOSURE";
+export const F13_F16_VERIFICATION_UNION_LABEL = "F16_QUALIFICATION_RESET_VERIFICATION_UNION";
+export const F13_F15_RUNTIME_CLOSURE_LABEL = F13_F16_RUNTIME_CLOSURE_LABEL;
+export const F13_F15_VERIFICATION_UNION_LABEL = F13_F16_VERIFICATION_UNION_LABEL;
+export const F13_F14_RUNTIME_CLOSURE_LABEL = F13_F16_RUNTIME_CLOSURE_LABEL;
+export const F13_F14_VERIFICATION_UNION_LABEL = F13_F16_VERIFICATION_UNION_LABEL;
 export const F13_BASELINE_RUNTIME_CLOSURE = Object.freeze({
   count: 45,
   sha256: "51c4a98fe2f249978dad09451b1a5e4a88617b833f66cafb6252870e6be7ed6d",
@@ -101,6 +105,17 @@ export const F14_BASELINE_VERIFICATION_UNION = Object.freeze({
   count: 48,
   sha256: "f6ff6e42b4b5ec14b1a67fe88377d7deafe5f12f2c2c35c834e7c763711e7caa",
   notExpectedF15: true,
+  notExpectedF16: true,
+});
+export const F15_BASELINE_RUNTIME_CLOSURE = Object.freeze({
+  count: 45,
+  sha256: "949e68359e55870050e53ef3f93ec8179fc7a5e1587a908044e0ab26cfdbbb92",
+  notExpectedF16: true,
+});
+export const F15_BASELINE_VERIFICATION_UNION = Object.freeze({
+  count: 48,
+  sha256: "30dd8ad9972db6ef6dc7d4c35d49ae420ce2c445103c6180d469d901f88c5752",
+  notExpectedF16: true,
 });
 export const F13_SUMMARY_FILE_HASH_FORBIDDEN =
   "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d";
@@ -553,6 +568,7 @@ export function planQualificationReset(input = {}) {
   const observed = snapshotObserved(input);
   const sql = buildQualificationResetSql({
     observedHistoryRows: observed.history,
+    observedDependencies: observed.dependencies,
     scopeSqlIdentitySha256: auth.bound.scopeSqlIdentitySha256,
   });
   if (!sql.ok) return sql;
@@ -656,12 +672,47 @@ function advisoryLockKeys(digest) {
   return [k1, k2];
 }
 
+function liveCatalogDependencyTupleSql() {
+  return `format('foreign_key|%s|%s|%s', con.conname, n.nspname || '.' || rel.relname, fn.nspname || '.' || frel.relname)`;
+}
+
+function liveCatalogDependencyFromSql() {
+  return [
+    "FROM pg_constraint con",
+    "  JOIN pg_class rel ON rel.oid = con.conrelid",
+    "  JOIN pg_namespace n ON n.oid = rel.relnamespace",
+    "  JOIN pg_class frel ON frel.oid = con.confrelid",
+    "  JOIN pg_namespace fn ON fn.oid = frel.relnamespace",
+    "  WHERE con.contype = 'f'",
+    "    AND n.nspname IN ('public', 'financial_core', 'financial_private')",
+  ].join("\n");
+}
+
 export function buildQualificationResetSql({
   observedHistoryRows = [],
+  observedDependencies = [],
   scopeSqlIdentitySha256 = scopeSqlIdentityDigest(),
 } = {}) {
   const historyCheck = validateHistoryKeys(observedHistoryRows);
   if (!historyCheck.ok) return historyCheck;
+  const expectedDependencyKeys = [];
+  for (const dep of observedDependencies || []) {
+    const key = dependencyTupleKey(dep);
+    if (!key) {
+      return fail(
+        "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY",
+        "Captured starting-state dependency is incomplete; name-only fallback is forbidden",
+      );
+    }
+    if (!FINITE_DEPENDENCY_ALLOWLIST.some((allowed) => dependencyTupleKey(allowed) === key)) {
+      return fail(
+        "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY",
+        "Captured starting-state dependency is not in FINITE_DEPENDENCY_ALLOWLIST",
+        { unexpectedDependency: key },
+      );
+    }
+    expectedDependencyKeys.push(key);
+  }
 
   const ordered = [...FINITE_OBJECT_ALLOWLIST].sort((a, b) => a.dropOrder - b.dropOrder);
   const tableIdentities = ordered.filter((o) => o.kind === "table" || o.kind === "sequence").map((o) => o.identity);
@@ -717,6 +768,7 @@ export function buildQualificationResetSql({
   lines.push("  extra text;");
   lines.push("  hist_count integer;");
   lines.push("  hist_name text;");
+  lines.push("  expected_key text;");
   lines.push("BEGIN");
   lines.push(`  SELECT n.nspname || '.' || c.relname INTO extra`);
   lines.push("  FROM pg_class c");
@@ -773,6 +825,34 @@ export function buildQualificationResetSql({
   lines.push("  IF extra IS NOT NULL THEN");
   lines.push("    RAISE EXCEPTION 'F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: %', extra;");
   lines.push("  END IF;");
+  lines.push("  -- T3 live catalog dependency tuples after lock. Not a JS-capture substitute.");
+  lines.push("  extra := NULL;");
+  lines.push(`  SELECT ${liveCatalogDependencyTupleSql()} INTO extra`);
+  lines.push(`  ${liveCatalogDependencyFromSql()}`);
+  lines.push(`    AND ${liveCatalogDependencyTupleSql()} <> ALL (${sqlTextArray(FINITE_DEPENDENCY_ALLOWLIST.map((dep) => dependencyTupleKey(dep)))})`);
+  lines.push("  LIMIT 1;");
+  lines.push("  IF extra IS NOT NULL THEN");
+  lines.push("    RAISE EXCEPTION 'F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: live tuple not in FINITE_DEPENDENCY_ALLOWLIST %', extra;");
+  lines.push("  END IF;");
+  lines.push("  extra := NULL;");
+  lines.push(`  SELECT ${liveCatalogDependencyTupleSql()} INTO extra`);
+  lines.push(`  ${liveCatalogDependencyFromSql()}`);
+  lines.push(`    AND ${liveCatalogDependencyTupleSql()} <> ALL (${sqlTextArray(expectedDependencyKeys)})`);
+  lines.push("  LIMIT 1;");
+  lines.push("  IF extra IS NOT NULL THEN");
+  lines.push("    RAISE EXCEPTION 'F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: live tuple not in captured approved starting state %', extra;");
+  lines.push("  END IF;");
+  lines.push(`  FOREACH expected_key IN ARRAY ${sqlTextArray(expectedDependencyKeys)}`);
+  lines.push("  LOOP");
+  lines.push("    extra := NULL;");
+  lines.push(`    SELECT ${liveCatalogDependencyTupleSql()} INTO extra`);
+  lines.push(`    ${liveCatalogDependencyFromSql()}`);
+  lines.push(`      AND ${liveCatalogDependencyTupleSql()} = expected_key`);
+  lines.push("    LIMIT 1;");
+  lines.push("    IF extra IS NULL THEN");
+  lines.push("      RAISE EXCEPTION 'F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: missing captured approved dependency %', expected_key;");
+  lines.push("    END IF;");
+  lines.push("  END LOOP;");
   lines.push(`  SELECT version INTO extra FROM supabase_migrations.schema_migrations`);
   lines.push(`  WHERE version <> ALL (${sqlTextArray(AUTHENTICATED_HISTORY_KEYS.map((k) => k.version))})`);
   lines.push("  LIMIT 1;");
@@ -1922,7 +2002,7 @@ export function publishQualificationResetClosures({
   const helperInRuntime = runtimeFiles.includes(QUALIFICATION_RESET_LOCAL_PROOF_HELPER_RELPATH);
   return {
     runtime: {
-      label: F13_F15_RUNTIME_CLOSURE_LABEL,
+      label: F13_F16_RUNTIME_CLOSURE_LABEL,
       notSummaryFileHash: true,
       forbiddenSummaryHash: F13_SUMMARY_FILE_HASH_FORBIDDEN,
       entrypoint: "scripts/qualify-f3-db-push-disposable.mjs",
@@ -1932,7 +2012,7 @@ export function publishQualificationResetClosures({
       proofHelperIncludedBecauseRead: helperInRuntime,
     },
     completeVerificationUnion: {
-      label: F13_F15_VERIFICATION_UNION_LABEL,
+      label: F13_F16_VERIFICATION_UNION_LABEL,
       notSummaryFileHash: true,
       count: unionFiles.length,
       sha256: digestOf(unionFiles),
@@ -1958,6 +2038,10 @@ export function publishQualificationResetClosures({
     f14BaselineCitedNotExpected: {
       runtime: F14_BASELINE_RUNTIME_CLOSURE,
       union: F14_BASELINE_VERIFICATION_UNION,
+    },
+    f15BaselineCitedNotExpected: {
+      runtime: F15_BASELINE_RUNTIME_CLOSURE,
+      union: F15_BASELINE_VERIFICATION_UNION,
     },
   };
 }

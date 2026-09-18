@@ -659,6 +659,40 @@ export function reconcileQualificationResetInventoryFacts(body) {
   if (inventory.exchange_rates === true) {
     requireIdentity("exchange_rates", "public.exchange_rates", "inventory.exchange_rates means the table exists");
   }
+  if (inventory.unnest_uuid_shim === true) {
+    const present = [...identities].some((id) => (
+      id === "public.unnest(uuid)" || id.startsWith("public.unnest(")
+    ));
+    if (!present) {
+      contradictions.push({
+        field: "unnest_uuid_shim",
+        identity: "public.unnest(uuid)",
+        meaning: "inventory.unnest_uuid_shim means to_regprocedure('public.unnest(uuid)')",
+        inventoryFactRetained: true,
+      });
+    }
+  }
+  if (inventory.organizations_base_country === true) {
+    requireIdentity(
+      "organizations_base_country",
+      "public.organizations",
+      "inventory.organizations_base_country is a public.organizations column leftover",
+    );
+  }
+  if (inventory.groups_group_level === true) {
+    requireIdentity(
+      "groups_group_level",
+      "public.groups",
+      "inventory.groups_group_level is a public.groups column leftover",
+    );
+  }
+  if (inventory.committees_budget_allocation === true) {
+    requireIdentity(
+      "committees_budget_allocation",
+      "public.committees",
+      "inventory.committees_budget_allocation is a public.committees column leftover",
+    );
+  }
 
   const expectedHistoryCount = Number(inventory.schema_migrations_rows);
   if (Number.isFinite(expectedHistoryCount) && expectedHistoryCount !== history.length) {
@@ -1016,6 +1050,273 @@ export function asList(value) {
   return [];
 }
 
+/**
+ * Every inventory field that can keep qualification-reset from affirming
+ * CLEAN_BASELINE. Empty discovered objects/history are never sufficient
+ * by themselves. Auth/Storage leftovers HOLD without expanding deletion
+ * and are never routed through --wipe-to-baseline.
+ */
+export const BASELINE_AFFECTING_INVENTORY_FIELDS = Object.freeze([
+  Object.freeze({
+    field: "public_tables",
+    cleanEvidence: "[]",
+    classifier: true,
+    dirtyBlocksCleanBaseline: true,
+    unsupportedManagedLeftover: false,
+  }),
+  Object.freeze({
+    field: "public_views",
+    cleanEvidence: "[]",
+    classifier: true,
+    dirtyBlocksCleanBaseline: true,
+    unsupportedManagedLeftover: false,
+  }),
+  Object.freeze({
+    field: "public_types",
+    cleanEvidence: "[]",
+    classifier: true,
+    dirtyBlocksCleanBaseline: true,
+    unsupportedManagedLeftover: false,
+  }),
+  Object.freeze({
+    field: "public_functions",
+    cleanEvidence: "[]",
+    classifier: true,
+    dirtyBlocksCleanBaseline: true,
+    unsupportedManagedLeftover: false,
+  }),
+  Object.freeze({
+    field: "unnest_uuid_shim",
+    cleanEvidence: false,
+    classifier: true,
+    dirtyBlocksCleanBaseline: true,
+    unsupportedManagedLeftover: true,
+    holdWithoutDeletion: true,
+    wipeRouted: false,
+  }),
+  Object.freeze({
+    field: "auth_handle_new_user_trigger",
+    cleanEvidence: false,
+    classifier: true,
+    dirtyBlocksCleanBaseline: true,
+    unsupportedManagedLeftover: true,
+    holdWithoutDeletion: true,
+    wipeRouted: false,
+  }),
+  Object.freeze({
+    field: "schema_migrations_present",
+    cleanEvidence: "boolean (true or false)",
+    classifier: true,
+    dirtyBlocksCleanBaseline: true,
+    unsupportedManagedLeftover: false,
+  }),
+  Object.freeze({
+    field: "schema_migrations_rows",
+    cleanEvidence: 0,
+    classifier: true,
+    dirtyBlocksCleanBaseline: true,
+    unsupportedManagedLeftover: false,
+  }),
+  Object.freeze({
+    field: "financial_private",
+    cleanEvidence: false,
+    classifier: true,
+    dirtyBlocksCleanBaseline: true,
+    unsupportedManagedLeftover: false,
+  }),
+  Object.freeze({
+    field: "financial_core",
+    cleanEvidence: false,
+    classifier: true,
+    dirtyBlocksCleanBaseline: true,
+    unsupportedManagedLeftover: false,
+  }),
+  Object.freeze({
+    field: "financial_ledger_epochs",
+    cleanEvidence: false,
+    classifier: true,
+    dirtyBlocksCleanBaseline: true,
+    unsupportedManagedLeftover: false,
+  }),
+  Object.freeze({
+    field: "exchange_rates",
+    cleanEvidence: false,
+    classifier: true,
+    dirtyBlocksCleanBaseline: true,
+    unsupportedManagedLeftover: false,
+  }),
+  Object.freeze({
+    field: "organizations_base_country",
+    cleanEvidence: false,
+    classifier: true,
+    dirtyBlocksCleanBaseline: true,
+    unsupportedManagedLeftover: false,
+  }),
+  Object.freeze({
+    field: "groups_group_level",
+    cleanEvidence: false,
+    classifier: true,
+    dirtyBlocksCleanBaseline: true,
+    unsupportedManagedLeftover: false,
+  }),
+  Object.freeze({
+    field: "committees_budget_allocation",
+    cleanEvidence: false,
+    classifier: false,
+    dirtyBlocksCleanBaseline: true,
+    unsupportedManagedLeftover: false,
+    reconcileOnly: true,
+  }),
+  Object.freeze({
+    field: "storage_policies",
+    cleanEvidence: "[] or named failed-floor residuals only",
+    classifier: true,
+    dirtyBlocksCleanBaseline: true,
+    unsupportedManagedLeftover: true,
+    namedFloorResidualAllowed: true,
+    holdWithoutDeletion: true,
+    wipeRouted: false,
+  }),
+  Object.freeze({
+    field: "storage_buckets",
+    cleanEvidence: "[] or named failed-floor residuals (not a veto)",
+    classifier: false,
+    dirtyBlocksCleanBaseline: false,
+    unsupportedManagedLeftover: false,
+    namedFloorResidualAllowed: true,
+    wipeRouted: false,
+  }),
+]);
+
+export function extraStoragePolicies(inventory) {
+  return asList(inventory?.storage_policies).filter((name) => (
+    !FAILED_FLOOR_STORAGE_POLICY_NAMES.includes(name)
+  ));
+}
+
+export function listUnsupportedManagedLeftovers(inventory) {
+  const items = [];
+  if (inventory == null || typeof inventory !== "object" || Array.isArray(inventory)) {
+    return items;
+  }
+  if (inventory.auth_handle_new_user_trigger === true) {
+    items.push({
+      kind: "auth_handle_new_user_trigger",
+      field: "auth_handle_new_user_trigger",
+      deletionExpanded: false,
+      wipeRouted: false,
+      reason: "Auth leftover is unsupported for qualification-reset deletion; HOLD without wipe",
+    });
+  }
+  if (inventory.unnest_uuid_shim === true) {
+    items.push({
+      kind: "unnest_uuid_shim",
+      field: "unnest_uuid_shim",
+      deletionExpanded: false,
+      wipeRouted: false,
+      reason: "public.unnest(uuid) is not a qualification-reset allowlisted drop; HOLD without wipe",
+    });
+  }
+  const unexpectedPolicies = extraStoragePolicies(inventory);
+  if (unexpectedPolicies.length) {
+    items.push({
+      kind: "storage_policies",
+      field: "storage_policies",
+      names: unexpectedPolicies,
+      deletionExpanded: false,
+      wipeRouted: false,
+      reason: "Unexpected storage policies are unsupported leftovers; HOLD without expanding deletion",
+    });
+  }
+  return items;
+}
+
+export function evaluateQualificationResetCleanBaseline({
+  inventory = null,
+  discoveredObjects = [],
+  observedHistoryRows = [],
+} = {}) {
+  if (inventory == null || typeof inventory !== "object" || Array.isArray(inventory)) {
+    return {
+      ok: false,
+      cleanBaseline: false,
+      alreadyClean: false,
+      verdict: "HOLD",
+      code: "F13_INVENTORY_CAPTURE_INCOMPLETE",
+      reason: "CLEAN_BASELINE requires affirmative inventory facts; empty object/history alone is insufficient",
+      deletionExpanded: false,
+      wipeRouted: false,
+    };
+  }
+  const missing = BASELINE_AFFECTING_INVENTORY_FIELDS
+    .filter((row) => row.dirtyBlocksCleanBaseline)
+    .map((row) => row.field)
+    .filter((field) => !Object.prototype.hasOwnProperty.call(inventory, field));
+  if (missing.length) {
+    return {
+      ok: false,
+      cleanBaseline: false,
+      alreadyClean: false,
+      verdict: "HOLD",
+      code: "F13_INVENTORY_CAPTURE_INCOMPLETE",
+      reason: "CLEAN_BASELINE is missing required inventory facts",
+      missing,
+      deletionExpanded: false,
+      wipeRouted: false,
+    };
+  }
+  const reconciled = reconcileQualificationResetInventoryFacts({
+    inventory,
+    discovered_objects: discoveredObjects,
+    observed_history_rows: observedHistoryRows,
+  });
+  if (!reconciled.ok) {
+    return {
+      ...reconciled,
+      cleanBaseline: false,
+      alreadyClean: false,
+      verdict: "HOLD",
+      deletionExpanded: false,
+      wipeRouted: false,
+    };
+  }
+  const unsupported = listUnsupportedManagedLeftovers(inventory);
+  const classification = classifyInventory(inventory);
+  if (
+    unsupported.length
+    || classification.verdict !== "CLEAN_BASELINE"
+    || classification.cleanBaseline !== true
+  ) {
+    return {
+      ok: false,
+      cleanBaseline: false,
+      alreadyClean: false,
+      eligible: false,
+      verdict: "HOLD",
+      code: unsupported.length
+        ? "F13_UNSUPPORTED_MANAGED_LEFTOVER"
+        : "F13_INVENTORY_NOT_CLEAN_BASELINE",
+      reason: unsupported.length
+        ? "Unsupported Auth/Storage/managed leftovers HOLD; deletion is not expanded and wipe is not used"
+        : "Broader inventory classifier does not affirm CLEAN_BASELINE",
+      unsupportedLeftovers: unsupported,
+      classificationVerdict: classification.verdict,
+      deletionExpanded: false,
+      wipeRouted: false,
+    };
+  }
+  return {
+    ok: true,
+    cleanBaseline: true,
+    alreadyClean: true,
+    verdict: "CLEAN_BASELINE",
+    classificationVerdict: classification.verdict,
+    unsupportedLeftovers: [],
+    deletionExpanded: false,
+    wipeRouted: false,
+  };
+}
+
 export function classifyInventory(inventory) {
   const publicTables = asList(inventory?.public_tables);
   const publicViews = asList(inventory?.public_views);
@@ -1241,16 +1542,41 @@ export function evaluateQualificationResetEligibility({
         financialPrefixUsedAsSelector: false,
       };
     }
+    const baseline = evaluateQualificationResetCleanBaseline({
+      inventory,
+      discoveredObjects: observedObjectIdentities,
+      observedHistoryRows,
+    });
+    if (!baseline.ok || baseline.cleanBaseline !== true) {
+      return {
+        ok: false,
+        eligible: false,
+        alreadyClean: false,
+        verdict: "HOLD",
+        code: baseline.code || "F13_INVENTORY_NOT_CLEAN_BASELINE",
+        reason: baseline.reason || "CLEAN_BASELINE requires consistent affirmative evidence across all required inventory facts",
+        contradictions: baseline.contradictions,
+        unsupportedLeftovers: baseline.unsupportedLeftovers,
+        classificationVerdict: baseline.classificationVerdict,
+        missing: baseline.missing,
+        deletionExpanded: false,
+        wipeRouted: false,
+        financialPrefixUsedAsSelector: false,
+      };
+    }
     return {
       ok: true,
       eligible: false,
       alreadyClean: true,
       verdict: "CLEAN_BASELINE",
-      reason: "complete empty discovered universe; reset mutation not required",
+      reason: "complete empty discovered universe and all baseline-affecting inventory facts affirm CLEAN_BASELINE",
       financialPrefixUsedAsSelector: false,
       allowedCount: FINITE_OBJECT_ALLOWLIST.length,
       historyKeyCount: AUTHENTICATED_HISTORY_KEYS.length,
       captureComplete: true,
+      classificationVerdict: baseline.classificationVerdict,
+      deletionExpanded: false,
+      wipeRouted: false,
     };
   }
   if (inventoryCaptured !== true || captureComplete !== true) {
@@ -1264,6 +1590,24 @@ export function evaluateQualificationResetEligibility({
       leftoverCount: leftovers.length,
       financialPrefixUsedAsSelector: false,
     };
+  }
+  if (inventory != null) {
+    const unsupported = listUnsupportedManagedLeftovers(inventory);
+    if (unsupported.length) {
+      return {
+        ok: false,
+        eligible: false,
+        alreadyClean: false,
+        verdict: "HOLD",
+        code: "F13_UNSUPPORTED_MANAGED_LEFTOVER",
+        reason: "Unsupported Auth/Storage/managed leftovers HOLD; approved object leftovers are not reset by expanding deletion",
+        unsupportedLeftovers: unsupported,
+        leftoverCount: leftovers.length,
+        deletionExpanded: false,
+        wipeRouted: false,
+        financialPrefixUsedAsSelector: false,
+      };
+    }
   }
   return {
     ok: true,

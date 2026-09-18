@@ -13,5 +13,5 @@
   "qaPackageFileCountIndexed": 36,
   "classification": "LOCAL_PG_EXECUTED",
   "postgresServerVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
-  "note": "Authenticated F18 cloud reviewer. Cite as INHERITED for F19. Not a new F19 QA execution. Historical package unchanged."
+  "note": "Authenticated F18 cloud reviewer bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf. Cite as INHERITED for F19. Not a new F19 QA execution. Historical package unchanged. F19 ACCEPT is bc-8c2797cf-e789-5ab9-afd1-ff9a47a05cfa on dfbeb11."
 }

@@ -3,15 +3,26 @@
   "functionalTip": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
   "startingRef": "1a4534c33bb80df273067354710582b9acc062ad",
   "f18Functional": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
-  "f18IndependentQa": "INHERITED",
-  "localStatus": "HOLD — QA PENDING",
+  "qaPackageCommit": "c44f7fc20e93ca29e3010bfbdae8b0812f6cdf6a",
+  "localStatus": "LOCAL CANDIDATE READY",
   "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
   "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "f19IndependentQa": "F19 ACCEPT",
+  "f18IndependentQa": "INHERITED",
   "independentQa": {
+    "verdict": "F19 ACCEPT",
+    "reviewerBcId": "bc-8c2797cf-e789-5ab9-afd1-ff9a47a05cfa",
+    "reviewedPin": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
+    "classification": "MUST_LOCAL",
+    "postgresServerVersion": null,
+    "qaPackageCommit": "c44f7fc20e93ca29e3010bfbdae8b0812f6cdf6a",
+    "scoreAloneInsufficient": true
+  },
+  "f18QaInherited": {
     "verdict": "INHERITED F18 ACCEPT",
     "reviewerBcId": "bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
     "reviewedPin": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
-    "f19Qa": "pending Chief dispatch"
+    "qaPackageCommit": "e85a7a537275596d54c5ccb6bd632bb6f12c0e4e"
   },
   "gates": {
     "resetDesign": {
@@ -52,6 +63,6 @@
     "f18UnionCitedNotExpected": "b9a9e6b7ad95f6e5935d05bb6c41bdabe543f0f88a086bc6b28fcb07dd03be78",
     "notEqualF18": true
   },
-  "villageclaq242Pass1Skip": "omitted — no distinct authentic record; not a new campaign",
+  "f18Concurrency": "INHERITED PASSED — not re-run",
   "checksumDistinctionPolicy": "digest inside evidence-index.sha256 is sha256 of evidence-index.json bytes (interior digest); digest of that checksum file's bytes is a different identity and is recorded only in pack-scan.json"
 }

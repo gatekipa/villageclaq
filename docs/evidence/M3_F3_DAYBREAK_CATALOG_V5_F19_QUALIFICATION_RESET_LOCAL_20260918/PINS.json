@@ -5,9 +5,14 @@
   "f18Functional": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
   "F18_FUNCTIONAL_TIP": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
   "F19_FUNCTIONAL_TIP": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
+  "f19Functional": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
+  "qaPackageCommit": "c44f7fc20e93ca29e3010bfbdae8b0812f6cdf6a",
+  "f19IndependentQa": "F19 ACCEPT",
+  "reviewerBcId": "bc-8c2797cf-e789-5ab9-afd1-ff9a47a05cfa",
+  "reviewedPin": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
   "f18QaPackageCommit": "e85a7a537275596d54c5ccb6bd632bb6f12c0e4e",
   "f18IndependentQa": "INHERITED F18 ACCEPT",
-  "reviewerBcId": "bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
+  "f18ReviewerBcId": "bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
   "classification": "MUST_LOCAL",
   "runtimeClosure": "8d4885d6148e7dfca99e4abdb62db6be27479731cc33e680cc36437347b6fdfe",
   "verificationUnion": "524a294a0202af3601db17b34a7ad72a77adaaa4cbd2e7a460089b6a4de024fa",
@@ -15,5 +20,5 @@
   "independentReference": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
   "f18RuntimeCitedNotExpected": "c6ecf620e41dbbce340e2207b2b9b793c8df750c703d245363139b497526a392",
   "f18UnionCitedNotExpected": "b9a9e6b7ad95f6e5935d05bb6c41bdabe543f0f88a086bc6b28fcb07dd03be78",
-  "note": "New commits descend normally from 1a4534c. F18 concurrency not re-run. Historical F18 evidence unchanged. No force-push. No merge."
+  "note": "Functional tip unchanged at dfbeb11. F18 concurrency INHERITED unchanged. F18 QA bc-49cebacf… is INHERITED. Historical F18 evidence unchanged. No force-push. No merge. Docs-only index refresh after F19 ACCEPT."
 }

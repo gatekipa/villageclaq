@@ -5,23 +5,21 @@ Historical F18 evidence at `docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F18_QUALIFIC
 Authenticated F18 cloud reviewer `bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf` is **INHERITED** when cited for F19.
 
 ## Status
-- Local: **HOLD — QA PENDING** after functional freeze
+- Local: **LOCAL CANDIDATE READY** — independent QA **F19 ACCEPT**
 - Overall: **DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN**
-- Functional tip: `dfbeb11b49f7e9b061a4c700e0335d125ac669e2`
+- Functional tip: `dfbeb11b49f7e9b061a4c700e0335d125ac669e2` (unchanged)
+- QA package commit: `c44f7fc20e93ca29e3010bfbdae8b0812f6cdf6a`
+- Reviewer: `bc-8c2797cf-e789-5ab9-afd1-ff9a47a05cfa`
+- Classification: `MUST_LOCAL` (psql not present). F18 LOCAL_PG_EXECUTED concurrency proof is **INHERITED** and was **not re-run**.
 - Starting ref: `1a4534c33bb80df273067354710582b9acc062ad`
 - F18 functional pin: `ca2c0d536037da8c7f55627ac1694cacb932d1d7` (INHERITED)
-- F12 functional pin: `1ec0e4da782ed7715a543be23f79bc0f10a28af2`
-- Classification: `MUST_LOCAL` (psql not present on this builder). F18 LOCAL_PG_EXECUTED concurrency proof is **INHERITED** and was **not re-run**.
 
 ## A / B closure
 
 | Finding | F18 defect | F19 closure | Status |
 | --- | --- | --- | --- |
-| A final process-record integrity | `processEvidence()` changed streams after packaged hashes; `record()` dropped `thrown` | helper completes path+secret sanitization before packaged identities; runner does not mutate after package; `record()` preserves `thrown` with status/signal/timeout/structured-error; recovered bodies match packaged hashes/lengths; originals stay pre-sanitization | CLOSED locally; QA pending |
-| B thrown:true success path | otherwise valid committed record with only `thrown:true` → interpretedCommitted=true, processFailed=false, attestation.ok=true, finalization.ok=true | processErrorPresent, processFailed, interpretation, attestation, and finalization reject `thrown:true`; status 0 / T7 / CLEAN_BASELINE cannot override; `rolledBack` stays null where unproven | CLOSED locally; QA pending |
-
-## VillageClaq “242 pass + 1 skip”
-No distinct authentic execution record for a VillageClaq “242 pass + 1 skip” claim was supplied. That claim is **not** part of F19 acceptance. Historical packages are unchanged. This builder’s authentic combined gate is recorded in `suite-logs/`.
+| A final process-record integrity | `processEvidence()` changed streams after packaged hashes; `record()` dropped `thrown` | helper completes path+secret sanitization before packaged identities; runner does not mutate after package; `record()` preserves `thrown` with status/signal/timeout/structured-error; recovered bodies match packaged hashes/lengths; originals stay pre-sanitization | **F19 ACCEPT** |
+| B thrown:true success path | otherwise valid committed record with only `thrown:true` → interpretedCommitted=true, processFailed=false, attestation.ok=true, finalization.ok=true | processErrorPresent, processFailed, interpretation, attestation, and finalization reject `thrown:true`; status 0 / T7 / CLEAN_BASELINE cannot override; `rolledBack` stays null where unproven | **F19 ACCEPT** |
 
 ## Wipe
 Still rejected: `F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH`

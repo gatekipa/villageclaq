@@ -1,6 +1,8 @@
 {
-  "status": "PENDING_INDEPENDENT_QA",
+  "status": "FILLED_INDEPENDENT_QA",
+  "verdict": "F18 ACCEPT",
   "F18_FUNCTIONAL_TIP": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "bcId": "bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
   "required": [
     "reviewer/task identity",
     "reviewed pin",
@@ -11,6 +13,17 @@
     "lock observations",
     "process records",
     "postconditions"
+  ],
+  "present": [
+    "IDENTITY.json",
+    "score.md",
+    "COMMANDS.md",
+    "environment/HOST.txt",
+    "logs/",
+    "lock-observations/",
+    "process-evidence/",
+    "local-pg-proof/",
+    "postconditions.json"
   ],
   "scoreAloneInsufficient": true
 }

@@ -1,8 +1,21 @@
-# F18 independent QA package slot
+# F18 independent QA package
 
-This directory is the landing zone for Chief-dispatched independent Grok QA.
+Authoritative independent Grok QA for VillageClaq F18 qualification-reset.
 
-- Reviewed pin / F18_FUNCTIONAL_TIP: `ca2c0d536037da8c7f55627ac1694cacb932d1d7`
-- Do not rewrite functional source to add QA.
-- Required contents when accepted: reviewer/task identity, reviewed pin, environment, actual PG server version, commands, raw sanitized logs, lock observations, process records, postconditions.
-- Score alone is insufficient.
+- **Verdict:** F18 ACCEPT (local). Overall DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN.
+- **Reviewer bc id:** `bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf`
+- **Reviewed pin:** `ca2c0d536037da8c7f55627ac1694cacb932d1d7`
+- **Actual PG server version:** `17.11 (Ubuntu 17.11-1.pgdg24.04+2)`
+- Start at `score.md`. Score alone is insufficient.
+
+| Path | Contents |
+| --- | --- |
+| `score.md` | Verdict + dispositions |
+| `IDENTITY.json` | Reviewer / task / pin / environment |
+| `COMMANDS.md` | Commands actually run |
+| `environment/` | Host + pin checks |
+| `logs/` | Raw sanitized gate + helper logs |
+| `lock-observations/` | Backend-bound lock proofs + independent requalify |
+| `process-evidence/` | E2E success / EACCES / timeout / malformed |
+| `local-pg-proof/` | Helper RESULTS + success/T3 reparse |
+| `postconditions.json` | Wipe, buckets, approved-set, lock-wait flags |

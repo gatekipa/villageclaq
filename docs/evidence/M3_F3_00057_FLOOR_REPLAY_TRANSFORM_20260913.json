@@ -1,0 +1,25 @@
+{
+  "artifact": "M3_F3_00057_FLOOR_REPLAY_TRANSFORM_20260913",
+  "label": "historical disposable floor reconstruction — NOT production migration correction, NOT candidate runner; do NOT claim byte-identical historical replay",
+  "repo_00057_modified": false,
+  "original_sha256": "85355a3808b6aa14362d0017272d5e1f3a82ed2e0179e717248a2d6b0d721cdc",
+  "transformed_sha256": "2a3c468537539bd45b0b285ece4e7bfe5204b898c9148345e1b88a43554dcf4d",
+  "unnest_count": 1,
+  "replacement": "get_user_group_ids()",
+  "one_line_diff": {
+    "line": 45,
+    "before": "        AND m.group_id IN (SELECT unnest(get_user_group_ids()))",
+    "after": "        AND m.group_id IN (SELECT get_user_group_ids())"
+  },
+  "other_textual_change": false,
+  "local_00057_alone_without_shim": "FAIL_EXPECTED",
+  "local_00057_transform_apply": "PASS",
+  "shim_created": false,
+  "justification": "00048 documents historical defect; 00014 returns SETOF uuid; founder forbids shim; exactly 1 replacement in 00057",
+  "authorized_file": "00057_profiles_rls_allow_co_members.sql",
+  "retained_00030_transform": {
+    "original_sha256": "366ee277f8d659d4194340ebbcb93f4191e0ee64820d391999938596474f669f",
+    "transformed_sha256": "f4223e8a33f6b9dc367057ca638ae52d795b01a6796325f760db6f63849854e5",
+    "count": 14
+  }
+}

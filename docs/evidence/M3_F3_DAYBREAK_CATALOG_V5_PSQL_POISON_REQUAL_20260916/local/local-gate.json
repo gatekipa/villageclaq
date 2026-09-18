@@ -1,0 +1,204 @@
+{
+  "phase": "local",
+  "verdict": "CONTINUE",
+  "captured_at_et": "2026-09-16 12:01:10 EDT",
+  "tip_sha": "19e997dfadd9f6a8bc1a221a7edb5f6e8ec02d80",
+  "hold_parent": "0ba4e293d5d0895e3e107a367887745a877d0756",
+  "F6_in_ancestry": "1f965219d73ec4c4c3455d8119e232757bba6ee6",
+  "main_pin": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr83_pin": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "head": "19e997dfadd9f6a8bc1a221a7edb5f6e8ec02d80",
+  "tip_vs_hold_files_only": [
+    "scripts/lib/f3-db-push-query-parse.mjs",
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "tip_vs_hold_file_count": 4,
+  "only_allowlisted_4": true,
+  "independent_ref_blob": "09b6e97ee0605d4af81b027746e49a6e43ff6ff1",
+  "independent_ref_unchanged": true,
+  "schema_version": "f3-full-catalog-v5",
+  "envelope": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "cli": "2.117.0",
+  "suites": {
+    "test-f3-db-push": {
+      "exit": 0,
+      "classification": "PASS_WITH_SKIPS",
+      "counts": {
+        "tests": 127,
+        "pass": 126,
+        "fail": 0,
+        "skipped": 1
+      },
+      "out_sha256": "52bb52183fd947ac047bd021a761de4e67b910df1ad12081164b6733b892673a",
+      "out_bytes": 158846
+    },
+    "test-f3-recognition": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 40,
+        "pass": 40,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "7df4e0e701aafc2c967be7cd1646085b4b1d1b6d940e701420a3a35b5cbfb69e",
+      "out_bytes": 7557
+    },
+    "test-f3-oracles": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 577,
+        "pass": 577,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "4755a5d3fec6eb6097b9965e8663a0673e1310d0f99d2b47d7247cf4c63215ba",
+      "out_bytes": 87485
+    },
+    "test-f3-local-safety": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "fda139e35f5ac64aee71903e19a04f66707a363380b769774eba2ef1deade2fe",
+      "out_bytes": 10225
+    },
+    "test-f3-mapi-harness": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "b25bc76163964333425f7d56f72153ae8e506f45b4cd7b08be23a8df5ec91b8e",
+      "out_bytes": 4561
+    },
+    "test-m2": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 111,
+        "pass": 111,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "6d09bf43d481056a92342d147bf959a71819aa4b0209e02b47de0774511175b3",
+      "out_bytes": 22483
+    },
+    "test-m2-static-security": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "aa057155640dede97c8638d1c41b2cb76cbef3b7af1dccb2dab6e7561ddb79cf",
+      "out_bytes": 1915
+    },
+    "test-s0-cut1": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "6c19a3baabfb5974a6cc708a8af19f9ea0c5332e9a9a82354ce84bd4f7f4d43c",
+      "out_bytes": 2404
+    },
+    "test-s0-cut2": {
+      "exit": 1,
+      "classification": "ENV_DEPENDENT_FAIL",
+      "counts": {
+        "tests": 21,
+        "pass": 14,
+        "fail": 7,
+        "skipped": 0
+      },
+      "out_sha256": "a465f4132e71893434a559843f72668adc455720766e6741b94204bbd0604fcb",
+      "out_bytes": 15511
+    },
+    "test-storage-buckets": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "8f29b25cfd6b03143eae6ab22b684466e3b98894e03b92aedf6384ec17d63785",
+      "out_bytes": 2427
+    },
+    "tsc-noEmit": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "out_bytes": 0
+    },
+    "next-build": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "skipped": 0
+      },
+      "note": "PASS after bind-mount node_modules (symlink rejected by turbopack)"
+    }
+  },
+  "psql_local_proof": {
+    "verdict": "CONTINUE",
+    "stdout_sha256": "11efee8db8172d031b58dd6e694464473cafa48ebed638fb7be96becf8aeaf6d",
+    "stdout_byte_length": 200,
+    "stderr_byte_length": 0,
+    "framing_lf_only": true,
+    "envelope_ok": true,
+    "local_bind_ok": true,
+    "host_psql": "psql (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+    "server_version": "17.6 (Debian 17.6-2.pgdg13+1)"
+  },
+  "actual_spy_negatives": {
+    "test": "Daybreak original-stdout poison + connection-bound target: ACTUAL spies, founder 1-34+",
+    "ok": true,
+    "case_count": 37,
+    "cases_F3_N01_to_N37": true,
+    "transport_F3_T01_to_T25": true,
+    "requiredCaseCount": 37,
+    "publishedCaseCount": 38,
+    "requiredTransportCaseCount": 25
+  },
+  "hold_reason": null,
+  "secret_scan": "PASS (fixture URLs / local disposable fixture strings only; no live tokens; ambient PG*/DATABASE_URL absent)",
+  "recursive_closure": {
+    "closure_complete": true,
+    "git_verification": {
+      "ok": true,
+      "porcelain_empty": true,
+      "head": "19e997dfadd9f6a8bc1a221a7edb5f6e8ec02d80"
+    },
+    "hosted_tree_mismatches": 0,
+    "uncommitted_functional_diffs": 0,
+    "F6_in_HOLD_ancestry": true,
+    "tip_vs_HOLD_commits": 1
+  }
+}

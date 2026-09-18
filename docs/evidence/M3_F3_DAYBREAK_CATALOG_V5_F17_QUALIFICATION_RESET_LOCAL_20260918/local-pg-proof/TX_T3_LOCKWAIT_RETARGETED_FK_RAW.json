@@ -1,0 +1,184 @@
+{
+  "id": "TX_T3_LOCKWAIT_RETARGETED_FK_ROLLBACK",
+  "kind": "scenario",
+  "ok": true,
+  "capture": "approved-set-then-lock-wait-then-externally-committed-drift",
+  "resetApply": 1,
+  "sql": true,
+  "observedPhase": "T2_LOCK",
+  "commit": false,
+  "rollback": null,
+  "replay": false,
+  "code": "F13_RESET_SQL_FAILED",
+  "verdict": "HOLD",
+  "executedTransaction": true,
+  "note": "holder kept memberships lock; reset waited; approved identity retargeted; T3 rejected before mutation",
+  "captureCalls": 1,
+  "transportCalls": 1,
+  "applyCalls": 1,
+  "sqlCalls": 1,
+  "mutationPhaseReached": false,
+  "processStatus": 3,
+  "signal": null,
+  "timeout": false,
+  "structuredError": null,
+  "streams": {
+    "originalStdoutSha256": "3ebd445f9b37ce0d4c6239feda137334d71b8c0d86142accecf688b0ed5ef904",
+    "originalStdoutByteLength": 180,
+    "originalStderrSha256": "84b1abbf7974d998b3ba59df492f3d515f7badbb90b253852b63b3579c34d9ef",
+    "originalStderrByteLength": 292,
+    "packagedStdoutSha256": "3ebd445f9b37ce0d4c6239feda137334d71b8c0d86142accecf688b0ed5ef904",
+    "packagedStdoutByteLength": 180,
+    "packagedStderrSha256": "aec9b1f566049b714f4eb58ee671ffa21aa294919a2b4396bae11afc9badadd0",
+    "packagedStderrByteLength": 303,
+    "originalByteEqual": false,
+    "reconstructedFromSummary": false,
+    "transformApplied": true
+  },
+  "stdout": "{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T1_BEGIN\",\"event\":\"began\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T2_LOCK\",\"event\":\"locked\"}\n",
+  "stderr": "psql:[REDACTED_PATH]/f15-qual-reset-JtQJEX/f15-qualification-reset.sql:340: ERROR:  F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: live tuple not in FINITE_DEPENDENCY_ALLOWLIST foreign_key|memberships_group_id_fkey|public.memberships|public.profiles\nCONTEXT:  PL/pgSQL function inline_code_block line 82 at RAISE\n",
+  "lockWaitObserved": true,
+  "lockSamples": [
+    {
+      "atMs": 22,
+      "holderPid": 128523,
+      "holderGranted": true,
+      "waiterPids": [],
+      "waitEvents": []
+    },
+    {
+      "atMs": 69,
+      "holderPid": 128523,
+      "holderGranted": true,
+      "waiterPids": [],
+      "waitEvents": []
+    },
+    {
+      "atMs": 116,
+      "holderPid": 128523,
+      "holderGranted": true,
+      "waiterPids": [],
+      "waitEvents": []
+    },
+    {
+      "atMs": 162,
+      "holderPid": 128523,
+      "holderGranted": true,
+      "waiterPids": [],
+      "waitEvents": []
+    },
+    {
+      "atMs": 208,
+      "holderPid": 128523,
+      "holderGranted": true,
+      "waiterPids": [],
+      "waitEvents": []
+    },
+    {
+      "atMs": 254,
+      "holderPid": 128523,
+      "holderGranted": true,
+      "waiterPids": [],
+      "waitEvents": []
+    },
+    {
+      "atMs": 300,
+      "holderPid": 128523,
+      "holderGranted": true,
+      "waiterPids": [],
+      "waitEvents": []
+    },
+    {
+      "atMs": 346,
+      "holderPid": 128523,
+      "holderGranted": true,
+      "waiterPids": [],
+      "waitEvents": []
+    },
+    {
+      "atMs": 392,
+      "holderPid": 128523,
+      "holderGranted": true,
+      "waiterPids": [],
+      "waitEvents": []
+    },
+    {
+      "atMs": 438,
+      "holderPid": 128523,
+      "holderGranted": true,
+      "waiterPids": [],
+      "waitEvents": []
+    },
+    {
+      "atMs": 484,
+      "holderPid": 128523,
+      "holderGranted": true,
+      "waiterPids": [],
+      "waitEvents": []
+    },
+    {
+      "atMs": 531,
+      "holderPid": 128523,
+      "holderGranted": true,
+      "waiterPids": [],
+      "waitEvents": []
+    },
+    {
+      "atMs": 577,
+      "holderPid": 128523,
+      "holderGranted": true,
+      "waiterPids": [],
+      "waitEvents": []
+    },
+    {
+      "atMs": 624,
+      "holderPid": 128523,
+      "holderGranted": true,
+      "waiterPids": [],
+      "waitEvents": []
+    },
+    {
+      "atMs": 670,
+      "holderPid": 128523,
+      "holderGranted": true,
+      "waiterPids": [],
+      "waitEvents": []
+    },
+    {
+      "atMs": 717,
+      "holderPid": 128523,
+      "holderGranted": true,
+      "waiterPids": [
+        128927
+      ],
+      "waitEvents": [
+        {
+          "pid": 128927,
+          "wait_event_type": "Lock",
+          "wait_event": "relation",
+          "state": "active"
+        }
+      ]
+    }
+  ],
+  "preResetCommittedDrift": {
+    "retained": "public.profiles",
+    "observedAfterHolderCommit": "public.profiles"
+  },
+  "interleaving": {
+    "t1ReachedThenWaited": true,
+    "holderPid": 128523,
+    "waiterPids": [
+      128927
+    ],
+    "waitEvents": [
+      {
+        "pid": 128927,
+        "wait_event_type": "Lock",
+        "wait_event": "relation",
+        "state": "active"
+      }
+    ],
+    "isolation": "READ COMMITTED"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "verdict": "F14 ACCEPT",
+  "tip": "2d502a028b0d01808a871fb1d48d051813591ed2",
+  "parentEvidenceTip": "137f1c825455c10bd7d974d3de7dcbdc610c9619",
+  "f13FunctionalTip": "51cc864d1efbefc1398ad3fd1895360c95474a57",
+  "f12FunctionalTip": "1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+  "sourceLabel": "villageclaq-f14-2d502a02/qa/score.md",
+  "note": "Independent QA offline ACCEPT of F14 local correction tip. Not live reset / wipe / production authorization. QA env MUST_LOCAL; Chief expanded docker PG proof supplied separately."
+}

@@ -1,0 +1,68 @@
+{
+  "evidenceRel": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F19_QUALIFICATION_RESET_LOCAL_20260918",
+  "functionalTip": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
+  "startingRef": "1a4534c33bb80df273067354710582b9acc062ad",
+  "f18Functional": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "qaPackageCommit": "c44f7fc20e93ca29e3010bfbdae8b0812f6cdf6a",
+  "localStatus": "LOCAL CANDIDATE READY",
+  "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "f19IndependentQa": "F19 ACCEPT",
+  "f18IndependentQa": "INHERITED",
+  "independentQa": {
+    "verdict": "F19 ACCEPT",
+    "reviewerBcId": "bc-8c2797cf-e789-5ab9-afd1-ff9a47a05cfa",
+    "reviewedPin": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
+    "classification": "MUST_LOCAL",
+    "postgresServerVersion": null,
+    "qaPackageCommit": "c44f7fc20e93ca29e3010bfbdae8b0812f6cdf6a",
+    "scoreAloneInsufficient": true
+  },
+  "f18QaInherited": {
+    "verdict": "INHERITED F18 ACCEPT",
+    "reviewerBcId": "bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
+    "reviewedPin": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+    "qaPackageCommit": "e85a7a537275596d54c5ccb6bd632bb6f12c0e4e"
+  },
+  "gates": {
+    "resetDesign": {
+      "tests": 30,
+      "pass": 30,
+      "fail": 0,
+      "skipped": 0
+    },
+    "reset": {
+      "tests": 66,
+      "pass": 66,
+      "fail": 0,
+      "skipped": 0
+    },
+    "dbPush": {
+      "tests": 247,
+      "pass": 246,
+      "fail": 0,
+      "skipped": 1,
+      "skip": "identity GET is skipped without token"
+    },
+    "helper": {
+      "pass": 33,
+      "fail": 0,
+      "checks": 24,
+      "scenarios": 9,
+      "executedTransactions": 0,
+      "classification": "MUST_LOCAL"
+    }
+  },
+  "closures": {
+    "runtime": "8d4885d6148e7dfca99e4abdb62db6be27479731cc33e680cc36437347b6fdfe",
+    "union": "524a294a0202af3601db17b34a7ad72a77adaaa4cbd2e7a460089b6a4de024fa",
+    "runtimeCount": 45,
+    "unionCount": 48,
+    "independentReference": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+    "f18RuntimeCitedNotExpected": "c6ecf620e41dbbce340e2207b2b9b793c8df750c703d245363139b497526a392",
+    "f18UnionCitedNotExpected": "b9a9e6b7ad95f6e5935d05bb6c41bdabe543f0f88a086bc6b28fcb07dd03be78",
+    "notEqualF18": true
+  },
+  "f18Concurrency": "INHERITED PASSED — not re-run",
+  "checksumDistinctionPolicy": "digest inside evidence-index.sha256 is sha256 of evidence-index.json bytes (interior digest); digest of that checksum file's bytes is a different identity and is recorded only in pack-scan.json"
+}

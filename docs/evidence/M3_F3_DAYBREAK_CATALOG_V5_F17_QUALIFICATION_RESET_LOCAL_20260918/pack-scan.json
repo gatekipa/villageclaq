@@ -1,0 +1,9 @@
+{
+  "pathLeaks": 0,
+  "secrets": 0,
+  "pathLeakHits": [],
+  "secretHits": [],
+  "derivedFromFullPackageScan": true,
+  "nestedJsonArgvStderrCopiesIncluded": true,
+  "unindexed": 0
+}

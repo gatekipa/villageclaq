@@ -1,0 +1,15 @@
+{
+  "suite": "prove-f3-qualification-reset-local",
+  "executableCommit": "83b9f79483f3ba53f4f8cd60016450ff38a723b4",
+  "platform": "linux",
+  "classification": "LOCAL_PG_EXECUTED",
+  "pgAvailable": true,
+  "originalLogSha256": "4201b62e279c808c20a6bbbe73ea9a72afe19299667f42151da81260157b21f3",
+  "packagedSanitized": true,
+  "originalByteEqual": false,
+  "checks": 20,
+  "scenarios": 9,
+  "executedTransactions": 8,
+  "pass": 29,
+  "fail": 0
+}

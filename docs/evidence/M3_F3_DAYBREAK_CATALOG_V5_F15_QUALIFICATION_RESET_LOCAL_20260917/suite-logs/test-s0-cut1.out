@@ -1,0 +1,80 @@
+
+> villageclaq@0.1.0 test:s0-cut1-active-authorization
+> node --test scripts/test-s0-cut1-active-authorization.mjs
+
+TAP version 13
+# Subtest: exactly one new Cut 1 migration exists and historical files are untouched in this change set
+ok 1 - exactly one new Cut 1 migration exists and historical files are untouched in this change set
+  ---
+  duration_ms: 0.859206
+  type: 'test'
+  ...
+# Subtest: Cut 1 DEFINER helpers pin empty search_path (P1-A / S0-C)
+ok 2 - Cut 1 DEFINER helpers pin empty search_path (P1-A / S0-C)
+  ---
+  duration_ms: 0.463605
+  type: 'test'
+  ...
+# Subtest: creates current-actor helpers only (no authenticated arbitrary-subject active API)
+ok 3 - creates current-actor helpers only (no authenticated arbitrary-subject active API)
+  ---
+  duration_ms: 0.418348
+  type: 'test'
+  ...
+# Subtest: preserves has_group_permission live fallback + active + same-group join + no probe
+ok 4 - preserves has_group_permission live fallback + active + same-group join + no probe
+  ---
+  duration_ms: 0.362155
+  type: 'test'
+  ...
+# Subtest: create_proxy_member is ACTIVE owner/admin/moderator only
+ok 5 - create_proxy_member is ACTIVE owner/admin/moderator only
+  ---
+  duration_ms: 0.153542
+  type: 'test'
+  ...
+# Subtest: same-group position trigger is required
+ok 6 - same-group position trigger is required
+  ---
+  duration_ms: 0.107249
+  type: 'test'
+  ...
+# Subtest: loud abort preconditions, not NOTICE\\+skip
+ok 7 - loud abort preconditions, not NOTICE\\+skip
+  ---
+  duration_ms: 0.239808
+  type: 'test'
+  ...
+# Subtest: does not rewrite is_group_member or get_user_group_ids bodies
+ok 8 - does not rewrite is_group_member or get_user_group_ids bodies
+  ---
+  duration_ms: 0.144778
+  type: 'test'
+  ...
+# Subtest: all 23 helper-matching REWRITE policies are present
+ok 9 - all 23 helper-matching REWRITE policies are present
+  ---
+  duration_ms: 0.451351
+  type: 'test'
+  ...
+# Subtest: payments treasurer policy adds active without changing role set
+ok 10 - payments treasurer policy adds active without changing role set
+  ---
+  duration_ms: 0.311728
+  type: 'test'
+  ...
+# Subtest: P1-B OR-bypass trio is prechecked then DROP+CREATE with active gate
+ok 11 - P1-B OR-bypass trio is prechecked then DROP+CREATE with active gate
+  ---
+  duration_ms: 0.587727
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 73.467057

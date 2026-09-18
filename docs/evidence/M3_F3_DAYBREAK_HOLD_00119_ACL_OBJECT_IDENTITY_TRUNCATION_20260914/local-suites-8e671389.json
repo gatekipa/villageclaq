@@ -1,0 +1,259 @@
+{
+  "tip": "8e67138929d5c0925a89adb0d34eeff9a2d3cab4",
+  "parent": "1732c124f8364d83cbcba8cdc99227daebfbaf97",
+  "verifiedAt": "2026-09-14T16:21:04.530Z",
+  "verifiedAtET": "9/14/2026, 12:21:04 PM ET",
+  "successCriteria": {
+    "test_f3_db_push_zero_fail": true,
+    "verdict": "CONTINUE"
+  },
+  "compare": {
+    "range": "1732c124...8e671389",
+    "status": "ahead",
+    "ahead_by": 1,
+    "total_commits": 1,
+    "filesOnlyAuthorizedThree": true,
+    "files": [
+      "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+      "scripts/qualify-f3-db-push-disposable.mjs",
+      "scripts/test-f3-db-push-harness.mjs"
+    ]
+  },
+  "digests": {
+    "allMatch": true,
+    "files": {
+      "00118_f3_bounded_financial_epoch_foundation.sql": {
+        "expected": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+        "actual": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+        "match": true,
+        "bytes": 12935
+      },
+      "00119_f3_01_core_ledger_foundation.sql": {
+        "expected": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+        "actual": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+        "match": true,
+        "bytes": 35663
+      },
+      "00120_f3_02_secure_posting_idempotency.sql": {
+        "expected": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+        "actual": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+        "match": true,
+        "bytes": 33103
+      },
+      "00121_f3_03_projection_read_proof.sql": {
+        "expected": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+        "actual": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+        "match": true,
+        "bytes": 36076
+      },
+      "00122_f3_04_correction_reversal.sql": {
+        "expected": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+        "actual": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+        "match": true,
+        "bytes": 49221
+      },
+      "00123_f3_05_opening_cash_command.sql": {
+        "expected": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
+        "actual": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
+        "match": true,
+        "bytes": 19813
+      }
+    }
+  },
+  "recognition": {
+    "exact": [
+      "manual_income"
+    ],
+    "ok": true
+  },
+  "expectedFingerprintHashes": {
+    "recomputedMatchSealed": true,
+    "supersededToNew": {
+      "00118_f3_bounded_financial_epoch_foundation.sql": {
+        "sealed": "07ce0b411f0a7098de31ada42dd2863cb6fc50e94fe685ff998b0bd16613e535",
+        "recomputed": "07ce0b411f0a7098de31ada42dd2863cb6fc50e94fe685ff998b0bd16613e535",
+        "match": true,
+        "superseded": "a1538e7d2d451c198350535128ece77cbe54ad31cd11d6d902f7efc0ece231c5"
+      },
+      "00119_f3_01_core_ledger_foundation.sql": {
+        "sealed": "e8005d0591d974d4b24ced9529904bd7c0727bc3fd98a5aeabf61c7325ab4d26",
+        "recomputed": "e8005d0591d974d4b24ced9529904bd7c0727bc3fd98a5aeabf61c7325ab4d26",
+        "match": true,
+        "superseded": "422c5d8b22ae4c07f59261f09988afccf80efb85f3c05dc5c3c91063a12f7f4c"
+      },
+      "00120_f3_02_secure_posting_idempotency.sql": {
+        "sealed": "ebeb5c45edc4ee41e1fc98687b11d6c0fe122d629a972c8d4b507ab2096b117b",
+        "recomputed": "ebeb5c45edc4ee41e1fc98687b11d6c0fe122d629a972c8d4b507ab2096b117b",
+        "match": true,
+        "superseded": "1f5433b99ee60148fe708c51e576ce50cf082e8279e32057aa8e0e1a2e450610"
+      },
+      "00121_f3_03_projection_read_proof.sql": {
+        "sealed": "f026b6abcfd37efda7c5d12c687077958acf0be01cf9154a77070b32fd245976",
+        "recomputed": "f026b6abcfd37efda7c5d12c687077958acf0be01cf9154a77070b32fd245976",
+        "match": true,
+        "superseded": "6705f7bb63cf18eda2b22bace9ff69c2c915207238f760437eccf08441e95c3c"
+      },
+      "00122_f3_04_correction_reversal.sql": {
+        "sealed": "e245610827cc6aebbfd64b86f684f8cea9b6d53311b7788bbd5459c93029faae",
+        "recomputed": "e245610827cc6aebbfd64b86f684f8cea9b6d53311b7788bbd5459c93029faae",
+        "match": true,
+        "superseded": "e84cf051957897be0434d6b2fb71a3f4317228080d994110ec4470b8cb97b9ee"
+      },
+      "00123_f3_05_opening_cash_command.sql": {
+        "sealed": "f25e2ea4a86650faf3d5f0a01175bac4a1d2f44f11e3c2e7fc5a9acff422c09a",
+        "recomputed": "f25e2ea4a86650faf3d5f0a01175bac4a1d2f44f11e3c2e7fc5a9acff422c09a",
+        "match": true,
+        "superseded": "3ff28c4c5f3f31c05014febd2c4e25158b597048f5e1e3bc7ea23a1d7ef40b66"
+      }
+    },
+    "new": {
+      "00118_f3_bounded_financial_epoch_foundation.sql": "07ce0b411f0a7098de31ada42dd2863cb6fc50e94fe685ff998b0bd16613e535",
+      "00119_f3_01_core_ledger_foundation.sql": "e8005d0591d974d4b24ced9529904bd7c0727bc3fd98a5aeabf61c7325ab4d26",
+      "00120_f3_02_secure_posting_idempotency.sql": "ebeb5c45edc4ee41e1fc98687b11d6c0fe122d629a972c8d4b507ab2096b117b",
+      "00121_f3_03_projection_read_proof.sql": "f026b6abcfd37efda7c5d12c687077958acf0be01cf9154a77070b32fd245976",
+      "00122_f3_04_correction_reversal.sql": "e245610827cc6aebbfd64b86f684f8cea9b6d53311b7788bbd5459c93029faae",
+      "00123_f3_05_opening_cash_command.sql": "f25e2ea4a86650faf3d5f0a01175bac4a1d2f44f11e3c2e7fc5a9acff422c09a"
+    },
+    "superseded": {
+      "00118_f3_bounded_financial_epoch_foundation.sql": "a1538e7d2d451c198350535128ece77cbe54ad31cd11d6d902f7efc0ece231c5",
+      "00119_f3_01_core_ledger_foundation.sql": "422c5d8b22ae4c07f59261f09988afccf80efb85f3c05dc5c3c91063a12f7f4c",
+      "00120_f3_02_secure_posting_idempotency.sql": "1f5433b99ee60148fe708c51e576ce50cf082e8279e32057aa8e0e1a2e450610",
+      "00121_f3_03_projection_read_proof.sql": "6705f7bb63cf18eda2b22bace9ff69c2c915207238f760437eccf08441e95c3c",
+      "00122_f3_04_correction_reversal.sql": "e84cf051957897be0434d6b2fb71a3f4317228080d994110ec4470b8cb97b9ee",
+      "00123_f3_05_opening_cash_command.sql": "3ff28c4c5f3f31c05014febd2c4e25158b597048f5e1e3bc7ea23a1d7ef40b66"
+    },
+    "reason": "canonicalization format (comma-joined catalog strings → structured records + registry set-order); semantic members unchanged"
+  },
+  "suites": {
+    "test:f3-db-push": {
+      "tests": 88,
+      "pass": 87,
+      "fail": 0,
+      "skipped": 1,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-8e671389/test-f3-db-push.out"
+    },
+    "test:f3-db-push-harness": {
+      "tests": 52,
+      "pass": 52,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-8e671389/test-f3-db-push-harness.out"
+    },
+    "test:f3-recognition": {
+      "tests": 40,
+      "pass": 40,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-8e671389/test-f3-recognition.out"
+    },
+    "test:f3-oracles": {
+      "tests": 577,
+      "pass": 577,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-8e671389/test-f3-oracles.out"
+    },
+    "test:f3-local-safety": {
+      "tests": 45,
+      "pass": 45,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-8e671389/test-f3-local-safety.out"
+    },
+    "test:f3-acl-portability": {
+      "tests": 4,
+      "pass": 3,
+      "fail": 0,
+      "skipped": 1,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-8e671389/test-f3-acl-portability.out"
+    },
+    "test:m2": {
+      "tests": 111,
+      "pass": 111,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-8e671389/test-m2.out"
+    },
+    "test:m2-static-security": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-8e671389/test-m2-static-security.out"
+    },
+    "test:s0-cut1-active-authorization": {
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-8e671389/test-s0-cut1-active-authorization.out"
+    },
+    "test:s0-cut2": {
+      "tests": 21,
+      "pass": 14,
+      "fail": 7,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-8e671389/test-s0-cut2.out"
+    },
+    "test:storage-buckets": {
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-8e671389/test-storage-buckets.out"
+    },
+    "test:f3": {
+      "tests": 1050,
+      "pass": 736,
+      "fail": 313,
+      "skipped": 1,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-8e671389/test-f3.out"
+    },
+    "test:f3-regression": {
+      "tests": 14,
+      "pass": 0,
+      "fail": 14,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-8e671389/test-f3-regression.out"
+    },
+    "tsc --noEmit": {
+      "exit": 0,
+      "log": "suite-logs-8e671389/tsc-noEmit.out",
+      "pass": true
+    },
+    "next build (dummy env)": {
+      "exit": 0,
+      "log": "suite-logs-8e671389/next-build.out",
+      "pass": true
+    }
+  },
+  "peerAuthClassification": {
+    "note": "test:f3 / test:f3-regression / test:s0-cut2 failures are local peer-auth / env — not tip regression; see test-f3-failure-classification-8e671389.json"
+  }
+}

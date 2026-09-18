@@ -1,0 +1,125 @@
+{
+  "verdict": "CONTINUE",
+  "server_version_ok": true,
+  "client": "psql (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+  "positiveOk": true,
+  "negativesOk": true,
+  "results": [
+    {
+      "caseId": "positive",
+      "verdict": "CONTINUE",
+      "repairCalls": 1,
+      "expectedRepairCalls": 1,
+      "hold_reason": null,
+      "exit": 0,
+      "stdout_sha256": "b13be10ffcd515af2b0e34b54400484c7bf7715ae6d786ff585c661551f70d02"
+    },
+    {
+      "caseId": "undefined-parser-export",
+      "verdict": "HOLD",
+      "repairCalls": 0,
+      "hold_reason": "missing parser exports: parseDuplicateKeySafeJson",
+      "exit": null,
+      "stdout_sha256": null
+    },
+    {
+      "caseId": "malformed-output",
+      "verdict": "HOLD",
+      "repairCalls": 0,
+      "expectedRepairCalls": 0,
+      "hold_reason": "positive local proof conditions not met",
+      "exit": 0,
+      "stdout_sha256": "60498ebafa3f473a2a72c1242e8c3202bf50a6d81dfc721958be1550f46faf33"
+    },
+    {
+      "caseId": "duplicate-keys",
+      "verdict": "HOLD",
+      "repairCalls": 0,
+      "expectedRepairCalls": 0,
+      "hold_reason": "positive local proof conditions not met",
+      "exit": 0,
+      "stdout_sha256": "2bd8edda2474c13f406338e318be8a5ea3af768973053c6fa83904cdba02f71e"
+    },
+    {
+      "caseId": "extra-field",
+      "verdict": "HOLD",
+      "repairCalls": 0,
+      "expectedRepairCalls": 0,
+      "hold_reason": "positive local proof conditions not met",
+      "exit": 0,
+      "stdout_sha256": "8442081923bc2016571c779aa6a58eb959d4be7114dfbd5dc3757464b46b8751"
+    },
+    {
+      "caseId": "wrong-database",
+      "verdict": "HOLD",
+      "repairCalls": 0,
+      "expectedRepairCalls": 0,
+      "hold_reason": "positive local proof conditions not met",
+      "exit": 0,
+      "stdout_sha256": "fbe7ebfc50802f3a54f610f12d8ddf8a4140e8f34d9eb941e71ef24b60f6ba83"
+    },
+    {
+      "caseId": "wrong-live-role",
+      "verdict": "HOLD",
+      "repairCalls": 0,
+      "expectedRepairCalls": 0,
+      "hold_reason": "positive local proof conditions not met",
+      "exit": 0,
+      "stdout_sha256": "3ccb29c1f87340ca0d025b695c6c8ed5c2d58275e95cb7eab0a29bf814ab2b8e"
+    },
+    {
+      "caseId": "wrong-connection-metadata",
+      "verdict": "HOLD",
+      "repairCalls": 0,
+      "expectedRepairCalls": 0,
+      "hold_reason": "positive local proof conditions not met",
+      "exit": 0,
+      "stdout_sha256": "b13be10ffcd515af2b0e34b54400484c7bf7715ae6d786ff585c661551f70d02"
+    },
+    {
+      "caseId": "nonzero-process",
+      "verdict": "HOLD",
+      "repairCalls": 0,
+      "expectedRepairCalls": 0,
+      "hold_reason": "positive local proof conditions not met",
+      "exit": 1,
+      "stdout_sha256": "b13be10ffcd515af2b0e34b54400484c7bf7715ae6d786ff585c661551f70d02"
+    },
+    {
+      "caseId": "nonempty-stderr",
+      "verdict": "HOLD",
+      "repairCalls": 0,
+      "expectedRepairCalls": 0,
+      "hold_reason": "positive local proof conditions not met",
+      "exit": 0,
+      "stdout_sha256": "b13be10ffcd515af2b0e34b54400484c7bf7715ae6d786ff585c661551f70d02"
+    },
+    {
+      "caseId": "poison-present",
+      "verdict": "HOLD",
+      "repairCalls": 0,
+      "expectedRepairCalls": 0,
+      "hold_reason": "positive local proof conditions not met",
+      "exit": 0,
+      "stdout_sha256": "4046826700986cf31a54d6ed81b98cf96995724bf9858128944c83101476c360"
+    },
+    {
+      "caseId": "cleanup-failure",
+      "verdict": "HOLD",
+      "repairCalls": 0,
+      "expectedRepairCalls": 0,
+      "hold_reason": "positive local proof conditions not met",
+      "exit": 0,
+      "stdout_sha256": "b13be10ffcd515af2b0e34b54400484c7bf7715ae6d786ff585c661551f70d02"
+    },
+    {
+      "caseId": "fingerprint-mismatch",
+      "verdict": "HOLD",
+      "repairCalls": 0,
+      "expectedRepairCalls": 0,
+      "hold_reason": "positive local proof conditions not met",
+      "exit": 0,
+      "stdout_sha256": "b13be10ffcd515af2b0e34b54400484c7bf7715ae6d786ff585c661551f70d02"
+    }
+  ]
+}

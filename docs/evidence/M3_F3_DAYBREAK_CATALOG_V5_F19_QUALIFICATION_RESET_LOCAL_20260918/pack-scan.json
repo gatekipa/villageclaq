@@ -1,0 +1,25 @@
+{
+  "pathLeaks": 0,
+  "secrets": 0,
+  "pathLeakHits": [],
+  "secretHits": [],
+  "derivedFromFullPackageScan": true,
+  "nestedJsonArgvStderrCopiesIncluded": true,
+  "unindexed": 0,
+  "unindexedPaths": [],
+  "missingFromDisk": [],
+  "fileCountIndexed": 55,
+  "qaPackageFileCountIndexed": 31,
+  "f19IndependentQa": "F19 ACCEPT",
+  "f18IndependentQa": "INHERITED",
+  "reviewerBcId": "bc-8c2797cf-e789-5ab9-afd1-ff9a47a05cfa",
+  "reviewedPin": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
+  "attestationFinalizationOk": true,
+  "evidenceIndexInteriorSha256": "4db686e29db202c6b9c965124e9af8c6064470da758da4fa8725482394733bca",
+  "evidenceIndexChecksumFileSha256": "612fb312e8bb313174d67a52fc7b6a660f1e1e4ac14fc5d2a05989706181c602",
+  "checksumDistinction": {
+    "interiorIsSha256OfEvidenceIndexJson": true,
+    "checksumFileDigestIsSha256OfEvidenceIndexSha256Bytes": true,
+    "identitiesDiffer": true
+  }
+}

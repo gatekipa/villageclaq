@@ -1,0 +1,8 @@
+{
+  "verdict": "IMPLEMENTATION ACCEPT",
+  "tip": "51cc864d1efbefc1398ad3fd1895360c95474a57",
+  "parentHoldTip": "c85a64c9a3c4dbe89b6b3bde2211e213d3307ef1",
+  "designAcceptTip": "a117d06fb202696944ae423d77336db0a48a8a13",
+  "sourceLabel": "villageclaq-f13-51cc864d/qa/score.md",
+  "note": "Independent QA offline ACCEPT of P0–P2 fix tip. Not live reset / wipe / production authorization."
+}

@@ -1,0 +1,16 @@
+{
+  "database": "f3_f14_qual_reset_local_20260917",
+  "user": "f3_ref_oracle",
+  "host": "127.0.0.1:55432",
+  "container": "f3-reference-pg176",
+  "tip": "2d502a028b0d01808a871fb1d48d051813591ed2",
+  "parent": "137f1c825455c10bd7d974d3de7dcbdc610c9619",
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "serverProbe": "current_database         | current_user  |                                                      version                                                       \n----------------------------------+---------------+--------------------------------------------------------------------------------------------------------------------\n f3_f14_qual_reset_local_20260917 | f3_ref_oracle | PostgreSQL 17.6 (Debian 17.6-2.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit\n(1 row)",
+  "disposableContacted": false,
+  "productionContacted": false,
+  "harnessSubstitutions": [
+    "tip prove helper fixture socket/peer → MUST_LOCAL; expanded proof uses docker TCP",
+    "empty storage.buckets stub for capture SQL planner (PG plans both CASE arms)"
+  ]
+}

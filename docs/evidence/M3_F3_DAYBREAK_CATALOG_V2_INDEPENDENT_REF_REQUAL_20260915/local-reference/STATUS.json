@@ -1,0 +1,103 @@
+{
+  "phase": "E",
+  "verdict": "READY_TO_FF",
+  "hold_reason": null,
+  "tip_sha": "019321b4ce3f50aea0ecffd553df8d04f6753171",
+  "evidence_sha_E": "84938103d86258b9193186f271f4f1fb05cb45ad",
+  "tip_vs_E_files_only": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/lib/f3-full-catalog-independent-reference.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "tip_vs_E_file_count": 4,
+  "pg": {
+    "engine": "17.6",
+    "container": "f3-reference-pg176",
+    "listen": "127.0.0.1:55432",
+    "host_17_11_avoided": true
+  },
+  "seal_database": "f3_reference_catalog_v2_20260915",
+  "schema_version": "f3-full-catalog-v2",
+  "envelope_digest": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "envelope_proof": {
+    "tip_digest_constant": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "tip_envelope_digest_field": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "tip_recomputed": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "original_canonical_bytes": 10222,
+    "original_canonical_sha256": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "expected_pin": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "match": true,
+    "original_has_REDACTED": false,
+    "tip_envelope_has_REDACTED": false,
+    "not_from_hosted_fingerprint_72af6699": true,
+    "not_from_financial_ledger_epochs": true,
+    "provenance_claim": "INDEPENDENT SUPABASE PLATFORM-ACL CALIBRATION \u2014 derived ONLY from disposable pg_default_acl + canary agreement",
+    "semantic_match_tip": true
+  },
+  "independent_module_sha": {
+    "claimed": "de4ed3fd1f79103cb85591209246e0dbd2194d0f5adbc2a6c82497fe83449c3f",
+    "tip_closure": "de4ed3fd1f79103cb85591209246e0dbd2194d0f5adbc2a6c82497fe83449c3f",
+    "file_sha256": "de4ed3fd1f79103cb85591209246e0dbd2194d0f5adbc2a6c82497fe83449c3f",
+    "match": true
+  },
+  "independent_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+    "00119_f3_01_core_ledger_foundation.sql": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+    "00120_f3_02_secure_posting_idempotency.sql": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+    "00121_f3_03_projection_read_proof.sql": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+    "00122_f3_04_correction_reversal.sql": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+    "00123_f3_05_opening_cash_command.sql": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa"
+  },
+  "tip_embedded_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+    "00119_f3_01_core_ledger_foundation.sql": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+    "00120_f3_02_secure_posting_idempotency.sql": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+    "00121_f3_03_projection_read_proof.sql": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+    "00122_f3_04_correction_reversal.sql": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+    "00123_f3_05_opening_cash_command.sql": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa"
+  },
+  "cloud_agent_v2_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+    "00119_f3_01_core_ledger_foundation.sql": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+    "00120_f3_02_secure_posting_idempotency.sql": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+    "00121_f3_03_projection_read_proof.sql": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+    "00122_f3_04_correction_reversal.sql": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+    "00123_f3_05_opening_cash_command.sql": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa"
+  },
+  "builder_eq_reference_all_six": true,
+  "tip_eq_independent_all_six": true,
+  "cloud_eq_independent_all_six": true,
+  "seal_independent_agrees": true,
+  "local_suites": {
+    "command": "npm run test:f3-db-push",
+    "tests": 121,
+    "pass": 120,
+    "fail": 0,
+    "skipped": 1,
+    "skipped_detail": "optional-role REVOKE is a no-op when absent and revokes when present \u2014 SKIP local PostgreSQL 17 unavailable via default socket (TCP 55432 oracle still used for seal)",
+    "exit_ok": true,
+    "repairCalls_all_zero_where_observed": true,
+    "dbPushCalls_all_zero_where_observed": true,
+    "captured_at_et": "9/15/2026, 8:52:38 PM ET",
+    "log": "logs/test-f3-db-push.log"
+  },
+  "negative_matrix": {
+    "repairCalls_all_zero": true,
+    "dbPushCalls_all_zero": true,
+    "observations_repairCalls": 80,
+    "observations_dbPushCalls": 80
+  },
+  "main_pin": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr83_pin": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "pr96_untouched": "d526b407992fc2a806f2b7ba7170af335a118630",
+  "production_contacted": false,
+  "disposable_reset": false,
+  "full_structured_outputs": {
+    "primary_dir": "primary/",
+    "independent_dir": "independent/",
+    "comparisons_dir": "comparisons/"
+  },
+  "captured_at_et": "9/15/2026, 8:52:38 PM ET",
+  "captured_at_iso": "2026-09-16T00:52:38.707142Z"
+}

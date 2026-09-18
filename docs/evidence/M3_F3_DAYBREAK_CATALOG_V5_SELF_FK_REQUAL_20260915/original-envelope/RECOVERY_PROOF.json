@@ -1,0 +1,18 @@
+{
+  "verdict": "ORIGINAL_SEALED_PLATFORM_ENVELOPE_RECOVERED",
+  "full_file_sha256": "465b1477a0fe299dba3a2e4392feff8cde5fcfd1d19a0a0ea3be508731911eea",
+  "full_file_bytes": 14449,
+  "canonical_json_bytes": 10222,
+  "canonical_sha256": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "matches_claimed_digest": true,
+  "contains_REDACTED": false,
+  "table_relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+  "sequence_relacl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}",
+  "not_from_hosted_fingerprint_72af6699": true,
+  "not_from_financial_ledger_epochs": true,
+  "source_paths": {
+    "phase_a_executor": "/workspace/f3-platform-acl-cal/platform-acl-envelope.json",
+    "functional_tip_F": "11c9e3f763bba6dda999ec5554237b0ca39fdaba scripts/lib/f3-db-push-repair-safety-gate.mjs SEALED_PLATFORM_ACL_ENVELOPE_LITERAL"
+  },
+  "semantic_match_embedded_tip_F": true
+}

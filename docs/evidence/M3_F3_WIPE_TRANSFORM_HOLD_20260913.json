@@ -1,0 +1,53 @@
+{
+  "artifact": "M3_F3_WIPE_TRANSFORM_HOLD_20260913",
+  "verdict": "HOLD",
+  "do_not_convert_to_pass": true,
+  "file_based_runner_qualification": "HOLD",
+  "production_approval_claimed": false,
+  "hosted_db_push_pass_claimed": false,
+  "hosted_floor_db_push": "NOT_STARTED",
+  "wipe": "SUCCESS",
+  "disposable_state": "CLEAN_BASELINE",
+  "do_not_re_floor": true,
+  "functional_sha": "a0d60f1a3c3ad6fa57629f5cd7c0d544c80c962a",
+  "evidence_sha": "6b9cb05cea817c7d34db43ae71812bfec5b1a7d7",
+  "tip_sha": "cb50e1fcedede4c7459f928103673d1596749b05",
+  "starting_ref": "18bb1c740a2b6e6e5e70c573e944d88dea03da5b",
+  "prior_functional": "164f57949df774586155b007bf8a6c067ded4874",
+  "prior_evidence": "79bdf1dd55fef7ddd0dcaa2162795a801ed4e741",
+  "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "pr84": {
+    "url": "https://github.com/gatekipa/villageclaq/pull/84",
+    "state": "OPEN DRAFT UNMERGED",
+    "role": "authoritative"
+  },
+  "pr85": {
+    "url": "https://github.com/gatekipa/villageclaq/pull/85",
+    "state": "OPEN DRAFT UNMERGED",
+    "role": "companion",
+    "do_not_close": true
+  },
+  "production_ref_contacted": false,
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "recognition": ["manual_income"],
+  "pre_wipe_inventory": "M3_F3_02_PRE_WIPE_INVENTORY_20260913",
+  "wipe_success": "M3_F3_03_WIPE_SUCCESS_BASELINE_20260913",
+  "local_00030_transform": {
+    "result": "PASS",
+    "original_sha256": "366ee277f8d659d4194340ebbcb93f4191e0ee64820d391999938596474f669f",
+    "transformed_sha256": "f4223e8a33f6b9dc367057ca638ae52d795b01a6796325f760db6f63849854e5",
+    "count": 14,
+    "shim": false
+  },
+  "local_through_00117": {
+    "result": "HOLD",
+    "failedAt": "00057_profiles_rls_allow_co_members.sql",
+    "unnest_count": 1
+  },
+  "shim_created": false,
+  "repo_00030_modified": false,
+  "f3_00118_00123_modified": false,
+  "founder_auth_needed": "ephemeral 00057 transform and any other remaining unnest sites; no further replay exceptions without new auth",
+  "local_harness": "37/37 transform+wipe+db-push unit tests",
+  "merge_deploy": "DO NOT MERGE / DO NOT DEPLOY"
+}

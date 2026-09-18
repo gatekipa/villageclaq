@@ -1,0 +1,182 @@
+{
+  "package": "M3_F3_DAYBREAK_CATALOG_V5_F16_QUALIFICATION_RESET_LOCAL_20260917",
+  "functionalTip": "b74c6854869acf0e826446ea0488c42469621a3b",
+  "fileCount": 35,
+  "files": [
+    {
+      "path": "FINDING_CLOSURE.md",
+      "bytes": 2863,
+      "sha256": "9a1345b885cfb52c008b23d49cb0497e66433546a6c19d3f5c8dc537229b9800"
+    },
+    {
+      "path": "LABEL.json",
+      "bytes": 720,
+      "sha256": "379a96f074005f242cb0fcd1d7d54c96f665ffc08baa60c3823bc946e5d48370"
+    },
+    {
+      "path": "PINS.json",
+      "bytes": 993,
+      "sha256": "18a00e773d6087a854f054af6be177fc5e1e37a75a8393b48458a2159c12697b"
+    },
+    {
+      "path": "PROPOSED_HOSTED_PLAN_BLOB.json",
+      "bytes": 731,
+      "sha256": "9e2936080d95e2232a9abb544695b483776963296c2253e75d5dfb5149857a2b"
+    },
+    {
+      "path": "PROPOSED_HOSTED_REQUAL_PLAN.md",
+      "bytes": 18254,
+      "sha256": "fd233b838d8955d9d772faf991f0d49d0609530c0ac520b7f482a9ac44cc8d2a"
+    },
+    {
+      "path": "PROVENANCE.json",
+      "bytes": 608,
+      "sha256": "5d0f7fa0bcb703334c7d148a7bfe444af59321453e1d782dbfc03c09839ffae7"
+    },
+    {
+      "path": "README.md",
+      "bytes": 542,
+      "sha256": "9e44b9e4e3708705990fa67fbbd8aadcd12a8b9a6b1cf659be3e97784dc61268"
+    },
+    {
+      "path": "allowlist-verify/SCOPE_CHECK.json",
+      "bytes": 878,
+      "sha256": "af6bb4ab76bcc669b5e732b7bfb6340ca79ec9c438258f6b59f1a16e6da64536"
+    },
+    {
+      "path": "closure/CLOSURES.json",
+      "bytes": 30943,
+      "sha256": "78ff1a92583ee4a258b94b1331ef656073194341eed5bf5d89e082b4f9ef981a"
+    },
+    {
+      "path": "closure/DIGESTS.json",
+      "bytes": 1264,
+      "sha256": "b64133b09d3deee412f5a11b65758de52e7fe45dcf1bdf4534d41d31c5cea5e1"
+    },
+    {
+      "path": "inventory-matrix/BASELINE_AFFECTING_FIELDS.json",
+      "bytes": 4268,
+      "sha256": "e3ee47f67456efbfc9b3c35f18f55c7113c05fb752b990f833de089ba472a59c"
+    },
+    {
+      "path": "local-pg-proof/CLOSURES.json",
+      "bytes": 257,
+      "sha256": "dc9eb13a191fa2b1659292646da7e0959f3f45d5b24ff807c64d15b7c9cc5d1a"
+    },
+    {
+      "path": "local-pg-proof/COMMITTED_HELPER.out",
+      "bytes": 47409,
+      "sha256": "7372a4b6a2d6d08a62f8cdf434362db5b3e7cbccb7a42f5e1e7cd3ea0981ad6e"
+    },
+    {
+      "path": "local-pg-proof/COMMITTED_HELPER_SUMMARY.json",
+      "bytes": 47409,
+      "sha256": "7372a4b6a2d6d08a62f8cdf434362db5b3e7cbccb7a42f5e1e7cd3ea0981ad6e"
+    },
+    {
+      "path": "local-pg-proof/HARNESS_SUBSTITUTIONS.md",
+      "bytes": 884,
+      "sha256": "7985093ee21d04460c9d069ae324e6fe80bf52bfe6ea450e9b59cf0a738c7a7c"
+    },
+    {
+      "path": "local-pg-proof/IDENTITY.json",
+      "bytes": 775,
+      "sha256": "7db3f97f455e1622f957a1d6ffa9e0993b598d17d6d7f4a29df0075daae0b422"
+    },
+    {
+      "path": "local-pg-proof/RESULTS.json",
+      "bytes": 4878,
+      "sha256": "cf8d6fb6c163822af77b289440e536e7c583b5990d69b2d8fde372c8f92a1ce9"
+    },
+    {
+      "path": "local-pg-proof/RESULTS.md",
+      "bytes": 1077,
+      "sha256": "d6456b4d185abe69dcdf3bd80513ded3944618ddc7562d963e01bd1bd8f56c58"
+    },
+    {
+      "path": "local-pg-proof/TX_SUCCESS_RAW.json",
+      "bytes": 15565,
+      "sha256": "fb0dec12d7db0f6ee68ee6d91d4ac051104dd79a14f9e86ceb781fbe99ff3981"
+    },
+    {
+      "path": "local-pg-proof/TX_SUCCESS_REPARSE.json",
+      "bytes": 688,
+      "sha256": "25d403e341384f1f9de33226407775b6e965f7d653a2495075c796261080407e"
+    },
+    {
+      "path": "local-pg-proof/TX_T3_APPROVED_SET_SUCCESS_RAW.json",
+      "bytes": 15205,
+      "sha256": "4eecaf43535cd3fcc1cc18f800c8e2a9883a06220d1a742ea617ab1e6cad7754"
+    },
+    {
+      "path": "local-pg-proof/TX_T3_RETARGETED_FK_RAW.json",
+      "bytes": 991,
+      "sha256": "beedab33fefe3630d13b5296f9fd29360077f14331d4cb84991bfc8f1167efe2"
+    },
+    {
+      "path": "local-pg-proof/TX_T3_UNAPPROVED_FK_RAW.json",
+      "bytes": 1018,
+      "sha256": "5eaa085567d0bbdf671a61decd1963cc471a3c348041ec6b08d279061bdc7a8a"
+    },
+    {
+      "path": "local-pg-proof/apply-qualification-reset.sql",
+      "bytes": 66205,
+      "sha256": "fe228cddfa202061a38e18bf7d85a25d8cda9b5a5e241f80f5a0ec50ba9987d6"
+    },
+    {
+      "path": "local-pg-proof/emitted-qualification-reset.sql",
+      "bytes": 66205,
+      "sha256": "fe228cddfa202061a38e18bf7d85a25d8cda9b5a5e241f80f5a0ec50ba9987d6"
+    },
+    {
+      "path": "pack-summary.json",
+      "bytes": 1640,
+      "sha256": "947d3658c17edce0dd5ce8542615b9743a0fc589c790e8696bcfa4b08ab2d70d"
+    },
+    {
+      "path": "suite-logs/committed-helper-local-pg.meta.json",
+      "bytes": 214,
+      "sha256": "4bca415de6e947f4eef9d148b710b21766da1013e4dc68c66df276ceb64e4381"
+    },
+    {
+      "path": "suite-logs/committed-helper-local-pg.out",
+      "bytes": 47409,
+      "sha256": "7372a4b6a2d6d08a62f8cdf434362db5b3e7cbccb7a42f5e1e7cd3ea0981ad6e"
+    },
+    {
+      "path": "suite-logs/test-f3-db-push.meta.json",
+      "bytes": 72,
+      "sha256": "7996fb6a6b1e718bbe9cdcaa17fc40404a12e87019e1abc71dc3744c4ecdfe32"
+    },
+    {
+      "path": "suite-logs/test-f3-db-push.out",
+      "bytes": 209398,
+      "sha256": "6909c66bd9a286afc25405561ed286b12511b8195aa9ccb30a9cb6dea4229de0"
+    },
+    {
+      "path": "suite-logs/test-f3-reset-design.meta.json",
+      "bytes": 75,
+      "sha256": "8a77ea0176c7d859154ca1048e7a44e2b41bd6c843e20c585c9257c87e26fe92"
+    },
+    {
+      "path": "suite-logs/test-f3-reset-design.out",
+      "bytes": 5318,
+      "sha256": "f5e8bf8d13f1f97ab43df36b127b2d3e8d7c52c99c6be0b3b86a08d838810f92"
+    },
+    {
+      "path": "suite-logs/test-f3-reset.meta.json",
+      "bytes": 68,
+      "sha256": "9038c1ece690616c55872122df32de214a0250f717b7c042b94af852b470ec5b"
+    },
+    {
+      "path": "suite-logs/test-f3-reset.out",
+      "bytes": 10387,
+      "sha256": "d146f37fa42f8052b16ffe35015d9af7ac36d5d29bb1d5d2f69822c6d8ac1f1a"
+    },
+    {
+      "path": "t3-contract/APPROVED_DEPENDENCY_TUPLES.json",
+      "bytes": 8178,
+      "sha256": "a73adc8228bdf41e78969bcca4760fe8eb302e93b0580064414fc38049087a5f"
+    }
+  ]
+}

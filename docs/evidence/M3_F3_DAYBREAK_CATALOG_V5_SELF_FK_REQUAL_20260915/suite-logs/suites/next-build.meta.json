@@ -1,0 +1,11 @@
+{
+  "suite": "next-build",
+  "exit_code": 0,
+  "classification": "PASS",
+  "tests": null,
+  "pass": null,
+  "fail": null,
+  "skipped": null,
+  "sha256": "b553c0c31ae882cfaa70eb466ee1d89660b25850a00abaa966942c1337fdbc0e",
+  "bytes": 6884
+}

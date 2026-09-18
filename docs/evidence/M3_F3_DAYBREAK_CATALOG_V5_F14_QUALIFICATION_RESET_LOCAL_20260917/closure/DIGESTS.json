@@ -1,0 +1,14 @@
+{
+  "runtimeLabel": "F14_QUALIFICATION_RESET_RUNTIME_CLOSURE",
+  "runtimeCount": 45,
+  "runtimeSha256": "f6205869b233eaccf375b299112f7b9c352d58c6f2659471e06d2ca7a241e31d",
+  "unionLabel": "F14_QUALIFICATION_RESET_VERIFICATION_UNION",
+  "unionCount": 48,
+  "unionSha256": "f6ff6e42b4b5ec14b1a67fe88377d7deafe5f12f2c2c35c834e7c763711e7caa",
+  "proofHelperIncluded": true,
+  "forbiddenSummaryHash": "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d",
+  "tipModuleForbidden": "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d",
+  "runtimeIsNotSummary": true,
+  "unionIsNotSummary": true,
+  "runtimeEqualsUnion": false
+}

@@ -1,0 +1,294 @@
+
+> villageclaq@0.1.0 test:s0-cut2
+> node --test scripts/test-s0-cut2-sms-send-410.mjs scripts/test-s0-cut2-whatsapp-send-410.mjs scripts/test-s0-cut2-proxy-claim-active-owner-admin.mjs scripts/test-s0-cut2-sms-sender-no-queue-insert.mjs scripts/test-s0-cut2-producers-use-enqueue-adapter.mjs scripts/test-s0-cut2-adapter-fallback-42883-only.mjs scripts/test-s0-cut2-raw-meta-drain-only.mjs scripts/test-s0-cut2-no-extra-provider-send.mjs scripts/test-s0-cut2-provenance-gate.mjs scripts/test-s0-cut2-legacy-quarantine.mjs scripts/test-s0-cut2-idempotency-provenance.mjs scripts/test-s0-cut2-worker-column-grants.mjs scripts/test-s0-cut2-legacy-wa-index-provenance.mjs scripts/test-s0-cut2-duplicate-trusted-lookup.mjs scripts/test-s0-cut2-idempotency-conflict-mismatch.mjs scripts/test-s0-cut2-email-send-410.mjs scripts/test-s0-cut2-email-drain-only.mjs
+
+TAP version 13
+# Subtest: matcher identity remains exact 42883/PGRST202; production fail-closed / no INSERT
+ok 1 - matcher identity remains exact 42883/PGRST202; production fail-closed / no INSERT
+  ---
+  duration_ms: 0.895488
+  type: 'test'
+  ...
+# Subtest: duplicate lookup only provenance=1 + channel + template + idempotencyKey
+not ok 2 - duplicate lookup only provenance=1 + channel + template + idempotencyKey
+  ---
+  duration_ms: 164.473107
+  type: 'test'
+  location: '/workspace/f3-psql-poison-requal-20260916/tip-work/scripts/test-s0-cut2-duplicate-trusted-lookup.mjs:5:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    CUT2 disposable PostgreSQL is required and was not found.
+    No supported local psql target answered select 1.
+    
+    Set CUT2_DISPOSABLE_DATABASE_URL to a LOCAL disposable database, then re-run.
+    Exact command: export CUT2_DISPOSABLE_DATABASE_URL=postgresql://postgres@localhost:5432/s0p0b_cut2_disposable
+    Then apply supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql to that database.
+    
+    Do not point this at production (llbnliixczcqfftxpsmb).
+    This harness never assumes sudo -u postgres and never silently skips.
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    disposablePrerequisiteError (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:37:10)
+    resolveDisposablePsql (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:92:9)
+    psql (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:96:15)
+    TestContext.<anonymous> (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/test-s0-cut2-duplicate-trusted-lookup.mjs:6:16)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: provider-level email send is drain-only
+ok 3 - provider-level email send is drain-only
+  ---
+  duration_ms: 36.983198
+  type: 'test'
+  ...
+# Subtest: browser/API producers do not call provider email delivery
+ok 4 - browser/API producers do not call provider email delivery
+  ---
+  duration_ms: 29.808121
+  type: 'test'
+  ...
+# Subtest: six email ALLOW types stay mapped to semantic enqueue
+ok 5 - six email ALLOW types stay mapped to semantic enqueue
+  ---
+  duration_ms: 1.478761
+  type: 'test'
+  ...
+# Subtest: POST /api/email/send is 410 for every hostile body with zero side effects
+ok 6 - POST /api/email/send is 410 for every hostile body with zero side effects
+  ---
+  duration_ms: 46.172709
+  type: 'test'
+  ...
+# Subtest: GET /api/email/send is 410 with zero side effects
+ok 7 - GET /api/email/send is 410 with zero side effects
+  ---
+  duration_ms: 6.376419
+  type: 'test'
+  ...
+# Subtest: email send route source stays 410-only (defense in depth)
+ok 8 - email send route source stays 410-only (defense in depth)
+  ---
+  duration_ms: 0.37559
+  type: 'test'
+  ...
+# Subtest: conflict without trusted canonical row → trusted_idempotency_conflict_mismatch; no mutation
+not ok 9 - conflict without trusted canonical row → trusted_idempotency_conflict_mismatch; no mutation
+  ---
+  duration_ms: 184.087048
+  type: 'test'
+  location: '/workspace/f3-psql-poison-requal-20260916/tip-work/scripts/test-s0-cut2-idempotency-conflict-mismatch.mjs:5:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    CUT2 disposable PostgreSQL is required and was not found.
+    No supported local psql target answered select 1.
+    
+    Set CUT2_DISPOSABLE_DATABASE_URL to a LOCAL disposable database, then re-run.
+    Exact command: export CUT2_DISPOSABLE_DATABASE_URL=postgresql://postgres@localhost:5432/s0p0b_cut2_disposable
+    Then apply supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql to that database.
+    
+    Do not point this at production (llbnliixczcqfftxpsmb).
+    This harness never assumes sudo -u postgres and never silently skips.
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    disposablePrerequisiteError (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:37:10)
+    resolveDisposablePsql (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:92:9)
+    psql (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:96:15)
+    TestContext.<anonymous> (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/test-s0-cut2-idempotency-conflict-mismatch.mjs:6:16)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: trusted unique index only matches provenance=1; legacy keys cannot poison
+not ok 10 - trusted unique index only matches provenance=1; legacy keys cannot poison
+  ---
+  duration_ms: 176.044674
+  type: 'test'
+  location: '/workspace/f3-psql-poison-requal-20260916/tip-work/scripts/test-s0-cut2-idempotency-provenance.mjs:5:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    CUT2 disposable PostgreSQL is required and was not found.
+    No supported local psql target answered select 1.
+    
+    Set CUT2_DISPOSABLE_DATABASE_URL to a LOCAL disposable database, then re-run.
+    Exact command: export CUT2_DISPOSABLE_DATABASE_URL=postgresql://postgres@localhost:5432/s0p0b_cut2_disposable
+    Then apply supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql to that database.
+    
+    Do not point this at production (llbnliixczcqfftxpsmb).
+    This harness never assumes sudo -u postgres and never silently skips.
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    disposablePrerequisiteError (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:37:10)
+    resolveDisposablePsql (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:92:9)
+    psql (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:96:15)
+    TestContext.<anonymous> (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/test-s0-cut2-idempotency-provenance.mjs:6:15)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: NULL provenance untouched; drain selects only provenance=1
+not ok 11 - NULL provenance untouched; drain selects only provenance=1
+  ---
+  duration_ms: 157.17927
+  type: 'test'
+  location: '/workspace/f3-psql-poison-requal-20260916/tip-work/scripts/test-s0-cut2-legacy-quarantine.mjs:5:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    CUT2 disposable PostgreSQL is required and was not found.
+    No supported local psql target answered select 1.
+    
+    Set CUT2_DISPOSABLE_DATABASE_URL to a LOCAL disposable database, then re-run.
+    Exact command: export CUT2_DISPOSABLE_DATABASE_URL=postgresql://postgres@localhost:5432/s0p0b_cut2_disposable
+    Then apply supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql to that database.
+    
+    Do not point this at production (llbnliixczcqfftxpsmb).
+    This harness never assumes sudo -u postgres and never silently skips.
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    disposablePrerequisiteError (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:37:10)
+    resolveDisposablePsql (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:92:9)
+    psql (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:96:15)
+    TestContext.<anonymous> (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/test-s0-cut2-legacy-quarantine.mjs:10:15)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: each of 17 WA uniques is provenance-scoped
+not ok 12 - each of 17 WA uniques is provenance-scoped
+  ---
+  duration_ms: 146.973055
+  type: 'test'
+  location: '/workspace/f3-psql-poison-requal-20260916/tip-work/scripts/test-s0-cut2-legacy-wa-index-provenance.mjs:6:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    CUT2 disposable PostgreSQL is required and was not found.
+    No supported local psql target answered select 1.
+    
+    Set CUT2_DISPOSABLE_DATABASE_URL to a LOCAL disposable database, then re-run.
+    Exact command: export CUT2_DISPOSABLE_DATABASE_URL=postgresql://postgres@localhost:5432/s0p0b_cut2_disposable
+    Then apply supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql to that database.
+    
+    Do not point this at production (llbnliixczcqfftxpsmb).
+    This harness never assumes sudo -u postgres and never silently skips.
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    disposablePrerequisiteError (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:37:10)
+    resolveDisposablePsql (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:92:9)
+    psql (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:96:15)
+    TestContext.<anonymous> (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/test-s0-cut2-legacy-wa-index-provenance.mjs:10:17)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: no new provider send outside approved boundary
+ok 13 - no new provider send outside approved boundary
+  ---
+  duration_ms: 37.161513
+  type: 'test'
+  ...
+# Subtest: all 15 produce* use adapter; production adapter has no queue insert
+ok 14 - all 15 produce* use adapter; production adapter has no queue insert
+  ---
+  duration_ms: 3.771838
+  type: 'test'
+  ...
+# Subtest: only cut2_provenance_version=1 is trusted; RPC hardcodes 1; clients cannot mint it
+not ok 15 - only cut2_provenance_version=1 is trusted; RPC hardcodes 1; clients cannot mint it
+  ---
+  duration_ms: 147.749551
+  type: 'test'
+  location: '/workspace/f3-psql-poison-requal-20260916/tip-work/scripts/test-s0-cut2-provenance-gate.mjs:5:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    CUT2 disposable PostgreSQL is required and was not found.
+    No supported local psql target answered select 1.
+    
+    Set CUT2_DISPOSABLE_DATABASE_URL to a LOCAL disposable database, then re-run.
+    Exact command: export CUT2_DISPOSABLE_DATABASE_URL=postgresql://postgres@localhost:5432/s0p0b_cut2_disposable
+    Then apply supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql to that database.
+    
+    Do not point this at production (llbnliixczcqfftxpsmb).
+    This harness never assumes sudo -u postgres and never silently skips.
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    disposablePrerequisiteError (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:37:10)
+    resolveDisposablePsql (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:92:9)
+    psql (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:96:15)
+    TestContext.<anonymous> (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/test-s0-cut2-provenance-gate.mjs:6:15)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: proxy-claim send is ACTIVE owner/admin only; enqueue proxy_claim; DB phone
+ok 16 - proxy-claim send is ACTIVE owner/admin only; enqueue proxy_claim; DB phone
+  ---
+  duration_ms: 0.76884
+  type: 'test'
+  ...
+# Subtest: raw Meta/provider adapter call sites restricted to drain boundary
+ok 17 - raw Meta/provider adapter call sites restricted to drain boundary
+  ---
+  duration_ms: 1.994028
+  type: 'test'
+  ...
+# Subtest: POST /api/sms/send is 410 GONE for every body
+ok 18 - POST /api/sms/send is 410 GONE for every body
+  ---
+  duration_ms: 2.160411
+  type: 'test'
+  ...
+# Subtest: sms-sender and send-sms-notification do not INSERT notifications_queue
+ok 19 - sms-sender and send-sms-notification do not INSERT notifications_queue
+  ---
+  duration_ms: 0.850674
+  type: 'test'
+  ...
+# Subtest: POST /api/whatsapp/send all branches 410
+ok 20 - POST /api/whatsapp/send all branches 410
+  ---
+  duration_ms: 0.706201
+  type: 'test'
+  ...
+# Subtest: service_role UPDATE only worker columns; MUST NOT update immutables
+not ok 21 - service_role UPDATE only worker columns; MUST NOT update immutables
+  ---
+  duration_ms: 144.850334
+  type: 'test'
+  location: '/workspace/f3-psql-poison-requal-20260916/tip-work/scripts/test-s0-cut2-worker-column-grants.mjs:5:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    CUT2 disposable PostgreSQL is required and was not found.
+    No supported local psql target answered select 1.
+    
+    Set CUT2_DISPOSABLE_DATABASE_URL to a LOCAL disposable database, then re-run.
+    Exact command: export CUT2_DISPOSABLE_DATABASE_URL=postgresql://postgres@localhost:5432/s0p0b_cut2_disposable
+    Then apply supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql to that database.
+    
+    Do not point this at production (llbnliixczcqfftxpsmb).
+    This harness never assumes sudo -u postgres and never silently skips.
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    disposablePrerequisiteError (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:37:10)
+    resolveDisposablePsql (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:92:9)
+    psql (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/_cut2_test_helpers.mjs:96:15)
+    TestContext.<anonymous> (file:///workspace/f3-psql-poison-requal-20260916/tip-work/scripts/test-s0-cut2-worker-column-grants.mjs:6:16)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 14
+# fail 7
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 599.204265

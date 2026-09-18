@@ -1,0 +1,11 @@
+{
+  "suite": "test-m2",
+  "exit_code": 0,
+  "classification": "PASS",
+  "tests": 111,
+  "pass": 111,
+  "fail": 0,
+  "skipped": 0,
+  "sha256": "5451d701e1ca9de4598bdbbf2ebc38c3cab1e1bf07d418a69d199733dac94ae5",
+  "bytes": 22564
+}

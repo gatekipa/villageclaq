@@ -1,0 +1,16 @@
+{
+  "additive_functional_sha": "2fcc65114d89f098dc5d0f7787a99cb08c643c21",
+  "parent": "94a024efb53e1dd7216f8aff3ab298f72963e801",
+  "source_blobs_from": "41055f2f0a66626c1fb3719b3b20e6fcdde9025c",
+  "baseline_functional": "ebd4c20bcf72500b77ea24bd7269094f3dc13b3e",
+  "files_changed_vs_parent": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "ebd4c20_vs_41055f2f_files": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "artifact": "cleanup-verification",
+  "recommendation": "Leave disposable project jkorwnwwmdeflfntxntl in place. Do not delete or pause. Throwaway probe may be dropped; do not drop supabase_migrations unless CLI docs require init.",
+  "poisonCleanupOnly_on_hold": true,
+  "sequence0_poison": true
+}

@@ -1,0 +1,281 @@
+{
+  "evidenceRel": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F15_QUALIFICATION_RESET_LOCAL_20260917",
+  "tip": "49a91169fbb53dba149f4e7bbcf3016f988f4922",
+  "planCommit": "206dce13d424f5303520d2b63a43768a078dda35",
+  "parentAccept": "a4fa0832420d46f6cdd73b8f5e2ab381029dd2e1",
+  "priorHoldEvidence": "d9e37d1f3bbfe35c47145b7ca886d2b4af486475",
+  "parent": "437f27c2721bf7710746468a2cef9a52e1c4651a",
+  "qa": "F15 ACCEPT",
+  "qaKind": "framing-follow-up",
+  "localStatus": "LOCAL CANDIDATE READY",
+  "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "framingHoldClosed": true,
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "suites": [
+    {
+      "suite": "test-f3-reset-design",
+      "classification": "PASS",
+      "expect": {
+        "tests": 28,
+        "pass": 28,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 28,
+        "pass": 28,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "e63b500bb80c76f5a2d20777ec28c3caca7ff47291eea52df16690c09f283ea7",
+      "outBytes": 5669
+    },
+    {
+      "suite": "test-f3-reset",
+      "classification": "PASS",
+      "expect": {
+        "tests": 47,
+        "pass": 47,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 47,
+        "pass": 47,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "b4dff9b9b381d9c71bf1b3e5ee113d73be323895b19e8a4cde7d20f4c0eb268b",
+      "outBytes": 10321
+    },
+    {
+      "suite": "test-f3-db-push",
+      "classification": "PASS_WITH_SKIPS",
+      "expect": {
+        "tests": 225,
+        "pass": 224,
+        "fail": 0,
+        "skipped": 1
+      },
+      "observed": {
+        "tests": 225,
+        "pass": 224,
+        "fail": 0,
+        "skipped": 1
+      },
+      "outSha256": "e47f3779918943eca1fd928cdd7c13aba3ca305a001571d6510a93ecb9e6308f",
+      "outBytes": 211915
+    },
+    {
+      "suite": "test-f3-recognition",
+      "classification": "PASS",
+      "expect": {
+        "tests": 40,
+        "pass": 40,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 40,
+        "pass": 40,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "281e7967ecd578f92cda13d98fc076b6420ba9436b3e00eefd2bceef5b0ae772",
+      "outBytes": 7530
+    },
+    {
+      "suite": "test-f3-oracles",
+      "classification": "PASS",
+      "expect": {
+        "tests": 577,
+        "pass": 577,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 577,
+        "pass": 577,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "28d0e6f9a6268aa5ffb52476b729b70b4f3bf23d20226f60441fe3ecfae33502",
+      "outBytes": 87383
+    },
+    {
+      "suite": "test-f3-local-safety",
+      "classification": "PASS",
+      "expect": {
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "5c40578fe3093a0dabb692f2e90537cf98e2247e80629da61eea897dee7fb610",
+      "outBytes": 8183
+    },
+    {
+      "suite": "test-f3-mapi-harness",
+      "classification": "PASS",
+      "expect": {
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "1d789aee6bd8ecbfe9b03aaf5778089c8509fe68ec7082f924761756cb36a73f",
+      "outBytes": 4555
+    },
+    {
+      "suite": "test-m2",
+      "classification": "PASS",
+      "expect": {
+        "tests": 111,
+        "pass": 111,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 111,
+        "pass": 111,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "6d20acf57f89d688e0585cbad84483168c105cc31ac75cb2d06d5f39bc789de5",
+      "outBytes": 22391
+    },
+    {
+      "suite": "test-m2-static-security",
+      "classification": "PASS",
+      "expect": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "d36472e84989eb95033a8e6a9bb27a090faab52cc41d8a060b1f2b7a135fd3b2",
+      "outBytes": 1916
+    },
+    {
+      "suite": "test-s0-cut1",
+      "classification": "PASS",
+      "expect": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "6df9008f4e97be16d2b3c0b0f2f4f9ca498edd03270faa0d486492d020963b97",
+      "outBytes": 2406
+    },
+    {
+      "suite": "test-s0-cut2",
+      "classification": "ENV_DEPENDENT_FAIL",
+      "expect": {
+        "tests": 21,
+        "pass": 14,
+        "fail": 7,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 21,
+        "pass": 14,
+        "fail": 7,
+        "skipped": 0
+      },
+      "outSha256": "8fa739875ca464ea3aea94c55383b23b5201ce0d931ea2043ca964d3588a56ca",
+      "outBytes": 14641
+    },
+    {
+      "suite": "test-storage-buckets",
+      "classification": "PASS",
+      "expect": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "8f059065141ff8af678afc8e6bf634f9482b378c929cf7d5552ca93c374a35f8",
+      "outBytes": 2426
+    },
+    {
+      "suite": "tsc-noEmit",
+      "classification": "PASS",
+      "expect": null,
+      "observed": null,
+      "outSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outBytes": 0
+    },
+    {
+      "suite": "next-build",
+      "classification": "PASS",
+      "expect": null,
+      "observed": null,
+      "outSha256": "ed6547ba303d58b8250e0d0269745d47c279e47488160c3b9cc7285759ba548c",
+      "outBytes": 6884
+    },
+    {
+      "suite": "committed-helper-local-pg",
+      "classification": "PASS_LOCAL_PG_3TX",
+      "expect": null,
+      "observed": null,
+      "outSha256": "ee33365cc6a96d54f241a3767b81e66e0730f77bbfb66733f15c4955ddd42d47",
+      "outBytes": 6775
+    }
+  ],
+  "allowlistScopeOk": true,
+  "closures": {
+    "runtime": "949e68359e55870050e53ef3f93ec8179fc7a5e1587a908044e0ab26cfdbbb92",
+    "union": "30dd8ad9972db6ef6dc7d4c35d49ae420ce2c445103c6180d469d901f88c5752",
+    "runtimeOk": true,
+    "unionOk": true
+  },
+  "helper": {
+    "overallOk": true,
+    "mustLocal": false,
+    "classification": "LOCAL_PG_EXECUTED",
+    "distinctions": {
+      "checks": 11,
+      "scenarios": 4,
+      "executedTransactions": 3
+    },
+    "passCount": 15,
+    "failCount": 0
+  },
+  "planBytes": 18256,
+  "planLines": 267,
+  "unindexed": 0,
+  "pathLeaks": 0,
+  "leakSamples": [],
+  "fileCount": 54
+}

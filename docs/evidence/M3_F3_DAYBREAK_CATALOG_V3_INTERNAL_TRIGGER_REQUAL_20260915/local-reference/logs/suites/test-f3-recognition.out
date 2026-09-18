@@ -1,0 +1,259 @@
+
+> villageclaq@0.1.0 test:f3-recognition
+> node --experimental-strip-types --test tests/finance/f3-recognition/recognition.test.mjs
+
+TAP version 13
+# (node:4030287) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/f3-internal-trigger-remediate-20260915/tip-extract/src/lib/financial-f3-recognition.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to /workspace/f3-internal-trigger-remediate-20260915/tip-extract/package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: allowlist is exactly manual_income
+ok 1 - allowlist is exactly manual_income
+  ---
+  duration_ms: 2.741953
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("manual_income") → true
+ok 2 - isRecognizedSoaIncome("manual_income") → true
+  ---
+  duration_ms: 0.164912
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("manual_expense") → false
+ok 3 - isRecognizedSoaIncome("manual_expense") → false
+  ---
+  duration_ms: 0.080936
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("account_transfer") → false
+ok 4 - isRecognizedSoaIncome("account_transfer") → false
+  ---
+  duration_ms: 0.080395
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("opening_custody") → false
+ok 5 - isRecognizedSoaIncome("opening_custody") → false
+  ---
+  duration_ms: 0.09521
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("correction_reversal") → false
+ok 6 - isRecognizedSoaIncome("correction_reversal") → false
+  ---
+  duration_ms: 0.083756
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("correction_replacement") → false
+ok 7 - isRecognizedSoaIncome("correction_replacement") → false
+  ---
+  duration_ms: 0.075174
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("dues_allocation") → false
+ok 8 - isRecognizedSoaIncome("dues_allocation") → false
+  ---
+  duration_ms: 0.075242
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("loan_principal_repayment") → false
+ok 9 - isRecognizedSoaIncome("loan_principal_repayment") → false
+  ---
+  duration_ms: 0.276103
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("relief_remittance") → false
+ok 10 - isRecognizedSoaIncome("relief_remittance") → false
+  ---
+  duration_ms: 0.360008
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("future_income_v2") → false
+ok 11 - isRecognizedSoaIncome("future_income_v2") → false
+  ---
+  duration_ms: 0.125147
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("pending") → false
+ok 12 - isRecognizedSoaIncome("pending") → false
+  ---
+  duration_ms: 0.064984
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("rejected") → false
+ok 13 - isRecognizedSoaIncome("rejected") → false
+  ---
+  duration_ms: 0.934264
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("voided") → false
+ok 14 - isRecognizedSoaIncome("voided") → false
+  ---
+  duration_ms: 0.06535
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("relief_misapplied") → false
+ok 15 - isRecognizedSoaIncome("relief_misapplied") → false
+  ---
+  duration_ms: 0.039654
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("dues_assessment") → false
+ok 16 - isRecognizedSoaIncome("dues_assessment") → false
+  ---
+  duration_ms: 0.037473
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("opening_arrears") → false
+ok 17 - isRecognizedSoaIncome("opening_arrears") → false
+  ---
+  duration_ms: 0.036339
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("refundable_deposit") → false
+ok 18 - isRecognizedSoaIncome("refundable_deposit") → false
+  ---
+  duration_ms: 0.037607
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("njangi_contribution") → false
+ok 19 - isRecognizedSoaIncome("njangi_contribution") → false
+  ---
+  duration_ms: 0.046551
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("unconfirmed") → false
+ok 20 - isRecognizedSoaIncome("unconfirmed") → false
+  ---
+  duration_ms: 0.036298
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("") → false
+ok 21 - isRecognizedSoaIncome("") → false
+  ---
+  duration_ms: 0.044016
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome(" ") → false
+ok 22 - isRecognizedSoaIncome(" ") → false
+  ---
+  duration_ms: 0.046335
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("   ") → false
+ok 23 - isRecognizedSoaIncome("   ") → false
+  ---
+  duration_ms: 0.040916
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("\\t") → false
+ok 24 - isRecognizedSoaIncome("\\t") → false
+  ---
+  duration_ms: 0.039494
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("\\n") → false
+ok 25 - isRecognizedSoaIncome("\\n") → false
+  ---
+  duration_ms: 0.039928
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome(" \\t\\n ") → false
+ok 26 - isRecognizedSoaIncome(" \\t\\n ") → false
+  ---
+  duration_ms: 0.047622
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("manual_income ") → false
+ok 27 - isRecognizedSoaIncome("manual_income ") → false
+  ---
+  duration_ms: 0.044877
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome(" manual_income") → false
+ok 28 - isRecognizedSoaIncome(" manual_income") → false
+  ---
+  duration_ms: 0.04086
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("manual_income\\n") → false
+ok 29 - isRecognizedSoaIncome("manual_income\\n") → false
+  ---
+  duration_ms: 0.048062
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("MANUAL_INCOME") → false
+ok 30 - isRecognizedSoaIncome("MANUAL_INCOME") → false
+  ---
+  duration_ms: 0.050946
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("Manual_Income") → false
+ok 31 - isRecognizedSoaIncome("Manual_Income") → false
+  ---
+  duration_ms: 0.050243
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("manual-income") → false
+ok 32 - isRecognizedSoaIncome("manual-income") → false
+  ---
+  duration_ms: 0.044804
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("manual_income\\u0000") → false
+ok 33 - isRecognizedSoaIncome("manual_income\\u0000") → false
+  ---
+  duration_ms: 0.047347
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("not_a_real_effect") → false
+ok 34 - isRecognizedSoaIncome("not_a_real_effect") → false
+  ---
+  duration_ms: 0.043927
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("arbitrary_unknown") → false
+ok 35 - isRecognizedSoaIncome("arbitrary_unknown") → false
+  ---
+  duration_ms: 0.042145
+  type: 'test'
+  ...
+# Subtest: malformed non-strings fail closed
+ok 36 - malformed non-strings fail closed
+  ---
+  duration_ms: 0.125433
+  type: 'test'
+  ...
+# Subtest: F3-02 oracle effect kinds bind to the allowlist
+ok 37 - F3-02 oracle effect kinds bind to the allowlist
+  ---
+  duration_ms: 0.082203
+  type: 'test'
+  ...
+# Subtest: posted F3-02 commands: only money_in is recognized SoA income
+ok 38 - posted F3-02 commands: only money_in is recognized SoA income
+  ---
+  duration_ms: 3.810037
+  type: 'test'
+  ...
+# Subtest: identical money_in retry keeps allowlisted effect_kind and does not invent income
+ok 39 - identical money_in retry keeps allowlisted effect_kind and does not invent income
+  ---
+  duration_ms: 0.479311
+  type: 'test'
+  ...
+# Subtest: F3-04 reversal/replacement are not SoA income; identical retry keeps that claim
+ok 40 - F3-04 reversal/replacement are not SoA income; identical retry keeps that claim
+  ---
+  duration_ms: 4.972691
+  type: 'test'
+  ...
+1..40
+# tests 40
+# suites 0
+# pass 40
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 209.961373
+EXIT:0

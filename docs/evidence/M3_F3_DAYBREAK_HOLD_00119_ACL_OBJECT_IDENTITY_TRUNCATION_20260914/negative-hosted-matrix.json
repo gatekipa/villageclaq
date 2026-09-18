@@ -1,0 +1,296 @@
+{
+  "artifact": "negative-hosted-matrix",
+  "functional_sha": "8e67138929d5c0925a89adb0d34eeff9a2d3cab4",
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "cli": "2.117.0",
+  "tip_modules": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs"
+  ],
+  "real_apis_exercised": [
+    "fingerprintCompleteAndExact",
+    "runRepairSafetyThenMaybeRepair",
+    "evaluateObjectProbe",
+    "evaluatePoisonAbsent",
+    "evaluateCleanupProven",
+    "getFrozenExpectedFingerprint",
+    "buildIndependentObservedFingerprint",
+    "assertPrefixCompleteSinglePendingStaging",
+    "runPrefixCompleteSinglePendingOrchestration",
+    "syncIsolatedMigrationsThrough"
+  ],
+  "isolated_staging": {
+    "staged118": [
+      "20260913173000_f3_bounded_financial_epoch_foundation.sql"
+    ],
+    "stagedNames": [
+      "20260913173000_f3_bounded_financial_epoch_foundation.sql"
+    ]
+  },
+  "cases": [
+    {
+      "id": "N1",
+      "title": "Function-owner order permutation",
+      "kind": "accepted_order_permutation",
+      "accepted": true,
+      "fingerprint_exact": true,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "fingerprintEval": {
+        "ok": true
+      },
+      "frozen119_order_only": {
+        "ok": true
+      },
+      "modules": {
+        "fingerprintCompleteAndExact": true,
+        "tip_sha": "8e67138929d5c0925a89adb0d34eeff9a2d3cab4"
+      }
+    },
+    {
+      "id": "N2",
+      "title": "Function-owner association swap",
+      "kind": "rejected",
+      "accepted": false,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [
+        "fingerprint_exact"
+      ],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "fingerprint_exact": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "fingerprintCompleteAndExact": true,
+        "evaluateObjectProbe": true,
+        "tip_sha": "8e67138929d5c0925a89adb0d34eeff9a2d3cab4"
+      },
+      "fingerprintEval": {
+        "ok": false,
+        "reason": "fingerprint expected and observed are not canonically equal"
+      }
+    },
+    {
+      "id": "N3",
+      "title": "ACL order permutation",
+      "kind": "accepted_order_permutation",
+      "accepted": true,
+      "fingerprint_exact": true,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "fingerprintEval": {
+        "ok": true
+      },
+      "modules": {
+        "fingerprintCompleteAndExact": true,
+        "tip_sha": "8e67138929d5c0925a89adb0d34eeff9a2d3cab4"
+      }
+    },
+    {
+      "id": "N4",
+      "title": "ACL semantic change",
+      "kind": "rejected",
+      "accepted": false,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [
+        "fingerprint_exact"
+      ],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "fingerprint_exact": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "fingerprintCompleteAndExact": true,
+        "evaluateObjectProbe": true,
+        "tip_sha": "8e67138929d5c0925a89adb0d34eeff9a2d3cab4"
+      },
+      "fingerprintEval": {
+        "ok": false,
+        "reason": "fingerprint expected and observed are not canonically equal"
+      }
+    },
+    {
+      "id": "N5",
+      "title": "Policy/function semantic change",
+      "kind": "rejected",
+      "accepted": false,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [
+        "fingerprint_exact"
+      ],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "fingerprint_exact": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "fingerprintCompleteAndExact": true,
+        "evaluateObjectProbe": true,
+        "tip_sha": "8e67138929d5c0925a89adb0d34eeff9a2d3cab4"
+      },
+      "fingerprintEval_policy": {
+        "ok": false,
+        "reason": "fingerprint expected and observed are not canonically equal"
+      },
+      "fingerprintEval_function": {
+        "ok": false,
+        "reason": "fingerprint expected and observed are not canonically equal"
+      }
+    },
+    {
+      "id": "N6",
+      "title": "Malformed/nonzero object probe",
+      "kind": "rejected",
+      "accepted": false,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [
+        "expected_objects",
+        "security_postconditions"
+      ],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "fingerprint_exact": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "fingerprintCompleteAndExact": true,
+        "evaluateObjectProbe": true,
+        "tip_sha": "8e67138929d5c0925a89adb0d34eeff9a2d3cab4"
+      },
+      "evaluateObjectProbe": {
+        "present": false,
+        "reason": "non-JSON"
+      },
+      "also_nonzero": {
+        "present": false,
+        "reason": "probe status 1"
+      }
+    },
+    {
+      "id": "N7",
+      "title": "Missing expected fingerprint",
+      "kind": "rejected",
+      "accepted": false,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [
+        "fingerprint_exact"
+      ],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "fingerprint_exact": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "fingerprintCompleteAndExact": true,
+        "evaluateObjectProbe": true,
+        "tip_sha": "8e67138929d5c0925a89adb0d34eeff9a2d3cab4"
+      },
+      "fingerprintEval": {
+        "ok": false,
+        "reason": "fingerprint.expected missing or not an object"
+      }
+    },
+    {
+      "id": "N8",
+      "title": "Cleanup failure",
+      "kind": "rejected",
+      "accepted": false,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "fingerprint_exact": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "fingerprintCompleteAndExact": true,
+        "evaluateObjectProbe": true,
+        "tip_sha": "8e67138929d5c0925a89adb0d34eeff9a2d3cab4"
+      },
+      "evaluateCleanupProven": {
+        "ok": false,
+        "reason": "cleanup status 1"
+      }
+    },
+    {
+      "id": "N9",
+      "title": "Poison remains",
+      "kind": "rejected",
+      "accepted": false,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "fingerprint_exact": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "fingerprintCompleteAndExact": true,
+        "evaluateObjectProbe": true,
+        "tip_sha": "8e67138929d5c0925a89adb0d34eeff9a2d3cab4"
+      },
+      "evaluatePoisonAbsent": {
+        "ok": false,
+        "absent": false,
+        "reason": "poison trigger remains present"
+      }
+    },
+    {
+      "id": "N10",
+      "title": "Staging-prefix mismatch",
+      "kind": "staging_preflight",
+      "accepted": false,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "ok": false,
+      "hold": "HOLD: prefix-complete single-pending staging preflight failed; db push not spawned; repair not spawned",
+      "preflight_code": "applied_remote_missing_locally",
+      "preflight_reason": "applied remote version 20260913173000 missing from local workdir",
+      "orchestration": {
+        "ok": false,
+        "dbPushCalls": 0,
+        "repairCalls": 0
+      },
+      "modules": {
+        "assertPrefixCompleteSinglePendingStaging": true,
+        "runPrefixCompleteSinglePendingOrchestration": true,
+        "syncIsolatedMigrationsThrough": true,
+        "tip_sha": "8e67138929d5c0925a89adb0d34eeff9a2d3cab4"
+      }
+    }
+  ],
+  "summary": {
+    "accepted": [
+      "N1",
+      "N3"
+    ],
+    "rejected": [
+      "N2",
+      "N4",
+      "N5",
+      "N6",
+      "N7",
+      "N8",
+      "N9",
+      "N10"
+    ],
+    "all_repairCalls_zero": true,
+    "all_staging_dbPushCalls_zero": true,
+    "case_count": 10
+  }
+}

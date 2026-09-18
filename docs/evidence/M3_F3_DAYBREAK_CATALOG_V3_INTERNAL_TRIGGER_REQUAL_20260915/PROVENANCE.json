@@ -1,0 +1,19 @@
+{
+  "evidence_dir": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915",
+  "supersedes": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915",
+  "prior_evidence_dirs_untouched": true,
+  "functional_parent_F3": "e61894fa222beb44b35eb2ac642ef4b16aae86f7",
+  "evidence_parent_will_be_F3": true,
+  "E2": "cc1e2a5cd95e81f79b92433f8aebbc6c50e076f5",
+  "tip_PR98": "9bf86c3f5bd4946bec649d4ea596bf80e7da3318",
+  "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "PR83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "PR96_untouched": "d526b407992fc2a806f2b7ba7170af335a118630",
+  "PR97_untouched": "019321b4ce3f50aea0ecffd553df8d04f6753171",
+  "PR98_left_open_draft": "9bf86c3f5bd4946bec649d4ea596bf80e7da3318",
+  "production_contacted": false,
+  "force_push": false,
+  "merge_of_84_85_86_96_97_98": false,
+  "second_hosted_retry": false,
+  "reseal_from_hosted": false
+}

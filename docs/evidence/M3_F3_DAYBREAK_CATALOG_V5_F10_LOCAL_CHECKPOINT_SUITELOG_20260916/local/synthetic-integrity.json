@@ -1,0 +1,16 @@
+{
+  "nestedInOuter": true,
+  "requiredNested": {
+    "hosted/qualify-evidence/evidence-index.json": true,
+    "hosted/qualify-evidence/evidence-index.sha256": true,
+    "synthetic-evidence/evidence-index.json": true,
+    "synthetic-evidence/evidence-index.sha256": true
+  },
+  "indexed_count": 96,
+  "unindexed": [],
+  "unindexed_count": 0,
+  "absolute_path_leaks": 0,
+  "secret_scan": "clean",
+  "outer_ok": true,
+  "index_sha256": "e31fb8671da813a0cd4c5df7d912ae6507522fdd12615a1ea1b93cb8eddf5480"
+}

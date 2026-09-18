@@ -1,0 +1,91 @@
+{
+  "artifact": "six-positive-scenarios",
+  "verdict": "FILE-BASED RUNNER QUALIFICATION PASS \u2014 STUB/LIVE-PIN FLOOR LIMITATION",
+  "floorLabel": "DOCUMENTED QUALIFICATION FIXTURE \u2014 NOT A CLEAN 00001\u201300117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "migrations": [
+    {
+      "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+      "expected_sha256": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+      "post_repair_sha256": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+      "post_retry_sha256": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+      "post_continuation_sha256": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+      "postRepairEval_ok": true,
+      "postRetryEval_ok": true,
+      "push_status": 1,
+      "repair_status": 0,
+      "repair_command_sanitized": "supabase migration repair 20260913173000 --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
+      "push_command_sanitized": "supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault",
+      "split": "POST_COMMIT_HISTORY_FAILURE"
+    },
+    {
+      "file": "00119_f3_01_core_ledger_foundation.sql",
+      "expected_sha256": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+      "post_repair_sha256": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+      "post_retry_sha256": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+      "post_continuation_sha256": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+      "postRepairEval_ok": true,
+      "postRetryEval_ok": true,
+      "push_status": 1,
+      "repair_status": 0,
+      "repair_command_sanitized": "supabase migration repair 20260913173001 --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
+      "push_command_sanitized": "supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault",
+      "split": "POST_COMMIT_HISTORY_FAILURE"
+    },
+    {
+      "file": "00120_f3_02_secure_posting_idempotency.sql",
+      "expected_sha256": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+      "post_repair_sha256": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+      "post_retry_sha256": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+      "post_continuation_sha256": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+      "postRepairEval_ok": true,
+      "postRetryEval_ok": true,
+      "push_status": 1,
+      "repair_status": 0,
+      "repair_command_sanitized": "supabase migration repair 20260913173002 --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
+      "push_command_sanitized": "supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault",
+      "split": "POST_COMMIT_HISTORY_FAILURE"
+    },
+    {
+      "file": "00121_f3_03_projection_read_proof.sql",
+      "expected_sha256": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+      "post_repair_sha256": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+      "post_retry_sha256": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+      "post_continuation_sha256": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+      "postRepairEval_ok": true,
+      "postRetryEval_ok": true,
+      "push_status": 1,
+      "repair_status": 0,
+      "repair_command_sanitized": "supabase migration repair 20260913173003 --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
+      "push_command_sanitized": "supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault",
+      "split": "POST_COMMIT_HISTORY_FAILURE"
+    },
+    {
+      "file": "00122_f3_04_correction_reversal.sql",
+      "expected_sha256": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+      "post_repair_sha256": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+      "post_retry_sha256": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+      "post_continuation_sha256": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+      "postRepairEval_ok": true,
+      "postRetryEval_ok": true,
+      "push_status": 1,
+      "repair_status": 0,
+      "repair_command_sanitized": "supabase migration repair 20260913173004 --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
+      "push_command_sanitized": "supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault",
+      "split": "POST_COMMIT_HISTORY_FAILURE"
+    },
+    {
+      "file": "00123_f3_05_opening_cash_command.sql",
+      "expected_sha256": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa",
+      "post_repair_sha256": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa",
+      "post_retry_sha256": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa",
+      "post_continuation_sha256": null,
+      "postRepairEval_ok": true,
+      "postRetryEval_ok": true,
+      "push_status": 1,
+      "repair_status": 0,
+      "repair_command_sanitized": "supabase migration repair 20260913173005 --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
+      "push_command_sanitized": "supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault",
+      "split": "POST_COMMIT_HISTORY_FAILURE"
+    }
+  ]
+}

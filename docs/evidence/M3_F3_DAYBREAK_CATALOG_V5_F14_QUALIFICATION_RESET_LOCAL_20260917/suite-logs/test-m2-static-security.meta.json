@@ -1,0 +1,18 @@
+{
+  "suite": "test-m2-static-security",
+  "classification": "PASS",
+  "expect": {
+    "tests": 9,
+    "pass": 9,
+    "fail": 0,
+    "skipped": 0
+  },
+  "observed": {
+    "tests": 9,
+    "pass": 9,
+    "fail": 0,
+    "skipped": 0
+  },
+  "outSha256": "72e75992bcddd883d4ba051a3170664733d013ea66d9dae0dcd152f421112d08",
+  "outBytes": 1915
+}

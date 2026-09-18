@@ -1,0 +1,52 @@
+-- VillageClaq SEMANTIC SET CANONICALIZATION qualification-state reset
+-- Disposable jkorwnwwmdeflfntxntl ONLY. Managed schemas preserved.
+-- Scope: prior floor + F3 objects + six history rows (includes 00118 repaired + 00119 committed-without-history residue).
+-- Restart from 00118 — do NOT resume at 00119.
+DROP TABLE IF EXISTS public."announcements" CASCADE;
+DROP TABLE IF EXISTS public."contribution_obligations" CASCADE;
+DROP TABLE IF EXISTS public."elections" CASCADE;
+DROP TABLE IF EXISTS public."events" CASCADE;
+DROP TABLE IF EXISTS public."fines" CASCADE;
+DROP TABLE IF EXISTS public."group_positions" CASCADE;
+DROP TABLE IF EXISTS public."group_subscriptions" CASCADE;
+DROP TABLE IF EXISTS public."groups" CASCADE;
+DROP TABLE IF EXISTS public."hosting_assignments" CASCADE;
+DROP TABLE IF EXISTS public."hosting_rosters" CASCADE;
+DROP TABLE IF EXISTS public."hosting_swap_requests" CASCADE;
+DROP TABLE IF EXISTS public."invitations" CASCADE;
+DROP TABLE IF EXISTS public."loans" CASCADE;
+DROP TABLE IF EXISTS public."meeting_minutes" CASCADE;
+DROP TABLE IF EXISTS public."member_transfers" CASCADE;
+DROP TABLE IF EXISTS public."memberships" CASCADE;
+DROP TABLE IF EXISTS public."notification_policies" CASCADE;
+DROP TABLE IF EXISTS public."notification_policy_occurrences" CASCADE;
+DROP TABLE IF EXISTS public."notification_policy_triggers" CASCADE;
+DROP TABLE IF EXISTS public."notifications_queue" CASCADE;
+DROP TABLE IF EXISTS public."organizations" CASCADE;
+DROP TABLE IF EXISTS public."payment_obligation_applications" CASCADE;
+DROP TABLE IF EXISTS public."payments" CASCADE;
+DROP TABLE IF EXISTS public."position_assignments" CASCADE;
+DROP TABLE IF EXISTS public."position_permissions" CASCADE;
+DROP TABLE IF EXISTS public."profiles" CASCADE;
+DROP TABLE IF EXISTS public."projects" CASCADE;
+DROP TABLE IF EXISTS public."relief_claims" CASCADE;
+DROP TABLE IF EXISTS public."relief_enrollments" CASCADE;
+DROP TABLE IF EXISTS public."relief_plans" CASCADE;
+DROP TABLE IF EXISTS public."relief_remittances" CASCADE;
+DROP FUNCTION IF EXISTS has_group_permission(uuid,text,uuid) CASCADE;
+DROP FUNCTION IF EXISTS request_member_transfer(jsonb) CASCADE;
+DROP FUNCTION IF EXISTS execute_member_transfer(jsonb) CASCADE;
+DROP FUNCTION IF EXISTS compute_member_standing(uuid) CASCADE;
+DROP FUNCTION IF EXISTS enqueue_outbound_notification(text,uuid,notification_channel,uuid,text) CASCADE;
+DROP FUNCTION IF EXISTS uuid_generate_v5(uuid,text) CASCADE;
+DROP FUNCTION IF EXISTS notification_policy_set_updated_at() CASCADE;
+DROP FUNCTION IF EXISTS m2_is_valid_iana_timezone(text) CASCADE;
+DROP TYPE IF EXISTS public."notification_channel" CASCADE;
+DROP EXTENSION IF EXISTS btree_gist CASCADE;
+DELETE FROM supabase_migrations.schema_migrations WHERE version = '20260913173000';
+DELETE FROM supabase_migrations.schema_migrations WHERE version = '20260913173001';
+DELETE FROM supabase_migrations.schema_migrations WHERE version = '20260913173002';
+DELETE FROM supabase_migrations.schema_migrations WHERE version = '20260913173003';
+DELETE FROM supabase_migrations.schema_migrations WHERE version = '20260913173004';
+DELETE FROM supabase_migrations.schema_migrations WHERE version = '20260913173005';
+SELECT 'qualification_reset_complete'::text AS reset_status;

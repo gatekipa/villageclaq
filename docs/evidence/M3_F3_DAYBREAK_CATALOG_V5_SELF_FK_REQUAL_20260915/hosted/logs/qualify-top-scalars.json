@@ -1,0 +1,17 @@
+{
+  "verdict": "HOLD",
+  "status": "HOLD",
+  "limitation": "HOLD: poison target_identity.database_name is null or empty",
+  "fingerprintSchemaVersion": "f3-full-catalog-v5",
+  "projectRef": "jkorwnwwmdeflfntxntl",
+  "host": "db.jkorwnwwmdeflfntxntl.supabase.co",
+  "sealedPlatformAclEnvelopeDigest": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "floorLabel": "DOCUMENTED QUALIFICATION FIXTURE \u2014 NOT A CLEAN 00001\u201300117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "recognition": [
+    "manual_income"
+  ],
+  "finalPoisonProbe_ok": false,
+  "finalPoisonProbe_reason": "HOLD: poison target_identity.database_name is null or empty",
+  "all_six_fingerprint_exact": true,
+  "process_note": "Hosted sequence fingerprints exact on all six; HOLD at terminal authenticated poison target binding (tip POISON_ABSENT_PROBE_SQL omitted current_database/current_user). No second reset. F5.1 offline fix recorded; hosted not retried."
+}

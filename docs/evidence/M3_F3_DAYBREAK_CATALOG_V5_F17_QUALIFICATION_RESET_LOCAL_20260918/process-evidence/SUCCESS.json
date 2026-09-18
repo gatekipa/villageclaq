@@ -1,0 +1,57 @@
+{
+  "schema": "f17-qualification-reset-process-evidence-v1",
+  "sanitization": {
+    "schema": "f17-qualification-reset-process-evidence-v1",
+    "replacesAbsoluteTempAndHomePaths": true,
+    "preservesCompleteSanitizedStreams": true,
+    "originalStreamsRetainedAsHashesOnly": true,
+    "neverClaimsOriginalByteEqualityAfterTransform": true,
+    "neverReconstructsFromSummaries": true,
+    "preserves": [
+      "status",
+      "signal",
+      "timeout",
+      "timedOut",
+      "thrown",
+      "structuredError.message",
+      "structuredError.code",
+      "structuredError.syscall",
+      "structuredError.name"
+    ],
+    "pathRedactionToken": "[REDACTED_PATH]"
+  },
+  "commandIdentity": "psql -X -q -v ON_ERROR_STOP=1 -f [FILE] (session-mode pooler via child env; never -p)",
+  "argv": [
+    "-X",
+    "-q",
+    "-t",
+    "-A",
+    "-w",
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-f",
+    "[REDACTED_PATH]/file.sql"
+  ],
+  "status": 0,
+  "signal": null,
+  "timeout": false,
+  "timedOut": false,
+  "thrown": false,
+  "error": null,
+  "structuredError": null,
+  "stdout": "{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T1_BEGIN\",\"event\":\"began\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T2_LOCK\",\"event\":\"locked\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T3_REVALIDATE\",\"event\":\"revalidated\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T4_MUTATE\",\"event\":\"mutate_attempted\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T5_AFFECTED\",\"event\":\"affected_checked\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T6_FINAL\",\"event\":\"final_ok\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"commit_attempted\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"committed\",\"committed\":true}\n",
+  "stderr": "psql:[REDACTED_PATH]/file.sql:1: NOTICE: example\n",
+  "streams": {
+    "originalStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+    "originalStdoutByteLength": 794,
+    "originalStderrSha256": "99cc919e4fe3fe8e81369abb56d574b98c9566df77d074f1413dbabfdecb47ee",
+    "originalStderrByteLength": 58,
+    "packagedStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+    "packagedStdoutByteLength": 794,
+    "packagedStderrSha256": "8a0a355423ed07cf87a280320ff0a1788b2d6cfb04cb03a9a1795a8f5283dc19",
+    "packagedStderrByteLength": 49,
+    "originalByteEqual": false,
+    "reconstructedFromSummary": false,
+    "transformApplied": true
+  }
+}

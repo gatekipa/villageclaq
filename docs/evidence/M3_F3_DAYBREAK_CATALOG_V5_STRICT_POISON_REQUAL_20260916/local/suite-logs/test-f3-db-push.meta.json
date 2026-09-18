@@ -1,0 +1,12 @@
+{
+  "exit": 0,
+  "classification": "PASS_WITH_SKIPS",
+  "counts": {
+    "tests": 126,
+    "pass": 125,
+    "fail": 0,
+    "skipped": 1
+  },
+  "sha256": "d53b41476c9cad3be61d75f4b25b05554e57d5ea204a3a777c3c7bf1e68be72d",
+  "bytes": 154282
+}

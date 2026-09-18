@@ -1,0 +1,11 @@
+{
+  "suite": "committed-helper-local-pg",
+  "classification": "LOCAL_PG_EXECUTED",
+  "passCount": 24,
+  "failCount": 0,
+  "distinctions": {
+    "checks": 17,
+    "scenarios": 7,
+    "executedTransactions": 6
+  }
+}

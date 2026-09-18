@@ -1,0 +1,37 @@
+{
+  "schema": "f16-qa-independent-gates-v1",
+  "functionalTip": "b74c6854869acf0e826446ea0488c42469621a3b",
+  "evidencePlan": "10d2d578c18e372e633a033b31c2e515cd535a8b",
+  "startHead": "1fe866ff93af77dfba55437888d3315804507222",
+  "f15ContentPin": "49a91169fbb53dba149f4e7bbcf3016f988f4922",
+  "localPg": "17.11",
+  "hosted": false,
+  "disposable": false,
+  "production": false,
+  "verdict": "F16 ACCEPT",
+  "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "gates": {
+    "test:f3-reset-design": { "tests": 29, "pass": 29, "fail": 0, "builderClaim": "29/29", "match": true },
+    "test:f3-reset": { "tests": 51, "pass": 51, "fail": 0, "builderClaim": "51/51", "match": true },
+    "test:f3-db-push": { "tests": 230, "pass": 230, "fail": 0, "cancelled": 0, "builderClaim": "230/230/0/0", "match": true },
+    "prove-f3-qualification-reset-local": {
+      "pass": 24,
+      "fail": 0,
+      "checks": 17,
+      "scenarios": 7,
+      "executedTransactions": 6,
+      "classification": "LOCAL_PG_EXECUTED",
+      "builderClaim": "24/17/7/6 TX",
+      "match": true
+    }
+  },
+  "findings": {
+    "A_false_CLEAN_BASELINE": "closed",
+    "B_T3_live_catalog_tuples": "closed",
+    "evidence_gap_TX_SUCCESS_RAW": "closed",
+    "preserve_C4": "closed",
+    "wipe_forbidden": "closed",
+    "migrations_00118_00123": "closed",
+    "allowlist": "closed"
+  }
+}

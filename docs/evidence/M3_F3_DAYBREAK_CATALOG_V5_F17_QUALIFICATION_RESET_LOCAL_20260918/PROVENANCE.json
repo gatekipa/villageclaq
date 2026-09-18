@@ -1,0 +1,14 @@
+{
+  "packagedAt": "2026-09-18T04:23:16.670Z",
+  "functionalTip": "83b9f79483f3ba53f4f8cd60016450ff38a723b4",
+  "startingRef": "10d2d578c18e372e633a033b31c2e515cd535a8b",
+  "helper": "scripts/prove-f3-qualification-reset-local.mjs",
+  "hostedContact": false,
+  "disposableContact": false,
+  "productionContact": false,
+  "daybreakAstraContact": false,
+  "wipeEnabled": false,
+  "invocationSecretsRemoved": true,
+  "observationMarkersAreNotSeparateTransactions": true,
+  "isolation": "READ COMMITTED"
+}

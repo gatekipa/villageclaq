@@ -1,0 +1,13 @@
+{
+  "suite": "test-f3-qualification-reset-design",
+  "executableCommit": "83b9f79483f3ba53f4f8cd60016450ff38a723b4",
+  "platform": "linux",
+  "pgAvailable": true,
+  "originalLogSha256": "c9ac03f7da4dca3a0b878d81ec4bf23bce36b083b5227ef15bd2dc7eae34e293",
+  "packagedSanitized": true,
+  "originalByteEqual": false,
+  "tests": 30,
+  "pass": 30,
+  "fail": 0,
+  "skipped": 0
+}

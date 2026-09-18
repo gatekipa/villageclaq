@@ -1,0 +1,56 @@
+{
+  "schema": "f17-qualification-reset-process-evidence-v1",
+  "sanitization": {
+    "schema": "f17-qualification-reset-process-evidence-v1",
+    "replacesAbsoluteTempAndHomePaths": true,
+    "preservesCompleteSanitizedStreams": true,
+    "originalStreamsRetainedAsHashesOnly": true,
+    "neverClaimsOriginalByteEqualityAfterTransform": true,
+    "neverReconstructsFromSummaries": true,
+    "preserves": [
+      "status",
+      "signal",
+      "timeout",
+      "timedOut",
+      "thrown",
+      "structuredError.message",
+      "structuredError.code",
+      "structuredError.syscall",
+      "structuredError.name"
+    ],
+    "pathRedactionToken": "[REDACTED_PATH]"
+  },
+  "commandIdentity": "psql -X -q -v ON_ERROR_STOP=1 -f [FILE] (session-mode pooler via child env; never -p)",
+  "argv": [
+    "psql",
+    "-f",
+    "[REDACTED_PATH]/file.sql"
+  ],
+  "status": 1,
+  "signal": null,
+  "timeout": false,
+  "timedOut": false,
+  "thrown": false,
+  "error": "open '[REDACTED_PATH]/file.sql'",
+  "structuredError": {
+    "code": "EACCES",
+    "name": "Error",
+    "syscall": "open",
+    "message": "open '[REDACTED_PATH]/file.sql'"
+  },
+  "stdout": "",
+  "stderr": "psql:[REDACTED_PATH]/file.sql:12: ERROR: F13_UNEXPECTED_OBJECT_OR_DEPENDENCY\n",
+  "streams": {
+    "originalStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "originalStdoutByteLength": 0,
+    "originalStderrSha256": "e8e4a083b1b6b055546ff34e65fcc3238dbb737eb5f691b0df227e63d4467d8a",
+    "originalStderrByteLength": 86,
+    "packagedStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "packagedStdoutByteLength": 0,
+    "packagedStderrSha256": "6e0cde19ab13245d83455f5985ea376963568bb1e5b04b444acba4d80fdd6d28",
+    "packagedStderrByteLength": 77,
+    "originalByteEqual": false,
+    "reconstructedFromSummary": false,
+    "transformApplied": true
+  }
+}

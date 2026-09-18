@@ -1,0 +1,57 @@
+{
+  "schema": "f17-qualification-reset-process-evidence-v1",
+  "sanitization": {
+    "schema": "f17-qualification-reset-process-evidence-v1",
+    "replacesAbsoluteTempAndHomePaths": true,
+    "preservesCompleteSanitizedStreams": true,
+    "originalStreamsRetainedAsHashesOnly": true,
+    "neverClaimsOriginalByteEqualityAfterTransform": true,
+    "neverReconstructsFromSummaries": true,
+    "preserves": [
+      "status",
+      "signal",
+      "timeout",
+      "timedOut",
+      "thrown",
+      "structuredError.message",
+      "structuredError.code",
+      "structuredError.syscall",
+      "structuredError.name"
+    ],
+    "pathRedactionToken": "[REDACTED_PATH]"
+  },
+  "commandIdentity": "psql -X -q -v ON_ERROR_STOP=1 -f [FILE] (session-mode pooler via child env; never -p)",
+  "argv": [
+    "-X",
+    "-q",
+    "-t",
+    "-A",
+    "-w",
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-f",
+    "[FILE]"
+  ],
+  "status": null,
+  "signal": "SIGTERM",
+  "timeout": true,
+  "timedOut": true,
+  "thrown": false,
+  "error": null,
+  "structuredError": null,
+  "stdout": "",
+  "stderr": "killed after timeout at [REDACTED_PATH]/file.sql\n",
+  "streams": {
+    "originalStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "originalStdoutByteLength": 0,
+    "originalStderrSha256": "f6daca10db82dd2c1b358faa7311aa8f9772405194c05911c1a0c7c63ccf6a37",
+    "originalStderrByteLength": 58,
+    "packagedStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "packagedStdoutByteLength": 0,
+    "packagedStderrSha256": "ca2f36ea0203372a19b4d05a0d1a09c321f8195afa3d20b4b8b539244f67edcd",
+    "packagedStderrByteLength": 49,
+    "originalByteEqual": false,
+    "reconstructedFromSummary": false,
+    "transformApplied": true
+  }
+}

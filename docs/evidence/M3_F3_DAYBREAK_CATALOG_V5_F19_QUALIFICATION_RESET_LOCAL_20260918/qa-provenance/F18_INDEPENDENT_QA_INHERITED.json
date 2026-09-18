@@ -1,0 +1,17 @@
+{
+  "status": "INHERITED",
+  "verdict": "F18 ACCEPT",
+  "localStatusWhenAccepted": "LOCAL CANDIDATE READY",
+  "excludedFromF19ReadyClaim": true,
+  "citeAs": "INHERITED",
+  "reviewer": "independent Grok-family QA",
+  "reviewerBcId": "bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
+  "reviewedPin": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "F18_FUNCTIONAL_TIP": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "qaPackageCommit": "e85a7a537275596d54c5ccb6bd632bb6f12c0e4e",
+  "qaPackageRel": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F18_QUALIFICATION_RESET_LOCAL_20260918/qa-package/",
+  "qaPackageFileCountIndexed": 36,
+  "classification": "LOCAL_PG_EXECUTED",
+  "postgresServerVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+  "note": "Authenticated F18 cloud reviewer. Cite as INHERITED for F19. Not a new F19 QA execution. Historical package unchanged."
+}

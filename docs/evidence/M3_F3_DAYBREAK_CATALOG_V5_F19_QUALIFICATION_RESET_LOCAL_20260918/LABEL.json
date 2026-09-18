@@ -1,0 +1,15 @@
+{
+  "package": "M3_F3_DAYBREAK_CATALOG_V5_F19_QUALIFICATION_RESET_LOCAL_20260918",
+  "localStatus": "HOLD — QA PENDING",
+  "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "f18IndependentQa": "INHERITED",
+  "reviewerBcId": "bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
+  "reviewedPinInherited": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "F19_FUNCTIONAL_TIP": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
+  "classification": "MUST_LOCAL",
+  "postgresServerVersion": null,
+  "concurrencyReRun": false,
+  "f18Concurrency": "INHERITED PASSED — not re-run",
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "label": "F19 LOCAL CORRECTION CANDIDATE — QA PENDING"
+}

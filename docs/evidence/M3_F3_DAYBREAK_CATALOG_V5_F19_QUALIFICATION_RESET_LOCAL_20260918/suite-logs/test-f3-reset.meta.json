@@ -1,0 +1,10 @@
+{
+  "suite": "test:f3-reset",
+  "tests": 66,
+  "pass": 66,
+  "fail": 0,
+  "skipped": 0,
+  "executableCommit": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
+  "platform": "linux",
+  "note": "62 inherited F18 cases plus 4 new F19 boundary tests"
+}

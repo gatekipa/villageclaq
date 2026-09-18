@@ -5,10 +5,10 @@
  * NOT hosted identity proof. NOT disposable. NOT production.
  * If this VM has no local PostgreSQL, reports MUST_LOCAL honestly.
  *
- * Preserved F15/F16 TX scenarios plus F17 unexpected-bucket HOLD and
- * two-session lock-wait T3 proofs execute generated reset SQL through
- * shared runQualificationReset + the local-fixture psql adapter + the
- * actual process-result parser. Disabled adapter is not DB execution.
+ * Preserved F15/F16/F17 TX scenarios plus F18 backend-bound lock-wait
+ * T3 proofs execute generated reset SQL through shared runQualificationReset
+ * + the local-fixture psql adapter + the actual process-result parser.
+ * Disabled adapter is not DB execution.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -34,8 +34,10 @@ import {
   parseQualificationResetInventoryProcessResult,
 } from "./lib/f3-db-push-inventory.mjs";
 import {
+  F18_RUNTIME_LABEL,
   F17_RUNTIME_LABEL,
   F16_BASELINE_RUNTIME_CLOSURE,
+  F17_BASELINE_RUNTIME_CLOSURE,
   QUALIFICATION_RESET_APPLY_PSQL_ARGV,
   QUALIFICATION_RESET_ISOLATION_LEVEL,
   QUALIFICATION_RESET_LOCK_ORDER,
@@ -43,9 +45,13 @@ import {
   QUALIFICATION_RESET_LOCAL_PROOF_HELPER_RELPATH,
   TX_OBSERVATION_SCHEMA,
   TX_OBSERVATION_SUCCESS_SEQUENCE,
+  adaptStoredProcessRecordToParserInput,
+  attestQualificationResetReparse,
   buildQualificationResetSql,
   createLocalFixtureQualificationResetTransportAdapter,
+  evaluateBackendBoundLockProof,
   interpretQualificationResetTransportResult,
+  parseBoundResetObservationLine,
   parseQualificationResetTxObservationStdout,
   publishQualificationResetClosures,
   runQualificationReset,
@@ -82,18 +88,23 @@ function processEvidence(result, { captureCalls = 1 } = {}) {
   const packaged = packageQualificationResetProcessEvidence(raw);
   return {
     processStatus: Number.isInteger(packaged.status) ? packaged.status : null,
+    status: Number.isInteger(packaged.status) ? packaged.status : null,
     signal: packaged.signal ?? null,
     timeout: packaged.timeout === true,
+    timedOut: packaged.timedOut === true,
+    thrown: packaged.thrown === true,
     structuredError: packaged.structuredError,
     stdout: secretsRemoved(packaged.stdout || ""),
     stderr: secretsRemoved(packaged.stderr || ""),
     streams: packaged.streams,
+    processEvidenceRejected: packaged.rejected === true,
     captureCalls,
     transportCalls: result?.spies?.transportCalls ?? 0,
     applyCalls: result?.spies?.applyCalls ?? 0,
     sqlCalls: result?.spies?.sqlCalls ?? 0,
     mutationPhaseReached: result?.transportInterpretation?.observed?.mutateAttempted === true
       || result?.spies?.mutateAttempted > 0,
+    appliedSqlIdentity: result?.plan?.sqlSha256 || result?.plan?.sha256 || null,
   };
 }
 
@@ -129,6 +140,13 @@ function record(id, kind, extra = {}) {
     lockSamples: extra.lockSamples ?? null,
     preResetCommittedDrift: extra.preResetCommittedDrift ?? null,
     interleaving: extra.interleaving ?? null,
+    backendBoundLock: extra.backendBoundLock ?? null,
+    holderCommitted: extra.holderCommitted ?? null,
+    holderResult: extra.holderResult ?? null,
+    timedOut: extra.timedOut ?? null,
+    status: extra.status ?? extra.processStatus ?? null,
+    appliedSqlIdentity: extra.appliedSqlIdentity ?? null,
+    reparseAttestation: extra.reparseAttestation ?? null,
   };
 }
 
@@ -354,6 +372,14 @@ function runOfflineChecks() {
       && !/SELECT\s+pg_advisory_xact_lock\s*\(/.test(withoutDoBlocks),
     sql: generated.ok === true,
   }));
+  checks.push(record("T1_SQL_BOUND_BACKEND_IDENTITY", "check", {
+    ok: generated.ok === true
+      && /F18_RESET_BACKEND pid=%/.test(generated.sql)
+      && /F18_RESET_LOCK_ACQUIRED pid=%/.test(generated.sql)
+      && /pg_backend_pid\(\)/.test(generated.sql)
+      && /json_build_object\(/.test(generated.sql),
+    sql: generated.ok === true,
+  }));
   checks.push(record("T3_SQL_LIVE_CATALOG_TUPLES", "check", {
     ok: generated.ok === true
       && /live catalog dependency tuples after lock/.test(generated.sql)
@@ -397,12 +423,15 @@ function runOfflineChecks() {
   checks.push(record("RUNTIME_CLOSURE_NOT_SUMMARY", "check", {
     ok: closures.runtime.sha256 !== "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d"
       && closures.completeVerificationUnion.proofHelperIncluded === true
-      && closures.runtime.label === "F17_QUALIFICATION_RESET_RUNTIME_CLOSURE"
+      && closures.runtime.label === "F18_QUALIFICATION_RESET_RUNTIME_CLOSURE"
       && closures.f14BaselineCitedNotExpected.runtime.sha256 === "f6205869b233eaccf375b299112f7b9c352d58c6f2659471e06d2ca7a241e31d"
       && closures.f15BaselineCitedNotExpected.runtime.sha256 === "949e68359e55870050e53ef3f93ec8179fc7a5e1587a908044e0ab26cfdbbb92"
       && closures.f16BaselineCitedNotExpected.runtime.sha256 === F16_BASELINE_RUNTIME_CLOSURE.sha256
       && closures.f16BaselineCitedNotExpected.runtime.notExpectedF17 === true
-      && closures.runtime.sha256 !== F16_BASELINE_RUNTIME_CLOSURE.sha256,
+      && closures.f17BaselineCitedNotExpected.runtime.sha256 === F17_BASELINE_RUNTIME_CLOSURE.sha256
+      && closures.f17BaselineCitedNotExpected.runtime.notExpectedF18 === true
+      && closures.runtime.sha256 !== F16_BASELINE_RUNTIME_CLOSURE.sha256
+      && closures.runtime.sha256 !== F17_BASELINE_RUNTIME_CLOSURE.sha256,
   }));
   checks.push(record("READ_COMMITTED_LOCK_ORDER_DOCUMENTED", "check", {
     ok: QUALIFICATION_RESET_ISOLATION_LEVEL === "READ COMMITTED"
@@ -417,6 +446,80 @@ function runOfflineChecks() {
   checks.push(record("PROPOSED_HOSTED_PLAN_OFFLINE", "check", {
     ok: plan.ok === true && plan.transportsDisabled === true,
     replay: false,
+  }));
+
+  const validLockObservation = {
+    resetProcessId: 11,
+    resetBackendPid: 22,
+    resetExecutionId: "f18-exec-0123456789ab",
+    holderBackendPid: 33,
+    datname: "f3_lock_proof",
+    relation: "public.financial_accounts",
+    holderLock: { pid: 33, mode: "AccessExclusiveLock", granted: true, relation: "public.financial_accounts" },
+    waiterLock: { pid: 22, mode: "AccessExclusiveLock", granted: false, relation: "public.financial_accounts" },
+    resetWaitOnHolder: { waiterPid: 22, holderPid: 33, blockedByHolder: true },
+    holderCommitted: true,
+    holderResult: { ok: true },
+    committedCatalogChange: true,
+    lockAcquisitionByResetBackend: {
+      resetBackendPid: 22,
+      relation: "public.financial_accounts",
+      granted: true,
+      t2LockedSameBackend: true,
+      afterHolderCommit: true,
+    },
+    t3RejectionFromSameReset: { sameResetExecution: true, rejected: true, mutationPhaseReached: false },
+    appliedSqlIdentity: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    postconditionsComplete: true,
+  };
+  const lockOk = evaluateBackendBoundLockProof(validLockObservation);
+  checks.push(record("BACKEND_BOUND_LOCK_PROOF_POSITIVE", "check", {
+    ok: lockOk.ok === true,
+    code: lockOk.code,
+  }));
+  const unrelatedWaiter = evaluateBackendBoundLockProof({
+    ...validLockObservation,
+    waiterLock: { ...validLockObservation.waiterLock, pid: 99 },
+    inferredFromAnyWaiter: true,
+  });
+  const mismatchedBackend = evaluateBackendBoundLockProof({
+    ...validLockObservation,
+    lockAcquisitionByResetBackend: {
+      ...validLockObservation.lockAcquisitionByResetBackend,
+      resetBackendPid: 99,
+    },
+  });
+  const missingCommit = evaluateBackendBoundLockProof({
+    ...validLockObservation,
+    holderCommitted: false,
+    holderResult: { ok: false },
+  });
+  const missingAcquisition = evaluateBackendBoundLockProof({
+    ...validLockObservation,
+    lockAcquisitionByResetBackend: {
+      resetBackendPid: 22,
+      relation: "public.financial_accounts",
+      granted: false,
+      t2LockedSameBackend: false,
+      afterHolderCommit: true,
+    },
+  });
+  checks.push(record("BACKEND_BOUND_LOCK_PROOF_NEGATIVES", "check", {
+    ok: unrelatedWaiter.ok !== true
+      && mismatchedBackend.ok !== true
+      && missingCommit.ok !== true
+      && missingAcquisition.ok !== true
+      && unrelatedWaiter.code != null
+      && missingCommit.code === "F18_LOCK_PROOF_HOLDER_COMMIT_MISSING"
+      && missingAcquisition.code === "F18_LOCK_PROOF_ACQUISITION_MISSING",
+    note: "unrelated waiter, mismatched backend, missing commit, missing acquisition cannot PASS",
+  }));
+
+  const missingStatus = adaptStoredProcessRecordToParserInput({
+    stdout: JSON.stringify({ schema: TX_OBSERVATION_SCHEMA, phase: "T7_COMMIT", event: "committed", committed: true }),
+  });
+  checks.push(record("STORED_PROCESS_STATUS_NOT_DEFAULTED", "check", {
+    ok: missingStatus.ok === false && missingStatus.code === "F18_STORED_PROCESS_RECORD_STATUS_MISSING",
   }));
 
   return checks;
@@ -501,52 +604,80 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function queryLockState(psql, url, relation, holderPid) {
+function queryBoundLockState(psql, url, relation, holderPid, resetBackendPid) {
   const raw = psql(url, `
     SELECT json_build_object(
-      'holderPid', ${Number(holderPid)},
-      'holderGranted', EXISTS (
-        SELECT 1 FROM pg_locks l
+      'datname', current_database(),
+      'relation', ${sqlLiteral(relation)},
+      'holder', (
+        SELECT json_build_object(
+          'pid', l.pid,
+          'mode', l.mode,
+          'granted', l.granted,
+          'locktype', l.locktype,
+          'relation', ${sqlLiteral(relation)}
+        )
+        FROM pg_locks l
         WHERE l.pid = ${Number(holderPid)}
           AND l.granted
           AND l.relation = ${sqlLiteral(relation)}::regclass
+        LIMIT 1
       ),
-      'waiterPids', COALESCE((
-        SELECT json_agg(l.pid)
+      'resetWaiter', (
+        SELECT json_build_object(
+          'pid', l.pid,
+          'mode', l.mode,
+          'granted', l.granted,
+          'locktype', l.locktype,
+          'relation', ${sqlLiteral(relation)},
+          'blockedByHolder', ${Number(holderPid)} = ANY (pg_blocking_pids(l.pid))
+        )
         FROM pg_locks l
-        WHERE NOT l.granted
+        WHERE l.pid = ${Number(resetBackendPid)}
+          AND NOT l.granted
           AND l.relation = ${sqlLiteral(relation)}::regclass
-          AND l.pid IS DISTINCT FROM ${Number(holderPid)}
-      ), '[]'::json),
-      'waitEvents', COALESCE((
-        SELECT json_agg(json_build_object(
-          'pid', a.pid,
-          'wait_event_type', a.wait_event_type,
-          'wait_event', a.wait_event,
-          'state', a.state
-        ))
-        FROM pg_stat_activity a
-        WHERE a.datname = current_database()
-          AND a.pid IS DISTINCT FROM ${Number(holderPid)}
-          AND a.wait_event_type = 'Lock'
-      ), '[]'::json)
+        LIMIT 1
+      ),
+      'resetGranted', (
+        SELECT json_build_object(
+          'pid', l.pid,
+          'mode', l.mode,
+          'granted', l.granted,
+          'locktype', l.locktype,
+          'relation', ${sqlLiteral(relation)}
+        )
+        FROM pg_locks l
+        WHERE l.pid = ${Number(resetBackendPid)}
+          AND l.granted
+          AND l.relation = ${sqlLiteral(relation)}::regclass
+        LIMIT 1
+      )
     );
   `);
   return JSON.parse(String(raw));
 }
 
-async function waitForResetRelationWait(psql, url, relation, holderPid, timeoutMs = 4000) {
+async function waitForCondition(probe, timeoutMs = 4000) {
   const started = Date.now();
   const samples = [];
   while (Date.now() - started < timeoutMs) {
-    const state = queryLockState(psql, url, relation, holderPid);
+    const state = probe();
     samples.push({ atMs: Date.now() - started, ...state });
-    if (state.holderGranted === true && Array.isArray(state.waiterPids) && state.waiterPids.length > 0) {
-      return { waited: true, state, samples };
+    if (state?.matched === true) {
+      return { matched: true, state, samples };
     }
-    await sleep(25);
+    await sleep(20);
   }
-  return { waited: false, state: samples.at(-1) || null, samples };
+  return { matched: false, state: samples.at(-1) || null, samples };
+}
+
+function readJsonIfPresent(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return null;
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return null;
+  }
 }
 
 async function startHolderLock(url, relation) {
@@ -600,11 +731,21 @@ async function startHolderLock(url, relation) {
   };
 }
 
-function spawnSharedResetWorker(db, observed) {
-  const payloadDir = fs.mkdtempSync(path.join(os.tmpdir(), "f17-reset-worker-"));
+function spawnSharedResetWorker(db, observed, { executionId } = {}) {
+  const payloadDir = fs.mkdtempSync(path.join(os.tmpdir(), "f18-reset-worker-"));
   const payloadPath = path.join(payloadDir, "payload.json");
   const resultPath = path.join(payloadDir, "result.json");
-  fs.writeFileSync(payloadPath, `${JSON.stringify({ url: db.url, observed, resultPath })}\n`);
+  const identityPath = path.join(payloadDir, "reset-backend.json");
+  const acquiredPath = path.join(payloadDir, "lock-acquired.json");
+  const resolvedExecutionId = executionId || `f18_reset_${process.pid}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  fs.writeFileSync(payloadPath, `${JSON.stringify({
+    url: db.url,
+    observed,
+    resultPath,
+    identityPath,
+    acquiredPath,
+    executionId: resolvedExecutionId,
+  })}\n`);
   const child = spawn(process.execPath, [path.join(ROOT, HELPER_RELPATH), "--shared-reset-worker", payloadPath], {
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -627,10 +768,21 @@ function spawnSharedResetWorker(db, observed) {
         stderr: Buffer.concat(stderrChunks).toString("utf8"),
         result,
         payloadDir,
+        identity: readJsonIfPresent(identityPath),
+        acquired: readJsonIfPresent(acquiredPath),
+        executionId: resolvedExecutionId,
       });
     });
   });
-  return { child, done, payloadDir };
+  return {
+    child,
+    done,
+    payloadDir,
+    identityPath,
+    acquiredPath,
+    executionId: resolvedExecutionId,
+    processId: child.pid,
+  };
 }
 
 async function runLockWaitDriftScenario({
@@ -659,15 +811,49 @@ async function runLockWaitDriftScenario({
   }
   const holder = await startHolderLock(db.url, relation);
   const worker = spawnSharedResetWorker(db, observed);
-  const wait = await waitForResetRelationWait(psql, db.url, relation, holder.holderPid);
+  const identityWait = await waitForCondition(() => {
+    const identity = readJsonIfPresent(worker.identityPath);
+    const backendPid = Number(identity?.backendPid);
+    return {
+      matched: Number.isInteger(backendPid) && backendPid > 0 && identity.workerPid === worker.processId,
+      identity,
+    };
+  });
+  const resetIdentity = identityWait.state?.identity || null;
+  const resetBackendPid = Number(resetIdentity?.backendPid);
+  const wait = Number.isInteger(resetBackendPid)
+    ? await waitForCondition(() => {
+      const state = queryBoundLockState(psql, db.url, relation, holder.holderPid, resetBackendPid);
+      const waiter = state.resetWaiter;
+      return {
+        matched: Boolean(
+          state.holder?.granted === true
+          && waiter?.pid === resetBackendPid
+          && waiter?.granted === false
+          && waiter?.blockedByHolder === true
+          && waiter?.relation === relation
+          && state.datname,
+        ),
+        ...state,
+      };
+    })
+    : { matched: false, state: null, samples: [] };
   const interleaving = {
-    t1ReachedThenWaited: wait.waited === true,
-    holderPid: holder.holderPid,
-    waiterPids: wait.state?.waiterPids || [],
-    waitEvents: wait.state?.waitEvents || [],
+    t1ReachedThenWaited: identityWait.matched === true && wait.matched === true,
+    resetProcessId: worker.processId,
+    resetBackendPid: Number.isInteger(resetBackendPid) ? resetBackendPid : null,
+    resetExecutionId: worker.executionId,
+    holderBackendPid: holder.holderPid,
+    datname: wait.state?.datname || resetIdentity?.datname || null,
+    relation,
+    holderLock: wait.state?.holder || null,
+    waiterLock: wait.state?.resetWaiter || null,
     isolation: QUALIFICATION_RESET_ISOLATION_LEVEL,
+    inferredFromAnyWaiter: false,
+    inferredFromApplicationNameAlone: false,
+    inferredFromEventTypeAlone: false,
   };
-  if (wait.waited !== true) {
+  if (identityWait.matched !== true || wait.matched !== true) {
     await holder.close();
     const finished = await worker.done;
     fs.rmSync(worker.payloadDir, { recursive: true, force: true });
@@ -675,9 +861,9 @@ async function runLockWaitDriftScenario({
       ok: false,
       executedTransaction: true,
       lockWaitObserved: false,
-      lockSamples: wait.samples,
+      lockSamples: [...identityWait.samples, ...wait.samples],
       interleaving,
-      note: "reset never demonstrably waited for the held relation lock",
+      note: "reset backend identity from the same SQL connection was not bound before holder commit",
       processStatus: finished.status,
       stdout: finished.stdout,
       stderr: finished.stderr,
@@ -688,10 +874,9 @@ async function runLockWaitDriftScenario({
   }
   holder.send("COMMIT;");
   holder.send("SELECT 'HOLDER_COMMITTED';");
-  const commitStarted = Date.now();
-  while (Date.now() - commitStarted < 2000 && !String(holder.output()).includes("HOLDER_COMMITTED")) {
-    await sleep(20);
-  }
+  const commitWait = await waitForCondition(() => ({
+    matched: String(holder.output()).includes("HOLDER_COMMITTED"),
+  }));
   const committedDrift = (() => {
     try {
       return String(psql(db.url, retainQuery));
@@ -699,21 +884,99 @@ async function runLockWaitDriftScenario({
       return String(err?.message || err);
     }
   })();
+  const holderCommitted = commitWait.matched === true;
+  const catalogChanged = String(committedDrift).includes(retainNeedle);
+  const acquisitionWait = await waitForCondition(() => {
+    const acquired = readJsonIfPresent(worker.acquiredPath);
+    const live = queryBoundLockState(psql, db.url, relation, holder.holderPid, resetBackendPid);
+    const t2Same = acquired?.backendPid === resetBackendPid && acquired?.phase === "T2_LOCK" && acquired?.event === "locked";
+    const granted = live.resetGranted?.pid === resetBackendPid && live.resetGranted?.granted === true;
+    return {
+      matched: t2Same === true || granted === true,
+      acquired,
+      live,
+      t2Same,
+      granted,
+    };
+  });
   const finished = await worker.done;
   await holder.close();
-  fs.rmSync(worker.payloadDir, { recursive: true, force: true });
   const reset = finished.result || {};
   const evidence = processEvidence(reset);
   const retained = String(psql(db.url, retainQuery));
   const accountsKept = psql(db.url, "SELECT to_regclass('public.financial_accounts') IS NOT NULL;");
+  fs.rmSync(worker.payloadDir, { recursive: true, force: true });
+  const t2Obs = (reset.transportInterpretation?.observed?.observations || [])
+    .find((row) => row.phase === "T2_LOCK" && row.event === "locked");
+  const t3Rejected = reset.ok === false
+    && reset.committed !== true
+    && evidence.mutationPhaseReached !== true
+    && (reset.transportInterpretation?.phaseReached === "T2_LOCK"
+      || String(reset.code || "").includes("UNEXPECTED")
+      || String(reset.transportInterpretation?.observed?.framingCode || "").length >= 0);
+  const appliedSqlIdentity = evidence.appliedSqlIdentity
+    || reset.plan?.sqlSha256
+    || reset.plan?.sha256
+    || null;
+  const backendBound = {
+    resetProcessId: worker.processId,
+    resetBackendPid,
+    resetExecutionId: worker.executionId,
+    holderBackendPid: holder.holderPid,
+    datname: wait.state.datname,
+    relation,
+    holderLock: wait.state.holder,
+    waiterLock: wait.state.resetWaiter,
+    resetWaitOnHolder: {
+      waiterPid: resetBackendPid,
+      holderPid: holder.holderPid,
+      blockedByHolder: wait.state.resetWaiter?.blockedByHolder === true,
+    },
+    holderCommitted,
+    holderResult: { ok: holderCommitted && catalogChanged },
+    committedCatalogChange: catalogChanged,
+    lockAcquisitionByResetBackend: {
+      resetBackendPid,
+      relation,
+      granted: acquisitionWait.state?.granted === true,
+      t2LockedSameBackend: t2Obs?.backendPid === resetBackendPid || acquisitionWait.state?.t2Same === true,
+      afterHolderCommit: holderCommitted === true,
+    },
+    t3RejectionFromSameReset: {
+      sameResetExecution: finished.identity?.executionId === worker.executionId
+        || finished.identity?.backendPid === resetBackendPid
+        || t2Obs?.backendPid === resetBackendPid,
+      rejected: reset.ok === false && reset.committed !== true,
+      mutationPhaseReached: evidence.mutationPhaseReached === true,
+      code: reset.code || null,
+    },
+    appliedSqlIdentity,
+    postconditionsComplete: String(retained).includes(retainNeedle)
+      && String(accountsKept).includes("t")
+      && catalogChanged,
+    inferredFromAnyWaiter: false,
+    inferredFromApplicationNameAlone: false,
+    inferredFromEventTypeAlone: false,
+  };
+  const lockProof = evaluateBackendBoundLockProof(backendBound);
+  const reparseAttestation = attestQualificationResetReparse({
+    ...evidence,
+    processStatus: evidence.processStatus,
+    status: evidence.status,
+    verdict: reset.verdict || "HOLD",
+  }, {
+    verdict: reset.verdict || "HOLD",
+    scenarioOk: false,
+  });
   return record(id, "scenario", {
     ok: reset.ok === false
       && reset.committed !== true
       && evidence.mutationPhaseReached !== true
-      && wait.waited === true
+      && lockProof.ok === true
+      && holderCommitted === true
+      && catalogChanged
       && String(retained).includes(retainNeedle)
-      && String(accountsKept).includes("t")
-      && String(committedDrift).includes(retainNeedle),
+      && String(accountsKept).includes("t"),
     capture: "approved-set-then-lock-wait-then-externally-committed-drift",
     resetApply: reset.spies?.applyCalls ?? 0,
     sql: true,
@@ -725,12 +988,16 @@ async function runLockWaitDriftScenario({
     verdict: reset.verdict || "HOLD",
     executedTransaction: true,
     lockWaitObserved: true,
-    lockSamples: wait.samples,
+    lockSamples: [...identityWait.samples, ...wait.samples, ...acquisitionWait.samples],
     interleaving,
+    backendBoundLock: { observation: backendBound, proof: lockProof },
+    holderCommitted,
+    holderResult: backendBound.holderResult,
     preResetCommittedDrift: {
       retained: String(retained),
       observedAfterHolderCommit: String(committedDrift),
     },
+    reparseAttestation,
     note,
     ...evidence,
   });
@@ -738,7 +1005,10 @@ async function runLockWaitDriftScenario({
 
 export { executeSharedReset };
 
-async function executeSharedReset(db, observed) {
+async function executeSharedReset(db, observed, {
+  onStdoutLine = null,
+  streamObservations = false,
+} = {}) {
   const workdir = fs.mkdtempSync(path.join(os.tmpdir(), "f15-qual-reset-"));
   try {
     const result = await runQualificationReset({
@@ -757,6 +1027,8 @@ async function executeSharedReset(db, observed) {
         transport: createLocalFixtureQualificationResetTransportAdapter({
           url: db.url,
           workdir,
+          onStdoutLine,
+          streamObservations,
         }),
         workdir,
       },
@@ -774,6 +1046,7 @@ async function runLocalPgScenarios() {
     return {
       available: false,
       reason: created.reason,
+      serverVersion: null,
       scenarios: [
         mustLocalRecord("UNEXPECTED_OBJECT_BLOCKS_BEFORE_PLAN"),
         mustLocalRecord("TX_SUCCESSFUL_RESET"),
@@ -790,7 +1063,9 @@ async function runLocalPgScenarios() {
   const { db } = created;
   const { psql } = created.mod;
   const scenarios = [];
+  let serverVersion = null;
   try {
+    serverVersion = String(psql(db.url, "SHOW server_version;")).trim();
     psql(db.url, "CREATE SCHEMA IF NOT EXISTS supabase_migrations;");
     psql(db.url, `CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (
       version text PRIMARY KEY,
@@ -841,10 +1116,16 @@ async function runLocalPgScenarios() {
     const accountsGone = psql(db.url, "SELECT to_regclass('public.financial_accounts') IS NULL;");
     const historyGone = psql(db.url, "SELECT count(*)::text FROM supabase_migrations.schema_migrations;");
     const successEvidence = processEvidence(success);
+    const successAttestation = attestQualificationResetReparse({
+      ...successEvidence,
+      processStatus: successEvidence.processStatus,
+      status: successEvidence.status,
+    }, { verdict: success.verdict, scenarioOk: success.ok === true });
     scenarios.push(record("TX_SUCCESSFUL_RESET", "scenario", {
       ok: success.ok === true
         && success.committed === true
         && success.verdict === "CLEAN_BASELINE"
+        && successAttestation.interpretedCommitted === true
         && String(accountsGone).includes("t")
         && String(historyGone) === "0",
       capture: "eligible-leftover",
@@ -857,6 +1138,7 @@ async function runLocalPgScenarios() {
       verdict: success.verdict,
       executedTransaction: true,
       note: "shared runQualificationReset + local-fixture psql + generated SQL",
+      reparseAttestation: successAttestation,
       ...successEvidence,
     }));
 
@@ -1018,6 +1300,11 @@ async function runLocalPgScenarios() {
       ? await executeSharedReset(db, t3SuccessObserved)
       : t3SuccessObserved;
     const t3SuccessEvidence = processEvidence(t3Success);
+    const t3SuccessAttestation = attestQualificationResetReparse({
+      ...t3SuccessEvidence,
+      processStatus: t3SuccessEvidence.processStatus,
+      status: t3SuccessEvidence.status,
+    }, { verdict: t3Success.verdict, scenarioOk: t3Success.ok === true });
     const t3AccountsGone = psql(db.url, "SELECT to_regclass('public.financial_accounts') IS NULL;");
     const t3MembershipsGone = psql(db.url, "SELECT to_regclass('public.memberships') IS NULL;");
     const t3HistoryGone = psql(db.url, "SELECT count(*)::text FROM supabase_migrations.schema_migrations;");
@@ -1025,6 +1312,7 @@ async function runLocalPgScenarios() {
       ok: t3Success.ok === true
         && t3Success.committed === true
         && t3Success.verdict === "CLEAN_BASELINE"
+        && t3SuccessAttestation.interpretedCommitted === true
         && String(t3AccountsGone).includes("t")
         && String(t3MembershipsGone).includes("t")
         && String(t3HistoryGone) === "0",
@@ -1038,6 +1326,7 @@ async function runLocalPgScenarios() {
       verdict: t3Success.verdict,
       executedTransaction: true,
       note: "unchanged approved dependency set commits CLEAN_BASELINE",
+      reparseAttestation: t3SuccessAttestation,
       ...t3SuccessEvidence,
     }));
 
@@ -1084,7 +1373,7 @@ async function runLocalPgScenarios() {
       // preserve other DBs even if this close fails
     }
   }
-  return { available: true, scenarios };
+  return { available: true, scenarios, serverVersion };
 }
 
 export async function proveQualificationResetLocal() {
@@ -1095,6 +1384,7 @@ export async function proveQualificationResetLocal() {
     : {
       available: false,
       reason: "psql binary not present",
+      serverVersion: null,
       scenarios: [
         mustLocalRecord("UNEXPECTED_OBJECT_BLOCKS_BEFORE_PLAN"),
         mustLocalRecord("TX_SUCCESSFUL_RESET"),
@@ -1112,8 +1402,8 @@ export async function proveQualificationResetLocal() {
   const mustLocal = pg.available !== true;
   const failCount = cases.filter((row) => row.ok !== true).length;
   return {
-    schema: "f17-qualification-reset-local-proof-v1",
-    label: F17_RUNTIME_LABEL,
+    schema: "f18-qualification-reset-local-proof-v1",
+    label: F18_RUNTIME_LABEL,
     helper: HELPER_RELPATH,
     hostedIdentityProof: false,
     disposableContact: false,
@@ -1124,6 +1414,7 @@ export async function proveQualificationResetLocal() {
       available: pg.available === true,
       reason: pg.available ? null : (pg.reason || "MUST_LOCAL"),
       classification: pg.available ? "LOCAL_PG_EXECUTED" : "MUST_LOCAL",
+      serverVersion: pg.serverVersion || null,
     },
     distinctions: {
       checks: cases.filter((row) => row.kind === "check").length,
@@ -1142,7 +1433,28 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (workerIdx >= 0) {
     const payloadPath = process.argv[workerIdx + 1];
     const payload = JSON.parse(fs.readFileSync(payloadPath, "utf8"));
-    executeSharedReset({ url: payload.url }, payload.observed).then((result) => {
+    const writeBound = (filePath, observation) => {
+      if (!filePath || !observation) return;
+      fs.writeFileSync(filePath, `${JSON.stringify({
+        ...observation,
+        executionId: payload.executionId,
+        workerPid: process.pid,
+        writtenAt: new Date().toISOString(),
+      })}\n`);
+    };
+    executeSharedReset({ url: payload.url }, payload.observed, {
+      streamObservations: true,
+      onStdoutLine(line) {
+        const observation = parseBoundResetObservationLine(line);
+        if (!observation) return;
+        if (observation.phase === "T1_BEGIN" && observation.event === "began" && Number.isInteger(observation.backendPid)) {
+          writeBound(payload.identityPath, observation);
+        }
+        if (observation.phase === "T2_LOCK" && observation.event === "locked" && Number.isInteger(observation.backendPid)) {
+          writeBound(payload.acquiredPath, observation);
+        }
+      },
+    }).then((result) => {
       const rawProcess = result.processResult || result.transportInterpretation?.processResult || {};
       fs.writeFileSync(payload.resultPath, `${JSON.stringify({
         ok: result.ok,
@@ -1151,12 +1463,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         verdict: result.verdict,
         code: result.code,
         spies: result.spies,
+        plan: {
+          sqlSha256: result.plan?.sqlSha256 || result.plan?.sha256 || null,
+        },
         transportInterpretation: {
           phaseReached: result.transportInterpretation?.phaseReached ?? null,
           observed: result.transportInterpretation?.observed ?? null,
         },
-        // Raw capture is packaged once by the parent helper. Do not pre-transform
-        // here or original-stream hashes become hashes of already-redacted text.
         processResult: rawProcess,
       })}\n`);
       process.exit(0);
@@ -1165,7 +1478,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         ok: false,
         committed: false,
         rolledBack: null,
-        code: err?.code || "F17_SHARED_RESET_WORKER_FAILED",
+        code: err?.code || "F18_SHARED_RESET_WORKER_FAILED",
         reason: String(err?.message || err),
       })}\n`);
       process.exit(1);

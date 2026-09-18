@@ -64,7 +64,7 @@ import {
   validateQualificationResetInventoryBody,
 } from "./f3-db-push-inventory.mjs";
 import { parseDuplicateKeySafeJson } from "./f3-db-push-query-parse.mjs";
-import { spawnLocalPsqlSync } from "./f3-local-connection-guard.mjs";
+import { spawnLocalPsql, spawnLocalPsqlSync } from "./f3-local-connection-guard.mjs";
 import { GATED_PSQL_FILE_RENDERED, writeGatedSqlFile } from "./f3-db-push-remote-sql-file.mjs";
 import { assertDbPushGates, refuseProduction, sanitizeForLog, spawnGatedRemotePsqlSync } from "./f3-db-push-target-guard.mjs";
 import { buildFunctionalRecursiveRuntimeClosure } from "./f3-db-push-repair-safety-gate.mjs";
@@ -75,24 +75,29 @@ const DEFAULT_REPO_ROOT = path.resolve(RESET_MODULE_DIR, "../..");
 export { scopeSqlIdentityDigest, AUTHENTICATED_HISTORY_KEYS };
 
 export const F13_RUNTIME_PHASE = 2;
-export const F17_RUNTIME_LABEL =
-  "F17 LOCAL CORRECTION CANDIDATE — AWAITING QA / LOCAL TX PROOF";
-export const F16_RUNTIME_LABEL = F17_RUNTIME_LABEL;
-export const F15_RUNTIME_LABEL = F17_RUNTIME_LABEL;
-export const F14_RUNTIME_LABEL = F17_RUNTIME_LABEL;
-export const F13_RUNTIME_LABEL = F17_RUNTIME_LABEL;
+export const F18_RUNTIME_LABEL =
+  "F18 LOCAL CORRECTION CANDIDATE — AWAITING QA / LOCAL TX PROOF";
+export const F17_RUNTIME_LABEL = F18_RUNTIME_LABEL;
+export const F16_RUNTIME_LABEL = F18_RUNTIME_LABEL;
+export const F15_RUNTIME_LABEL = F18_RUNTIME_LABEL;
+export const F14_RUNTIME_LABEL = F18_RUNTIME_LABEL;
+export const F13_RUNTIME_LABEL = F18_RUNTIME_LABEL;
 export const F13_SHARED_ORCHESTRATION_ID = "runQualificationReset";
 export const F13_WIPE_STILL_REJECTED = F13_WIPE_REJECTION_CODE;
-export const F13_F17_RUNTIME_CLOSURE_LABEL = "F17_QUALIFICATION_RESET_RUNTIME_CLOSURE";
-export const F13_F17_VERIFICATION_UNION_LABEL = "F17_QUALIFICATION_RESET_VERIFICATION_UNION";
-export const F13_F16_RUNTIME_CLOSURE_LABEL = F13_F17_RUNTIME_CLOSURE_LABEL;
-export const F13_F16_VERIFICATION_UNION_LABEL = F13_F17_VERIFICATION_UNION_LABEL;
-export const F13_F15_RUNTIME_CLOSURE_LABEL = F13_F17_RUNTIME_CLOSURE_LABEL;
-export const F13_F15_VERIFICATION_UNION_LABEL = F13_F17_VERIFICATION_UNION_LABEL;
-export const F13_F14_RUNTIME_CLOSURE_LABEL = F13_F17_RUNTIME_CLOSURE_LABEL;
-export const F13_F14_VERIFICATION_UNION_LABEL = F13_F17_VERIFICATION_UNION_LABEL;
+export const F13_F18_RUNTIME_CLOSURE_LABEL = "F18_QUALIFICATION_RESET_RUNTIME_CLOSURE";
+export const F13_F18_VERIFICATION_UNION_LABEL = "F18_QUALIFICATION_RESET_VERIFICATION_UNION";
+export const F13_F17_RUNTIME_CLOSURE_LABEL = F13_F18_RUNTIME_CLOSURE_LABEL;
+export const F13_F17_VERIFICATION_UNION_LABEL = F13_F18_VERIFICATION_UNION_LABEL;
+export const F13_F16_RUNTIME_CLOSURE_LABEL = F13_F18_RUNTIME_CLOSURE_LABEL;
+export const F13_F16_VERIFICATION_UNION_LABEL = F13_F18_VERIFICATION_UNION_LABEL;
+export const F13_F15_RUNTIME_CLOSURE_LABEL = F13_F18_RUNTIME_CLOSURE_LABEL;
+export const F13_F15_VERIFICATION_UNION_LABEL = F13_F18_VERIFICATION_UNION_LABEL;
+export const F13_F14_RUNTIME_CLOSURE_LABEL = F13_F18_RUNTIME_CLOSURE_LABEL;
+export const F13_F14_VERIFICATION_UNION_LABEL = F13_F18_VERIFICATION_UNION_LABEL;
 export const F16_HISTORICAL_RUNTIME_CLOSURE_LABEL = "F16_QUALIFICATION_RESET_RUNTIME_CLOSURE";
 export const F16_HISTORICAL_VERIFICATION_UNION_LABEL = "F16_QUALIFICATION_RESET_VERIFICATION_UNION";
+export const F17_HISTORICAL_RUNTIME_CLOSURE_LABEL = "F17_QUALIFICATION_RESET_RUNTIME_CLOSURE";
+export const F17_HISTORICAL_VERIFICATION_UNION_LABEL = "F17_QUALIFICATION_RESET_VERIFICATION_UNION";
 export const F13_BASELINE_RUNTIME_CLOSURE = Object.freeze({
   count: 45,
   sha256: "51c4a98fe2f249978dad09451b1a5e4a88617b833f66cafb6252870e6be7ed6d",
@@ -136,11 +141,24 @@ export const F16_BASELINE_VERIFICATION_UNION = Object.freeze({
   count: 48,
   sha256: "989c6c99ead2b84190486b856d7e04a1e76824f870f3bbf9438935808c8fb7ff",
   notExpectedF17: true,
+  notExpectedF18: true,
   historicalLabel: F16_HISTORICAL_VERIFICATION_UNION_LABEL,
+});
+export const F17_BASELINE_RUNTIME_CLOSURE = Object.freeze({
+  count: 45,
+  sha256: "0db1c600c620c0e406038fa3ebc5c4d7df6104bce64545ef9e16a63a6237c741",
+  notExpectedF18: true,
+  historicalLabel: F17_HISTORICAL_RUNTIME_CLOSURE_LABEL,
+});
+export const F17_BASELINE_VERIFICATION_UNION = Object.freeze({
+  count: 48,
+  sha256: "d3fd2eb52a2adc2a1f963a54955b888b2d3e8eadea0283894c4a51f5effc41cb",
+  notExpectedF18: true,
+  historicalLabel: F17_HISTORICAL_VERIFICATION_UNION_LABEL,
 });
 export const QUALIFICATION_RESET_ISOLATION_LEVEL = "READ COMMITTED";
 export const QUALIFICATION_RESET_LOCK_ORDER = Object.freeze({
-  schema: "f17-qualification-reset-lock-order-v1",
+  schema: "f18-qualification-reset-lock-order-v1",
   isolation: QUALIFICATION_RESET_ISOLATION_LEVEL,
   serializableSnapshotBeforeLockInsufficient: true,
   order: Object.freeze([
@@ -160,19 +178,35 @@ export const QUALIFICATION_RESET_LOCK_ORDER = Object.freeze({
     "advisory lock remains helper-only",
   ]),
 });
+export const PROCESS_EVIDENCE_CONTRACT = Object.freeze({
+  schema: "f18-qualification-reset-process-evidence-v1",
+  boundary: "f18-process-evidence-boundary-v1",
+  captureOriginalBeforeEncode: true,
+  neverRecomputeOriginalFromTransformed: true,
+  neverReplaceExplicitTrueFlagsOrErrorFieldsWithDefaults: true,
+  validateAlreadyEncodedRecords: true,
+  rejectAmbiguousShapes: true,
+  originalStreamsRetainedAsHashesOnly: true,
+  sanitizedStreamsAreSeparate: true,
+});
 export const PROCESS_EVIDENCE_SANITIZATION_RULES = Object.freeze({
-  schema: "f17-qualification-reset-process-evidence-v1",
+  schema: PROCESS_EVIDENCE_CONTRACT.schema,
   replacesAbsoluteTempAndHomePaths: true,
   preservesCompleteSanitizedStreams: true,
   originalStreamsRetainedAsHashesOnly: true,
   neverClaimsOriginalByteEqualityAfterTransform: true,
   neverReconstructsFromSummaries: true,
+  neverRecomputeOriginalFromTransformed: true,
+  neverReplaceExplicitTrueFlagsOrErrorFieldsWithDefaults: true,
+  validateAlreadyEncodedRecords: true,
+  rejectAmbiguousShapes: true,
   preserves: Object.freeze([
     "status",
     "signal",
     "timeout",
     "timedOut",
     "thrown",
+    "termination",
     "structuredError.message",
     "structuredError.code",
     "structuredError.syscall",
@@ -180,6 +214,8 @@ export const PROCESS_EVIDENCE_SANITIZATION_RULES = Object.freeze({
   ]),
   pathRedactionToken: "[REDACTED_PATH]",
 });
+export const BACKEND_BOUND_LOCK_PROOF_SCHEMA = "f18-qualification-reset-backend-bound-lock-v1";
+export const STORED_PROCESS_RECORD_ADAPTER_SCHEMA = "f18-qualification-reset-stored-process-adapter-v1";
 export const F13_SUMMARY_FILE_HASH_FORBIDDEN =
   "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d";
 export const TX_OBSERVATION_SCHEMA_F14 = "f14-qualification-reset-tx-observation-v1";
@@ -728,6 +764,26 @@ function txObservationSql(phase, event, extra = {}) {
   return `SELECT ${sqlString(JSON.stringify(payload))}::text;`;
 }
 
+function txBoundObservationSql(phase, event, extra = {}) {
+  const extraPairs = Object.entries(extra).map(([key, value]) => (
+    `  ${sqlString(key)}, ${value === true || value === false || value == null || typeof value === "number"
+      ? (value == null ? "null" : String(value))
+      : sqlString(value)}`
+  ));
+  const extraSql = extraPairs.length ? `,\n${extraPairs.join(",\n")}` : "";
+  return [
+    "SELECT json_build_object(",
+    `  'schema', ${sqlString(TX_OBSERVATION_SCHEMA)},`,
+    `  'phase', ${sqlString(phase)},`,
+    `  'event', ${sqlString(event)}${extraSql},`,
+    "  'backendPid', pg_backend_pid(),",
+    "  'datname', current_database(),",
+    "  'applicationName', current_setting('application_name', true),",
+    "  'usename', current_user",
+    ")::text;",
+  ].join("\n");
+}
+
 function advisoryLockKeys(digest) {
   const hex = String(digest || "0").replace(/[^0-9a-f]/gi, "").padEnd(16, "0").slice(0, 16);
   const k1 = Number.parseInt(hex.slice(0, 8), 16) << 0;
@@ -815,7 +871,14 @@ export function buildQualificationResetSql({
   lines.push(`  PERFORM pg_advisory_xact_lock(${lockK1}, ${lockK2});`);
   lines.push("END");
   lines.push("$f15_advisory_xact_lock$;");
-  lines.push(txObservationSql("T1_BEGIN", "began"));
+  lines.push("-- T1 backend identity is emitted from THIS same connection");
+  lines.push("-- executing generated reset SQL. Application name alone is not identity.");
+  lines.push("DO $f18_backend_ident$");
+  lines.push("BEGIN");
+  lines.push("  RAISE NOTICE 'F18_RESET_BACKEND pid=% datname=% app=%', pg_backend_pid(), current_database(), current_setting('application_name', true);");
+  lines.push("END");
+  lines.push("$f18_backend_ident$;");
+  lines.push(txBoundObservationSql("T1_BEGIN", "began"));
   lines.push("-- T2_LOCK");
   lines.push("DO $f13_lock$");
   lines.push("BEGIN");
@@ -828,9 +891,10 @@ export function buildQualificationResetSql({
     lines.push(`    EXECUTE 'LOCK TABLE ${identity} IN ACCESS EXCLUSIVE MODE';`);
     lines.push("  END IF;");
   }
+  lines.push("  RAISE NOTICE 'F18_RESET_LOCK_ACQUIRED pid=%', pg_backend_pid();");
   lines.push("END");
   lines.push("$f13_lock$;");
-  lines.push(txObservationSql("T2_LOCK", "locked"));
+  lines.push(txBoundObservationSql("T2_LOCK", "locked"));
   lines.push("-- T3_REVALIDATE");
   lines.push("DO $f13_revalidate$");
   lines.push("DECLARE");
@@ -1047,21 +1111,109 @@ export function buildQualificationResetSql({
   };
 }
 
+function own(result, key) {
+  return result != null && typeof result === "object" && Object.prototype.hasOwnProperty.call(result, key);
+}
+
+function structuredErrorFromRaw(errorRaw) {
+  if (errorRaw == null) return null;
+  if (typeof errorRaw === "string") {
+    return {
+      code: null,
+      name: null,
+      syscall: null,
+      message: errorRaw,
+    };
+  }
+  return {
+    code: errorRaw.code ?? null,
+    name: errorRaw.name ?? null,
+    syscall: errorRaw.syscall ?? null,
+    message: String(errorRaw.message || errorRaw.code || errorRaw),
+  };
+}
+
+export function classifyProcessEvidenceShape(result) {
+  if (result == null || typeof result !== "object" || Array.isArray(result)) {
+    return { kind: "invalid", code: "F18_PROCESS_EVIDENCE_INVALID", ok: false };
+  }
+  const nestedEncoded = (
+    result.processResult?.schema === PROCESS_EVIDENCE_CONTRACT.schema
+    || result.encoded?.schema === PROCESS_EVIDENCE_CONTRACT.schema
+    || result.processEvidence?.schema === PROCESS_EVIDENCE_CONTRACT.schema
+  );
+  const hasContractSchema = result.schema === PROCESS_EVIDENCE_CONTRACT.schema
+    || result.boundary === PROCESS_EVIDENCE_CONTRACT.boundary;
+  const capturedBeforeEncode = result.streams?.capturedBeforeEncode === true;
+  const hasOriginalHashes = Boolean(
+    result.streams
+    && typeof result.streams.originalStdoutSha256 === "string"
+    && /^[0-9a-f]{64}$/.test(result.streams.originalStdoutSha256)
+    && typeof result.streams.originalStderrSha256 === "string"
+    && /^[0-9a-f]{64}$/.test(result.streams.originalStderrSha256)
+    && Number.isInteger(result.streams.originalStdoutByteLength)
+    && Number.isInteger(result.streams.originalStderrByteLength),
+  );
+  if (nestedEncoded && hasContractSchema) {
+    return { kind: "double-encoded", code: "F18_PROCESS_EVIDENCE_DOUBLE_ENCODED", ok: false };
+  }
+  if (hasContractSchema && capturedBeforeEncode && hasOriginalHashes) {
+    return { kind: "encoded", code: null, ok: true };
+  }
+  if (hasContractSchema && !hasOriginalHashes) {
+    return { kind: "ambiguous", code: "F18_PROCESS_EVIDENCE_AMBIGUOUS", ok: false };
+  }
+  if (hasOriginalHashes && capturedBeforeEncode !== true) {
+    return { kind: "ambiguous", code: "F18_PROCESS_EVIDENCE_AMBIGUOUS_ORIGINAL", ok: false };
+  }
+  if (own(result, "originalStdoutSha256") && !hasOriginalHashes) {
+    return { kind: "ambiguous", code: "F18_PROCESS_EVIDENCE_AMBIGUOUS", ok: false };
+  }
+  return { kind: "raw", code: null, ok: true };
+}
+
+function preserveExplicitTrue(result, key) {
+  return own(result, key) ? result[key] === true : undefined;
+}
+
+function captureTerminationFlags(result) {
+  const timeoutExplicit = preserveExplicitTrue(result, "timeout");
+  const timedOutExplicit = preserveExplicitTrue(result, "timedOut");
+  const thrownExplicit = preserveExplicitTrue(result, "thrown");
+  const timeout = timeoutExplicit === true || timedOutExplicit === true;
+  const timedOut = timedOutExplicit === true;
+  return {
+    timeout,
+    timedOut,
+    thrown: thrownExplicit === true,
+    timeoutExplicit,
+    timedOutExplicit,
+    thrownExplicit,
+    signal: own(result, "signal") ? (result.signal ?? null) : (result?.signal ?? null),
+    status: own(result, "status")
+      ? (Number.isInteger(result.status) ? result.status : null)
+      : (Number.isInteger(result?.status) ? result.status : (own(result, "status") ? null : undefined)),
+  };
+}
+
 function captureRawProcessResult(result, commandIdentity) {
-  const errorRaw = result?.error ?? null;
+  const flags = captureTerminationFlags(result);
   return {
     commandIdentity: commandIdentity || result?.commandIdentity || GATED_PSQL_FILE_RENDERED,
     argv: Array.isArray(result?.argv) ? [...result.argv] : [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", "[FILE]"],
-    status: Object.prototype.hasOwnProperty.call(result || {}, "status") && Number.isInteger(result.status)
-      ? result.status
-      : null,
+    status: own(result, "status")
+      ? (Number.isInteger(result.status) ? result.status : null)
+      : (Number.isInteger(result?.status) ? result.status : null),
     stdout: result?.stdout ?? "",
     stderr: result?.stderr ?? "",
-    error: errorRaw,
-    signal: result?.signal ?? null,
-    timeout: result?.timeout === true || result?.timedOut === true,
-    timedOut: result?.timedOut === true,
-    thrown: result?.thrown === true,
+    error: result?.error ?? result?.structuredError ?? null,
+    signal: flags.signal ?? null,
+    timeout: flags.timeout === true,
+    timedOut: flags.timedOut === true,
+    thrown: flags.thrown === true,
+    timeoutExplicit: flags.timeoutExplicit,
+    timedOutExplicit: flags.timedOutExplicit,
+    thrownExplicit: flags.thrownExplicit,
   };
 }
 
@@ -1092,60 +1244,167 @@ export function redactAbsoluteFilesystemPaths(text, extraRoots = []) {
   return s;
 }
 
-export function packageQualificationResetProcessEvidence(result, { commandIdentity, workdir } = {}) {
-  const captured = captureRawProcessResult(result, commandIdentity || result?.commandIdentity);
-  const originalStdout = String(captured.stdout ?? "");
-  const originalStderr = String(captured.stderr ?? "");
-  const originalErrorMessage = captured.error == null
-    ? ""
-    : String(captured.error.message || captured.error.code || captured.error);
-  const extraRoots = [];
-  if (workdir) extraRoots.push(workdir);
-  const stdout = redactAbsoluteFilesystemPaths(String(sanitizeForLog(originalStdout) ?? ""), extraRoots);
-  const stderr = redactAbsoluteFilesystemPaths(String(sanitizeForLog(originalStderr) ?? ""), extraRoots);
-  const structuredError = captured.error == null
-    ? null
-    : {
-      code: captured.error.code ?? null,
-      name: captured.error.name ?? null,
-      syscall: captured.error.syscall ?? null,
-      message: redactAbsoluteFilesystemPaths(String(sanitizeForLog(originalErrorMessage) ?? ""), extraRoots),
-    };
-  const argv = (captured.argv || []).map((item) => (
-    redactAbsoluteFilesystemPaths(String(sanitizeForLog(String(item)) ?? ""), extraRoots)
-  ));
-  const originalStdoutSha256 = sha256Utf8(originalStdout);
-  const originalStderrSha256 = sha256Utf8(originalStderr);
-  const packagedStdoutSha256 = sha256Utf8(stdout);
-  const packagedStderrSha256 = sha256Utf8(stderr);
+function sanitizeStructuredError(errorRaw, extraRoots) {
+  const structured = structuredErrorFromRaw(errorRaw);
+  if (!structured) return null;
   return {
-    schema: PROCESS_EVIDENCE_SANITIZATION_RULES.schema,
+    code: structured.code,
+    name: structured.name,
+    syscall: structured.syscall,
+    message: redactAbsoluteFilesystemPaths(String(sanitizeForLog(structured.message ?? "") ?? ""), extraRoots),
+  };
+}
+
+function packageFromBoundary({
+  commandIdentity,
+  argv,
+  status,
+  signal,
+  timeout,
+  timedOut,
+  thrown,
+  structuredError,
+  stdout,
+  stderr,
+  originalStdoutSha256,
+  originalStdoutByteLength,
+  originalStderrSha256,
+  originalStderrByteLength,
+}) {
+  return {
+    schema: PROCESS_EVIDENCE_CONTRACT.schema,
+    boundary: PROCESS_EVIDENCE_CONTRACT.boundary,
     sanitization: PROCESS_EVIDENCE_SANITIZATION_RULES,
-    commandIdentity: captured.commandIdentity,
+    commandIdentity,
     argv,
-    status: captured.status,
-    signal: captured.signal ?? null,
-    timeout: captured.timeout === true,
-    timedOut: captured.timedOut === true,
-    thrown: captured.thrown === true,
+    status: Number.isInteger(status) ? status : null,
+    signal: signal ?? null,
+    timeout: timeout === true,
+    timedOut: timedOut === true,
+    thrown: thrown === true,
     error: structuredError?.message ?? null,
     structuredError,
     stdout,
     stderr,
     streams: {
+      capturedBeforeEncode: true,
       originalStdoutSha256,
-      originalStdoutByteLength: Buffer.byteLength(originalStdout, "utf8"),
+      originalStdoutByteLength,
       originalStderrSha256,
-      originalStderrByteLength: Buffer.byteLength(originalStderr, "utf8"),
-      packagedStdoutSha256,
+      originalStderrByteLength,
+      packagedStdoutSha256: sha256Utf8(stdout),
       packagedStdoutByteLength: Buffer.byteLength(stdout, "utf8"),
-      packagedStderrSha256,
+      packagedStderrSha256: sha256Utf8(stderr),
       packagedStderrByteLength: Buffer.byteLength(stderr, "utf8"),
       originalByteEqual: false,
       reconstructedFromSummary: false,
-      transformApplied: originalStdout !== stdout || originalStderr !== stderr,
+      transformApplied: originalStdoutSha256 !== sha256Utf8(stdout)
+        || originalStderrSha256 !== sha256Utf8(stderr),
     },
   };
+}
+
+export function packageQualificationResetProcessEvidence(result, { commandIdentity, workdir } = {}) {
+  const shape = classifyProcessEvidenceShape(result);
+  if (shape.kind === "invalid" || shape.kind === "double-encoded" || shape.kind === "ambiguous") {
+    return {
+      ok: false,
+      schema: PROCESS_EVIDENCE_CONTRACT.schema,
+      boundary: PROCESS_EVIDENCE_CONTRACT.boundary,
+      code: shape.code,
+      reason: shape.kind,
+      rejected: true,
+      status: null,
+      signal: null,
+      timeout: false,
+      timedOut: false,
+      thrown: false,
+      error: shape.code,
+      structuredError: { code: shape.code, name: "ProcessEvidenceShapeError", syscall: null, message: shape.kind },
+      stdout: "",
+      stderr: "",
+      streams: {
+        capturedBeforeEncode: false,
+        originalStdoutSha256: null,
+        originalStdoutByteLength: null,
+        originalStderrSha256: null,
+        originalStderrByteLength: null,
+        packagedStdoutSha256: null,
+        packagedStdoutByteLength: null,
+        packagedStderrSha256: null,
+        packagedStderrByteLength: null,
+        originalByteEqual: false,
+        reconstructedFromSummary: false,
+        transformApplied: false,
+        rejected: true,
+      },
+    };
+  }
+  const extraRoots = [];
+  if (workdir) extraRoots.push(workdir);
+  if (shape.kind === "encoded") {
+    const timeout = result.timeout === true || result.timedOut === true;
+    const timedOut = result.timedOut === true;
+    const thrown = result.thrown === true;
+    const structuredError = result.structuredError
+      ? {
+        code: result.structuredError.code ?? null,
+        name: result.structuredError.name ?? null,
+        syscall: result.structuredError.syscall ?? null,
+        message: result.structuredError.message ?? null,
+      }
+      : sanitizeStructuredError(result.error, extraRoots);
+    return {
+      ...packageFromBoundary({
+        commandIdentity: commandIdentity || result.commandIdentity || GATED_PSQL_FILE_RENDERED,
+        argv: Array.isArray(result.argv)
+          ? result.argv.map((item) => redactAbsoluteFilesystemPaths(String(sanitizeForLog(String(item)) ?? ""), extraRoots))
+          : [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", "[FILE]"],
+        status: own(result, "status") ? (Number.isInteger(result.status) ? result.status : null) : null,
+        signal: own(result, "signal") ? result.signal ?? null : null,
+        timeout,
+        timedOut,
+        thrown,
+        structuredError,
+        stdout: String(result.stdout ?? ""),
+        stderr: String(result.stderr ?? ""),
+        originalStdoutSha256: result.streams.originalStdoutSha256,
+        originalStdoutByteLength: result.streams.originalStdoutByteLength,
+        originalStderrSha256: result.streams.originalStderrSha256,
+        originalStderrByteLength: result.streams.originalStderrByteLength,
+      }),
+      validatedAlreadyEncoded: true,
+    };
+  }
+  const captured = captureRawProcessResult(result, commandIdentity || result?.commandIdentity);
+  const originalStdout = String(captured.stdout ?? "");
+  const originalStderr = String(captured.stderr ?? "");
+  const originalStdoutSha256 = sha256Utf8(originalStdout);
+  const originalStderrSha256 = sha256Utf8(originalStderr);
+  const originalStdoutByteLength = Buffer.byteLength(originalStdout, "utf8");
+  const originalStderrByteLength = Buffer.byteLength(originalStderr, "utf8");
+  const stdout = redactAbsoluteFilesystemPaths(String(sanitizeForLog(originalStdout) ?? ""), extraRoots);
+  const stderr = redactAbsoluteFilesystemPaths(String(sanitizeForLog(originalStderr) ?? ""), extraRoots);
+  const structuredError = sanitizeStructuredError(captured.error, extraRoots);
+  const argv = (captured.argv || []).map((item) => (
+    redactAbsoluteFilesystemPaths(String(sanitizeForLog(String(item)) ?? ""), extraRoots)
+  ));
+  return packageFromBoundary({
+    commandIdentity: captured.commandIdentity,
+    argv,
+    status: captured.status,
+    signal: captured.signal,
+    timeout: captured.timeout === true,
+    timedOut: captured.timedOut === true,
+    thrown: captured.thrown === true,
+    structuredError,
+    stdout,
+    stderr,
+    originalStdoutSha256,
+    originalStdoutByteLength,
+    originalStderrSha256,
+    originalStderrByteLength,
+  });
 }
 
 export function scanEvidenceValueForLeaks(value, { path = "$" } = {}) {
@@ -1184,37 +1443,252 @@ export function scanEvidenceValueForLeaks(value, { path = "$" } = {}) {
 }
 
 function encodeProcessResult(result, commandIdentity) {
-  const stdoutRaw = result?.stdout ?? "";
-  const stderrRaw = result?.stderr ?? "";
-  const stdout = String(sanitizeForLog(String(stdoutRaw)) ?? "");
-  const stderr = String(sanitizeForLog(String(stderrRaw)) ?? "");
-  const errorRaw = result?.error ?? null;
-  const structuredError = errorRaw == null
-    ? null
-    : {
-      code: errorRaw.code ?? null,
-      name: errorRaw.name ?? null,
-      syscall: errorRaw.syscall ?? null,
-      message: String(sanitizeForLog(String(errorRaw.message || errorRaw.code || errorRaw)) ?? ""),
+  const packaged = packageQualificationResetProcessEvidence(result, { commandIdentity });
+  if (packaged.rejected === true) {
+    return {
+      ...packaged,
+      commandIdentity: commandIdentity || result?.commandIdentity || GATED_PSQL_FILE_RENDERED,
     };
-  const error = structuredError?.message ?? null;
+  }
+  return packaged;
+}
+
+export function adaptStoredProcessRecordToParserInput(record) {
+  if (record == null || typeof record !== "object" || Array.isArray(record)) {
+    return {
+      ok: false,
+      schema: STORED_PROCESS_RECORD_ADAPTER_SCHEMA,
+      code: "F18_STORED_PROCESS_RECORD_INVALID",
+      reason: "stored process record is not an object",
+    };
+  }
+  const hasStatus = own(record, "status");
+  const hasProcessStatus = own(record, "processStatus");
+  const statusValue = hasStatus ? record.status : undefined;
+  const processStatusValue = hasProcessStatus ? record.processStatus : undefined;
+  if (hasStatus && hasProcessStatus) {
+    const left = Number.isInteger(statusValue) ? statusValue : null;
+    const right = Number.isInteger(processStatusValue) ? processStatusValue : null;
+    if (left !== right) {
+      return {
+        ok: false,
+        schema: STORED_PROCESS_RECORD_ADAPTER_SCHEMA,
+        code: "F18_STORED_PROCESS_RECORD_STATUS_CONFLICT",
+        reason: "status and processStatus disagree",
+      };
+    }
+  }
+  if (!hasStatus && !hasProcessStatus) {
+    return {
+      ok: false,
+      schema: STORED_PROCESS_RECORD_ADAPTER_SCHEMA,
+      code: "F18_STORED_PROCESS_RECORD_STATUS_MISSING",
+      reason: "missing status is not defaulted to success",
+      processResult: {
+        status: null,
+        statusPresent: false,
+        stdout: record.stdout ?? "",
+        stderr: record.stderr ?? "",
+        signal: record.signal ?? null,
+        timeout: record.timeout === true,
+        timedOut: record.timedOut === true,
+        thrown: record.thrown === true,
+        error: record.structuredError || record.error || null,
+        argv: Array.isArray(record.argv) ? record.argv : undefined,
+      },
+    };
+  }
+  const mapped = hasStatus
+    ? (Number.isInteger(statusValue) ? statusValue : null)
+    : (Number.isInteger(processStatusValue) ? processStatusValue : null);
   return {
-    commandIdentity,
-    argv: Array.isArray(result?.argv)
-      ? result.argv.map((item) => String(sanitizeForLog(String(item)) ?? ""))
-      : [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", "[FILE]"],
-    status: Object.prototype.hasOwnProperty.call(result || {}, "status") && Number.isInteger(result.status)
-      ? result.status
-      : null,
-    stdout,
-    stderr,
-    originalStdout: stdoutRaw,
-    originalStderr: stderrRaw,
-    error,
-    structuredError,
-    signal: result?.signal ?? null,
-    timeout: result?.timeout === true || result?.timedOut === true,
-    thrown: result?.thrown === true,
+    ok: true,
+    schema: STORED_PROCESS_RECORD_ADAPTER_SCHEMA,
+    mappedProcessStatusToStatus: hasProcessStatus && !hasStatus,
+    processResult: {
+      status: mapped,
+      statusPresent: true,
+      stdout: record.stdout ?? "",
+      stderr: record.stderr ?? "",
+      signal: record.signal ?? null,
+      timeout: record.timeout === true,
+      timedOut: record.timedOut === true,
+      thrown: record.thrown === true,
+      error: record.structuredError || record.error || null,
+      argv: Array.isArray(record.argv) ? record.argv : undefined,
+      commandIdentity: record.commandIdentity,
+    },
+  };
+}
+
+export function evaluateBackendBoundLockProof(observation = {}) {
+  const failures = [];
+  const require = (cond, code, reason) => {
+    if (!cond) failures.push({ code, reason });
+  };
+  const resetProcessId = observation.resetProcessId;
+  const resetBackendPid = observation.resetBackendPid;
+  const executionId = observation.resetExecutionId;
+  const holderBackendPid = observation.holderBackendPid;
+  const datname = observation.datname;
+  const relation = observation.relation;
+  require(Number.isInteger(resetProcessId) && resetProcessId > 0, "F18_LOCK_PROOF_RESET_PROCESS_MISSING", "reset process id missing");
+  require(Number.isInteger(resetBackendPid) && resetBackendPid > 0, "F18_LOCK_PROOF_RESET_BACKEND_MISSING", "reset backend id must come from the same connection executing generated reset SQL");
+  require(typeof executionId === "string" && executionId.length >= 16, "F18_LOCK_PROOF_EXECUTION_ID_MISSING", "unique execution identity missing");
+  require(Number.isInteger(holderBackendPid) && holderBackendPid > 0, "F18_LOCK_PROOF_HOLDER_BACKEND_MISSING", "holder backend id missing");
+  require(resetBackendPid !== holderBackendPid, "F18_LOCK_PROOF_BACKEND_COLLISION", "reset and holder backends must be distinct");
+  require(typeof datname === "string" && datname.length > 0, "F18_LOCK_PROOF_DATNAME_MISSING", "exact database name missing");
+  require(typeof relation === "string" && relation.includes("."), "F18_LOCK_PROOF_RELATION_MISSING", "exact blocked relation missing");
+  if (observation.inferredFromApplicationNameAlone === true) {
+    failures.push({ code: "F18_LOCK_PROOF_APPNAME_ALONE", reason: "application name alone is not reset-backend identity" });
+  }
+  if (observation.inferredFromAnyWaiter === true) {
+    failures.push({ code: "F18_LOCK_PROOF_ANY_WAITER", reason: "any available waiter is not the reset worker" });
+  }
+  if (observation.inferredFromEventTypeAlone === true) {
+    failures.push({ code: "F18_LOCK_PROOF_EVENT_TYPE_ALONE", reason: "matching wait_event_type is not reset-backend identity" });
+  }
+  const holderLock = observation.holderLock || {};
+  require(holderLock.pid === holderBackendPid, "F18_LOCK_PROOF_HOLDER_LOCK_PID", "holder lock pid mismatch");
+  require(holderLock.granted === true, "F18_LOCK_PROOF_HOLDER_NOT_GRANTED", "holder lock must be granted");
+  require(holderLock.relation === relation, "F18_LOCK_PROOF_HOLDER_RELATION", "holder lock relation mismatch");
+  require(typeof holderLock.mode === "string" && holderLock.mode.length > 0, "F18_LOCK_PROOF_HOLDER_MODE", "holder lock mode missing");
+  const waiterLock = observation.waiterLock || {};
+  require(waiterLock.pid === resetBackendPid, "F18_LOCK_PROOF_WAITER_NOT_RESET_BACKEND", "waiter is not the reset backend");
+  require(waiterLock.granted === false, "F18_LOCK_PROOF_WAITER_GRANTED_TOO_EARLY", "waiter must be ungranted during wait");
+  require(waiterLock.relation === relation, "F18_LOCK_PROOF_WAITER_RELATION", "waiter relation mismatch");
+  require(typeof waiterLock.mode === "string" && waiterLock.mode.length > 0, "F18_LOCK_PROOF_WAITER_MODE", "waiter lock mode missing");
+  const waitOnHolder = observation.resetWaitOnHolder || {};
+  require(waitOnHolder.waiterPid === resetBackendPid, "F18_LOCK_PROOF_WAIT_WAITER_PID", "wait binding waiter pid mismatch");
+  require(waitOnHolder.holderPid === holderBackendPid, "F18_LOCK_PROOF_WAIT_HOLDER_PID", "wait binding holder pid mismatch");
+  require(waitOnHolder.blockedByHolder === true, "F18_LOCK_PROOF_NOT_BLOCKED_BY_HOLDER", "reset backend wait on that holder not proven");
+  require(observation.holderCommitted === true, "F18_LOCK_PROOF_HOLDER_COMMIT_MISSING", "HOLDER_COMMITTED confirmation missing");
+  require(observation.holderResult?.ok === true, "F18_LOCK_PROOF_HOLDER_RESULT_NOT_OK", "holder result must be successful");
+  require(observation.committedCatalogChange === true, "F18_LOCK_PROOF_CATALOG_CHANGE_MISSING", "committed catalog change not independently observed");
+  const acquisition = observation.lockAcquisitionByResetBackend || {};
+  require(acquisition.resetBackendPid === resetBackendPid, "F18_LOCK_PROOF_ACQUISITION_BACKEND", "lock acquisition is not bound to reset backend");
+  require(acquisition.relation === relation, "F18_LOCK_PROOF_ACQUISITION_RELATION", "lock acquisition relation mismatch");
+  require(acquisition.granted === true || acquisition.t2LockedSameBackend === true, "F18_LOCK_PROOF_ACQUISITION_MISSING", "missing acquisition evidence");
+  require(acquisition.afterHolderCommit === true, "F18_LOCK_PROOF_ACQUISITION_BEFORE_COMMIT", "acquisition must follow holder commit");
+  const t3 = observation.t3RejectionFromSameReset || {};
+  require(t3.sameResetExecution === true, "F18_LOCK_PROOF_T3_NOT_SAME_RESET", "T3 rejection is not from the same reset execution");
+  require(t3.rejected === true, "F18_LOCK_PROOF_T3_NOT_REJECTED", "T3 did not reject");
+  require(t3.mutationPhaseReached !== true, "F18_LOCK_PROOF_MUTATION_REACHED", "mutation phase must not be reached");
+  require(typeof observation.appliedSqlIdentity === "string" && /^[0-9a-f]{64}$/.test(observation.appliedSqlIdentity), "F18_LOCK_PROOF_SQL_IDENTITY", "applied SQL identity missing");
+  require(observation.postconditionsComplete === true, "F18_LOCK_PROOF_POSTCONDITIONS", "complete postconditions missing");
+  return {
+    schema: BACKEND_BOUND_LOCK_PROOF_SCHEMA,
+    ok: failures.length === 0,
+    pass: failures.length === 0,
+    failures,
+    code: failures[0]?.code || null,
+  };
+}
+
+export function attestQualificationResetReparse(record, extra = {}) {
+  const adapted = adaptStoredProcessRecordToParserInput(record);
+  if (!adapted.ok) {
+    return {
+      ok: false,
+      consistent: false,
+      code: adapted.code,
+      reason: adapted.reason,
+      interpretedCommitted: false,
+      parsedOk: false,
+    };
+  }
+  const interpreted = interpretQualificationResetTransportResult(adapted.processResult);
+  const parsed = parseQualificationResetTxObservationStdout(adapted.processResult.stdout);
+  const processFailed = adapted.processResult.status !== 0
+    || adapted.processResult.status == null
+    || Boolean(adapted.processResult.signal)
+    || adapted.processResult.timeout === true
+    || adapted.processResult.timedOut === true
+    || Boolean(adapted.processResult.error);
+  const t7CommittedTrue = parsed.ok === true
+    && parsed.observations?.at(-1)?.phase === "T7_COMMIT"
+    && parsed.observations?.at(-1)?.event === "committed"
+    && parsed.observations?.at(-1)?.committed === true;
+  const verdict = extra.verdict ?? extra.interpretedVerdictPath ?? null;
+  const scenarioOk = extra.scenarioOk;
+  const genuineSuccess = processFailed === false
+    && t7CommittedTrue === true
+    && interpreted.committed === true
+    && (verdict == null || verdict === F13_RESET_SUCCESS_VERDICT);
+  const genuineFailure = processFailed === true && interpreted.committed !== true;
+  const consistent = (genuineSuccess === true && scenarioOk !== false && (verdict == null || verdict === F13_RESET_SUCCESS_VERDICT))
+    || (genuineFailure === true && scenarioOk !== true && verdict !== F13_RESET_SUCCESS_VERDICT)
+    || (extra.requireConsistent === false);
+  const successClaimedUncommitted = verdict === F13_RESET_SUCCESS_VERDICT && t7CommittedTrue === true && interpreted.committed !== true;
+  const failureBecameCommitted = processFailed === true && interpreted.committed === true;
+  return {
+    ok: consistent && !successClaimedUncommitted && !failureBecameCommitted,
+    consistent: consistent && !successClaimedUncommitted && !failureBecameCommitted,
+    schema: STORED_PROCESS_RECORD_ADAPTER_SCHEMA,
+    parsedOk: parsed.ok === true,
+    observationCount: parsed.observations?.length || 0,
+    lastEvent: parsed.observations?.at(-1) || null,
+    interpretedCommitted: interpreted.committed === true,
+    interpretedVerdictPath: verdict,
+    phaseReached: interpreted.phaseReached,
+    t7CommitAttempted: interpreted.observed?.commitAttempted === true,
+    t7CommittedTrue,
+    processStatus: adapted.processResult.status,
+    processFailed,
+    genuineSuccess,
+    genuineFailure,
+    successClaimedUncommitted,
+    failureBecameCommitted,
+    mappedProcessStatusToStatus: adapted.mappedProcessStatusToStatus === true,
+  };
+}
+
+export function finalizeQualificationResetAttestations(attestations = []) {
+  const inconsistent = attestations.filter((row) => row?.ok !== true || row?.consistent !== true);
+  if (inconsistent.length > 0) {
+    return {
+      ok: false,
+      code: "F18_ATTESTATION_INCONSISTENT",
+      reason: "inconsistent attestations fail package finalization",
+      inconsistentCount: inconsistent.length,
+    };
+  }
+  return { ok: true, count: attestations.length };
+}
+
+export function parseBoundResetObservationLine(line) {
+  const raw = String(line ?? "").trim();
+  if (!raw) return null;
+  const notice = raw.match(/F18_RESET_BACKEND pid=(\d+) datname=(\S+) app=(\S+)/);
+  if (notice) {
+    return {
+      source: "notice",
+      phase: "T1_BEGIN",
+      event: "began",
+      backendPid: Number(notice[1]),
+      datname: notice[2],
+      applicationName: notice[3],
+    };
+  }
+  const acquired = raw.match(/F18_RESET_LOCK_ACQUIRED pid=(\d+)/);
+  if (acquired) {
+    return {
+      source: "notice",
+      phase: "T2_LOCK",
+      event: "locked",
+      backendPid: Number(acquired[1]),
+    };
+  }
+  const parsed = parseDuplicateKeySafeJson(`${raw}\n`);
+  if (!parsed.ok || parsed.value?.schema !== TX_OBSERVATION_SCHEMA) return null;
+  const rec = parsed.value;
+  const backendPid = Number(rec.backendPid);
+  return {
+    ...rec,
+    source: "observation",
+    backendPid: Number.isInteger(backendPid) && backendPid > 0 ? backendPid : null,
+    datname: typeof rec.datname === "string" ? rec.datname : null,
+    applicationName: typeof rec.applicationName === "string" ? rec.applicationName : null,
   };
 }
 
@@ -1345,12 +1819,13 @@ export function interpretQualificationResetTransportResult(processResult, { thro
   const encoded = encodeProcessResult(
     thrown
       ? {
-        status: processResult?.status ?? null,
+        status: own(processResult, "status") ? processResult.status : null,
         stdout: processResult?.stdout ?? "",
         stderr: processResult?.stderr ?? String(thrown.message || thrown),
         error: thrown,
         signal: processResult?.signal ?? null,
         timeout: processResult?.timeout === true,
+        timedOut: processResult?.timedOut === true,
         thrown: true,
         argv: processResult?.argv,
       }
@@ -1379,8 +1854,10 @@ export function interpretQualificationResetTransportResult(processResult, { thro
     || encoded.status == null
     || Boolean(encoded.signal)
     || encoded.timeout === true
+    || encoded.timedOut === true
     || Boolean(encoded.structuredError)
-    || Boolean(encoded.error && String(encoded.error).trim());
+    || Boolean(encoded.error && String(encoded.error).trim())
+    || encoded.rejected === true;
   const processOk = !processErrorPresent;
   const truncatedCommit = extracted.truncated === true || (commitAttempted && !committedObserved);
   const uncertainCommit = !committedObserved && (
@@ -1396,7 +1873,8 @@ export function interpretQualificationResetTransportResult(processResult, { thro
       status: encoded.status,
       signal: encoded.signal,
       timeout: encoded.timeout === true,
-      thrown: thrown != null,
+      timedOut: encoded.timedOut === true,
+      thrown: thrown != null || encoded.thrown === true,
       processErrorPresent,
     },
     observed: {
@@ -1626,6 +2104,8 @@ export function createDisabledQualificationResetTransportAdapter(script = {}) {
 export function createLocalFixtureQualificationResetTransportAdapter({
   url,
   workdir,
+  onStdoutLine = null,
+  streamObservations = false,
 } = {}) {
   return {
     kind: "local-fixture-psql",
@@ -1645,18 +2125,87 @@ export function createLocalFixtureQualificationResetTransportAdapter({
       }
       const abs = writeGatedSqlFile(workdir, "f15-qualification-reset.sql", sql);
       const extra = ["-t", "-A", "-w", "-f", abs];
-      const spawned = spawnLocalPsqlSync(url, extra, { role: "work" });
-      const res = spawned.result || {};
-      return {
-        commandIdentity: "local-fixture-psql-file",
-        argv: [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", abs],
-        status: Object.prototype.hasOwnProperty.call(res, "status") ? res.status : null,
-        stdout: res.stdout || "",
-        stderr: res.stderr || "",
-        signal: res.signal || null,
-        timeout: res.timeout === true,
-        error: res.error || null,
-      };
+      const argv = [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", abs];
+      if (streamObservations !== true && typeof onStdoutLine !== "function") {
+        const spawned = spawnLocalPsqlSync(url, extra, { role: "work" });
+        const res = spawned.result || {};
+        return {
+          commandIdentity: "local-fixture-psql-file",
+          argv,
+          status: Object.prototype.hasOwnProperty.call(res, "status") ? res.status : null,
+          stdout: res.stdout || "",
+          stderr: res.stderr || "",
+          signal: res.signal || null,
+          timeout: res.timeout === true,
+          timedOut: res.timedOut === true,
+          error: res.error || null,
+        };
+      }
+      return new Promise((resolve) => {
+        const child = spawnLocalPsql(url, extra, { role: "work" });
+        let stdout = "";
+        let stderr = "";
+        let lineBuf = "";
+        const emitLines = (chunk, final = false) => {
+          lineBuf += String(chunk);
+          const parts = lineBuf.split("\n");
+          lineBuf = final ? "" : (parts.pop() ?? "");
+          for (const line of parts) {
+            if (typeof onStdoutLine === "function") {
+              onStdoutLine(line);
+            }
+          }
+          if (final && lineBuf && typeof onStdoutLine === "function") {
+            onStdoutLine(lineBuf);
+          }
+        };
+        child.stdout?.on("data", (chunk) => {
+          stdout += String(chunk);
+          emitLines(chunk);
+        });
+        let errBuf = "";
+        const emitErr = (chunk, final = false) => {
+          errBuf += String(chunk);
+          const parts = errBuf.split("\n");
+          errBuf = final ? "" : (parts.pop() ?? "");
+          for (const line of parts) {
+            if (typeof onStdoutLine === "function") onStdoutLine(line);
+          }
+          if (final && errBuf && typeof onStdoutLine === "function") onStdoutLine(errBuf);
+        };
+        child.stderr?.on("data", (chunk) => {
+          stderr += String(chunk);
+          emitErr(chunk);
+        });
+        child.on("error", (err) => {
+          resolve({
+            commandIdentity: "local-fixture-psql-file",
+            argv,
+            status: null,
+            stdout,
+            stderr: `${stderr}${err?.message || err}`,
+            signal: null,
+            timeout: false,
+            timedOut: false,
+            error: err,
+          });
+        });
+        child.on("close", (status, signal) => {
+          emitLines("", true);
+          emitErr("", true);
+          resolve({
+            commandIdentity: "local-fixture-psql-file",
+            argv,
+            status: Number.isInteger(status) ? status : null,
+            stdout,
+            stderr,
+            signal: signal || null,
+            timeout: false,
+            timedOut: false,
+            error: null,
+          });
+        });
+      });
     },
   };
 }
@@ -2251,6 +2800,10 @@ export function publishQualificationResetClosures({
     f16BaselineCitedNotExpected: {
       runtime: F16_BASELINE_RUNTIME_CLOSURE,
       union: F16_BASELINE_VERIFICATION_UNION,
+    },
+    f17BaselineCitedNotExpected: {
+      runtime: F17_BASELINE_RUNTIME_CLOSURE,
+      union: F17_BASELINE_VERIFICATION_UNION,
     },
   };
 }

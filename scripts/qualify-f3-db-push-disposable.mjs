@@ -700,14 +700,15 @@ export const F15_PROPOSED_HOSTED_PLAN_STATUS = "PROPOSED ONLY — NOT AUTHORIZED
 export const F14_PROPOSED_HOSTED_PLAN_STATUS = F15_PROPOSED_HOSTED_PLAN_STATUS;
 export const F15_PROPOSED_RESET_COMMAND = "scripts/qualify-f3-db-push-disposable.mjs";
 export const F14_PROPOSED_RESET_COMMAND = F15_PROPOSED_RESET_COMMAND;
-export const F17_PROPOSED_EVIDENCE_DESTINATIONS = Object.freeze({
-  resetEvidence: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F17_QUALIFICATION_RESET_HOSTED_REQUAL/hosted/qualification-reset/qualify-result.json",
-  founderAuthArtifact: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F17_QUALIFICATION_RESET_HOSTED_REQUAL/hosted/qualification-reset/FOUNDER_AUTH.json",
-  completeQualEvidence: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F17_QUALIFICATION_RESET_HOSTED_REQUAL/hosted/qualify-from-00118/qualify-result.json",
-  planRecord: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F17_QUALIFICATION_RESET_PROPOSED_PLAN_20260918/PROPOSED_HOSTED_REQUAL_PLAN.md",
+export const F18_PROPOSED_EVIDENCE_DESTINATIONS = Object.freeze({
+  resetEvidence: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F18_QUALIFICATION_RESET_HOSTED_REQUAL/hosted/qualification-reset/qualify-result.json",
+  founderAuthArtifact: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F18_QUALIFICATION_RESET_HOSTED_REQUAL/hosted/qualification-reset/FOUNDER_AUTH.json",
+  completeQualEvidence: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F18_QUALIFICATION_RESET_HOSTED_REQUAL/hosted/qualify-from-00118/qualify-result.json",
+  planRecord: "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F18_QUALIFICATION_RESET_PROPOSED_PLAN_20260918/PROPOSED_HOSTED_REQUAL_PLAN.md",
 });
-export const F16_PROPOSED_EVIDENCE_DESTINATIONS = F17_PROPOSED_EVIDENCE_DESTINATIONS;
-export const F15_PROPOSED_EVIDENCE_DESTINATIONS = F17_PROPOSED_EVIDENCE_DESTINATIONS;
+export const F17_PROPOSED_EVIDENCE_DESTINATIONS = F18_PROPOSED_EVIDENCE_DESTINATIONS;
+export const F16_PROPOSED_EVIDENCE_DESTINATIONS = F18_PROPOSED_EVIDENCE_DESTINATIONS;
+export const F15_PROPOSED_EVIDENCE_DESTINATIONS = F18_PROPOSED_EVIDENCE_DESTINATIONS;
 export const F14_PROPOSED_EVIDENCE_DESTINATIONS = F15_PROPOSED_EVIDENCE_DESTINATIONS;
 
 export function buildProposedQualificationResetHostedPlan({
@@ -830,6 +831,10 @@ export function buildProposedQualificationResetHostedPlan({
     dependencyProvenance: DEPENDENCY_ALLOWLIST_PROVENANCE,
     f14RuntimeBaselineCitedNotExpected: "f6205869b233eaccf375b299112f7b9c352d58c6f2659471e06d2ca7a241e31d",
     f14UnionBaselineCitedNotExpected: "f6ff6e42b4b5ec14b1a67fe88377d7deafe5f12f2c2c35c834e7c763711e7caa",
+    f16RuntimeBaselineCitedNotExpected: closures.f16BaselineCitedNotExpected?.runtime?.sha256 || null,
+    f16UnionBaselineCitedNotExpected: closures.f16BaselineCitedNotExpected?.union?.sha256 || null,
+    f17RuntimeBaselineCitedNotExpected: closures.f17BaselineCitedNotExpected?.runtime?.sha256 || null,
+    f17UnionBaselineCitedNotExpected: closures.f17BaselineCitedNotExpected?.union?.sha256 || null,
     sequencing: [
       "offline validate this plan with disabled hosted transports",
       "confirm disposable target only; refuse production immediately",
@@ -877,6 +882,9 @@ export function renderProposedQualificationResetHostedPlanMarkdown(
     `- Runtime and union identities are distinct and must not be collapsed`,
     `- F14 runtime baseline (cited, not expected): \`${plan.f14RuntimeBaselineCitedNotExpected}\``,
     `- F14 union baseline (cited, not expected): \`${plan.f14UnionBaselineCitedNotExpected}\``,
+    `- F16 runtime baseline (cited, not expected): \`${plan.f16RuntimeBaselineCitedNotExpected}\``,
+    `- F17 runtime baseline (cited, not expected): \`${plan.f17RuntimeBaselineCitedNotExpected}\``,
+    `- F17 union baseline (cited, not expected): \`${plan.f17UnionBaselineCitedNotExpected}\``,
     `- Scope/SQL identity SHA-256: \`${plan.scopeSqlIdentitySha256}\``,
     `- CLI pin: \`${plan.cliPin}\``,
     `- Proof helper: \`${plan.proofHelper}\``,

@@ -44,13 +44,25 @@ import {
   F13_F16_VERIFICATION_UNION_LABEL,
   F13_F17_RUNTIME_CLOSURE_LABEL,
   F13_F17_VERIFICATION_UNION_LABEL,
+  F13_F18_RUNTIME_CLOSURE_LABEL,
+  F13_F18_VERIFICATION_UNION_LABEL,
   F16_BASELINE_RUNTIME_CLOSURE,
   F16_BASELINE_VERIFICATION_UNION,
   F16_HISTORICAL_RUNTIME_CLOSURE_LABEL,
+  F17_BASELINE_RUNTIME_CLOSURE,
+  F17_BASELINE_VERIFICATION_UNION,
+  F17_HISTORICAL_RUNTIME_CLOSURE_LABEL,
+  PROCESS_EVIDENCE_CONTRACT,
   PROCESS_EVIDENCE_SANITIZATION_RULES,
   QUALIFICATION_RESET_ISOLATION_LEVEL,
   QUALIFICATION_RESET_LOCK_ORDER,
+  adaptStoredProcessRecordToParserInput,
+  attestQualificationResetReparse,
+  classifyProcessEvidenceShape,
+  evaluateBackendBoundLockProof,
+  finalizeQualificationResetAttestations,
   packageQualificationResetProcessEvidence,
+  parseBoundResetObservationLine,
   scanEvidenceValueForLeaks,
   F15_BASELINE_RUNTIME_CLOSURE,
   F13_INVENTORY_CAPTURE_REQUIRED,
@@ -934,7 +946,7 @@ test("F14-R04 real transport contract: status0, SQL fail, truncate, COMMIT loss,
 test("F14-R05 committed local proof helper reports wipe rejection and MUST_LOCAL honestly", async () => {
   const { proveQualificationResetLocal } = await import("./prove-f3-qualification-reset-local.mjs");
   const proof = await proveQualificationResetLocal();
-  assert.equal(proof.schema, "f17-qualification-reset-local-proof-v1");
+  assert.equal(proof.schema, "f18-qualification-reset-local-proof-v1");
   assert.equal(proof.hostedIdentityProof, false);
   assert.equal(proof.disposableContact, false);
   assert.equal(proof.wipeRejectionCode, F13_WIPE_REJECTION_CODE);
@@ -973,13 +985,21 @@ test("F14-R06 runtime closure is entrypoint digest, not summary-file hash", () =
   assert.equal(closures.completeVerificationUnion.label, F13_F16_VERIFICATION_UNION_LABEL);
   assert.equal(closures.runtime.label, F13_F17_RUNTIME_CLOSURE_LABEL);
   assert.equal(closures.completeVerificationUnion.label, F13_F17_VERIFICATION_UNION_LABEL);
+  assert.equal(closures.runtime.label, F13_F18_RUNTIME_CLOSURE_LABEL);
+  assert.equal(closures.completeVerificationUnion.label, F13_F18_VERIFICATION_UNION_LABEL);
   assert.equal(closures.f15BaselineCitedNotExpected.runtime.sha256, F15_BASELINE_RUNTIME_CLOSURE.sha256);
   assert.equal(closures.f15BaselineCitedNotExpected.runtime.notExpectedF16, true);
   assert.equal(closures.f16BaselineCitedNotExpected.runtime.sha256, F16_BASELINE_RUNTIME_CLOSURE.sha256);
   assert.equal(closures.f16BaselineCitedNotExpected.runtime.notExpectedF17, true);
   assert.equal(closures.f16BaselineCitedNotExpected.runtime.historicalLabel, F16_HISTORICAL_RUNTIME_CLOSURE_LABEL);
+  assert.equal(closures.f17BaselineCitedNotExpected.runtime.sha256, F17_BASELINE_RUNTIME_CLOSURE.sha256);
+  assert.equal(closures.f17BaselineCitedNotExpected.union.sha256, F17_BASELINE_VERIFICATION_UNION.sha256);
+  assert.equal(closures.f17BaselineCitedNotExpected.runtime.notExpectedF18, true);
+  assert.equal(closures.f17BaselineCitedNotExpected.runtime.historicalLabel, F17_HISTORICAL_RUNTIME_CLOSURE_LABEL);
   assert.notEqual(closures.runtime.sha256, F16_BASELINE_RUNTIME_CLOSURE.sha256);
   assert.notEqual(closures.completeVerificationUnion.sha256, F16_BASELINE_VERIFICATION_UNION.sha256);
+  assert.notEqual(closures.runtime.sha256, F17_BASELINE_RUNTIME_CLOSURE.sha256);
+  assert.notEqual(closures.completeVerificationUnion.sha256, F17_BASELINE_VERIFICATION_UNION.sha256);
   const publishedCtx = qualificationResetRuntimeContext();
   assert.equal(publishedCtx.closureDigest, closures.runtime.sha256);
   assert.notEqual(publishedCtx.closureDigest, F13_SUMMARY_FILE_HASH_FORBIDDEN);
@@ -1834,6 +1854,9 @@ test("F17-B01 isolation is READ COMMITTED and lock order is documented", () => {
   assert.match(sql.sql, /BEGIN ISOLATION LEVEL READ COMMITTED/);
   assert.doesNotMatch(sql.sql, /BEGIN ISOLATION LEVEL SERIALIZABLE/);
   assert.match(sql.sql, /SET LOCAL application_name = 'f13_qualification_reset'/);
+  assert.match(sql.sql, /F18_RESET_BACKEND pid=%/);
+  assert.match(sql.sql, /pg_backend_pid\(\)/);
+  assert.match(sql.sql, /json_build_object\(/);
   assert.match(sql.sql, /PERFORM\s+pg_advisory_xact_lock/);
   assert.match(sql.sql, /LOCK TABLE supabase_migrations\.schema_migrations IN SHARE ROW EXCLUSIVE MODE/);
   assert.match(sql.sql, /live catalog dependency tuples after lock/);
@@ -1865,7 +1888,13 @@ test("F17-B02 two-session lock-wait scenarios are recorded or MUST_LOCAL", async
       assert.notEqual(row.commit, true);
       assert.equal(row.rollback, null);
       assert.ok(row.interleaving?.t1ReachedThenWaited === true);
-      assert.ok(Array.isArray(row.interleaving?.waiterPids) && row.interleaving.waiterPids.length > 0);
+      assert.ok(Number.isInteger(row.interleaving?.resetBackendPid));
+      assert.ok(Number.isInteger(row.interleaving?.resetProcessId));
+      assert.equal(row.interleaving?.resetBackendPid, row.backendBoundLock?.observation?.resetBackendPid);
+      assert.equal(row.backendBoundLock?.proof?.ok, true);
+      assert.equal(row.holderCommitted, true);
+      assert.equal(row.holderResult?.ok, true);
+      assert.equal(row.interleaving?.inferredFromAnyWaiter, false);
       assert.ok(row.preResetCommittedDrift);
     }
   }
@@ -1928,4 +1957,263 @@ test("F17-C01 process evidence packaging preserves failure metadata and stream h
   assert.notEqual(timed.status, 0);
   assert.equal(PROCESS_EVIDENCE_SANITIZATION_RULES.neverClaimsOriginalByteEqualityAfterTransform, true);
 });
+
+function observationLine(phase, event, extra = {}) {
+  return `${JSON.stringify({ schema: TX_OBSERVATION_SCHEMA, phase, event, ...extra })}\n`;
+}
+
+function successObservationStdout() {
+  return TX_OBSERVATION_SUCCESS_SEQUENCE.map((row) => observationLine(row.phase, row.event, row.committed === true ? { committed: true } : {})).join("");
+}
+
+async function runProcessEvidenceE2E(rawTransportResult) {
+  const { createHash } = await import("node:crypto");
+  const sha = (text) => createHash("sha256").update(String(text ?? ""), "utf8").digest("hex");
+  const originalStdout = rawTransportResult.stdout ?? "";
+  const originalStderr = rawTransportResult.stderr ?? "";
+  const originalStdoutSha256 = sha(originalStdout);
+  const originalStderrSha256 = sha(originalStderr);
+  const recorder = createQualificationResetRecorder();
+  const result = await runQualificationReset({
+    input: planInput(),
+    adapters: {
+      transport: {
+        kind: "e2e-process-evidence",
+        disabled: false,
+        execute() {
+          return rawTransportResult;
+        },
+      },
+    },
+    recorder,
+    allowDisabledTransport: false,
+  });
+  const packaged = packageQualificationResetProcessEvidence(result.processResult);
+  const serialized = JSON.stringify(packaged);
+  const reread = JSON.parse(serialized);
+  const adapted = adaptStoredProcessRecordToParserInput(reread);
+  const interpreted = adapted.ok
+    ? interpretQualificationResetTransportResult(adapted.processResult)
+    : null;
+  return {
+    result,
+    packaged,
+    reread,
+    adapted,
+    interpreted,
+    originalStdoutSha256,
+    originalStderrSha256,
+    originalStdoutByteLength: Buffer.byteLength(originalStdout, "utf8"),
+    originalStderrByteLength: Buffer.byteLength(originalStderr, "utf8"),
+  };
+}
+
+test("F18-A01 backend-bound lock proof negatives cannot PASS", () => {
+  const valid = {
+    resetProcessId: 11,
+    resetBackendPid: 22,
+    resetExecutionId: "f18-exec-0123456789ab",
+    holderBackendPid: 33,
+    datname: "f3_lock_proof",
+    relation: "public.memberships",
+    holderLock: { pid: 33, mode: "AccessExclusiveLock", granted: true, relation: "public.memberships" },
+    waiterLock: { pid: 22, mode: "AccessExclusiveLock", granted: false, relation: "public.memberships" },
+    resetWaitOnHolder: { waiterPid: 22, holderPid: 33, blockedByHolder: true },
+    holderCommitted: true,
+    holderResult: { ok: true },
+    committedCatalogChange: true,
+    lockAcquisitionByResetBackend: {
+      resetBackendPid: 22,
+      relation: "public.memberships",
+      granted: true,
+      t2LockedSameBackend: true,
+      afterHolderCommit: true,
+    },
+    t3RejectionFromSameReset: { sameResetExecution: true, rejected: true, mutationPhaseReached: false },
+    appliedSqlIdentity: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    postconditionsComplete: true,
+  };
+  assert.equal(evaluateBackendBoundLockProof(valid).ok, true);
+  assert.equal(evaluateBackendBoundLockProof({
+    ...valid,
+    waiterLock: { ...valid.waiterLock, pid: 99 },
+    inferredFromAnyWaiter: true,
+  }).ok, false);
+  assert.equal(evaluateBackendBoundLockProof({
+    ...valid,
+    relation: "public.groups",
+  }).ok, false);
+  assert.equal(evaluateBackendBoundLockProof({
+    ...valid,
+    holderCommitted: false,
+    holderResult: { ok: false },
+  }).ok, false);
+  assert.equal(evaluateBackendBoundLockProof({
+    ...valid,
+    lockAcquisitionByResetBackend: {
+      resetBackendPid: 22,
+      relation: "public.memberships",
+      granted: false,
+      t2LockedSameBackend: false,
+      afterHolderCommit: true,
+    },
+  }).ok, false);
+  assert.equal(evaluateBackendBoundLockProof({
+    ...valid,
+    inferredFromApplicationNameAlone: true,
+  }).ok, false);
+  const notice = parseBoundResetObservationLine("NOTICE:  F18_RESET_BACKEND pid=4242 datname=f3_demo app=f13_qualification_reset");
+  assert.equal(notice.backendPid, 4242);
+  assert.equal(notice.datname, "f3_demo");
+});
+
+test("F18-B01 runner-helper-serialize-reread-parser preserves provenance E2E", async () => {
+  const success = await runProcessEvidenceE2E({
+    status: 0,
+    signal: null,
+    timeout: false,
+    timedOut: false,
+    stdout: successObservationStdout(),
+    stderr: "",
+    argv: [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", "[FILE]"],
+  });
+  assert.equal(success.packaged.rejected, undefined);
+  assert.equal(success.reread.streams.capturedBeforeEncode, true);
+  assert.equal(success.reread.streams.originalStdoutSha256, success.originalStdoutSha256);
+  assert.equal(success.reread.streams.originalStdoutByteLength, success.originalStdoutByteLength);
+  assert.equal(success.adapted.ok, true);
+  assert.equal(success.interpreted.committed, true);
+  assert.equal(success.result.verdict, "CLEAN_BASELINE");
+
+  const eaccesErr = new Error("open '/tmp/f18-qual-reset-xyz/file.sql'");
+  eaccesErr.name = "Error";
+  eaccesErr.code = "EACCES";
+  eaccesErr.syscall = "open";
+  const failed = await runProcessEvidenceE2E({
+    status: 1,
+    signal: null,
+    timeout: false,
+    timedOut: false,
+    stdout: "",
+    stderr: "psql:/tmp/f18-qual-reset-xyz/file.sql:12: ERROR: boom\n",
+    error: eaccesErr,
+    argv: ["psql", "-f", "/tmp/f18-qual-reset-xyz/file.sql"],
+  });
+  assert.equal(failed.reread.status, 1);
+  assert.equal(failed.reread.structuredError.code, "EACCES");
+  assert.equal(failed.reread.structuredError.syscall, "open");
+  assert.equal(failed.reread.structuredError.name, "Error");
+  assert.match(failed.reread.structuredError.message, /\[REDACTED_PATH\]|open/);
+  assert.equal(failed.reread.streams.originalStderrSha256, failed.originalStderrSha256);
+  assert.notEqual(failed.reread.streams.packagedStderrSha256, failed.originalStderrSha256);
+  assert.equal(failed.interpreted.committed, false);
+  assert.notEqual(failed.result.verdict, "CLEAN_BASELINE");
+
+  const timed = await runProcessEvidenceE2E({
+    status: null,
+    signal: "SIGTERM",
+    timeout: true,
+    timedOut: true,
+    stdout: observationLine("T1_BEGIN", "began") + observationLine("T7_COMMIT", "commit_attempted"),
+    stderr: "killed after timeout at /tmp/f18-qual-reset-xyz/file.sql\n",
+  });
+  assert.equal(timed.reread.timeout, true);
+  assert.equal(timed.reread.timedOut, true);
+  assert.equal(timed.reread.signal, "SIGTERM");
+  assert.notEqual(timed.reread.status, 0);
+  assert.equal(timed.interpreted.committed, false);
+
+  const sanitized = await runProcessEvidenceE2E({
+    status: 1,
+    stdout: "",
+    stderr: "psql:/tmp/f18-qual-reset-xyz/file.sql:1: ERROR: F13_UNEXPECTED_OBJECT_OR_DEPENDENCY\n",
+    error: { code: "F13_RESET_SQL_FAILED", message: "see /tmp/f18-qual-reset-xyz/file.sql" },
+  });
+  assert.equal(sanitized.reread.streams.originalStderrSha256, sanitized.originalStderrSha256);
+  assert.notEqual(sanitized.reread.streams.packagedStderrSha256, sanitized.originalStderrSha256);
+  assert.doesNotMatch(sanitized.reread.stderr, /\/tmp\/f18-qual-reset-xyz/);
+
+  const double = packageQualificationResetProcessEvidence({
+    schema: PROCESS_EVIDENCE_CONTRACT.schema,
+    processResult: { schema: PROCESS_EVIDENCE_CONTRACT.schema, streams: { capturedBeforeEncode: true } },
+    streams: {
+      capturedBeforeEncode: true,
+      originalStdoutSha256: "a".repeat(64),
+      originalStderrSha256: "b".repeat(64),
+      originalStdoutByteLength: 0,
+      originalStderrByteLength: 0,
+    },
+  });
+  assert.equal(double.rejected, true);
+  assert.equal(double.code, "F18_PROCESS_EVIDENCE_DOUBLE_ENCODED");
+  assert.equal(classifyProcessEvidenceShape({ schema: PROCESS_EVIDENCE_CONTRACT.schema }).kind, "ambiguous");
+  assert.equal(PROCESS_EVIDENCE_CONTRACT.neverRecomputeOriginalFromTransformed, true);
+});
+
+test("F18-C01 success records reparse committed; failures stay rejected", async () => {
+  const successRaw = {
+    status: 0,
+    processStatus: 0,
+    stdout: successObservationStdout(),
+    stderr: "",
+    signal: null,
+    timeout: false,
+    timedOut: false,
+  };
+  const successAttest = attestQualificationResetReparse(successRaw, {
+    verdict: "CLEAN_BASELINE",
+    scenarioOk: true,
+  });
+  assert.equal(successAttest.interpretedCommitted, true);
+  assert.equal(successAttest.t7CommittedTrue, true);
+  assert.equal(successAttest.ok, true);
+
+  const storedProcessStatusOnly = {
+    processStatus: 0,
+    stdout: successObservationStdout(),
+    stderr: "",
+    timeout: false,
+  };
+  const mapped = adaptStoredProcessRecordToParserInput(storedProcessStatusOnly);
+  assert.equal(mapped.ok, true);
+  assert.equal(mapped.mappedProcessStatusToStatus, true);
+  const mappedInterp = interpretQualificationResetTransportResult(mapped.processResult);
+  assert.equal(mappedInterp.committed, true);
+
+  const missing = adaptStoredProcessRecordToParserInput({
+    stdout: successObservationStdout(),
+  });
+  assert.equal(missing.ok, false);
+  assert.equal(missing.code, "F18_STORED_PROCESS_RECORD_STATUS_MISSING");
+  const missingAttest = attestQualificationResetReparse({
+    stdout: successObservationStdout(),
+  }, { verdict: "CLEAN_BASELINE", scenarioOk: true });
+  assert.equal(missingAttest.ok, false);
+  assert.equal(missingAttest.interpretedCommitted, false);
+
+  const failedRaw = {
+    status: 1,
+    processStatus: 1,
+    stdout: observationLine("T1_BEGIN", "began") + observationLine("T2_LOCK", "locked"),
+    stderr: "ERROR: F13_UNEXPECTED_OBJECT_OR_DEPENDENCY",
+    timeout: false,
+  };
+  const failedAttest = attestQualificationResetReparse(failedRaw, {
+    verdict: "HOLD",
+    scenarioOk: false,
+  });
+  assert.equal(failedAttest.interpretedCommitted, false);
+  assert.equal(failedAttest.ok, true);
+  assert.equal(failedAttest.genuineFailure, true);
+
+  const inconsistent = finalizeQualificationResetAttestations([
+    successAttest,
+    { ok: false, consistent: false, interpretedCommitted: false, interpretedVerdictPath: "CLEAN_BASELINE" },
+  ]);
+  assert.equal(inconsistent.ok, false);
+  assert.equal(inconsistent.code, "F18_ATTESTATION_INCONSISTENT");
+  const finalized = finalizeQualificationResetAttestations([successAttest, failedAttest]);
+  assert.equal(finalized.ok, true);
+});
+
 

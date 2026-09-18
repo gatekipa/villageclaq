@@ -1,0 +1,20 @@
+{
+  "pathLeaks": 0,
+  "secrets": 0,
+  "pathLeakHits": [],
+  "secretHits": [],
+  "derivedFromFullPackageScan": true,
+  "unindexed": 0,
+  "unindexedPaths": [],
+  "missingFromDisk": [],
+  "fileCountIndexed": 23,
+  "f18IndependentQa": "INHERITED",
+  "attestationFinalizationOk": true,
+  "evidenceIndexInteriorSha256": "79824d88d11054bcdc9501a79c810ac27b0582c77ca06f78d2df8732fd9368ff",
+  "evidenceIndexChecksumFileSha256": "4b88ffe745ae75120e9bd73d826658d614d8dc52ad92aeadd2ebc1bdbfabd62a",
+  "checksumDistinction": {
+    "interiorIsSha256OfEvidenceIndexJson": true,
+    "checksumFileDigestIsSha256OfEvidenceIndexSha256Bytes": true,
+    "identitiesDiffer": true
+  }
+}

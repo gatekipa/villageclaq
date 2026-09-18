@@ -1,0 +1,37 @@
+{
+  "built_summary": {
+    "closure_complete": true,
+    "missing": 0,
+    "unresolved": 0,
+    "unexplained_exclusions": 0,
+    "uncommitted_functional_diffs": 0,
+    "hosted_tree_mismatches": 0,
+    "runtime_read_missing": 0,
+    "file_count": 38,
+    "closure_sha256": "33f501c31275bff51dbb189350bc755865aa57372921d0c668f22479aef39b9d",
+    "independent_reference_source_sha256": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+    "git_verification": {
+      "ok": true
+    }
+  },
+  "gate": {
+    "ok": true,
+    "dbAccess": false,
+    "dbPushCalls": 0,
+    "repairCalls": 0,
+    "continuationCalls": 0,
+    "closure_complete": true
+  },
+  "static_closure_complete": true,
+  "schema_version": "f3-full-catalog-v5",
+  "envelope": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "frozen_v5": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d",
+    "00119_f3_01_core_ledger_foundation.sql": "5e03111ffb34be3ed76a714370c93e70210a9741a25ac7b9158a9a9ad22f12f4",
+    "00120_f3_02_secure_posting_idempotency.sql": "35eba6966d2c077a9467f09adc6c85306b951c9d8388ee758a60d924c05ae51a",
+    "00121_f3_03_projection_read_proof.sql": "8f65797949d8c5afb7dfa99b8020da52385347099b2a5b9be5148b253e76bde6",
+    "00122_f3_04_correction_reversal.sql": "6e3240759aec64d4692422aac006b4fb865e3039832be84efea86b39c0253175",
+    "00123_f3_05_opening_cash_command.sql": "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34"
+  },
+  "verdict": "CONTINUE"
+}

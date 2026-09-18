@@ -1,0 +1,12 @@
+{
+  "artifact": "cleanup-verification",
+  "functional_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315",
+  "poison_absent_after_stop": true,
+  "poisonCleanupOnly_on_00121": true,
+  "repair_not_spawned_on_00121": true,
+  "residue": {
+    "00118_00119_00120_objects_and_history_present": true,
+    "00121_SQL_committed_history_absent": true,
+    "note": "STOP left 00118-00120 repaired; 00121 objects present but history not repaired (gate refused)"
+  }
+}

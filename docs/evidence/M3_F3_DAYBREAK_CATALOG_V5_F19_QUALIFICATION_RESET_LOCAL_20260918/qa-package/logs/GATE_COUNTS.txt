@@ -1,0 +1,5 @@
+test:f3-reset-design 30/30 (0 fail, 0 skip)
+test:f3-reset 66/66 (0 fail, 0 skip) including F19-A01/A02/B01/B02
+test:f3-db-push 246 pass + 1 skip / 247 tests
+helper 24 checks / 9 scenarios / 0 TX / 33 pass / 0 fail / MUST_LOCAL
+VillageClaq 242/1 is NOT an F19 claim

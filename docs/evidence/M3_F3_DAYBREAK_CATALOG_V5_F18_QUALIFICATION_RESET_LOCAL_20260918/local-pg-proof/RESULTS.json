@@ -1,0 +1,18 @@
+{
+  "schema": "f18-qualification-reset-local-proof-v1",
+  "overallOk": true,
+  "passCount": 33,
+  "failCount": 0,
+  "localPg": {
+    "available": true,
+    "reason": null,
+    "classification": "LOCAL_PG_EXECUTED",
+    "serverVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)"
+  },
+  "distinctions": {
+    "checks": 24,
+    "scenarios": 9,
+    "executedTransactions": 8
+  },
+  "wipeRejectionCode": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH"
+}

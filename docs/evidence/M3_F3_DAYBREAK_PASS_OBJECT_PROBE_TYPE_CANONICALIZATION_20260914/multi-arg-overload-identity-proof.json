@@ -1,0 +1,8 @@
+{
+  "artifact": "multi-arg-overload-identity-proof",
+  "functional_sha": "7d18aacaa163f9738be16be80489654b048e2150",
+  "N1_acl_multi_arg": true,
+  "N14_object_probe_multi_arg": true,
+  "00121_cashbook_args": "p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer, p_limit integer",
+  "overloads_distinct": true
+}

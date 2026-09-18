@@ -1,0 +1,23 @@
+{
+  "accepted": true,
+  "verdict": "F18 ACCEPT",
+  "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "reviewedPin": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "bcId": "bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
+  "postgresServerVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+  "classification": "LOCAL_PG_EXECUTED",
+  "gates": {
+    "resetDesign": "30/30",
+    "reset": "62/62",
+    "dbPush": "243/243",
+    "helper": "24/9/8 TX; 33/0"
+  },
+  "closures": {
+    "A": "CLOSED",
+    "B": "CLOSED",
+    "C": "CLOSED"
+  },
+  "scoreAloneInsufficient": true,
+  "packageComplete": true,
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT"
+}

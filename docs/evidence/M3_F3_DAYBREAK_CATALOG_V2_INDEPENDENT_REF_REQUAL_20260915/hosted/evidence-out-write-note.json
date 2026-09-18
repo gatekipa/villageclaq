@@ -1,0 +1,6 @@
+{
+  "note": "qualify completed with FILE-BASED RUNNER QUALIFICATION PASS; process exit 1 solely because --evidence-out pointed at a directory (EISDIR) during post-success artifact write. Qualification verdict and sequence proofs are in phase-d-qualify.stdout.txt / six-positive-scenarios.raw.json. No second hosted retry performed.",
+  "phase_d_exit": 1,
+  "verdict": "FILE-BASED RUNNER QUALIFICATION PASS \u2014 STUB/LIVE-PIN FLOOR LIMITATION",
+  "stderr_class": "POST_SUCCESS_EVIDENCE_OUT_EISDIR"
+}

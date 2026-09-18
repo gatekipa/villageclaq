@@ -1,0 +1,8 @@
+{
+  "suite": "local-pg-proof",
+  "classification": "PASS",
+  "expect": null,
+  "observed": null,
+  "outSha256": "0326dab26877945c05d6086897c80ba2b82c2087357441a000c803e4d4db6ac4",
+  "outBytes": 1458
+}

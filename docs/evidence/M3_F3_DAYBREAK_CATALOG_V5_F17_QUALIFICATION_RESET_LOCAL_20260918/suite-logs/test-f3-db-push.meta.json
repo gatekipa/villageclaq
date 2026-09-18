@@ -1,0 +1,13 @@
+{
+  "suite": "test-f3-db-push",
+  "executableCommit": "83b9f79483f3ba53f4f8cd60016450ff38a723b4",
+  "platform": "linux",
+  "pgAvailable": true,
+  "originalLogSha256": "1b10e174d9fa5387f47b90bff433ec56d44c3e4ee79082e7eb180c892fcaf90b",
+  "packagedSanitized": true,
+  "originalByteEqual": false,
+  "tests": 240,
+  "pass": 240,
+  "fail": 0,
+  "skipped": 0
+}

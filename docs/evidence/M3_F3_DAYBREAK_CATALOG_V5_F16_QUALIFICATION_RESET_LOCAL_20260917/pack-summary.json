@@ -1,0 +1,31 @@
+{
+  "evidenceRel": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F16_QUALIFICATION_RESET_LOCAL_20260917",
+  "functionalTip": "b74c6854869acf0e826446ea0488c42469621a3b",
+  "startingRef": "1fe866ff93af77dfba55437888d3315804507222",
+  "f15FunctionalContentPin": "49a91169fbb53dba149f4e7bbcf3016f988f4922",
+  "f15PlanContentPin": "206dce13d424f5303520d2b63a43768a078dda35",
+  "localStatus": "LOCAL CANDIDATE READY",
+  "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "gates": {
+    "resetDesign": { "tests": 29, "pass": 29, "fail": 0, "skipped": 0, "f15": { "tests": 28, "pass": 28 } },
+    "reset": { "tests": 51, "pass": 51, "fail": 0, "skipped": 0, "f15": { "tests": 47, "pass": 47 } },
+    "dbPush": { "tests": 230, "pass": 230, "fail": 0, "skipped": 0, "f15": { "tests": 225, "pass": 224, "fail": 0, "skipped": 1 } },
+    "helper": { "pass": 24, "fail": 0, "checks": 17, "scenarios": 7, "executedTransactions": 6, "f15": { "pass": 15, "checks": 11, "scenarios": 4, "executedTransactions": 3 } }
+  },
+  "closures": {
+    "runtime": "1ca2a1ceddca278889c7ea92fc10e6a59150e06c5b4f13d4426b293fda29ee78",
+    "union": "989c6c99ead2b84190486b856d7e04a1e76824f870f3bbf9438935808c8fb7ff",
+    "runtimeCount": 45,
+    "unionCount": 48,
+    "independentReference": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91"
+  },
+  "reparse": {
+    "parsedOk": true,
+    "t7CommittedTrue": true,
+    "interpretedCommitted": true,
+    "verdictPath": "CLEAN_BASELINE"
+  },
+  "allowlistScopeOk": true,
+  "pathLeaks": 0
+}

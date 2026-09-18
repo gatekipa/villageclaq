@@ -1,0 +1,24 @@
+{
+  "functionalTip": "49a91169fbb53dba149f4e7bbcf3016f988f4922",
+  "planCommit": "206dce13d424f5303520d2b63a43768a078dda35",
+  "parentAcceptTip": "a4fa0832420d46f6cdd73b8f5e2ab381029dd2e1",
+  "priorHoldEvidenceTip": "d9e37d1f3bbfe35c47145b7ca886d2b4af486475",
+  "f14EvidenceParent": "437f27c2721bf7710746468a2cef9a52e1c4651a",
+  "f14Functional": "2d502a028b0d01808a871fb1d48d051813591ed2",
+  "f12": "1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+  "pg": {
+    "product": "PostgreSQL",
+    "version": "17.11",
+    "endpoint": "unix:/var/run/postgresql",
+    "role": "ubuntu",
+    "fixture": "scripts/fixtures/disposable-postgres.mjs createDisposableDatabase(f15_qual_reset)"
+  },
+  "dockerReferenceAvailable": {
+    "container": "f3-reference-pg176",
+    "port": "127.0.0.1:55432",
+    "version": "17.6",
+    "usedByCommittedHelper": false
+  },
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "framingHoldClosed": true
+}

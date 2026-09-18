@@ -1,0 +1,15 @@
+{
+  "status": "synthetic-local-f11",
+  "tip": "a67125309cc31ac33e601f0165cf906fb5806230",
+  "parent": "773b5c61e9862dbe66863a9030c4a9884e0bcc25",
+  "f10_evidence_start": "ae5d2e476c868017360cf15407cad256429ed3c6",
+  "recognition": [
+    "manual_income"
+  ],
+  "schema_version": "f3-full-catalog-v5",
+  "note": "synthetic evidence package for nested+outer integrity verification (F11 local/synthetic ONLY)",
+  "hosted_forbidden": true,
+  "hosted_run": false,
+  "label": "LOCAL_SYNTHETIC",
+  "layer": "synthetic-qualify-nested"
+}

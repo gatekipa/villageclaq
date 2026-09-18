@@ -1,0 +1,49 @@
+{
+  "artifact": "poison-probe-wrap-proof",
+  "note": "Read-only diagnostic after HOLD. No second reset. No reconstruction. No cli.mjs edit.",
+  "cli": "2.117.0",
+  "query_uses_output_format_json": true,
+  "command_rendered": "supabase db query --db-url [REDACTED] --workdir [ISOLATED] --output-format json",
+  "status": 0,
+  "stdout_byte_length": 244,
+  "stdout_sha256": "2d5009a3e99c0aa62fe10a06a4c4a678691d5ef41efebdf9a53570dd3620c174",
+  "parsed_shape": {
+    "top_level_keys": [
+      "0"
+    ],
+    "is_cli_rows_wrapper": false,
+    "looks_like_exact_envelope": false,
+    "first_row_keys": null
+  },
+  "preserveOriginalProcessStdout_ok": true,
+  "parseExactOriginalJsonObject": {
+    "ok": false,
+    "reason": "unexpected stderr",
+    "parser_verdict": "unexpected_stderr"
+  },
+  "evaluatePoisonAbsent": {
+    "ok": false,
+    "absent": false,
+    "reason": "unexpected stderr",
+    "parser_verdict": "unexpected_stderr"
+  },
+  "hold_gate": "STRICT original-stdout poison verification rejects CLI --output-format json wrapper; tip 4-file scope does not change f3-db-push-cli.mjs buildDbQueryCommand",
+  "production_contacted": false,
+  "second_reset": false,
+  "stdout_shape": {
+    "status": 0,
+    "stdout_len": 244,
+    "stderr_len": 33,
+    "stdout_preview_redacted": "[\n  {\n    \"jsonb_build_object\": {\n      \"current_database\": \"postgres\",\n      \"current_user\": \"postgres\",\n      \"poisonPresent\": false,\n      \"probe_marker\": \"f3_poison_absent_probe\",\n      \"schema_version\": \"f3-poison-envelope-v1\"\n    }\n  }\n]\n",
+    "stderr_preview_redacted": "Connecting to remote database...\n",
+    "stdout_is_array_json": true,
+    "stdout_is_object_json": false,
+    "has_schema_version_token": true,
+    "has_rows_token": false,
+    "has_jsonb_build_object_token": true
+  },
+  "dual_reject_reasons": [
+    "unexpected_stderr: 'Connecting to remote database...'",
+    "stdout is CLI array wrapper [{jsonb_build_object: <envelope>}] not exact f3-poison-envelope-v1 object"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "suite": "next-build",
+  "classification": "PASS",
+  "expect": null,
+  "observed": null,
+  "outSha256": "ed6547ba303d58b8250e0d0269745d47c279e47488160c3b9cc7285759ba548c",
+  "outBytes": 6884
+}

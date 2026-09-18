@@ -1,0 +1,19 @@
+PHASE_A_IDENTITY_OK {"ref":"jkorwnwwmdeflfntxntl","name":"villageclaq-f3-management-api-disposable-20260913","org":"eyztkzkprpmlmcabrfef","matches":{"ref":true,"name":true,"org":true},"not_production":true,"history_rows":0}
+PHASE_A_PRE_RESET {"verdict":"HOLD","ambiguous_count":3,"financial_core":false,"financial_private":true,"history_rows":0,"public_tables":32}
+PHASE_B_SUMMARY {
+  "identity_ok": {
+    "ref": true,
+    "name": true,
+    "org": true
+  },
+  "not_production": true,
+  "pre_ambiguous_count": 3,
+  "reset_done": true,
+  "classification": "CLEAN_BASELINE",
+  "clean_ok": true,
+  "ambiguous_objects_after": 0,
+  "history_after": 0,
+  "f3_absent": true,
+  "poison_absent": true,
+  "stop": false
+}

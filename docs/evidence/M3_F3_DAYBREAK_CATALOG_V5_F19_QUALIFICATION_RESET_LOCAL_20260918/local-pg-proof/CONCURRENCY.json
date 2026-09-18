@@ -1,0 +1,6 @@
+{
+  "f18Concurrency": "INHERITED PASSED",
+  "reRun": false,
+  "classification": "MUST_LOCAL",
+  "reason": "Focused injected-process tests only; no concrete impact required a PG concurrency re-run"
+}

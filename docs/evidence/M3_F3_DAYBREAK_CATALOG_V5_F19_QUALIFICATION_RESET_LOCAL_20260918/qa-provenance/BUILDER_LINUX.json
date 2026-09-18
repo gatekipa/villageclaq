@@ -1,0 +1,42 @@
+{
+  "role": "VillageClaq Builder",
+  "os": "Linux",
+  "node": "v22.14.0",
+  "classification": "MUST_LOCAL",
+  "psqlPresent": false,
+  "concurrencyReRun": false,
+  "villageclaq242Pass1Skip": {
+    "claimed": false,
+    "reason": "No distinct authentic execution record supplied; not launched as a new campaign; omitted from F19 acceptance"
+  },
+  "gates": {
+    "resetDesign": {
+      "tests": 30,
+      "pass": 30,
+      "fail": 0,
+      "skipped": 0
+    },
+    "reset": {
+      "tests": 66,
+      "pass": 66,
+      "fail": 0,
+      "skipped": 0
+    },
+    "dbPush": {
+      "tests": 247,
+      "pass": 246,
+      "fail": 0,
+      "skipped": 1,
+      "skipId": "identity GET is skipped without token",
+      "note": "Authentic this-builder combined gate. Not a 242-pass claim."
+    },
+    "helperOffline": {
+      "checks": 24,
+      "scenarios": 9,
+      "executedTransactions": 0,
+      "pass": 33,
+      "fail": 0,
+      "classification": "MUST_LOCAL"
+    }
+  }
+}

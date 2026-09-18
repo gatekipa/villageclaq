@@ -1,0 +1,136 @@
+{
+  "artifact": "canonicalization-field-registry",
+  "functional_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315",
+  "registry": {
+    "schema": {
+      "kind": "record_set",
+      "fields": [
+        "schema",
+        "owner"
+      ],
+      "sortBy": [
+        "schema",
+        "owner"
+      ],
+      "innerSetFields": [],
+      "doNotSort": [],
+      "notes": "Schema inventory members are (schema, owner). Order of schemas is meaningless."
+    },
+    "function_owner": {
+      "kind": "record_set",
+      "fields": [
+        "schema",
+        "function",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "search_path"
+      ],
+      "sortBy": [
+        "schema",
+        "function",
+        "identity_arguments",
+        "owner"
+      ],
+      "innerSetFields": [],
+      "doNotSort": [
+        "identity_arguments",
+        "search_path"
+      ],
+      "notes": "Complete function\u2194owner association. Owner-name multisets are not compared. identity_arguments are never reordered."
+    },
+    "acl": {
+      "kind": "record_set",
+      "fields": [
+        "object_type",
+        "schema",
+        "object_name",
+        "prokind",
+        "identity_arguments",
+        "grantee",
+        "grantor",
+        "privilege",
+        "grantable"
+      ],
+      "sortBy": [
+        "object_type",
+        "schema",
+        "object_name",
+        "identity_arguments",
+        "grantee",
+        "grantor",
+        "privilege",
+        "grantable"
+      ],
+      "innerSetFields": [],
+      "doNotSort": [
+        "identity_arguments",
+        "object_name",
+        "prokind"
+      ],
+      "notes": "One record per privilege. Routine identity is schema+object_name+prokind+identity_arguments (never a comma-joined label). Canonicalization reorders complete records only. identity_arguments are never split or reordered."
+    },
+    "policy": {
+      "kind": "record_set",
+      "fields": [
+        "schema",
+        "table",
+        "policy_name",
+        "command",
+        "permissive",
+        "roles",
+        "using",
+        "with_check"
+      ],
+      "sortBy": [
+        "schema",
+        "table",
+        "policy_name",
+        "command"
+      ],
+      "innerSetFields": [
+        "roles"
+      ],
+      "doNotSort": [
+        "using",
+        "with_check"
+      ],
+      "notes": "Roles are a set (order meaningless). USING / WITH CHECK expressions are never sorted or whitespace-normalized."
+    },
+    "function_definition": {
+      "kind": "record_set_or_exact_string",
+      "fields": [
+        "schema",
+        "name",
+        "identity_arguments",
+        "definition",
+        "owner",
+        "security_mode",
+        "search_path"
+      ],
+      "sortBy": [
+        "schema",
+        "name",
+        "identity_arguments",
+        "owner"
+      ],
+      "innerSetFields": [],
+      "doNotSort": [
+        "identity_arguments",
+        "definition",
+        "search_path",
+        "security_mode"
+      ],
+      "notes": "Optional. String values compare exactly. Record arrays sort by identity only; definition/owner/search_path/security changes fail."
+    },
+    "recognition": {
+      "kind": "exact_string_set",
+      "fields": [],
+      "sortBy": [],
+      "innerSetFields": [],
+      "doNotSort": [],
+      "notes": "Allowlist tags. Order meaningless. Exact strings only \u2014 never word-split."
+    }
+  },
+  "reason": "canonicalization format (comma-joined catalog strings \u2192 structured ACL identity by catalog fields + registry set-order); semantic members unchanged"
+}

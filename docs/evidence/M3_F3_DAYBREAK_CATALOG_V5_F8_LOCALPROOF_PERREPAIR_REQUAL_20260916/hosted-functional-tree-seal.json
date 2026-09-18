@@ -1,0 +1,38 @@
+{
+  "tip": "83c48192ef0309ae2ebdd1f087994319b19fc024",
+  "parent": "41b913ecf5885a2f2f012d58ed200b3f429ce72e",
+  "sealed_at_et": "9/16/2026, 2:25:22 PM EDT",
+  "files": [
+    {
+      "path": "scripts/lib/f3-db-push-query-parse.mjs",
+      "bytes": 27299,
+      "sha256": "055ae6dfb14a5b84e5ab08d84dc735e3de7a23e61db1c16d93f7d7c336f59140",
+      "git_blob": "238e7a74c990a697fb46c1b619e7936e8cd18d37"
+    },
+    {
+      "path": "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+      "bytes": 2014772,
+      "sha256": "85f121289737cfa555c23c8c433d0d96a60ddeaadb9479e302c474660b75736c",
+      "git_blob": "889e5b089c8af66e1a27a5f7eb582ad9f5c22d38"
+    },
+    {
+      "path": "scripts/qualify-f3-db-push-disposable.mjs",
+      "bytes": 60732,
+      "sha256": "fe425db152aca112bf595155f2b394dc4f9684f724d2d11955873376e13133d9",
+      "git_blob": "9a9768f4f8e7906d44a74f924e385bdbaea785de"
+    },
+    {
+      "path": "scripts/test-f3-db-push-harness.mjs",
+      "bytes": 308778,
+      "sha256": "2ff456ab74e5d005db8182c82e5c3ce732b39f41d74af0bf39924781257d9954",
+      "git_blob": "018379395c8c0ee79975d3867ff2b215813a7744"
+    },
+    {
+      "path": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_PSQL_POISON_REQUAL_20260916/psql-proof/psql-proof/run-local-psql-poison-proof.mjs",
+      "bytes": 22558,
+      "sha256": "556b533711ab526d23070b7ee590b4eec4db7139c52ee1e5eb31e9c7079f57e2",
+      "git_blob": "8b4672959610d87e1d6147ebf34273285700e7cf"
+    }
+  ],
+  "tree_sha256": "c46d6132ac50b010e4426e043866d655fe0fe6a1fbe3c52145d1f76f6bc4eaa2"
+}

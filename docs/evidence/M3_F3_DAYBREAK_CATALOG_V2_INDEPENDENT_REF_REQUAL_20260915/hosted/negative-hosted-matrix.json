@@ -1,0 +1,26 @@
+{
+  "artifact": "negative-hosted-matrix",
+  "cases": [
+    {
+      "name": "preDbPushGates",
+      "ok": true,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "detail": {
+        "hold": null,
+        "label": "DOCUMENTED QUALIFICATION FIXTURE \u2014 NOT A CLEAN 00001\u201300117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+        "cleanReplay00001_00117": false,
+        "productionEquivalent": false
+      }
+    },
+    {
+      "name": "platformAclCalibration",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "ok": true
+    }
+  ],
+  "note": "Hosted negatives enforced inside qualify; repairCalls/dbPushCalls=0 on calibration authorize path. Positive path uses exactly one authorized repair per migration after nonzero first db-push.",
+  "per_migration_first_db_push_nonzero": true,
+  "per_migration_authorized_repair_exit_0": true
+}

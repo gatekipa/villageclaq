@@ -1,0 +1,82 @@
+{
+  "case": "timeout",
+  "timedOut": true,
+  "timeout": true,
+  "packaged": {
+    "schema": "f18-qualification-reset-process-evidence-v1",
+    "boundary": "f18-process-evidence-boundary-v1",
+    "sanitization": {
+      "schema": "f18-qualification-reset-process-evidence-v1",
+      "replacesAbsoluteTempAndHomePaths": true,
+      "preservesCompleteSanitizedStreams": true,
+      "originalStreamsRetainedAsHashesOnly": true,
+      "neverClaimsOriginalByteEqualityAfterTransform": true,
+      "neverReconstructsFromSummaries": true,
+      "neverRecomputeOriginalFromTransformed": true,
+      "neverReplaceExplicitTrueFlagsOrErrorFieldsWithDefaults": true,
+      "validateAlreadyEncodedRecords": true,
+      "rejectAmbiguousShapes": true,
+      "preserves": [
+        "status",
+        "signal",
+        "timeout",
+        "timedOut",
+        "thrown",
+        "termination",
+        "structuredError.message",
+        "structuredError.code",
+        "structuredError.syscall",
+        "structuredError.name"
+      ],
+      "pathRedactionToken": "[REDACTED_PATH]"
+    },
+    "commandIdentity": "psql -X -q -v ON_ERROR_STOP=1 -f [FILE] (session-mode pooler via child env; never -p)",
+    "argv": [
+      "-X",
+      "-q",
+      "-t",
+      "-A",
+      "-w",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-f",
+      "[FILE]"
+    ],
+    "status": null,
+    "signal": "SIGTERM",
+    "timeout": true,
+    "timedOut": true,
+    "thrown": false,
+    "error": null,
+    "structuredError": null,
+    "stdout": "{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T1_BEGIN\",\"event\":\"began\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"commit_attempted\"}\n",
+    "stderr": "killed after timeout at [REDACTED_PATH]/f18-qual-reset-xyz/file.sql\n",
+    "streams": {
+      "capturedBeforeEncode": true,
+      "originalStdoutSha256": "b9255fd0af0174bf43238b40c7fc6747242920b83ce4b49036ba7daae681095e",
+      "originalStdoutByteLength": 192,
+      "originalStderrSha256": "6d24d28c2d9a8c909f0161ff6f6ef4e663685d58d64063eec790cd8131357cdd",
+      "originalStderrByteLength": 57,
+      "packagedStdoutSha256": "b9255fd0af0174bf43238b40c7fc6747242920b83ce4b49036ba7daae681095e",
+      "packagedStdoutByteLength": 192,
+      "packagedStderrSha256": "d95341af38c64b9add0235e2ee1b094cda96d734b2accb46219ef44e1df3c59c",
+      "packagedStderrByteLength": 68,
+      "originalByteEqual": false,
+      "reconstructedFromSummary": false,
+      "transformApplied": true
+    },
+    "validatedAlreadyEncoded": true
+  },
+  "originalCapturedBeforeEncode": {
+    "originalStdoutSha256": "b9255fd0af0174bf43238b40c7fc6747242920b83ce4b49036ba7daae681095e",
+    "originalStderrSha256": "6d24d28c2d9a8c909f0161ff6f6ef4e663685d58d64063eec790cd8131357cdd",
+    "originalStdoutByteLength": 192,
+    "originalStderrByteLength": 57
+  },
+  "interpreted": {
+    "committed": false,
+    "phaseReached": "T7_COMMIT",
+    "uncertainCommit": true,
+    "rolledBack": null
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "artifact": "prefix-staging-manifest",
+  "functional_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315",
+  "migrations": [
+    {
+      "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+      "version": "20260913173000",
+      "initial": {
+        "ok": true,
+        "pending": [
+          "20260913173000"
+        ],
+        "staged": [
+          "20260913173000_f3_bounded_financial_epoch_foundation.sql"
+        ],
+        "phase": "initial"
+      },
+      "retry": {
+        "ok": true,
+        "pending": []
+      },
+      "repairAttempted": true,
+      "continuation": true,
+      "fingerprint_exact": true
+    },
+    {
+      "file": "00119_f3_01_core_ledger_foundation.sql",
+      "version": "20260913173001",
+      "initial": {
+        "ok": true,
+        "pending": [
+          "20260913173001"
+        ],
+        "staged": [
+          "20260913173000_f3_bounded_financial_epoch_foundation.sql",
+          "20260913173001_f3_01_core_ledger_foundation.sql"
+        ],
+        "phase": "initial"
+      },
+      "retry": {
+        "ok": true,
+        "pending": []
+      },
+      "repairAttempted": true,
+      "continuation": true,
+      "fingerprint_exact": true
+    },
+    {
+      "file": "00120_f3_02_secure_posting_idempotency.sql",
+      "version": "20260913173002",
+      "initial": {
+        "ok": true,
+        "pending": [
+          "20260913173002"
+        ],
+        "staged": [
+          "20260913173000_f3_bounded_financial_epoch_foundation.sql",
+          "20260913173001_f3_01_core_ledger_foundation.sql",
+          "20260913173002_f3_02_secure_posting_idempotency.sql"
+        ],
+        "phase": "initial"
+      },
+      "retry": {
+        "ok": true,
+        "pending": []
+      },
+      "repairAttempted": true,
+      "continuation": true,
+      "fingerprint_exact": true
+    },
+    {
+      "file": "00121_f3_03_projection_read_proof.sql",
+      "version": "20260913173003",
+      "initial": {
+        "ok": true,
+        "pending": [
+          "20260913173003"
+        ],
+        "staged": [
+          "20260913173000_f3_bounded_financial_epoch_foundation.sql",
+          "20260913173001_f3_01_core_ledger_foundation.sql",
+          "20260913173002_f3_02_secure_posting_idempotency.sql",
+          "20260913173003_f3_03_projection_read_proof.sql"
+        ],
+        "phase": "initial"
+      },
+      "retry": null,
+      "repairAttempted": false,
+      "continuation": false,
+      "fingerprint_exact": true
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "verdict": "HOLD",
+  "functional_sha": "8e67138929d5c0925a89adb0d34eeff9a2d3cab4",
+  "stopped_at": "00119_f3_01_core_ledger_foundation.sql",
+  "failedGates": [
+    "fingerprint_exact"
+  ],
+  "root_cause": "acl_object_identity_truncation",
+  "example_expected": "lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid)",
+  "example_observed": "lock_financial_occurrence(p_group_id uuid, p_source_module text",
+  "00118": "PASS",
+  "00120_00123": "NOT_RUN",
+  "negatives_repairCalls_zero": true,
+  "tip_modified": false,
+  "silent_rerun": false
+}

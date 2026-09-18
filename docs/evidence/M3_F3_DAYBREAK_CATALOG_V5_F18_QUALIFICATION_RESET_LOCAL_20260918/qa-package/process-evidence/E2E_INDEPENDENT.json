@@ -1,0 +1,611 @@
+{
+  "schema": "f18-qa-independent-process-e2e-v1",
+  "reviewedPin": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "overallOk": true,
+  "contract": {
+    "schema": "f18-qualification-reset-process-evidence-v1",
+    "boundary": "f18-process-evidence-boundary-v1",
+    "captureOriginalBeforeEncode": true,
+    "neverRecomputeOriginalFromTransformed": true,
+    "neverReplaceExplicitTrueFlagsOrErrorFieldsWithDefaults": true,
+    "validateAlreadyEncodedRecords": true,
+    "rejectAmbiguousShapes": true,
+    "originalStreamsRetainedAsHashesOnly": true,
+    "sanitizedStreamsAreSeparate": true
+  },
+  "cases": {
+    "success": {
+      "ok": true,
+      "chain": "runner→helper→serialized→reread→parser",
+      "result": {
+        "ok": true,
+        "committed": true,
+        "verdict": "CLEAN_BASELINE",
+        "code": "F13_RESET_COMMITTED"
+      },
+      "packaged": {
+        "schema": "f18-qualification-reset-process-evidence-v1",
+        "boundary": "f18-process-evidence-boundary-v1",
+        "sanitization": {
+          "schema": "f18-qualification-reset-process-evidence-v1",
+          "replacesAbsoluteTempAndHomePaths": true,
+          "preservesCompleteSanitizedStreams": true,
+          "originalStreamsRetainedAsHashesOnly": true,
+          "neverClaimsOriginalByteEqualityAfterTransform": true,
+          "neverReconstructsFromSummaries": true,
+          "neverRecomputeOriginalFromTransformed": true,
+          "neverReplaceExplicitTrueFlagsOrErrorFieldsWithDefaults": true,
+          "validateAlreadyEncodedRecords": true,
+          "rejectAmbiguousShapes": true,
+          "preserves": [
+            "status",
+            "signal",
+            "timeout",
+            "timedOut",
+            "thrown",
+            "termination",
+            "structuredError.message",
+            "structuredError.code",
+            "structuredError.syscall",
+            "structuredError.name"
+          ],
+          "pathRedactionToken": "[REDACTED_PATH]"
+        },
+        "commandIdentity": "psql -X -q -v ON_ERROR_STOP=1 -f [FILE] (session-mode pooler via child env; never -p)",
+        "argv": [
+          "-X",
+          "-q",
+          "-t",
+          "-A",
+          "-w",
+          "-v",
+          "ON_ERROR_STOP=1",
+          "-f",
+          "[FILE]"
+        ],
+        "status": 0,
+        "signal": null,
+        "timeout": false,
+        "timedOut": false,
+        "thrown": false,
+        "error": null,
+        "structuredError": null,
+        "stdout": "{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T1_BEGIN\",\"event\":\"began\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T2_LOCK\",\"event\":\"locked\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T3_REVALIDATE\",\"event\":\"revalidated\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T4_MUTATE\",\"event\":\"mutate_attempted\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T5_AFFECTED\",\"event\":\"affected_checked\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T6_FINAL\",\"event\":\"final_ok\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"commit_attempted\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"committed\",\"committed\":true}\n",
+        "stderr": "",
+        "streams": {
+          "capturedBeforeEncode": true,
+          "originalStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+          "originalStdoutByteLength": 794,
+          "originalStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "originalStderrByteLength": 0,
+          "packagedStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+          "packagedStdoutByteLength": 794,
+          "packagedStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "packagedStderrByteLength": 0,
+          "originalByteEqual": false,
+          "reconstructedFromSummary": false,
+          "transformApplied": false
+        },
+        "validatedAlreadyEncoded": true
+      },
+      "reread": {
+        "schema": "f18-qualification-reset-process-evidence-v1",
+        "boundary": "f18-process-evidence-boundary-v1",
+        "sanitization": {
+          "schema": "f18-qualification-reset-process-evidence-v1",
+          "replacesAbsoluteTempAndHomePaths": true,
+          "preservesCompleteSanitizedStreams": true,
+          "originalStreamsRetainedAsHashesOnly": true,
+          "neverClaimsOriginalByteEqualityAfterTransform": true,
+          "neverReconstructsFromSummaries": true,
+          "neverRecomputeOriginalFromTransformed": true,
+          "neverReplaceExplicitTrueFlagsOrErrorFieldsWithDefaults": true,
+          "validateAlreadyEncodedRecords": true,
+          "rejectAmbiguousShapes": true,
+          "preserves": [
+            "status",
+            "signal",
+            "timeout",
+            "timedOut",
+            "thrown",
+            "termination",
+            "structuredError.message",
+            "structuredError.code",
+            "structuredError.syscall",
+            "structuredError.name"
+          ],
+          "pathRedactionToken": "[REDACTED_PATH]"
+        },
+        "commandIdentity": "psql -X -q -v ON_ERROR_STOP=1 -f [FILE] (session-mode pooler via child env; never -p)",
+        "argv": [
+          "-X",
+          "-q",
+          "-t",
+          "-A",
+          "-w",
+          "-v",
+          "ON_ERROR_STOP=1",
+          "-f",
+          "[FILE]"
+        ],
+        "status": 0,
+        "signal": null,
+        "timeout": false,
+        "timedOut": false,
+        "thrown": false,
+        "error": null,
+        "structuredError": null,
+        "stdout": "{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T1_BEGIN\",\"event\":\"began\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T2_LOCK\",\"event\":\"locked\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T3_REVALIDATE\",\"event\":\"revalidated\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T4_MUTATE\",\"event\":\"mutate_attempted\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T5_AFFECTED\",\"event\":\"affected_checked\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T6_FINAL\",\"event\":\"final_ok\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"commit_attempted\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"committed\",\"committed\":true}\n",
+        "stderr": "",
+        "streams": {
+          "capturedBeforeEncode": true,
+          "originalStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+          "originalStdoutByteLength": 794,
+          "originalStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "originalStderrByteLength": 0,
+          "packagedStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+          "packagedStdoutByteLength": 794,
+          "packagedStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "packagedStderrByteLength": 0,
+          "originalByteEqual": false,
+          "reconstructedFromSummary": false,
+          "transformApplied": false
+        },
+        "validatedAlreadyEncoded": true
+      },
+      "adapted": {
+        "ok": true,
+        "schema": "f18-qualification-reset-stored-process-adapter-v1",
+        "mappedProcessStatusToStatus": false,
+        "processResult": {
+          "status": 0,
+          "statusPresent": true,
+          "stdout": "{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T1_BEGIN\",\"event\":\"began\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T2_LOCK\",\"event\":\"locked\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T3_REVALIDATE\",\"event\":\"revalidated\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T4_MUTATE\",\"event\":\"mutate_attempted\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T5_AFFECTED\",\"event\":\"affected_checked\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T6_FINAL\",\"event\":\"final_ok\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"commit_attempted\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"committed\",\"committed\":true}\n",
+          "stderr": "",
+          "signal": null,
+          "timeout": false,
+          "timedOut": false,
+          "thrown": false,
+          "error": null,
+          "argv": [
+            "-X",
+            "-q",
+            "-t",
+            "-A",
+            "-w",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-f",
+            "[FILE]"
+          ],
+          "commandIdentity": "psql -X -q -v ON_ERROR_STOP=1 -f [FILE] (session-mode pooler via child env; never -p)"
+        }
+      },
+      "interpreted": {
+        "committed": true,
+        "phaseReached": "T7_COMMIT",
+        "uncertainCommit": false,
+        "rolledBack": null
+      },
+      "originalCapturedBeforeEncode": {
+        "originalStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+        "originalStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "originalStdoutByteLength": 794,
+        "originalStderrByteLength": 0
+      },
+      "hashesMatchOriginal": {
+        "stdout": true,
+        "stderr": true
+      },
+      "sanitizedDistinct": {
+        "stderrHashDifferent": false,
+        "stdoutHashDifferent": false,
+        "sanitizedStderrNotOriginal": false
+      }
+    },
+    "eacces": {
+      "ok": true,
+      "structuredError": {
+        "code": "EACCES",
+        "name": "Error",
+        "syscall": "open",
+        "message": "open '[REDACTED_PATH]/f18-qual-reset-xyz/file.sql'"
+      },
+      "originalStderrSha256": "f24c736f5c79f1dad82ed23d06973c4b09246f1bb0c561d40d7ccd87db9d8a7c",
+      "packagedStderrSha256": "a4893dad804d3b81b3ee883adad4a8a32459554df90d3c5206ef5f2c723fd0c0",
+      "sanitizedStderr": "psql:[REDACTED_PATH]/f18-qual-reset-xyz/file.sql:12: ERROR: boom\n",
+      "result": {
+        "ok": false,
+        "committed": false,
+        "verdict": "HOLD",
+        "code": "F13_RESET_SQL_FAILED"
+      },
+      "packaged": {
+        "schema": "f18-qualification-reset-process-evidence-v1",
+        "boundary": "f18-process-evidence-boundary-v1",
+        "sanitization": {
+          "schema": "f18-qualification-reset-process-evidence-v1",
+          "replacesAbsoluteTempAndHomePaths": true,
+          "preservesCompleteSanitizedStreams": true,
+          "originalStreamsRetainedAsHashesOnly": true,
+          "neverClaimsOriginalByteEqualityAfterTransform": true,
+          "neverReconstructsFromSummaries": true,
+          "neverRecomputeOriginalFromTransformed": true,
+          "neverReplaceExplicitTrueFlagsOrErrorFieldsWithDefaults": true,
+          "validateAlreadyEncodedRecords": true,
+          "rejectAmbiguousShapes": true,
+          "preserves": [
+            "status",
+            "signal",
+            "timeout",
+            "timedOut",
+            "thrown",
+            "termination",
+            "structuredError.message",
+            "structuredError.code",
+            "structuredError.syscall",
+            "structuredError.name"
+          ],
+          "pathRedactionToken": "[REDACTED_PATH]"
+        },
+        "commandIdentity": "psql -X -q -v ON_ERROR_STOP=1 -f [FILE] (session-mode pooler via child env; never -p)",
+        "argv": [
+          "psql",
+          "-f",
+          "[REDACTED_PATH]/f18-qual-reset-xyz/file.sql"
+        ],
+        "status": 1,
+        "signal": null,
+        "timeout": false,
+        "timedOut": false,
+        "thrown": false,
+        "error": "open '[REDACTED_PATH]/f18-qual-reset-xyz/file.sql'",
+        "structuredError": {
+          "code": "EACCES",
+          "name": "Error",
+          "syscall": "open",
+          "message": "open '[REDACTED_PATH]/f18-qual-reset-xyz/file.sql'"
+        },
+        "stdout": "",
+        "stderr": "psql:[REDACTED_PATH]/f18-qual-reset-xyz/file.sql:12: ERROR: boom\n",
+        "streams": {
+          "capturedBeforeEncode": true,
+          "originalStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "originalStdoutByteLength": 0,
+          "originalStderrSha256": "f24c736f5c79f1dad82ed23d06973c4b09246f1bb0c561d40d7ccd87db9d8a7c",
+          "originalStderrByteLength": 54,
+          "packagedStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "packagedStdoutByteLength": 0,
+          "packagedStderrSha256": "a4893dad804d3b81b3ee883adad4a8a32459554df90d3c5206ef5f2c723fd0c0",
+          "packagedStderrByteLength": 65,
+          "originalByteEqual": false,
+          "reconstructedFromSummary": false,
+          "transformApplied": true
+        },
+        "validatedAlreadyEncoded": true
+      },
+      "reread": {
+        "schema": "f18-qualification-reset-process-evidence-v1",
+        "boundary": "f18-process-evidence-boundary-v1",
+        "sanitization": {
+          "schema": "f18-qualification-reset-process-evidence-v1",
+          "replacesAbsoluteTempAndHomePaths": true,
+          "preservesCompleteSanitizedStreams": true,
+          "originalStreamsRetainedAsHashesOnly": true,
+          "neverClaimsOriginalByteEqualityAfterTransform": true,
+          "neverReconstructsFromSummaries": true,
+          "neverRecomputeOriginalFromTransformed": true,
+          "neverReplaceExplicitTrueFlagsOrErrorFieldsWithDefaults": true,
+          "validateAlreadyEncodedRecords": true,
+          "rejectAmbiguousShapes": true,
+          "preserves": [
+            "status",
+            "signal",
+            "timeout",
+            "timedOut",
+            "thrown",
+            "termination",
+            "structuredError.message",
+            "structuredError.code",
+            "structuredError.syscall",
+            "structuredError.name"
+          ],
+          "pathRedactionToken": "[REDACTED_PATH]"
+        },
+        "commandIdentity": "psql -X -q -v ON_ERROR_STOP=1 -f [FILE] (session-mode pooler via child env; never -p)",
+        "argv": [
+          "psql",
+          "-f",
+          "[REDACTED_PATH]/f18-qual-reset-xyz/file.sql"
+        ],
+        "status": 1,
+        "signal": null,
+        "timeout": false,
+        "timedOut": false,
+        "thrown": false,
+        "error": "open '[REDACTED_PATH]/f18-qual-reset-xyz/file.sql'",
+        "structuredError": {
+          "code": "EACCES",
+          "name": "Error",
+          "syscall": "open",
+          "message": "open '[REDACTED_PATH]/f18-qual-reset-xyz/file.sql'"
+        },
+        "stdout": "",
+        "stderr": "psql:[REDACTED_PATH]/f18-qual-reset-xyz/file.sql:12: ERROR: boom\n",
+        "streams": {
+          "capturedBeforeEncode": true,
+          "originalStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "originalStdoutByteLength": 0,
+          "originalStderrSha256": "f24c736f5c79f1dad82ed23d06973c4b09246f1bb0c561d40d7ccd87db9d8a7c",
+          "originalStderrByteLength": 54,
+          "packagedStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "packagedStdoutByteLength": 0,
+          "packagedStderrSha256": "a4893dad804d3b81b3ee883adad4a8a32459554df90d3c5206ef5f2c723fd0c0",
+          "packagedStderrByteLength": 65,
+          "originalByteEqual": false,
+          "reconstructedFromSummary": false,
+          "transformApplied": true
+        },
+        "validatedAlreadyEncoded": true
+      },
+      "adapted": {
+        "ok": true,
+        "schema": "f18-qualification-reset-stored-process-adapter-v1",
+        "mappedProcessStatusToStatus": false,
+        "processResult": {
+          "status": 1,
+          "statusPresent": true,
+          "stdout": "",
+          "stderr": "psql:[REDACTED_PATH]/f18-qual-reset-xyz/file.sql:12: ERROR: boom\n",
+          "signal": null,
+          "timeout": false,
+          "timedOut": false,
+          "thrown": false,
+          "error": {
+            "code": "EACCES",
+            "name": "Error",
+            "syscall": "open",
+            "message": "open '[REDACTED_PATH]/f18-qual-reset-xyz/file.sql'"
+          },
+          "argv": [
+            "psql",
+            "-f",
+            "[REDACTED_PATH]/f18-qual-reset-xyz/file.sql"
+          ],
+          "commandIdentity": "psql -X -q -v ON_ERROR_STOP=1 -f [FILE] (session-mode pooler via child env; never -p)"
+        }
+      },
+      "interpreted": {
+        "committed": false,
+        "phaseReached": null,
+        "uncertainCommit": false,
+        "rolledBack": null
+      },
+      "originalCapturedBeforeEncode": {
+        "originalStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "originalStderrSha256": "f24c736f5c79f1dad82ed23d06973c4b09246f1bb0c561d40d7ccd87db9d8a7c",
+        "originalStdoutByteLength": 0,
+        "originalStderrByteLength": 54
+      },
+      "hashesMatchOriginal": {
+        "stdout": true,
+        "stderr": true
+      },
+      "sanitizedDistinct": {
+        "stderrHashDifferent": true,
+        "stdoutHashDifferent": false,
+        "sanitizedStderrNotOriginal": true
+      }
+    },
+    "timeout": {
+      "ok": true,
+      "timedOut": true,
+      "timeout": true,
+      "result": {
+        "ok": false,
+        "committed": false,
+        "verdict": "HOLD",
+        "code": "UNCERTAIN_COMMIT"
+      },
+      "packaged": {
+        "schema": "f18-qualification-reset-process-evidence-v1",
+        "boundary": "f18-process-evidence-boundary-v1",
+        "sanitization": {
+          "schema": "f18-qualification-reset-process-evidence-v1",
+          "replacesAbsoluteTempAndHomePaths": true,
+          "preservesCompleteSanitizedStreams": true,
+          "originalStreamsRetainedAsHashesOnly": true,
+          "neverClaimsOriginalByteEqualityAfterTransform": true,
+          "neverReconstructsFromSummaries": true,
+          "neverRecomputeOriginalFromTransformed": true,
+          "neverReplaceExplicitTrueFlagsOrErrorFieldsWithDefaults": true,
+          "validateAlreadyEncodedRecords": true,
+          "rejectAmbiguousShapes": true,
+          "preserves": [
+            "status",
+            "signal",
+            "timeout",
+            "timedOut",
+            "thrown",
+            "termination",
+            "structuredError.message",
+            "structuredError.code",
+            "structuredError.syscall",
+            "structuredError.name"
+          ],
+          "pathRedactionToken": "[REDACTED_PATH]"
+        },
+        "commandIdentity": "psql -X -q -v ON_ERROR_STOP=1 -f [FILE] (session-mode pooler via child env; never -p)",
+        "argv": [
+          "-X",
+          "-q",
+          "-t",
+          "-A",
+          "-w",
+          "-v",
+          "ON_ERROR_STOP=1",
+          "-f",
+          "[FILE]"
+        ],
+        "status": null,
+        "signal": "SIGTERM",
+        "timeout": true,
+        "timedOut": true,
+        "thrown": false,
+        "error": null,
+        "structuredError": null,
+        "stdout": "{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T1_BEGIN\",\"event\":\"began\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"commit_attempted\"}\n",
+        "stderr": "killed after timeout at [REDACTED_PATH]/f18-qual-reset-xyz/file.sql\n",
+        "streams": {
+          "capturedBeforeEncode": true,
+          "originalStdoutSha256": "b9255fd0af0174bf43238b40c7fc6747242920b83ce4b49036ba7daae681095e",
+          "originalStdoutByteLength": 192,
+          "originalStderrSha256": "6d24d28c2d9a8c909f0161ff6f6ef4e663685d58d64063eec790cd8131357cdd",
+          "originalStderrByteLength": 57,
+          "packagedStdoutSha256": "b9255fd0af0174bf43238b40c7fc6747242920b83ce4b49036ba7daae681095e",
+          "packagedStdoutByteLength": 192,
+          "packagedStderrSha256": "d95341af38c64b9add0235e2ee1b094cda96d734b2accb46219ef44e1df3c59c",
+          "packagedStderrByteLength": 68,
+          "originalByteEqual": false,
+          "reconstructedFromSummary": false,
+          "transformApplied": true
+        },
+        "validatedAlreadyEncoded": true
+      },
+      "reread": {
+        "schema": "f18-qualification-reset-process-evidence-v1",
+        "boundary": "f18-process-evidence-boundary-v1",
+        "sanitization": {
+          "schema": "f18-qualification-reset-process-evidence-v1",
+          "replacesAbsoluteTempAndHomePaths": true,
+          "preservesCompleteSanitizedStreams": true,
+          "originalStreamsRetainedAsHashesOnly": true,
+          "neverClaimsOriginalByteEqualityAfterTransform": true,
+          "neverReconstructsFromSummaries": true,
+          "neverRecomputeOriginalFromTransformed": true,
+          "neverReplaceExplicitTrueFlagsOrErrorFieldsWithDefaults": true,
+          "validateAlreadyEncodedRecords": true,
+          "rejectAmbiguousShapes": true,
+          "preserves": [
+            "status",
+            "signal",
+            "timeout",
+            "timedOut",
+            "thrown",
+            "termination",
+            "structuredError.message",
+            "structuredError.code",
+            "structuredError.syscall",
+            "structuredError.name"
+          ],
+          "pathRedactionToken": "[REDACTED_PATH]"
+        },
+        "commandIdentity": "psql -X -q -v ON_ERROR_STOP=1 -f [FILE] (session-mode pooler via child env; never -p)",
+        "argv": [
+          "-X",
+          "-q",
+          "-t",
+          "-A",
+          "-w",
+          "-v",
+          "ON_ERROR_STOP=1",
+          "-f",
+          "[FILE]"
+        ],
+        "status": null,
+        "signal": "SIGTERM",
+        "timeout": true,
+        "timedOut": true,
+        "thrown": false,
+        "error": null,
+        "structuredError": null,
+        "stdout": "{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T1_BEGIN\",\"event\":\"began\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"commit_attempted\"}\n",
+        "stderr": "killed after timeout at [REDACTED_PATH]/f18-qual-reset-xyz/file.sql\n",
+        "streams": {
+          "capturedBeforeEncode": true,
+          "originalStdoutSha256": "b9255fd0af0174bf43238b40c7fc6747242920b83ce4b49036ba7daae681095e",
+          "originalStdoutByteLength": 192,
+          "originalStderrSha256": "6d24d28c2d9a8c909f0161ff6f6ef4e663685d58d64063eec790cd8131357cdd",
+          "originalStderrByteLength": 57,
+          "packagedStdoutSha256": "b9255fd0af0174bf43238b40c7fc6747242920b83ce4b49036ba7daae681095e",
+          "packagedStdoutByteLength": 192,
+          "packagedStderrSha256": "d95341af38c64b9add0235e2ee1b094cda96d734b2accb46219ef44e1df3c59c",
+          "packagedStderrByteLength": 68,
+          "originalByteEqual": false,
+          "reconstructedFromSummary": false,
+          "transformApplied": true
+        },
+        "validatedAlreadyEncoded": true
+      },
+      "adapted": {
+        "ok": true,
+        "schema": "f18-qualification-reset-stored-process-adapter-v1",
+        "mappedProcessStatusToStatus": false,
+        "processResult": {
+          "status": null,
+          "statusPresent": true,
+          "stdout": "{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T1_BEGIN\",\"event\":\"began\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"commit_attempted\"}\n",
+          "stderr": "killed after timeout at [REDACTED_PATH]/f18-qual-reset-xyz/file.sql\n",
+          "signal": "SIGTERM",
+          "timeout": true,
+          "timedOut": true,
+          "thrown": false,
+          "error": null,
+          "argv": [
+            "-X",
+            "-q",
+            "-t",
+            "-A",
+            "-w",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-f",
+            "[FILE]"
+          ],
+          "commandIdentity": "psql -X -q -v ON_ERROR_STOP=1 -f [FILE] (session-mode pooler via child env; never -p)"
+        }
+      },
+      "interpreted": {
+        "committed": false,
+        "phaseReached": "T7_COMMIT",
+        "uncertainCommit": true,
+        "rolledBack": null
+      },
+      "originalCapturedBeforeEncode": {
+        "originalStdoutSha256": "b9255fd0af0174bf43238b40c7fc6747242920b83ce4b49036ba7daae681095e",
+        "originalStderrSha256": "6d24d28c2d9a8c909f0161ff6f6ef4e663685d58d64063eec790cd8131357cdd",
+        "originalStdoutByteLength": 192,
+        "originalStderrByteLength": 57
+      },
+      "hashesMatchOriginal": {
+        "stdout": true,
+        "stderr": true
+      },
+      "sanitizedDistinct": {
+        "stderrHashDifferent": true,
+        "stdoutHashDifferent": false,
+        "sanitizedStderrNotOriginal": true
+      }
+    },
+    "sanitizedStderr": {
+      "ok": true,
+      "originalStderrSha256": "c97d3d6e719b5a382b5e3f4aa401eceaf6b85f4b84ec2bb01097a985f3b3d461",
+      "packagedStderrSha256": "87bad8e3794a21c0df7942c95fb1f1c162c44334593cae69e86876b9e7c7e29e",
+      "sanitizedStderr": "psql:[REDACTED_PATH]/f18-qual-reset-xyz/file.sql:1: ERROR: F13_UNEXPECTED_OBJECT_OR_DEPENDENCY\n",
+      "originalNeverRecomputedFromTransformed": true
+    },
+    "malformedDoubleEncoded": {
+      "ok": true,
+      "doubleCode": "F18_PROCESS_EVIDENCE_DOUBLE_ENCODED",
+      "malformedKind": "ambiguous"
+    },
+    "reparseOffline": {
+      "successInterpretedCommitted": true,
+      "successCleanBaseline": true,
+      "missingStatusRejected": true,
+      "missingNotDefaultedToSuccess": true,
+      "failureStaysRejected": true,
+      "ok": true
+    }
+  }
+}

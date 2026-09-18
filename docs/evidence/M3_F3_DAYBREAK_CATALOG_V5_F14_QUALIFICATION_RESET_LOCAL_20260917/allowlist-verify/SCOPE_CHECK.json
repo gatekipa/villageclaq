@@ -1,0 +1,29 @@
+{
+  "parent": "137f1c825455c10bd7d974d3de7dcbdc610c9619",
+  "tip": "2d502a028b0d01808a871fb1d48d051813591ed2",
+  "changed": [
+    "package.json",
+    "scripts/lib/f3-db-push-inventory.mjs",
+    "scripts/lib/f3-db-push-qualification-reset-design.mjs",
+    "scripts/lib/f3-db-push-qualification-reset.mjs",
+    "scripts/prove-f3-qualification-reset-local.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs",
+    "scripts/test-f3-qualification-reset-design.mjs",
+    "scripts/test-f3-qualification-reset.mjs"
+  ],
+  "authorized": [
+    "package.json",
+    "scripts/lib/f3-db-push-inventory.mjs",
+    "scripts/lib/f3-db-push-qualification-reset-design.mjs",
+    "scripts/lib/f3-db-push-qualification-reset.mjs",
+    "scripts/prove-f3-qualification-reset-local.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs",
+    "scripts/test-f3-qualification-reset-design.mjs",
+    "scripts/test-f3-qualification-reset.mjs"
+  ],
+  "unauthorized": [],
+  "scopeOk": true,
+  "note": "Authorized list = Phase-2 categories + committed prove helper."
+}

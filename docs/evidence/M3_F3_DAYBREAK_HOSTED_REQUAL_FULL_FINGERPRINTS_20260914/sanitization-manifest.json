@@ -1,0 +1,158 @@
+{
+  "artifact": "sanitization-manifest",
+  "transformations": [
+    {
+      "file": "dependency-closure-manifest.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "dependency-exclusion-manifest.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "executable-byte-manifest.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "local-suites-c59afad.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "phase-b-reset.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "six-positive-scenarios.raw.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/next-build.meta.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-f3-acl-portability.meta.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-f3-db-push-harness.meta.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-f3-db-push.meta.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-f3-local-safety.meta.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-f3-local-safety.out",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-f3-oracles.meta.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-f3-oracles.out",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-f3-recognition.meta.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-f3-recognition.out",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-f3-regression.meta.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-f3-regression.out",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-f3.meta.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-f3.out",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-m2-static-security.meta.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-m2.meta.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-m2.out",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-s0-cut1-active-authorization.meta.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-s0-cut2.meta.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-s0-cut2.out",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/test-storage-buckets.meta.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "suite-logs-c59afad/tsc-noEmit.meta.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "summary.md",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    },
+    {
+      "file": "test-f3-failure-classification-c59afad.json",
+      "transform": "absolute_path_redaction",
+      "semantic_fingerprint_fields_altered": 0
+    }
+  ],
+  "semantic_fingerprint_fields_altered": 0,
+  "secret_scan": "clean",
+  "service_role_acl_grantee_retained": true
+}

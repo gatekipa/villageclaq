@@ -1,0 +1,47 @@
+{
+  "stdoutEncoding": "base64",
+  "stdoutBase64": "eyJzY2hlbWFfdmVyc2lvbiIgOiAiZjMtcG9pc29uLWVudmVsb3BlLXYxIiwgInBvaXNvblByZXNlbnQiIDogZmFsc2UsICJjdXJyZW50X2RhdGFiYXNlIiA6ICJwb3N0Z3JlcyIsICJjdXJyZW50X3VzZXIiIDogInBvc3RncmVzIiwgInByb2JlX21hcmtlciIgOiAiZjNfcG9pc29uX2Fic2VudF9wcm9iZSJ9Cg==",
+  "stdoutSha256": "b13be10ffcd515af2b0e34b54400484c7bf7715ae6d786ff585c661551f70d02",
+  "stdoutByteLength": 175,
+  "stderrEncoding": "base64",
+  "stderrBase64": "",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrByteLength": 0,
+  "payloadByteRange": {
+    "start": 0,
+    "end": 174
+  },
+  "framingLfByteRange": {
+    "start": 174,
+    "end": 175
+  },
+  "status": 0,
+  "signal": null,
+  "timeout": false,
+  "transport": "isolated-psql",
+  "argv": [
+    "-X",
+    "-q",
+    "-t",
+    "-A",
+    "-w",
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-c",
+    "\nSELECT json_build_object(\n  'schema_version', 'f3-poison-envelope-v1',\n  'poisonPresent', (\n    EXISTS (\n      SELECT 1\n      FROM pg_trigger t\n      JOIN pg_class c ON c.oid = t.tgrelid\n      JOIN pg_namespace n ON n.oid = c.relnamespace\n      WHERE t.tgname = 'trg_f3_dbpush_fail_target_history'\n        AND n.nspname = 'supabase_migrations'\n        AND NOT t.tgisinternal\n    )\n    OR to_regprocedure('supabase_migrations.f3_dbpush_fail_target_history()') IS NOT NULL\n  ),\n  'current_database', current_database(),\n  'current_user', current_user,\n  'probe_marker', 'f3_poison_absent_probe'\n)::text;\n"
+  ],
+  "parsedEnvelope": {
+    "schema_version": "f3-poison-envelope-v1",
+    "poisonPresent": false,
+    "current_database": "postgres",
+    "current_user": "postgres",
+    "probe_marker": "f3_poison_absent_probe"
+  },
+  "live": {
+    "current_database": "postgres",
+    "current_user": "postgres",
+    "provenance": "original_query_output"
+  },
+  "poisonPresent": false,
+  "stdoutPreservedBeforeTransform": true
+}

@@ -1,0 +1,12 @@
+{
+  "suite": "test-s0-cut1",
+  "exit_code": 0,
+  "classification": "PASS",
+  "tests": 11,
+  "pass": 11,
+  "fail": 0,
+  "skipped": 0,
+  "sha256": "0c1f047b341f4af1a3deebe96fbaa064f2609ab445f6e3b82963551cb039ce1f",
+  "bytes": 2404,
+  "script": "test:s0-cut1-active-authorization"
+}

@@ -1,0 +1,29 @@
+{
+  "schema": "f3-f12-repair-adapter-post-retry-ordering-v1",
+  "not_hosted_execution": true,
+  "path": "hosted adapters → shared orchestration → actualRepairCallbackEntered",
+  "lines": {
+    "definition": "scripts/qualify-f3-db-push-disposable.mjs:1746",
+    "alias": "scripts/qualify-f3-db-push-disposable.mjs:2219",
+    "hosted_gate_adapter": "scripts/qualify-f3-db-push-disposable.mjs:3209",
+    "hosted_repair_adapter": "scripts/qualify-f3-db-push-disposable.mjs:3227",
+    "actual_callback_increment": "scripts/qualify-f3-db-push-disposable.mjs:1838",
+    "post_retry_event": "scripts/qualify-f3-db-push-disposable.mjs:1989"
+  },
+  "ordering": [
+    "repair_started before invoke",
+    "actualRepairCallbackEntered only inside invokeRecordedOperation before repairFn()",
+    "repair_completed after await",
+    "post_retry_fingerprint_collected only after successful postRetryVerify"
+  ],
+  "case_ids_present": {
+    "F12-R01": true,
+    "F12-R02": true,
+    "F12-R03": true,
+    "F12-R04": true,
+    "F12-R05": true,
+    "F12-R06": true,
+    "F12-R07": true,
+    "F12-R08": true
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "artifact": "phase-hosted-STATUS",
+  "verdict": "HOLD",
+  "hold_reason": "STRICT original-stdout poison verification rejected CLI --output-format json probe (unexpected stderr + array wrapper [{jsonb_build_object:...}]); repairAuthorized=false; repair not spawned; no continuation",
+  "hold_detail": "Tip/F6 4-file scope does not modify f3-db-push-cli.mjs buildDbQueryCommand which always adds --output-format json. Reconstruction forbidden per hosted note. First failure STOP \u2014 no second reset, no second hosted retry, no silent patch/reseal.",
+  "process_exit": 1,
+  "evidence_out_file": "phase-c/qualify-evidence/qualify-result.json",
+  "evidence_out_durable_write": true,
+  "evidence_out_was_directory": false,
+  "floorLabel": "DOCUMENTED QUALIFICATION FIXTURE \u2014 NOT A CLEAN 00001\u201300117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "schema": "f3-full-catalog-v5",
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "not_production": true,
+  "reset_count": 1,
+  "second_reset": false,
+  "clean_baseline": true,
+  "ambiguous_objects": "none",
+  "recognition": [
+    "manual_income"
+  ],
+  "hosted_on_functional_sha": "1f965219d73ec4c4c3455d8119e232757bba6ee6",
+  "F6": "1f965219d73ec4c4c3455d8119e232757bba6ee6",
+  "tip101_blob_source": "43ebd223b66edcd5581dc03f80110c3a39975f47",
+  "all_six_row_ok": false,
+  "stopped_at": "00118_f3_bounded_financial_epoch_foundation.sql",
+  "fingerprint_00118_after_poison_cleanup_exact": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d",
+  "captured_at_et": "2026-09-16 11:10:36 EDT"
+}

@@ -1,0 +1,150 @@
+{
+  "schema": "f16-qa-independent-reparse-v1",
+  "checks": [
+    {
+      "id": "PACKAGED_TX_SUCCESS_RAW_REPARSE",
+      "ok": true,
+      "parsedOk": true,
+      "observationCount": 8,
+      "lastEvent": {
+        "schema": "f15-qualification-reset-tx-observation-v1",
+        "phase": "T7_COMMIT",
+        "event": "committed",
+        "committed": true
+      },
+      "interpretedCommitted": true,
+      "interpretedRolledBack": null,
+      "phaseReached": "T7_COMMIT",
+      "fabricatedFromExitAlone": false
+    },
+    {
+      "id": "FRESH_HELPER_SUCCESS_REPARSE",
+      "ok": true,
+      "parsedOk": true,
+      "interpretedCommitted": true,
+      "observationCount": 8
+    },
+    {
+      "id": "FRESH_TX_T3_UNAPPROVED_FK_ROLLBACK_RAW",
+      "ok": true,
+      "stdoutLen": 180,
+      "stderrLen": 303,
+      "parsedOk": true,
+      "interpretedCommitted": false,
+      "interpretedRolledBack": null,
+      "phaseReached": "T2_LOCK",
+      "stderrLine": "psql:/tmp/f15-qual-reset-4M7Igl/f15-qualification-reset.sql:334: ERROR:  F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: live tuple not in FINITE_DEPENDENCY_ALLOWLIST foreign_key|unapproved_accounts_groups_fkey|public.financial_accounts|public.groups"
+    },
+    {
+      "id": "FRESH_TX_T3_RETARGETED_FK_ROLLBACK_RAW",
+      "ok": true,
+      "stdoutLen": 180,
+      "stderrLen": 292,
+      "parsedOk": true,
+      "interpretedCommitted": false,
+      "interpretedRolledBack": null,
+      "phaseReached": "T2_LOCK",
+      "stderrLine": "psql:/tmp/f15-qual-reset-Q6xHef/f15-qualification-reset.sql:334: ERROR:  F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: live tuple not in FINITE_DEPENDENCY_ALLOWLIST foreign_key|memberships_group_id_fkey|public.memberships|public.profiles"
+    },
+    {
+      "id": "FRESH_TX_UNEXPECTED_OBJECT_ROLLBACK_RAW",
+      "ok": true,
+      "stdoutLen": 180,
+      "stderrLen": 196,
+      "parsedOk": true,
+      "interpretedCommitted": false,
+      "interpretedRolledBack": null,
+      "phaseReached": "T2_LOCK",
+      "stderrLine": "psql:/tmp/f15-qual-reset-JcJqES/f15-qualification-reset.sql:334: ERROR:  F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: public.unexpected_view"
+    },
+    {
+      "id": "FRESH_TX_HISTORY_MISMATCH_ROLLBACK_RAW",
+      "ok": true,
+      "stdoutLen": 180,
+      "stderrLen": 210,
+      "parsedOk": true,
+      "interpretedCommitted": false,
+      "interpretedRolledBack": null,
+      "phaseReached": "T2_LOCK",
+      "stderrLine": "psql:/tmp/f15-qual-reset-8meREn/f15-qualification-reset.sql:334: ERROR:  F13_HISTORY_KEY_MISMATCH: version 20260913173000 name wrong_source_label"
+    },
+    {
+      "id": "PACKAGED_TX_T3_UNAPPROVED_FK_RAW_HAS_RAW_IO",
+      "ok": true
+    },
+    {
+      "id": "PACKAGED_TX_T3_RETARGETED_FK_RAW_HAS_RAW_IO",
+      "ok": true
+    },
+    {
+      "id": "FINDING_A_AUTH_HOLD",
+      "ok": true,
+      "eligCode": "F13_UNSUPPORTED_MANAGED_LEFTOVER",
+      "baselineCode": "F13_UNSUPPORTED_MANAGED_LEFTOVER",
+      "unsupportedCount": 1,
+      "wipeRouted": false
+    },
+    {
+      "id": "FINDING_A_UNNEST_HOLD",
+      "ok": true,
+      "eligCode": "F13_INVENTORY_CAPTURE_CONTRADICTION",
+      "baselineCode": "F13_INVENTORY_CAPTURE_CONTRADICTION",
+      "unsupportedCount": 1
+    },
+    {
+      "id": "FINDING_A_STORAGE_HOLD",
+      "ok": true,
+      "eligCode": "F13_UNSUPPORTED_MANAGED_LEFTOVER",
+      "baselineCode": "F13_UNSUPPORTED_MANAGED_LEFTOVER",
+      "unsupportedCount": 1,
+      "wipeRouted": false
+    },
+    {
+      "id": "GENUINE_CLEAN_ZERO_MUTATION",
+      "ok": true
+    },
+    {
+      "id": "APPROVED_LEFTOVER_RESET_ELIGIBLE",
+      "ok": true
+    },
+    {
+      "id": "LEFTOVER_PLUS_AUTH_NO_DELETION_EXPANSION",
+      "ok": true
+    },
+    {
+      "id": "WIPE_STILL_FORBIDDEN",
+      "ok": true
+    },
+    {
+      "id": "DUPLICATE_JSON_PROCESS_BYTE_BOUNDARY",
+      "ok": true,
+      "processCode": "F13_INVENTORY_CAPTURE_DUPLICATE_KEYS"
+    },
+    {
+      "id": "BASELINE_AFFECTING_FIELD_COUNT",
+      "ok": true,
+      "count": 16,
+      "fields": [
+        "public_tables",
+        "public_views",
+        "public_types",
+        "public_functions",
+        "unnest_uuid_shim",
+        "auth_handle_new_user_trigger",
+        "schema_migrations_present",
+        "schema_migrations_rows",
+        "financial_private",
+        "financial_core",
+        "financial_ledger_epochs",
+        "exchange_rates",
+        "organizations_base_country",
+        "groups_group_level",
+        "committees_budget_allocation",
+        "storage_policies"
+      ]
+    }
+  ],
+  "ok": true,
+  "pass": 17,
+  "fail": 0
+}

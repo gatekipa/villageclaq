@@ -1,0 +1,3489 @@
+
+> villageclaq@0.1.0 test:f3-oracles
+> node --experimental-strip-types --test tests/finance/f3-02/oracle.test.mjs tests/finance/f3-03/projection-oracle.test.mjs tests/finance/f3-04/correction-oracle.test.mjs tests/finance/f3-05/opening-oracle.test.mjs tests/finance/f3-recognition/recognition.test.mjs
+
+TAP version 13
+# (node:132615) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/f3-psql-poison-requal-20260916/tip-work/src/lib/financial-f3-recognition.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to /workspace/f3-psql-poison-requal-20260916/tip-work/package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: valid: USD restricted donation
+ok 1 - valid: USD restricted donation
+  ---
+  duration_ms: 5.051431
+  type: 'test'
+  ...
+# Subtest: valid: USD restricted venue
+ok 2 - valid: USD restricted venue
+  ---
+  duration_ms: 0.801458
+  type: 'test'
+  ...
+# Subtest: valid: USD General transfer
+ok 3 - valid: USD General transfer
+  ---
+  duration_ms: 0.492796
+  type: 'test'
+  ...
+# Subtest: valid: USD General opening
+ok 4 - valid: USD General opening
+  ---
+  duration_ms: 0.438882
+  type: 'test'
+  ...
+# Subtest: valid: USD resolved General and account currency
+ok 5 - valid: USD resolved General and account currency
+  ---
+  duration_ms: 0.849289
+  type: 'test'
+  ...
+# Subtest: valid: USD income with member and project
+ok 6 - valid: USD income with member and project
+  ---
+  duration_ms: 0.348217
+  type: 'test'
+  ...
+# Subtest: valid: USD expense with member and project
+ok 7 - valid: USD expense with member and project
+  ---
+  duration_ms: 0.385507
+  type: 'test'
+  ...
+# Subtest: valid: USD exact minimum and lowercase currency
+ok 8 - valid: USD exact minimum and lowercase currency
+  ---
+  duration_ms: 0.380896
+  type: 'test'
+  ...
+# Subtest: valid: USD beyond JS safe integer
+ok 9 - valid: USD beyond JS safe integer
+  ---
+  duration_ms: 1.680413
+  type: 'test'
+  ...
+# Subtest: valid: USD storage upper bound
+ok 10 - valid: USD storage upper bound
+  ---
+  duration_ms: 0.691238
+  type: 'test'
+  ...
+# Subtest: valid: XAF income
+ok 11 - valid: XAF income
+  ---
+  duration_ms: 0.31729
+  type: 'test'
+  ...
+# Subtest: valid: XAF expense
+ok 12 - valid: XAF expense
+  ---
+  duration_ms: 0.228559
+  type: 'test'
+  ...
+# Subtest: valid: XAF transfer
+ok 13 - valid: XAF transfer
+  ---
+  duration_ms: 0.208992
+  type: 'test'
+  ...
+# Subtest: valid: XAF opening
+ok 14 - valid: XAF opening
+  ---
+  duration_ms: 0.245378
+  type: 'test'
+  ...
+# Subtest: valid: microsecond timestamp with timezone offset
+ok 15 - valid: microsecond timestamp with timezone offset
+  ---
+  duration_ms: 0.180907
+  type: 'test'
+  ...
+# Subtest: valid: epoch inclusive start
+ok 16 - valid: epoch inclusive start
+  ---
+  duration_ms: 0.158611
+  type: 'test'
+  ...
+# Subtest: negative: zero
+ok 17 - negative: zero
+  ---
+  duration_ms: 0.514611
+  type: 'test'
+  ...
+# Subtest: negative: negative
+ok 18 - negative: negative
+  ---
+  duration_ms: 0.18015
+  type: 'test'
+  ...
+# Subtest: negative: NaN text
+ok 19 - negative: NaN text
+  ---
+  duration_ms: 0.170889
+  type: 'test'
+  ...
+# Subtest: negative: infinity text
+ok 20 - negative: infinity text
+  ---
+  duration_ms: 0.13882
+  type: 'test'
+  ...
+# Subtest: negative: numeric input
+ok 21 - negative: numeric input
+  ---
+  duration_ms: 0.131336
+  type: 'test'
+  ...
+# Subtest: negative: scientific notation
+ok 22 - negative: scientific notation
+  ---
+  duration_ms: 0.127156
+  type: 'test'
+  ...
+# Subtest: negative: localized amount
+ok 23 - negative: localized amount
+  ---
+  duration_ms: 0.119895
+  type: 'test'
+  ...
+# Subtest: negative: amount whitespace
+ok 24 - negative: amount whitespace
+  ---
+  duration_ms: 0.108518
+  type: 'test'
+  ...
+# Subtest: negative: amount trailing newline
+ok 25 - negative: amount trailing newline
+  ---
+  duration_ms: 0.207233
+  type: 'test'
+  ...
+# Subtest: negative: signed positive
+ok 26 - negative: signed positive
+  ---
+  duration_ms: 0.140065
+  type: 'test'
+  ...
+# Subtest: negative: excess USD precision
+ok 27 - negative: excess USD precision
+  ---
+  duration_ms: 0.12438
+  type: 'test'
+  ...
+# Subtest: negative: excess trailing zero precision
+ok 28 - negative: excess trailing zero precision
+  ---
+  duration_ms: 0.13188
+  type: 'test'
+  ...
+# Subtest: negative: storage overflow
+ok 29 - negative: storage overflow
+  ---
+  duration_ms: 0.111889
+  type: 'test'
+  ...
+# Subtest: negative: fractional XAF
+ok 30 - negative: fractional XAF
+  ---
+  duration_ms: 0.160229
+  type: 'test'
+  ...
+# Subtest: negative: XAF decimal notation
+ok 31 - negative: XAF decimal notation
+  ---
+  duration_ms: 0.126056
+  type: 'test'
+  ...
+# Subtest: negative: income category required
+ok 32 - negative: income category required
+  ---
+  duration_ms: 0.103902
+  type: 'test'
+  ...
+# Subtest: negative: income expense category
+ok 33 - negative: income expense category
+  ---
+  duration_ms: 0.112252
+  type: 'test'
+  ...
+# Subtest: negative: expense category required
+ok 34 - negative: expense category required
+  ---
+  duration_ms: 0.10338
+  type: 'test'
+  ...
+# Subtest: negative: expense income category
+ok 35 - negative: expense income category
+  ---
+  duration_ms: 0.112519
+  type: 'test'
+  ...
+# Subtest: negative: expense description required
+ok 36 - negative: expense description required
+  ---
+  duration_ms: 0.109959
+  type: 'test'
+  ...
+# Subtest: negative: transfer category
+ok 37 - negative: transfer category
+  ---
+  duration_ms: 0.105429
+  type: 'test'
+  ...
+# Subtest: negative: opening category
+ok 38 - negative: opening category
+  ---
+  duration_ms: 0.116867
+  type: 'test'
+  ...
+# Subtest: negative: transfer same account
+ok 39 - negative: transfer same account
+  ---
+  duration_ms: 0.229278
+  type: 'test'
+  ...
+# Subtest: negative: transfer missing destination
+ok 40 - negative: transfer missing destination
+  ---
+  duration_ms: 0.116946
+  type: 'test'
+  ...
+# Subtest: negative: transfer cross currency
+ok 41 - negative: transfer cross currency
+  ---
+  duration_ms: 0.166521
+  type: 'test'
+  ...
+# Subtest: negative: transfer cross group destination
+ok 42 - negative: transfer cross group destination
+  ---
+  duration_ms: 0.104772
+  type: 'test'
+  ...
+# Subtest: negative: transfer inactive destination
+ok 43 - negative: transfer inactive destination
+  ---
+  duration_ms: 0.099343
+  type: 'test'
+  ...
+# Subtest: negative: transfer closed source
+ok 44 - negative: transfer closed source
+  ---
+  duration_ms: 0.088552
+  type: 'test'
+  ...
+# Subtest: negative: transfer zero amount
+ok 45 - negative: transfer zero amount
+  ---
+  duration_ms: 0.10359
+  type: 'test'
+  ...
+# Subtest: negative: transfer missing fund
+ok 46 - negative: transfer missing fund
+  ---
+  duration_ms: 0.087808
+  type: 'test'
+  ...
+# Subtest: negative: transfer nonexistent fund
+ok 47 - negative: transfer nonexistent fund
+  ---
+  duration_ms: 0.099164
+  type: 'test'
+  ...
+# Subtest: negative: cross group account
+ok 48 - negative: cross group account
+  ---
+  duration_ms: 0.085346
+  type: 'test'
+  ...
+# Subtest: negative: cross group fund
+ok 49 - negative: cross group fund
+  ---
+  duration_ms: 0.091162
+  type: 'test'
+  ...
+# Subtest: negative: cross group category
+ok 50 - negative: cross group category
+  ---
+  duration_ms: 0.118442
+  type: 'test'
+  ...
+# Subtest: negative: cross group member
+ok 51 - negative: cross group member
+  ---
+  duration_ms: 0.116104
+  type: 'test'
+  ...
+# Subtest: negative: cross group project
+ok 52 - negative: cross group project
+  ---
+  duration_ms: 0.108316
+  type: 'test'
+  ...
+# Subtest: negative: inactive account
+ok 53 - negative: inactive account
+  ---
+  duration_ms: 0.115504
+  type: 'test'
+  ...
+# Subtest: negative: inactive fund
+ok 54 - negative: inactive fund
+  ---
+  duration_ms: 0.129625
+  type: 'test'
+  ...
+# Subtest: negative: inactive category
+ok 55 - negative: inactive category
+  ---
+  duration_ms: 0.10667
+  type: 'test'
+  ...
+# Subtest: negative: nonexistent account
+ok 56 - negative: nonexistent account
+  ---
+  duration_ms: 0.090754
+  type: 'test'
+  ...
+# Subtest: negative: nonexistent category
+ok 57 - negative: nonexistent category
+  ---
+  duration_ms: 0.096521
+  type: 'test'
+  ...
+# Subtest: negative: nonexistent member
+ok 58 - negative: nonexistent member
+  ---
+  duration_ms: 0.10512
+  type: 'test'
+  ...
+# Subtest: negative: nonexistent project
+ok 59 - negative: nonexistent project
+  ---
+  duration_ms: 0.1219
+  type: 'test'
+  ...
+# Subtest: negative: missing default
+ok 60 - negative: missing default
+  ---
+  duration_ms: 0.140689
+  type: 'test'
+  ...
+# Subtest: negative: ambiguous default
+ok 61 - negative: ambiguous default
+  ---
+  duration_ms: 0.10735
+  type: 'test'
+  ...
+# Subtest: negative: outside epoch
+ok 62 - negative: outside epoch
+  ---
+  duration_ms: 0.094837
+  type: 'test'
+  ...
+# Subtest: negative: epoch exclusive end
+ok 63 - negative: epoch exclusive end
+  ---
+  duration_ms: 0.100641
+  type: 'test'
+  ...
+# Subtest: negative: overlapping epoch snapshot
+ok 64 - negative: overlapping epoch snapshot
+  ---
+  duration_ms: 0.139991
+  type: 'test'
+  ...
+# Subtest: negative: epoch currency mismatch
+ok 65 - negative: epoch currency mismatch
+  ---
+  duration_ms: 0.100563
+  type: 'test'
+  ...
+# Subtest: negative: account opened in other tenant epoch
+ok 66 - negative: account opened in other tenant epoch
+  ---
+  duration_ms: 0.099333
+  type: 'test'
+  ...
+# Subtest: negative: destination not yet opened
+ok 67 - negative: destination not yet opened
+  ---
+  duration_ms: 0.122562
+  type: 'test'
+  ...
+# Subtest: negative: invalid calendar date
+ok 68 - negative: invalid calendar date
+  ---
+  duration_ms: 0.167249
+  type: 'test'
+  ...
+# Subtest: negative: date without timezone
+ok 69 - negative: date without timezone
+  ---
+  duration_ms: 0.158685
+  type: 'test'
+  ...
+# Subtest: negative: timestamp excess precision
+ok 70 - negative: timestamp excess precision
+  ---
+  duration_ms: 0.091513
+  type: 'test'
+  ...
+# Subtest: negative: leap second
+ok 71 - negative: leap second
+  ---
+  duration_ms: 0.089309
+  type: 'test'
+  ...
+# Subtest: negative: unknown timezone offset
+ok 72 - negative: unknown timezone offset
+  ---
+  duration_ms: 0.089187
+  type: 'test'
+  ...
+# Subtest: negative: invalid offset
+ok 73 - negative: invalid offset
+  ---
+  duration_ms: 0.170182
+  type: 'test'
+  ...
+# Subtest: negative: unsupported currency
+ok 74 - negative: unsupported currency
+  ---
+  duration_ms: 0.110195
+  type: 'test'
+  ...
+# Subtest: negative: currency whitespace
+ok 75 - negative: currency whitespace
+  ---
+  duration_ms: 0.091815
+  type: 'test'
+  ...
+# Subtest: negative: display currency is not authority
+ok 76 - negative: display currency is not authority
+  ---
+  duration_ms: 0.088036
+  type: 'test'
+  ...
+# Subtest: negative: arbitrary effect action
+ok 77 - negative: arbitrary effect action
+  ---
+  duration_ms: 0.077143
+  type: 'test'
+  ...
+# Subtest: negative: public opening forbidden
+ok 78 - negative: public opening forbidden
+  ---
+  duration_ms: 0.10066
+  type: 'test'
+  ...
+# Subtest: negative: missing opening provenance
+ok 79 - negative: missing opening provenance
+  ---
+  duration_ms: 0.118755
+  type: 'test'
+  ...
+# Subtest: negative: cross group opening occurrence
+ok 80 - negative: cross group opening occurrence
+  ---
+  duration_ms: 0.109531
+  type: 'test'
+  ...
+# Subtest: negative: cross group opening provenance
+ok 81 - negative: cross group opening provenance
+  ---
+  duration_ms: 0.136757
+  type: 'test'
+  ...
+# Subtest: negative: opening request prohibited
+ok 82 - negative: opening request prohibited
+  ---
+  duration_ms: 0.585599
+  type: 'test'
+  ...
+# Subtest: negative: opening fund required
+ok 83 - negative: opening fund required
+  ---
+  duration_ms: 0.332383
+  type: 'test'
+  ...
+# Subtest: negative: opening member prohibited
+ok 84 - negative: opening member prohibited
+  ---
+  duration_ms: 0.196929
+  type: 'test'
+  ...
+# Subtest: negative: transfer project prohibited
+ok 85 - negative: transfer project prohibited
+  ---
+  duration_ms: 0.107633
+  type: 'test'
+  ...
+# Subtest: negative: income destination prohibited
+ok 86 - negative: income destination prohibited
+  ---
+  duration_ms: 0.085749
+  type: 'test'
+  ...
+# Subtest: negative: manual request required
+ok 87 - negative: manual request required
+  ---
+  duration_ms: 0.076235
+  type: 'test'
+  ...
+# Subtest: negative: array cannot select action
+ok 88 - negative: array cannot select action
+  ---
+  duration_ms: 0.065525
+  type: 'test'
+  ...
+# Subtest: negative: UUID trailing newline
+ok 89 - negative: UUID trailing newline
+  ---
+  duration_ms: 0.068721
+  type: 'test'
+  ...
+# Subtest: negative: timestamp trailing newline
+ok 90 - negative: timestamp trailing newline
+  ---
+  duration_ms: 0.070531
+  type: 'test'
+  ...
+# Subtest: negative: invalid UUID
+ok 91 - negative: invalid UUID
+  ---
+  duration_ms: 0.074005
+  type: 'test'
+  ...
+# Subtest: negative: invalid evidence metadata
+ok 92 - negative: invalid evidence metadata
+  ---
+  duration_ms: 0.108129
+  type: 'test'
+  ...
+# Subtest: negative: wrong trusted channel
+ok 93 - negative: wrong trusted channel
+  ---
+  duration_ms: 0.101897
+  type: 'test'
+  ...
+# Subtest: negative: unauthorized
+ok 94 - negative: unauthorized
+  ---
+  duration_ms: 0.077772
+  type: 'test'
+  ...
+# Subtest: negative: caller authority forbidden: effect_kind
+ok 95 - negative: caller authority forbidden: effect_kind
+  ---
+  duration_ms: 0.0654
+  type: 'test'
+  ...
+# Subtest: negative: caller authority forbidden: source_module
+ok 96 - negative: caller authority forbidden: source_module
+  ---
+  duration_ms: 0.063533
+  type: 'test'
+  ...
+# Subtest: negative: caller authority forbidden: source_record_id
+ok 97 - negative: caller authority forbidden: source_record_id
+  ---
+  duration_ms: 0.062961
+  type: 'test'
+  ...
+# Subtest: negative: caller authority forbidden: ledger_epoch_id
+ok 98 - negative: caller authority forbidden: ledger_epoch_id
+  ---
+  duration_ms: 0.06057
+  type: 'test'
+  ...
+# Subtest: negative: caller authority forbidden: postings
+ok 99 - negative: caller authority forbidden: postings
+  ---
+  duration_ms: 0.060763
+  type: 'test'
+  ...
+# Subtest: negative: caller authority forbidden: control_class
+ok 100 - negative: caller authority forbidden: control_class
+  ---
+  duration_ms: 0.065723
+  type: 'test'
+  ...
+# Subtest: negative: caller authority forbidden: amount_signed
+ok 101 - negative: caller authority forbidden: amount_signed
+  ---
+  duration_ms: 0.073535
+  type: 'test'
+  ...
+# Subtest: negative: caller authority forbidden: recognized_income
+ok 102 - negative: caller authority forbidden: recognized_income
+  ---
+  duration_ms: 0.066947
+  type: 'test'
+  ...
+# Subtest: negative: caller authority forbidden: recognized_expense
+ok 103 - negative: caller authority forbidden: recognized_expense
+  ---
+  duration_ms: 0.066698
+  type: 'test'
+  ...
+# Subtest: negative: caller authority forbidden: created_by
+ok 104 - negative: caller authority forbidden: created_by
+  ---
+  duration_ms: 0.063503
+  type: 'test'
+  ...
+# Subtest: negative: caller authority forbidden: status
+ok 105 - negative: caller authority forbidden: status
+  ---
+  duration_ms: 0.099422
+  type: 'test'
+  ...
+# Subtest: negative: caller authority forbidden: economic_payload_fingerprint
+ok 106 - negative: caller authority forbidden: economic_payload_fingerprint
+  ---
+  duration_ms: 0.06497
+  type: 'test'
+  ...
+# Subtest: negative: caller authority forbidden: destination_fund_id
+ok 107 - negative: caller authority forbidden: destination_fund_id
+  ---
+  duration_ms: 0.062645
+  type: 'test'
+  ...
+# Subtest: negative: caller authority forbidden: category_class
+ok 108 - negative: caller authority forbidden: category_class
+  ---
+  duration_ms: 0.08955
+  type: 'test'
+  ...
+# Subtest: negative: caller authority forbidden: event_class
+ok 109 - negative: caller authority forbidden: event_class
+  ---
+  duration_ms: 0.091085
+  type: 'test'
+  ...
+# Subtest: negative: caller authority forbidden: opening_provenance_id
+ok 110 - negative: caller authority forbidden: opening_provenance_id
+  ---
+  duration_ms: 0.065876
+  type: 'test'
+  ...
+# Subtest: negative: caller authority forbidden: ui_locale
+ok 111 - negative: caller authority forbidden: ui_locale
+  ---
+  duration_ms: 0.062805
+  type: 'test'
+  ...
+# Subtest: replay: 1 same manual request with normalized amount
+ok 112 - replay: 1 same manual request with normalized amount
+  ---
+  duration_ms: 0.427834
+  type: 'test'
+  ...
+# Subtest: replay: 2 same request changed amount
+ok 113 - replay: 2 same request changed amount
+  ---
+  duration_ms: 0.205343
+  type: 'test'
+  ...
+# Subtest: replay: 3 source occurrence keeps original epoch after transition
+ok 114 - replay: 3 source occurrence keeps original epoch after transition
+  ---
+  duration_ms: 0.258133
+  type: 'test'
+  ...
+# Subtest: replay: 4 source occurrence changed fund
+ok 115 - replay: 4 source occurrence changed fund
+  ---
+  duration_ms: 0.2093
+  type: 'test'
+  ...
+# Subtest: replay: 5 source occurrence changed occurred_at
+ok 116 - replay: 5 source occurrence changed occurred_at
+  ---
+  duration_ms: 0.188153
+  type: 'test'
+  ...
+# Subtest: replay: 6a source occurrence changed account
+ok 117 - replay: 6a source occurrence changed account
+  ---
+  duration_ms: 0.144904
+  type: 'test'
+  ...
+# Subtest: replay: 6b source occurrence changed category
+ok 118 - replay: 6b source occurrence changed category
+  ---
+  duration_ms: 0.138394
+  type: 'test'
+  ...
+# Subtest: replay: 7 revoked authorization
+ok 119 - replay: 7 revoked authorization
+  ---
+  duration_ms: 0.140554
+  type: 'test'
+  ...
+# Subtest: replay: omitted default remains bound after default changes
+ok 120 - replay: omitted default remains bound after default changes
+  ---
+  duration_ms: 0.267003
+  type: 'test'
+  ...
+# Subtest: replay: explicit original default and omitted currency are equivalent
+ok 121 - replay: explicit original default and omitted currency are equivalent
+  ---
+  duration_ms: 0.171298
+  type: 'test'
+  ...
+# Subtest: replay: narrative and evidence change is not a new money event
+ok 122 - replay: narrative and evidence change is not a new money event
+  ---
+  duration_ms: 4.029379
+  type: 'test'
+  ...
+# Subtest: replay: historical inactive targets allow identical retry
+ok 123 - replay: historical inactive targets allow identical retry
+  ---
+  duration_ms: 0.35045
+  type: 'test'
+  ...
+# Subtest: replay: retry needs no current target/default/epoch resolution
+ok 124 - replay: retry needs no current target/default/epoch resolution
+  ---
+  duration_ms: 0.178841
+  type: 'test'
+  ...
+# Subtest: replay: equivalent instant using offset
+ok 125 - replay: equivalent instant using offset
+  ---
+  duration_ms: 0.155744
+  type: 'test'
+  ...
+# Subtest: replay: one microsecond is economic
+ok 126 - replay: one microsecond is economic
+  ---
+  duration_ms: 0.165433
+  type: 'test'
+  ...
+# Subtest: replay: new period is conflict even after epoch changes
+ok 127 - replay: new period is conflict even after epoch changes
+  ---
+  duration_ms: 0.150237
+  type: 'test'
+  ...
+# Subtest: replay: currency changed on retry
+ok 128 - replay: currency changed on retry
+  ---
+  duration_ms: 0.138873
+  type: 'test'
+  ...
+# Subtest: replay: request reused for different allowed action
+ok 129 - replay: request reused for different allowed action
+  ---
+  duration_ms: 0.139938
+  type: 'test'
+  ...
+# Subtest: replay: member attribution changed
+ok 130 - replay: member attribution changed
+  ---
+  duration_ms: 0.137397
+  type: 'test'
+  ...
+# Subtest: replay: project attribution changed
+ok 131 - replay: project attribution changed
+  ---
+  duration_ms: 0.14028
+  type: 'test'
+  ...
+# Subtest: replay: changed destination on transfer
+ok 132 - replay: changed destination on transfer
+  ---
+  duration_ms: 0.204911
+  type: 'test'
+  ...
+# Subtest: replay: private source replay without manual request across epochs
+ok 133 - replay: private source replay without manual request across epochs
+  ---
+  duration_ms: 0.185936
+  type: 'test'
+  ...
+# Subtest: replay: private source changed fund
+ok 134 - replay: private source changed fund
+  ---
+  duration_ms: 0.15885
+  type: 'test'
+  ...
+# Subtest: replay: private provenance identity changed
+ok 135 - replay: private provenance identity changed
+  ---
+  duration_ms: 0.195153
+  type: 'test'
+  ...
+# Subtest: replay: description absent on existing expense is not an update
+ok 136 - replay: description absent on existing expense is not an update
+  ---
+  duration_ms: 0.147506
+  type: 'test'
+  ...
+# Subtest: replay: two epochs already contain same source must fail closed
+ok 137 - replay: two epochs already contain same source must fail closed
+  ---
+  duration_ms: 0.198039
+  type: 'test'
+  ...
+# Subtest: replay: corrupt stored fingerprint must fail closed
+ok 138 - replay: corrupt stored fingerprint must fail closed
+  ---
+  duration_ms: 0.184245
+  type: 'test'
+  ...
+# Subtest: replay: duplicate private occurrence in another epoch fails closed
+ok 139 - replay: duplicate private occurrence in another epoch fails closed
+  ---
+  duration_ms: 0.190213
+  type: 'test'
+  ...
+# Subtest: replay: separate request is a new economic occurrence
+ok 140 - replay: separate request is a new economic occurrence
+  ---
+  duration_ms: 0.154577
+  type: 'test'
+  ...
+# Subtest: replay: request identity is scoped to group
+ok 141 - replay: request identity is scoped to group
+  ---
+  duration_ms: 0.142616
+  type: 'test'
+  ...
+# Subtest: recognition: USD restricted donation
+ok 142 - recognition: USD restricted donation
+  ---
+  duration_ms: 0.150034
+  type: 'test'
+  ...
+# Subtest: recognition: USD restricted venue
+ok 143 - recognition: USD restricted venue
+  ---
+  duration_ms: 0.08437
+  type: 'test'
+  ...
+# Subtest: recognition: USD General transfer
+ok 144 - recognition: USD General transfer
+  ---
+  duration_ms: 0.07574
+  type: 'test'
+  ...
+# Subtest: recognition: USD General opening
+ok 145 - recognition: USD General opening
+  ---
+  duration_ms: 0.070728
+  type: 'test'
+  ...
+# Subtest: recognition capability only: loan principal disbursement
+ok 146 - recognition capability only: loan principal disbursement
+  ---
+  duration_ms: 0.088183
+  type: 'test'
+  ...
+# Subtest: recognition capability only: loan principal repayment
+ok 147 - recognition capability only: loan principal repayment
+  ---
+  duration_ms: 0.037296
+  type: 'test'
+  ...
+# Subtest: recognition capability only: member savings held
+ok 148 - recognition capability only: member savings held
+  ---
+  duration_ms: 0.037013
+  type: 'test'
+  ...
+# Subtest: canonical golden: USD restricted donation
+ok 149 - canonical golden: USD restricted donation
+  ---
+  duration_ms: 0.150152
+  type: 'test'
+  ...
+# Subtest: canonical golden: XAF income
+ok 150 - canonical golden: XAF income
+  ---
+  duration_ms: 0.098941
+  type: 'test'
+  ...
+# Subtest: canonical golden: private opening
+ok 151 - canonical golden: private opening
+  ---
+  duration_ms: 0.081674
+  type: 'test'
+  ...
+# Subtest: canonical equivalent decimal representations and optional nulls
+ok 152 - canonical equivalent decimal representations and optional nulls
+  ---
+  duration_ms: 4.209556
+  type: 'test'
+  ...
+# Subtest: canonical UUIDs use lowercase in complete economic payload
+ok 153 - canonical UUIDs use lowercase in complete economic payload
+  ---
+  duration_ms: 0.365795
+  type: 'test'
+  ...
+# Subtest: all canonical economic fields affect the fingerprint
+ok 154 - all canonical economic fields affect the fingerprint
+  ---
+  duration_ms: 0.362636
+  type: 'test'
+  ...
+# Subtest: non-economic narrative/reference/evidence do not change fingerprint
+ok 155 - non-economic narrative/reference/evidence do not change fingerprint
+  ---
+  duration_ms: 0.187688
+  type: 'test'
+  ...
+# Subtest: resolved General fund matches explicit General fund
+ok 156 - resolved General fund matches explicit General fund
+  ---
+  duration_ms: 0.13892
+  type: 'test'
+  ...
+# Subtest: timestamps preserve microseconds and calendar instants
+ok 157 - timestamps preserve microseconds and calendar instants
+  ---
+  duration_ms: 0.138791
+  type: 'test'
+  ...
+# Subtest: supported precision catalog matches frozen F3-01 SQL
+ok 158 - supported precision catalog matches frozen F3-01 SQL
+  ---
+  duration_ms: 0.794041
+  type: 'test'
+  ...
+# Subtest: new backdated occurrence uses its period even after currency transition
+ok 159 - new backdated occurrence uses its period even after currency transition
+  ---
+  duration_ms: 0.217844
+  type: 'test'
+  ...
+# Subtest: same-currency older account may serve a later compatible epoch
+ok 160 - same-currency older account may serve a later compatible epoch
+  ---
+  duration_ms: 0.113795
+  type: 'test'
+  ...
+# Subtest: closure detects third lines and later balanced pairs
+ok 161 - closure detects third lines and later balanced pairs
+  ---
+  duration_ms: 0.901696
+  type: 'test'
+  ...
+# Subtest: USD foundation before correction: Bank 9300 Cash 1000 Total 10300 Income 500 Expense 200
+ok 162 - USD foundation before correction: Bank 9300 Cash 1000 Total 10300 Income 500 Expense 200
+  ---
+  duration_ms: 0.409081
+  type: 'test'
+  ...
+# Subtest: opening allocation: 8000 General plus 2000 Restricted is 10000 custody, zero SoA
+ok 163 - opening allocation: 8000 General plus 2000 Restricted is 10000 custody, zero SoA
+  ---
+  duration_ms: 0.265814
+  type: 'test'
+  ...
+# Subtest: opening allocation: full 10000 plus 2000 attribution would duplicate custody
+ok 164 - opening allocation: full 10000 plus 2000 attribution would duplicate custody
+  ---
+  duration_ms: 0.125936
+  type: 'test'
+  ...
+# Subtest: authorization denial precedes any historical lookup
+ok 165 - authorization denial precedes any historical lookup
+  ---
+  duration_ms: 0.084312
+  type: 'test'
+  ...
+# Subtest: initial effect vocabulary is exactly the bounded server template set
+ok 166 - initial effect vocabulary is exactly the bounded server template set
+  ---
+  duration_ms: 0.146954
+  type: 'test'
+  ...
+# Subtest: fixture counts for serialized handoff
+ok 167 - fixture counts for serialized handoff
+  ---
+  duration_ms: 0.070418
+  type: 'test'
+  ...
+# {"valid":16,"negative":95,"replay":30,"recognition":7,"canonical_golden":3}
+# Subtest: SoA income allowlist is exactly manual_income for F3-02 effect kinds
+ok 168 - SoA income allowlist is exactly manual_income for F3-02 effect kinds
+  ---
+  duration_ms: 0.075441
+  type: 'test'
+  ...
+# Subtest: idempotent money_in retry does not invent SoA income from unknown kinds
+ok 169 - idempotent money_in retry does not invent SoA income from unknown kinds
+  ---
+  duration_ms: 0.158326
+  type: 'test'
+  ...
+# Subtest: valid: opening / General
+ok 170 - valid: opening / General
+  ---
+  duration_ms: 9.128479
+  type: 'test'
+  ...
+# Subtest: valid: Money In / restricted
+ok 171 - valid: Money In / restricted
+  ---
+  duration_ms: 1.877284
+  type: 'test'
+  ...
+# Subtest: valid: Money Out / restricted
+ok 172 - valid: Money Out / restricted
+  ---
+  duration_ms: 2.059329
+  type: 'test'
+  ...
+# Subtest: valid: Transfer / General
+ok 173 - valid: Transfer / General
+  ---
+  duration_ms: 13.983625
+  type: 'test'
+  ...
+# Subtest: valid: Money In / General
+ok 174 - valid: Money In / General
+  ---
+  duration_ms: 1.516977
+  type: 'test'
+  ...
+# Subtest: valid: opening / restricted
+ok 175 - valid: opening / restricted
+  ---
+  duration_ms: 1.544555
+  type: 'test'
+  ...
+# Subtest: valid: receivable disbursement
+ok 176 - valid: receivable disbursement
+  ---
+  duration_ms: 1.48527
+  type: 'test'
+  ...
+# Subtest: valid: receivable repayment
+ok 177 - valid: receivable repayment
+  ---
+  duration_ms: 2.109315
+  type: 'test'
+  ...
+# Subtest: valid: liability receipt
+ok 178 - valid: liability receipt
+  ---
+  duration_ms: 2.286329
+  type: 'test'
+  ...
+# Subtest: valid: liability payout
+ok 179 - valid: liability payout
+  ---
+  duration_ms: 1.734385
+  type: 'test'
+  ...
+# Subtest: valid: USD foundation
+ok 180 - valid: USD foundation
+  ---
+  duration_ms: 2.9352
+  type: 'test'
+  ...
+# Subtest: valid: correction extension / include corrected original
+ok 181 - valid: correction extension / include corrected original
+  ---
+  duration_ms: 1.831976
+  type: 'test'
+  ...
+# Subtest: valid: isolated original + exact reversal + replacement
+ok 182 - valid: isolated original + exact reversal + replacement
+  ---
+  duration_ms: 1.194032
+  type: 'test'
+  ...
+# Subtest: valid: inactive account history
+ok 183 - valid: inactive account history
+  ---
+  duration_ms: 1.747131
+  type: 'test'
+  ...
+# Subtest: valid: closed account history
+ok 184 - valid: closed account history
+  ---
+  duration_ms: 0.699381
+  type: 'test'
+  ...
+# Subtest: valid: archived fund/category history
+ok 185 - valid: archived fund/category history
+  ---
+  duration_ms: 0.575939
+  type: 'test'
+  ...
+# Subtest: valid: independent XAF foundation
+ok 186 - valid: independent XAF foundation
+  ---
+  duration_ms: 1.040556
+  type: 'test'
+  ...
+# Subtest: valid: one group historical USD/XAF buckets
+ok 187 - valid: one group historical USD/XAF buckets
+  ---
+  duration_ms: 0.87091
+  type: 'test'
+  ...
+# Subtest: valid: other group excluded without cross-tenant netting
+ok 188 - valid: other group excluded without cross-tenant netting
+  ---
+  duration_ms: 0.579506
+  type: 'test'
+  ...
+# Subtest: valid: equal-time event UUID order independent of storage order
+ok 189 - valid: equal-time event UUID order independent of storage order
+  ---
+  duration_ms: 0.581772
+  type: 'test'
+  ...
+# Subtest: valid: equal event/time posting UUID tie / mixed context without duplication
+ok 190 - valid: equal event/time posting UUID tie / mixed context without duplication
+  ---
+  duration_ms: 0.41488
+  type: 'test'
+  ...
+# Subtest: valid: paginated running balance retains pre-period and pre-page history
+ok 191 - valid: paginated running balance retains pre-period and pre-page history
+  ---
+  duration_ms: 0.604158
+  type: 'test'
+  ...
+# Subtest: valid: half-open period / microsecond boundary
+ok 192 - valid: half-open period / microsecond boundary
+  ---
+  duration_ms: 0.402604
+  type: 'test'
+  ...
+# Subtest: valid: exclusive as-of independent of activity period
+ok 193 - valid: exclusive as-of independent of activity period
+  ---
+  duration_ms: 0.454876
+  type: 'test'
+  ...
+# Subtest: valid: timezone equivalent boundaries
+ok 194 - valid: timezone equivalent boundaries
+  ---
+  duration_ms: 0.693643
+  type: 'test'
+  ...
+# Subtest: valid: income reversal-only period / negative activity
+ok 195 - valid: income reversal-only period / negative activity
+  ---
+  duration_ms: 0.294703
+  type: 'test'
+  ...
+# Subtest: valid: expense reversal-only period / negative activity
+ok 196 - valid: expense reversal-only period / negative activity
+  ---
+  duration_ms: 0.261131
+  type: 'test'
+  ...
+# Subtest: valid: member/project/null attribution stays distinct
+ok 197 - valid: member/project/null attribution stays distinct
+  ---
+  duration_ms: 0.347798
+  type: 'test'
+  ...
+# Subtest: valid: beyond JS safe integer
+ok 198 - valid: beyond JS safe integer
+  ---
+  duration_ms: 0.291935
+  type: 'test'
+  ...
+# Subtest: valid: numeric(30,8) text / exact decimal addition
+ok 199 - valid: numeric(30,8) text / exact decimal addition
+  ---
+  duration_ms: 0.409159
+  type: 'test'
+  ...
+# Subtest: valid: same-currency epochs aggregate without relabeling
+ok 200 - valid: same-currency epochs aggregate without relabeling
+  ---
+  duration_ms: 0.286816
+  type: 'test'
+  ...
+# Subtest: valid: empty ledger has no invented currency
+ok 201 - valid: empty ledger has no invented currency
+  ---
+  duration_ms: 0.231356
+  type: 'test'
+  ...
+# Subtest: valid: no period activity / historical opening retained
+ok 202 - valid: no period activity / historical opening retained
+  ---
+  duration_ms: 0.219585
+  type: 'test'
+  ...
+# Subtest: valid: unbounded as-of includes all visible committed history
+ok 203 - valid: unbounded as-of includes all visible committed history
+  ---
+  duration_ms: 0.420394
+  type: 'test'
+  ...
+# Subtest: valid: expense/liability/transfer share half-open period boundaries
+ok 204 - valid: expense/liability/transfer share half-open period boundaries
+  ---
+  duration_ms: 0.387313
+  type: 'test'
+  ...
+# Subtest: anti-pattern: all fund postings as fund cash
+ok 205 - anti-pattern: all fund postings as fund cash
+  ---
+  duration_ms: 0.2343
+  type: 'test'
+  ...
+# Subtest: anti-pattern: positive cash equals income
+ok 206 - anti-pattern: positive cash equals income
+  ---
+  duration_ms: 0.637799
+  type: 'test'
+  ...
+# Subtest: anti-pattern: transfer equals income/expense
+ok 207 - anti-pattern: transfer equals income/expense
+  ---
+  duration_ms: 0.258359
+  type: 'test'
+  ...
+# Subtest: anti-pattern: loan principal equals expense
+ok 208 - anti-pattern: loan principal equals expense
+  ---
+  duration_ms: 0.157116
+  type: 'test'
+  ...
+# Subtest: anti-pattern: liability receipt equals income
+ok 209 - anti-pattern: liability receipt equals income
+  ---
+  duration_ms: 0.132318
+  type: 'test'
+  ...
+# Subtest: anti-pattern: opening equals income
+ok 210 - anti-pattern: opening equals income
+  ---
+  duration_ms: 0.119295
+  type: 'test'
+  ...
+# Subtest: anti-pattern: exclude corrected original
+ok 211 - anti-pattern: exclude corrected original
+  ---
+  duration_ms: 0.409877
+  type: 'test'
+  ...
+# Subtest: anti-pattern: combine USD/XAF
+ok 212 - anti-pattern: combine USD/XAF
+  ---
+  duration_ms: 0.602277
+  type: 'test'
+  ...
+# Subtest: anti-pattern: page-local running balance starts at zero
+ok 213 - anti-pattern: page-local running balance starts at zero
+  ---
+  duration_ms: 0.339349
+  type: 'test'
+  ...
+# Subtest: anti-pattern: hide archived account history
+ok 214 - anti-pattern: hide archived account history
+  ---
+  duration_ms: 0.306248
+  type: 'test'
+  ...
+# Subtest: anti-pattern: amount_paid as organization income
+ok 215 - anti-pattern: amount_paid as organization income
+  ---
+  duration_ms: 0.691732
+  type: 'test'
+  ...
+# Subtest: anti-pattern: payments.amount as central truth
+ok 216 - anti-pattern: payments.amount as central truth
+  ---
+  duration_ms: 0.54082
+  type: 'test'
+  ...
+# Subtest: anti-pattern: exclude reversed original
+ok 217 - anti-pattern: exclude reversed original
+  ---
+  duration_ms: 0.500656
+  type: 'test'
+  ...
+# Subtest: anti-pattern: absolute-value income reversal
+ok 218 - anti-pattern: absolute-value income reversal
+  ---
+  duration_ms: 0.216059
+  type: 'test'
+  ...
+# Subtest: anti-pattern: filter period before running window
+ok 219 - anti-pattern: filter period before running window
+  ---
+  duration_ms: 0.351877
+  type: 'test'
+  ...
+# Subtest: anti-pattern: configuration inner join suppresses ledger rows
+ok 220 - anti-pattern: configuration inner join suppresses ledger rows
+  ---
+  duration_ms: 0.305765
+  type: 'test'
+  ...
+# Subtest: anti-pattern: posted_at used as effective date
+ok 221 - anti-pattern: posted_at used as effective date
+  ---
+  duration_ms: 0.280277
+  type: 'test'
+  ...
+# Subtest: anti-pattern: join category context multiplies custody
+ok 222 - anti-pattern: join category context multiplies custody
+  ---
+  duration_ms: 0.220279
+  type: 'test'
+  ...
+# Subtest: negative: JSON number amount
+ok 223 - negative: JSON number amount
+  ---
+  duration_ms: 0.453607
+  type: 'test'
+  ...
+# Subtest: negative: fractional XAF
+ok 224 - negative: fractional XAF
+  ---
+  duration_ms: 0.163437
+  type: 'test'
+  ...
+# Subtest: negative: unsupported currency
+ok 225 - negative: unsupported currency
+  ---
+  duration_ms: 0.110743
+  type: 'test'
+  ...
+# Subtest: negative: exponent notation
+ok 226 - negative: exponent notation
+  ---
+  duration_ms: 0.101107
+  type: 'test'
+  ...
+# Subtest: negative: partial posting set
+ok 227 - negative: partial posting set
+  ---
+  duration_ms: 0.154275
+  type: 'test'
+  ...
+# Subtest: negative: event with no postings
+ok 228 - negative: event with no postings
+  ---
+  duration_ms: 0.156162
+  type: 'test'
+  ...
+# Subtest: negative: duplicate posting
+ok 229 - negative: duplicate posting
+  ---
+  duration_ms: 0.145846
+  type: 'test'
+  ...
+# Subtest: negative: duplicate event
+ok 230 - negative: duplicate event
+  ---
+  duration_ms: 0.102108
+  type: 'test'
+  ...
+# Subtest: negative: orphan posting
+ok 231 - negative: orphan posting
+  ---
+  duration_ms: 0.161636
+  type: 'test'
+  ...
+# Subtest: negative: wrong tenant tuple
+ok 232 - negative: wrong tenant tuple
+  ---
+  duration_ms: 0.133165
+  type: 'test'
+  ...
+# Subtest: negative: wrong epoch tuple
+ok 233 - negative: wrong epoch tuple
+  ---
+  duration_ms: 0.111588
+  type: 'test'
+  ...
+# Subtest: negative: wrong effective date tuple
+ok 234 - negative: wrong effective date tuple
+  ---
+  duration_ms: 0.100847
+  type: 'test'
+  ...
+# Subtest: negative: drafts are not committed fixtures
+ok 235 - negative: drafts are not committed fixtures
+  ---
+  duration_ms: 0.13838
+  type: 'test'
+  ...
+# Subtest: negative: unknown control
+ok 236 - negative: unknown control
+  ---
+  duration_ms: 0.121078
+  type: 'test'
+  ...
+# Subtest: negative: zero posting
+ok 237 - negative: zero posting
+  ---
+  duration_ms: 0.099922
+  type: 'test'
+  ...
+# Subtest: negative: custody requires account
+ok 238 - negative: custody requires account
+  ---
+  duration_ms: 0.09701
+  type: 'test'
+  ...
+# Subtest: negative: income category class mismatch
+ok 239 - negative: income category class mismatch
+  ---
+  duration_ms: 0.119726
+  type: 'test'
+  ...
+# Subtest: negative: snapshot identity required
+ok 240 - negative: snapshot identity required
+  ---
+  duration_ms: 0.06594
+  type: 'test'
+  ...
+# Subtest: query boundaries and unsupported status/dimension shortcuts reject explicitly
+ok 241 - query boundaries and unsupported status/dimension shortcuts reject explicitly
+  ---
+  duration_ms: 0.65604
+  type: 'test'
+  ...
+# Subtest: page validates account/currency/offset and binds snapshot
+ok 242 - page validates account/currency/offset and binds snapshot
+  ---
+  duration_ms: 0.481165
+  type: 'test'
+  ...
+# Subtest: snapshot consistency: backdated later commit changes every current measure together
+ok 243 - snapshot consistency: backdated later commit changes every current measure together
+  ---
+  duration_ms: 0.714146
+  type: 'test'
+  ...
+# Subtest: cashbook returns an audit allow-list without replay or metadata secrets
+ok 244 - cashbook returns an audit allow-list without replay or metadata secrets
+  ---
+  duration_ms: 0.565456
+  type: 'test'
+  ...
+# Subtest: F3-02 ordinary templates feed the same projection math
+ok 245 - F3-02 ordinary templates feed the same projection math
+  ---
+  duration_ms: 4.550395
+  type: 'test'
+  ...
+# Subtest: all supported currency scales preserve signed exact strings
+ok 246 - all supported currency scales preserve signed exact strings
+  ---
+  duration_ms: 0.179905
+  type: 'test'
+  ...
+# Subtest: zero-net historical accounts/funds remain rows and posted_at never removes them
+ok 247 - zero-net historical accounts/funds remain rows and posted_at never removes them
+  ---
+  duration_ms: 0.246596
+  type: 'test'
+  ...
+# Subtest: position is assets plus signed liabilities, separate from cash held
+ok 248 - position is assets plus signed liabilities, separate from cash held
+  ---
+  duration_ms: 0.36219
+  type: 'test'
+  ...
+# Subtest: fixture catalog counts are explicit
+ok 249 - fixture catalog counts are explicit
+  ---
+  duration_ms: 0.062282
+  type: 'test'
+  ...
+# (node:132617) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/f3-psql-poison-requal-20260916/tip-work/src/lib/financial-f3-recognition.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to /workspace/f3-psql-poison-requal-20260916/tip-work/package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: valid: Money In 500 to 450
+ok 250 - valid: Money In 500 to 450
+  ---
+  duration_ms: 9.824058
+  type: 'test'
+  ...
+# Subtest: valid: Money Out 200 to 175
+ok 251 - valid: Money Out 200 to 175
+  ---
+  duration_ms: 3.148804
+  type: 'test'
+  ...
+# Subtest: valid: Transfer 1000 to 900
+ok 252 - valid: Transfer 1000 to 900
+  ---
+  duration_ms: 1.634219
+  type: 'test'
+  ...
+# Subtest: valid: money_in REVERSE
+ok 253 - valid: money_in REVERSE
+  ---
+  duration_ms: 1.110108
+  type: 'test'
+  ...
+# Subtest: valid: money_out REVERSE
+ok 254 - valid: money_out REVERSE
+  ---
+  duration_ms: 1.033845
+  type: 'test'
+  ...
+# Subtest: valid: transfer REVERSE
+ok 255 - valid: transfer REVERSE
+  ---
+  duration_ms: 1.092947
+  type: 'test'
+  ...
+# Subtest: valid: change fund
+ok 256 - valid: change fund
+  ---
+  duration_ms: 2.1671
+  type: 'test'
+  ...
+# Subtest: valid: change category
+ok 257 - valid: change category
+  ---
+  duration_ms: 1.37097
+  type: 'test'
+  ...
+# Subtest: valid: change account
+ok 258 - valid: change account
+  ---
+  duration_ms: 2.178327
+  type: 'test'
+  ...
+# Subtest: valid: change transfer destination
+ok 259 - valid: change transfer destination
+  ---
+  duration_ms: 1.518694
+  type: 'test'
+  ...
+# Subtest: valid: change transfer source
+ok 260 - valid: change transfer source
+  ---
+  duration_ms: 1.066997
+  type: 'test'
+  ...
+# Subtest: valid: move date within January
+ok 261 - valid: move date within January
+  ---
+  duration_ms: 1.212703
+  type: 'test'
+  ...
+# Subtest: valid: move date January to February
+ok 262 - valid: move date January to February
+  ---
+  duration_ms: 0.840769
+  type: 'test'
+  ...
+# Subtest: valid: add member
+ok 263 - valid: add member
+  ---
+  duration_ms: 0.837972
+  type: 'test'
+  ...
+# Subtest: valid: add project
+ok 264 - valid: add project
+  ---
+  duration_ms: 0.826349
+  type: 'test'
+  ...
+# Subtest: valid: clear attribution
+ok 265 - valid: clear attribution
+  ---
+  duration_ms: 0.88623
+  type: 'test'
+  ...
+# Subtest: valid: retain attribution
+ok 266 - valid: retain attribution
+  ---
+  duration_ms: 1.852858
+  type: 'test'
+  ...
+# Subtest: valid: retained archived account category fund
+ok 267 - valid: retained archived account category fund
+  ---
+  duration_ms: 1.019276
+  type: 'test'
+  ...
+# Subtest: valid: retained archived transfer endpoints
+ok 268 - valid: retained archived transfer endpoints
+  ---
+  duration_ms: 3.077335
+  type: 'test'
+  ...
+# Subtest: valid: new default never replaces omitted fund
+ok 269 - valid: new default never replaces omitted fund
+  ---
+  duration_ms: 1.530416
+  type: 'test'
+  ...
+# Subtest: valid: explicit historical archived same ID
+ok 270 - valid: explicit historical archived same ID
+  ---
+  duration_ms: 1.448797
+  type: 'test'
+  ...
+# Subtest: valid: description and reference snapshot
+ok 271 - valid: description and reference snapshot
+  ---
+  duration_ms: 1.438003
+  type: 'test'
+  ...
+# Subtest: valid: microsecond date normalization
+ok 272 - valid: microsecond date normalization
+  ---
+  duration_ms: 6.085576
+  type: 'test'
+  ...
+# Subtest: valid: money beyond Number precision
+ok 273 - valid: money beyond Number precision
+  ---
+  duration_ms: 1.079903
+  type: 'test'
+  ...
+# Subtest: valid: XAF integer correction
+ok 274 - valid: XAF integer correction
+  ---
+  duration_ms: 1.066772
+  type: 'test'
+  ...
+# Subtest: valid: XAF exact reverse
+ok 275 - valid: XAF exact reverse
+  ---
+  duration_ms: 0.730272
+  type: 'test'
+  ...
+# Subtest: valid: metadata only restatement
+ok 276 - valid: metadata only restatement
+  ---
+  duration_ms: 1.217339
+  type: 'test'
+  ...
+# Subtest: valid: reverse with no current configuration
+ok 277 - valid: reverse with no current configuration
+  ---
+  duration_ms: 1.049215
+  type: 'test'
+  ...
+# Subtest: negative: invalid reason 0
+ok 278 - negative: invalid reason 0
+  ---
+  duration_ms: 2.123825
+  type: 'test'
+  ...
+# Subtest: negative: invalid reason 1
+ok 279 - negative: invalid reason 1
+  ---
+  duration_ms: 4.090219
+  type: 'test'
+  ...
+# Subtest: negative: invalid reason 2
+ok 280 - negative: invalid reason 2
+  ---
+  duration_ms: 0.310076
+  type: 'test'
+  ...
+# Subtest: negative: invalid reason 3
+ok 281 - negative: invalid reason 3
+  ---
+  duration_ms: 0.215335
+  type: 'test'
+  ...
+# Subtest: negative: invalid reason 4
+ok 282 - negative: invalid reason 4
+  ---
+  duration_ms: 0.213825
+  type: 'test'
+  ...
+# Subtest: negative: invalid reason 5
+ok 283 - negative: invalid reason 5
+  ---
+  duration_ms: 0.224792
+  type: 'test'
+  ...
+# Subtest: negative: invalid reason 6
+ok 284 - negative: invalid reason 6
+  ---
+  duration_ms: 0.182564
+  type: 'test'
+  ...
+# Subtest: negative: absent reason
+ok 285 - negative: absent reason
+  ---
+  duration_ms: 0.181861
+  type: 'test'
+  ...
+# Subtest: negative: NUL reason
+ok 286 - negative: NUL reason
+  ---
+  duration_ms: 0.21996
+  type: 'test'
+  ...
+# Subtest: negative: invisible reason
+ok 287 - negative: invisible reason
+  ---
+  duration_ms: 0.350592
+  type: 'test'
+  ...
+# Subtest: negative: invalid target
+ok 288 - negative: invalid target
+  ---
+  duration_ms: 0.262627
+  type: 'test'
+  ...
+# Subtest: negative: cross group target
+ok 289 - negative: cross group target
+  ---
+  duration_ms: 0.237831
+  type: 'test'
+  ...
+# Subtest: negative: unbound manual UUID
+ok 290 - negative: unbound manual UUID
+  ---
+  duration_ms: 0.340987
+  type: 'test'
+  ...
+# Subtest: negative: non-manual dues
+ok 291 - negative: non-manual dues
+  ---
+  duration_ms: 0.276788
+  type: 'test'
+  ...
+# Subtest: negative: non-manual fines
+ok 292 - negative: non-manual fines
+  ---
+  duration_ms: 0.224218
+  type: 'test'
+  ...
+# Subtest: negative: non-manual loans
+ok 293 - negative: non-manual loans
+  ---
+  duration_ms: 0.207717
+  type: 'test'
+  ...
+# Subtest: negative: non-manual njangi
+ok 294 - negative: non-manual njangi
+  ---
+  duration_ms: 0.182917
+  type: 'test'
+  ...
+# Subtest: negative: non-manual relief
+ok 295 - negative: non-manual relief
+  ---
+  duration_ms: 0.167522
+  type: 'test'
+  ...
+# Subtest: negative: non-manual projects
+ok 296 - negative: non-manual projects
+  ---
+  duration_ms: 0.183726
+  type: 'test'
+  ...
+# Subtest: negative: non-manual opening_finance
+ok 297 - negative: non-manual opening_finance
+  ---
+  duration_ms: 0.15526
+  type: 'test'
+  ...
+# Subtest: negative: non-manual importer
+ok 298 - negative: non-manual importer
+  ---
+  duration_ms: 0.14823
+  type: 'test'
+  ...
+# Subtest: negative: non-manual cutover
+ok 299 - negative: non-manual cutover
+  ---
+  duration_ms: 0.246299
+  type: 'test'
+  ...
+# Subtest: negative: non-manual future_subledger
+ok 300 - negative: non-manual future_subledger
+  ---
+  duration_ms: 0.193917
+  type: 'test'
+  ...
+# Subtest: negative: opening event class
+ok 301 - negative: opening event class
+  ---
+  duration_ms: 0.241213
+  type: 'test'
+  ...
+# Subtest: negative: corrected stale target
+ok 302 - negative: corrected stale target
+  ---
+  duration_ms: 0.919428
+  type: 'test'
+  ...
+# Subtest: negative: reversed stale target
+ok 303 - negative: reversed stale target
+  ---
+  duration_ms: 0.60305
+  type: 'test'
+  ...
+# Subtest: negative: reversal target
+ok 304 - negative: reversal target
+  ---
+  duration_ms: 0.842059
+  type: 'test'
+  ...
+# Subtest: negative: zero amount
+ok 305 - negative: zero amount
+  ---
+  duration_ms: 0.3614
+  type: 'test'
+  ...
+# Subtest: negative: negative amount
+ok 306 - negative: negative amount
+  ---
+  duration_ms: 0.268631
+  type: 'test'
+  ...
+# Subtest: negative: Number amount
+ok 307 - negative: Number amount
+  ---
+  duration_ms: 0.24643
+  type: 'test'
+  ...
+# Subtest: negative: exponent amount
+ok 308 - negative: exponent amount
+  ---
+  duration_ms: 0.273981
+  type: 'test'
+  ...
+# Subtest: negative: precision amount
+ok 309 - negative: precision amount
+  ---
+  duration_ms: 0.27812
+  type: 'test'
+  ...
+# Subtest: negative: overflow amount
+ok 310 - negative: overflow amount
+  ---
+  duration_ms: 0.315326
+  type: 'test'
+  ...
+# Subtest: negative: null amount
+ok 311 - negative: null amount
+  ---
+  duration_ms: 0.265301
+  type: 'test'
+  ...
+# Subtest: negative: wrong category class
+ok 312 - negative: wrong category class
+  ---
+  duration_ms: 0.398281
+  type: 'test'
+  ...
+# Subtest: negative: missing income category
+ok 313 - negative: missing income category
+  ---
+  duration_ms: 0.432293
+  type: 'test'
+  ...
+# Subtest: negative: invalid account
+ok 314 - negative: invalid account
+  ---
+  duration_ms: 0.422194
+  type: 'test'
+  ...
+# Subtest: negative: null account
+ok 315 - negative: null account
+  ---
+  duration_ms: 0.28969
+  type: 'test'
+  ...
+# Subtest: negative: cross group account
+ok 316 - negative: cross group account
+  ---
+  duration_ms: 0.337915
+  type: 'test'
+  ...
+# Subtest: negative: cross group fund
+ok 317 - negative: cross group fund
+  ---
+  duration_ms: 0.335022
+  type: 'test'
+  ...
+# Subtest: negative: null fund
+ok 318 - negative: null fund
+  ---
+  duration_ms: 4.477312
+  type: 'test'
+  ...
+# Subtest: negative: invalid fund
+ok 319 - negative: invalid fund
+  ---
+  duration_ms: 0.407439
+  type: 'test'
+  ...
+# Subtest: negative: cross group member
+ok 320 - negative: cross group member
+  ---
+  duration_ms: 0.402284
+  type: 'test'
+  ...
+# Subtest: negative: cross group project
+ok 321 - negative: cross group project
+  ---
+  duration_ms: 0.364014
+  type: 'test'
+  ...
+# Subtest: negative: different currency assertion
+ok 322 - negative: different currency assertion
+  ---
+  duration_ms: 0.228522
+  type: 'test'
+  ...
+# Subtest: negative: different currency account
+ok 323 - negative: different currency account
+  ---
+  duration_ms: 0.299035
+  type: 'test'
+  ...
+# Subtest: negative: date outside epochs
+ok 324 - negative: date outside epochs
+  ---
+  duration_ms: 0.252744
+  type: 'test'
+  ...
+# Subtest: negative: cross epoch XAF date
+ok 325 - negative: cross epoch XAF date
+  ---
+  duration_ms: 0.319271
+  type: 'test'
+  ...
+# Subtest: negative: cross epoch same currency
+ok 326 - negative: cross epoch same currency
+  ---
+  duration_ms: 0.31508
+  type: 'test'
+  ...
+# Subtest: negative: invalid calendar
+ok 327 - negative: invalid calendar
+  ---
+  duration_ms: 0.219698
+  type: 'test'
+  ...
+# Subtest: negative: local date
+ok 328 - negative: local date
+  ---
+  duration_ms: 0.392331
+  type: 'test'
+  ...
+# Subtest: negative: new archived account
+ok 329 - negative: new archived account
+  ---
+  duration_ms: 0.786888
+  type: 'test'
+  ...
+# Subtest: negative: new archived category
+ok 330 - negative: new archived category
+  ---
+  duration_ms: 0.644458
+  type: 'test'
+  ...
+# Subtest: negative: new archived fund
+ok 331 - negative: new archived fund
+  ---
+  duration_ms: 0.612733
+  type: 'test'
+  ...
+# Subtest: negative: retained missing account
+ok 332 - negative: retained missing account
+  ---
+  duration_ms: 0.76814
+  type: 'test'
+  ...
+# Subtest: negative: account not open at corrected date
+ok 333 - negative: account not open at corrected date
+  ---
+  duration_ms: 0.614213
+  type: 'test'
+  ...
+# Subtest: negative: money_in to money_out
+ok 334 - negative: money_in to money_out
+  ---
+  duration_ms: 0.301699
+  type: 'test'
+  ...
+# Subtest: negative: money_in to transfer
+ok 335 - negative: money_in to transfer
+  ---
+  duration_ms: 0.355495
+  type: 'test'
+  ...
+# Subtest: negative: transfer to money_out
+ok 336 - negative: transfer to money_out
+  ---
+  duration_ms: 0.413461
+  type: 'test'
+  ...
+# Subtest: negative: transfer category
+ok 337 - negative: transfer category
+  ---
+  duration_ms: 0.501853
+  type: 'test'
+  ...
+# Subtest: negative: transfer attribution
+ok 338 - negative: transfer attribution
+  ---
+  duration_ms: 0.889285
+  type: 'test'
+  ...
+# Subtest: negative: same transfer endpoints
+ok 339 - negative: same transfer endpoints
+  ---
+  duration_ms: 0.433236
+  type: 'test'
+  ...
+# Subtest: negative: missing transfer destination
+ok 340 - negative: missing transfer destination
+  ---
+  duration_ms: 0.336913
+  type: 'test'
+  ...
+# Subtest: negative: expense blank description
+ok 341 - negative: expense blank description
+  ---
+  duration_ms: 0.346077
+  type: 'test'
+  ...
+# Subtest: negative: bad metadata
+ok 342 - negative: bad metadata
+  ---
+  duration_ms: 0.181793
+  type: 'test'
+  ...
+# Subtest: negative: unauthorized
+ok 343 - negative: unauthorized
+  ---
+  duration_ms: 0.188987
+  type: 'test'
+  ...
+# Subtest: negative: revoked while waiting
+ok 344 - negative: revoked while waiting
+  ---
+  duration_ms: 0.179653
+  type: 'test'
+  ...
+# Subtest: negative: actor missing
+ok 345 - negative: actor missing
+  ---
+  duration_ms: 0.160679
+  type: 'test'
+  ...
+# Subtest: negative: request UUID invalid
+ok 346 - negative: request UUID invalid
+  ---
+  duration_ms: 0.16662
+  type: 'test'
+  ...
+# Subtest: negative: reuse manual request
+ok 347 - negative: reuse manual request
+  ---
+  duration_ms: 0.192879
+  type: 'test'
+  ...
+# Subtest: negative: invalid intent
+ok 348 - negative: invalid intent
+  ---
+  duration_ms: 0.369053
+  type: 'test'
+  ...
+# Subtest: negative: correct missing replacement
+ok 349 - negative: correct missing replacement
+  ---
+  duration_ms: 0.177971
+  type: 'test'
+  ...
+# Subtest: negative: reverse with replacement
+ok 350 - negative: reverse with replacement
+  ---
+  duration_ms: 0.161692
+  type: 'test'
+  ...
+# Subtest: negative: caller authority source_module
+ok 351 - negative: caller authority source_module
+  ---
+  duration_ms: 0.186412
+  type: 'test'
+  ...
+# Subtest: negative: caller authority source_record_id
+ok 352 - negative: caller authority source_record_id
+  ---
+  duration_ms: 0.185844
+  type: 'test'
+  ...
+# Subtest: negative: caller authority effect_kind
+ok 353 - negative: caller authority effect_kind
+  ---
+  duration_ms: 0.199634
+  type: 'test'
+  ...
+# Subtest: negative: caller authority category_class
+ok 354 - negative: caller authority category_class
+  ---
+  duration_ms: 0.179989
+  type: 'test'
+  ...
+# Subtest: negative: caller authority postings
+ok 355 - negative: caller authority postings
+  ---
+  duration_ms: 0.176896
+  type: 'test'
+  ...
+# Subtest: negative: caller authority created_by
+ok 356 - negative: caller authority created_by
+  ---
+  duration_ms: 0.163117
+  type: 'test'
+  ...
+# Subtest: negative: caller authority status
+ok 357 - negative: caller authority status
+  ---
+  duration_ms: 0.844953
+  type: 'test'
+  ...
+# Subtest: negative: caller authority ledger_epoch_id
+ok 358 - negative: caller authority ledger_epoch_id
+  ---
+  duration_ms: 0.253448
+  type: 'test'
+  ...
+# Subtest: negative: caller authority fingerprint
+ok 359 - negative: caller authority fingerprint
+  ---
+  duration_ms: 0.214239
+  type: 'test'
+  ...
+# Subtest: negative: caller authority replacement_event_id
+ok 360 - negative: caller authority replacement_event_id
+  ---
+  duration_ms: 0.180048
+  type: 'test'
+  ...
+# Subtest: replay: tampered saved child
+ok 361 - replay: tampered saved child
+  ---
+  duration_ms: 1.173773
+  type: 'test'
+  ...
+# Subtest: replay: changed action conflicts
+ok 362 - replay: changed action conflicts
+  ---
+  duration_ms: 1.057537
+  type: 'test'
+  ...
+# Subtest: replay: changed currency conflicts
+ok 363 - replay: changed currency conflicts
+  ---
+  duration_ms: 0.982114
+  type: 'test'
+  ...
+# Subtest: replay: identical completed retry
+ok 364 - replay: identical completed retry
+  ---
+  duration_ms: 1.058365
+  type: 'test'
+  ...
+# Subtest: replay: equivalent decimal
+ok 365 - replay: equivalent decimal
+  ---
+  duration_ms: 1.004103
+  type: 'test'
+  ...
+# Subtest: replay: equivalent UTC
+ok 366 - replay: equivalent UTC
+  ---
+  duration_ms: 0.896476
+  type: 'test'
+  ...
+# Subtest: replay: equivalent UUID case
+ok 367 - replay: equivalent UUID case
+  ---
+  duration_ms: 0.915642
+  type: 'test'
+  ...
+# Subtest: replay: normalized reason
+ok 368 - replay: normalized reason
+  ---
+  duration_ms: 0.922153
+  type: 'test'
+  ...
+# Subtest: replay: narrative excluded
+ok 369 - replay: narrative excluded
+  ---
+  duration_ms: 1.578919
+  type: 'test'
+  ...
+# Subtest: replay: retry after archive and defaults change
+ok 370 - replay: retry after archive and defaults change
+  ---
+  duration_ms: 1.305323
+  type: 'test'
+  ...
+# Subtest: replay: retry without current catalogs
+ok 371 - replay: retry without current catalogs
+  ---
+  duration_ms: 1.00509
+  type: 'test'
+  ...
+# Subtest: replay: retry actor changed but authorized
+ok 372 - replay: retry actor changed but authorized
+  ---
+  duration_ms: 0.976741
+  type: 'test'
+  ...
+# Subtest: replay: changed amount conflicts
+ok 373 - replay: changed amount conflicts
+  ---
+  duration_ms: 0.836507
+  type: 'test'
+  ...
+# Subtest: replay: changed reason conflicts
+ok 374 - replay: changed reason conflicts
+  ---
+  duration_ms: 0.739092
+  type: 'test'
+  ...
+# Subtest: replay: changed date conflicts
+ok 375 - replay: changed date conflicts
+  ---
+  duration_ms: 0.823831
+  type: 'test'
+  ...
+# Subtest: replay: changed account conflicts
+ok 376 - replay: changed account conflicts
+  ---
+  duration_ms: 0.735478
+  type: 'test'
+  ...
+# Subtest: replay: changed fund conflicts
+ok 377 - replay: changed fund conflicts
+  ---
+  duration_ms: 0.81461
+  type: 'test'
+  ...
+# Subtest: replay: changed category conflicts
+ok 378 - replay: changed category conflicts
+  ---
+  duration_ms: 0.744995
+  type: 'test'
+  ...
+# Subtest: replay: changed member conflicts
+ok 379 - replay: changed member conflicts
+  ---
+  duration_ms: 1.281609
+  type: 'test'
+  ...
+# Subtest: replay: changed project conflicts
+ok 380 - replay: changed project conflicts
+  ---
+  duration_ms: 0.772199
+  type: 'test'
+  ...
+# Subtest: replay: changed target conflicts
+ok 381 - replay: changed target conflicts
+  ---
+  duration_ms: 0.938167
+  type: 'test'
+  ...
+# Subtest: replay: changed intent conflicts
+ok 382 - replay: changed intent conflicts
+  ---
+  duration_ms: 1.259793
+  type: 'test'
+  ...
+# Subtest: replay: unauthorized retry
+ok 383 - replay: unauthorized retry
+  ---
+  duration_ms: 1.052668
+  type: 'test'
+  ...
+# Subtest: replay: permission revoked at lock retry
+ok 384 - replay: permission revoked at lock retry
+  ---
+  duration_ms: 1.110271
+  type: 'test'
+  ...
+# Subtest: replay: tampered replay binding
+ok 385 - replay: tampered replay binding
+  ---
+  duration_ms: 1.247193
+  type: 'test'
+  ...
+# Subtest: replay: duplicate request binding
+ok 386 - replay: duplicate request binding
+  ---
+  duration_ms: 1.548264
+  type: 'test'
+  ...
+# Subtest: serialized race contract: same request same payload
+ok 387 - serialized race contract: same request same payload
+  ---
+  duration_ms: 0.841922
+  type: 'test'
+  ...
+# Subtest: serialized race contract: same request different payload
+ok 388 - serialized race contract: same request different payload
+  ---
+  duration_ms: 0.666152
+  type: 'test'
+  ...
+# Subtest: serialized race contract: same target different requests
+ok 389 - serialized race contract: same target different requests
+  ---
+  duration_ms: 0.556249
+  type: 'test'
+  ...
+# Subtest: serialized race contract: same target correct versus reverse
+ok 390 - serialized race contract: same target correct versus reverse
+  ---
+  duration_ms: 0.539349
+  type: 'test'
+  ...
+# Subtest: serialized race contract: same target reverse versus correct
+ok 391 - serialized race contract: same target reverse versus correct
+  ---
+  duration_ms: 0.444741
+  type: 'test'
+  ...
+# Subtest: serialized race contract: same request different target
+ok 392 - serialized race contract: same request different target
+  ---
+  duration_ms: 0.980682
+  type: 'test'
+  ...
+# Subtest: linear A to B to C and old retry survives later correction
+ok 393 - linear A to B to C and old retry survives later correction
+  ---
+  duration_ms: 1.76934
+  type: 'test'
+  ...
+# Subtest: reverse latest replacement closes chain
+ok 394 - reverse latest replacement closes chain
+  ---
+  duration_ms: 1.026976
+  type: 'test'
+  ...
+# Subtest: January restatement discovered February has zero February activity
+ok 395 - January restatement discovered February has zero February activity
+  ---
+  duration_ms: 0.884126
+  type: 'test'
+  ...
+# Subtest: January to February date move
+ok 396 - January to February date move
+  ---
+  duration_ms: 0.897518
+  type: 'test'
+  ...
+# Subtest: graph forbids cycle
+ok 397 - graph forbids cycle
+  ---
+  duration_ms: 0.743648
+  type: 'test'
+  ...
+# Subtest: graph forbids shared replacement
+ok 398 - graph forbids shared replacement
+  ---
+  duration_ms: 0.574339
+  type: 'test'
+  ...
+# Subtest: graph forbids second reversal
+ok 399 - graph forbids second reversal
+  ---
+  duration_ms: 0.558802
+  type: 'test'
+  ...
+# Subtest: exact reversal ignores original posting row order and retains SQL trailing zero value
+ok 400 - exact reversal ignores original posting row order and retains SQL trailing zero value
+  ---
+  duration_ms: 0.622407
+  type: 'test'
+  ...
+# Subtest: reason NFC, Unicode whitespace, scalar length and null rejection
+ok 401 - reason NFC, Unicode whitespace, scalar length and null rejection
+  ---
+  duration_ms: 0.180555
+  type: 'test'
+  ...
+# Subtest: child identity stable scoped and separated
+ok 402 - child identity stable scoped and separated
+  ---
+  duration_ms: 0.26236
+  type: 'test'
+  ...
+# Subtest: canonical nested key order explicit null and microseconds
+ok 403 - canonical nested key order explicit null and microseconds
+  ---
+  duration_ms: 0.778832
+  type: 'test'
+  ...
+# Subtest: all proposal components are one visibility unit; failure does not mutate fixture
+ok 404 - all proposal components are one visibility unit; failure does not mutate fixture
+  ---
+  duration_ms: 1.251564
+  type: 'test'
+  ...
+# Subtest: golden: USD CORRECT
+ok 405 - golden: USD CORRECT
+  ---
+  duration_ms: 0.824371
+  type: 'test'
+  ...
+# Subtest: golden: USD REVERSE
+ok 406 - golden: USD REVERSE
+  ---
+  duration_ms: 0.358325
+  type: 'test'
+  ...
+# Subtest: golden: XAF CORRECT
+ok 407 - golden: XAF CORRECT
+  ---
+  duration_ms: 1.100761
+  type: 'test'
+  ...
+# Subtest: golden: Unicode reason
+ok 408 - golden: Unicode reason
+  ---
+  duration_ms: 0.550789
+  type: 'test'
+  ...
+# Subtest: historical USD correction and current XAF stay in separate buckets
+ok 409 - historical USD correction and current XAF stay in separate buckets
+  ---
+  duration_ms: 1.294834
+  type: 'test'
+  ...
+# Subtest: retry retains original meaning for omitted fields, not last replacement defaults
+ok 410 - retry retains original meaning for omitted fields, not last replacement defaults
+  ---
+  duration_ms: 0.951638
+  type: 'test'
+  ...
+# Subtest: first narrative wins and invalid retry narrative remains rejected
+ok 411 - first narrative wins and invalid retry narrative remains rejected
+  ---
+  duration_ms: 0.991441
+  type: 'test'
+  ...
+# Subtest: retained archived membership and project keep F3-02 group validation
+ok 412 - retained archived membership and project keep F3-02 group validation
+  ---
+  duration_ms: 0.9805
+  type: 'test'
+  ...
+# Subtest: request UUID cannot alias original manual request later in chain
+ok 413 - request UUID cannot alias original manual request later in chain
+  ---
+  duration_ms: 0.999916
+  type: 'test'
+  ...
+# Subtest: original and replacement stored fingerprints are distinct from each reversal
+ok 414 - original and replacement stored fingerprints are distinct from each reversal
+  ---
+  duration_ms: 0.59902
+  type: 'test'
+  ...
+# Subtest: server-derived event collision aborts rather than linking existing event
+ok 415 - server-derived event collision aborts rather than linking existing event
+  ---
+  duration_ms: 1.044917
+  type: 'test'
+  ...
+# Subtest: opposite target race schedule also has exactly one winner
+ok 416 - opposite target race schedule also has exactly one winner
+  ---
+  duration_ms: 3.259196
+  type: 'test'
+  ...
+# Subtest: same request different valid targets serializes independently of target
+ok 417 - same request different valid targets serializes independently of target
+  ---
+  duration_ms: 3.057582
+  type: 'test'
+  ...
+# Subtest: correction_reversal is not recognized SoA income; original money_in remains allowlisted
+ok 418 - correction_reversal is not recognized SoA income; original money_in remains allowlisted
+  ---
+  duration_ms: 1.101065
+  type: 'test'
+  ...
+# Subtest: identical correction retry does not treat reversal as SoA income
+ok 419 - identical correction retry does not treat reversal as SoA income
+  ---
+  duration_ms: 1.598337
+  type: 'test'
+  ...
+# Subtest: valid: USD Bank General
+ok 420 - valid: USD Bank General
+  ---
+  duration_ms: 6.00477
+  type: 'test'
+  ...
+# Subtest: valid: USD Cash General
+ok 421 - valid: USD Cash General
+  ---
+  duration_ms: 0.740111
+  type: 'test'
+  ...
+# Subtest: valid: USD restricted
+ok 422 - valid: USD restricted
+  ---
+  duration_ms: 0.707991
+  type: 'test'
+  ...
+# Subtest: valid: XAF bank
+ok 423 - valid: XAF bank
+  ---
+  duration_ms: 0.75866
+  type: 'test'
+  ...
+# Subtest: valid: XAF cash
+ok 424 - valid: XAF cash
+  ---
+  duration_ms: 0.601908
+  type: 'test'
+  ...
+# Subtest: valid: explicit nondefault fund
+ok 425 - valid: explicit nondefault fund
+  ---
+  duration_ms: 0.483119
+  type: 'test'
+  ...
+# Subtest: valid: derived currency
+ok 426 - valid: derived currency
+  ---
+  duration_ms: 0.40772
+  type: 'test'
+  ...
+# Subtest: valid: bounded lowercase assertion
+ok 427 - valid: bounded lowercase assertion
+  ---
+  duration_ms: 0.395974
+  type: 'test'
+  ...
+# Subtest: valid: minimum USD
+ok 428 - valid: minimum USD
+  ---
+  duration_ms: 0.850852
+  type: 'test'
+  ...
+# Subtest: valid: minimum XAF
+ok 429 - valid: minimum XAF
+  ---
+  duration_ms: 0.773552
+  type: 'test'
+  ...
+# Subtest: valid: beyond float precision
+ok 430 - valid: beyond float precision
+  ---
+  duration_ms: 0.473425
+  type: 'test'
+  ...
+# Subtest: valid: numeric upper limit
+ok 431 - valid: numeric upper limit
+  ---
+  duration_ms: 1.136646
+  type: 'test'
+  ...
+# Subtest: valid: leading zero normalization
+ok 432 - valid: leading zero normalization
+  ---
+  duration_ms: 0.323306
+  type: 'test'
+  ...
+# Subtest: valid: timestamp offset
+ok 433 - valid: timestamp offset
+  ---
+  duration_ms: 0.270313
+  type: 'test'
+  ...
+# Subtest: valid: microsecond time
+ok 434 - valid: microsecond time
+  ---
+  duration_ms: 0.242815
+  type: 'test'
+  ...
+# Subtest: valid: minimal provenance
+ok 435 - valid: minimal provenance
+  ---
+  duration_ms: 0.268631
+  type: 'test'
+  ...
+# Subtest: valid: independent occurrence
+ok 436 - valid: independent occurrence
+  ---
+  duration_ms: 0.289696
+  type: 'test'
+  ...
+# Subtest: valid: account opened exactly at opening
+ok 437 - valid: account opened exactly at opening
+  ---
+  duration_ms: 0.308588
+  type: 'test'
+  ...
+# Subtest: valid: epoch starts exactly at opening
+ok 438 - valid: epoch starts exactly at opening
+  ---
+  duration_ms: 0.366851
+  type: 'test'
+  ...
+# Subtest: negative: zero
+ok 439 - negative: zero
+  ---
+  duration_ms: 1.757235
+  type: 'test'
+  ...
+# Subtest: negative: negative
+ok 440 - negative: negative
+  ---
+  duration_ms: 0.230354
+  type: 'test'
+  ...
+# Subtest: negative: fractional XAF
+ok 441 - negative: fractional XAF
+  ---
+  duration_ms: 0.171526
+  type: 'test'
+  ...
+# Subtest: negative: XAF decimal zero
+ok 442 - negative: XAF decimal zero
+  ---
+  duration_ms: 1.382523
+  type: 'test'
+  ...
+# Subtest: negative: invalid decimal
+ok 443 - negative: invalid decimal
+  ---
+  duration_ms: 0.246599
+  type: 'test'
+  ...
+# Subtest: negative: JS number
+ok 444 - negative: JS number
+  ---
+  duration_ms: 0.158636
+  type: 'test'
+  ...
+# Subtest: negative: overflow
+ok 445 - negative: overflow
+  ---
+  duration_ms: 0.195908
+  type: 'test'
+  ...
+# Subtest: negative: USD precision
+ok 446 - negative: USD precision
+  ---
+  duration_ms: 0.164748
+  type: 'test'
+  ...
+# Subtest: negative: cross-group account
+ok 447 - negative: cross-group account
+  ---
+  duration_ms: 0.259434
+  type: 'test'
+  ...
+# Subtest: negative: cross-group fund
+ok 448 - negative: cross-group fund
+  ---
+  duration_ms: 0.170285
+  type: 'test'
+  ...
+# Subtest: negative: cross-group provenance
+ok 449 - negative: cross-group provenance
+  ---
+  duration_ms: 0.203814
+  type: 'test'
+  ...
+# Subtest: negative: inactive account
+ok 450 - negative: inactive account
+  ---
+  duration_ms: 0.152256
+  type: 'test'
+  ...
+# Subtest: negative: closed account
+ok 451 - negative: closed account
+  ---
+  duration_ms: 0.136078
+  type: 'test'
+  ...
+# Subtest: negative: closed timestamp with active status
+ok 452 - negative: closed timestamp with active status
+  ---
+  duration_ms: 0.204701
+  type: 'test'
+  ...
+# Subtest: negative: inactive fund
+ok 453 - negative: inactive fund
+  ---
+  duration_ms: 0.179727
+  type: 'test'
+  ...
+# Subtest: negative: deny caller field category_id
+ok 454 - negative: deny caller field category_id
+  ---
+  duration_ms: 0.115602
+  type: 'test'
+  ...
+# Subtest: negative: deny caller field member_id
+ok 455 - negative: deny caller field member_id
+  ---
+  duration_ms: 0.09999
+  type: 'test'
+  ...
+# Subtest: negative: deny caller field project_id
+ok 456 - negative: deny caller field project_id
+  ---
+  duration_ms: 0.706056
+  type: 'test'
+  ...
+# Subtest: negative: deny caller field contribution_type_id
+ok 457 - negative: deny caller field contribution_type_id
+  ---
+  duration_ms: 0.13546
+  type: 'test'
+  ...
+# Subtest: negative: deny caller field dues_obligation_id
+ok 458 - negative: deny caller field dues_obligation_id
+  ---
+  duration_ms: 0.08841
+  type: 'test'
+  ...
+# Subtest: negative: deny caller field payment_id
+ok 459 - negative: deny caller field payment_id
+  ---
+  duration_ms: 0.189583
+  type: 'test'
+  ...
+# Subtest: negative: deny caller field request_id
+ok 460 - negative: deny caller field request_id
+  ---
+  duration_ms: 0.088051
+  type: 'test'
+  ...
+# Subtest: negative: deny caller field action
+ok 461 - negative: deny caller field action
+  ---
+  duration_ms: 0.081239
+  type: 'test'
+  ...
+# Subtest: negative: deny caller field source_module
+ok 462 - negative: deny caller field source_module
+  ---
+  duration_ms: 0.077243
+  type: 'test'
+  ...
+# Subtest: negative: deny caller field source_record_id
+ok 463 - negative: deny caller field source_record_id
+  ---
+  duration_ms: 0.085982
+  type: 'test'
+  ...
+# Subtest: negative: deny caller field effect_kind
+ok 464 - negative: deny caller field effect_kind
+  ---
+  duration_ms: 0.086332
+  type: 'test'
+  ...
+# Subtest: negative: deny caller field ledger_epoch_id
+ok 465 - negative: deny caller field ledger_epoch_id
+  ---
+  duration_ms: 0.08618
+  type: 'test'
+  ...
+# Subtest: negative: deny caller field created_by
+ok 466 - negative: deny caller field created_by
+  ---
+  duration_ms: 0.106536
+  type: 'test'
+  ...
+# Subtest: negative: deny caller field recorded_at
+ok 467 - negative: deny caller field recorded_at
+  ---
+  duration_ms: 0.083963
+  type: 'test'
+  ...
+# Subtest: negative: deny caller field postings
+ok 468 - negative: deny caller field postings
+  ---
+  duration_ms: 0.082018
+  type: 'test'
+  ...
+# Subtest: negative: deny caller field destination_account_id
+ok 469 - negative: deny caller field destination_account_id
+  ---
+  duration_ms: 0.084826
+  type: 'test'
+  ...
+# Subtest: negative: no epoch
+ok 470 - negative: no epoch
+  ---
+  duration_ms: 0.192711
+  type: 'test'
+  ...
+# Subtest: negative: overlap
+ok 471 - negative: overlap
+  ---
+  duration_ms: 0.193639
+  type: 'test'
+  ...
+# Subtest: negative: epoch exclusive end
+ok 472 - negative: epoch exclusive end
+  ---
+  duration_ms: 0.243365
+  type: 'test'
+  ...
+# Subtest: negative: cross-group opened epoch
+ok 473 - negative: cross-group opened epoch
+  ---
+  duration_ms: 0.195154
+  type: 'test'
+  ...
+# Subtest: negative: account not yet opened
+ok 474 - negative: account not yet opened
+  ---
+  duration_ms: 0.160746
+  type: 'test'
+  ...
+# Subtest: negative: wrong epoch currency
+ok 475 - negative: wrong epoch currency
+  ---
+  duration_ms: 0.199972
+  type: 'test'
+  ...
+# Subtest: negative: wrong asserted currency
+ok 476 - negative: wrong asserted currency
+  ---
+  duration_ms: 0.134577
+  type: 'test'
+  ...
+# Subtest: negative: null currency
+ok 477 - negative: null currency
+  ---
+  duration_ms: 0.10336
+  type: 'test'
+  ...
+# Subtest: negative: invalid date
+ok 478 - negative: invalid date
+  ---
+  duration_ms: 0.10996
+  type: 'test'
+  ...
+# Subtest: negative: missing provenance
+ok 479 - negative: missing provenance
+  ---
+  duration_ms: 0.134632
+  type: 'test'
+  ...
+# Subtest: negative: null provenance
+ok 480 - negative: null provenance
+  ---
+  duration_ms: 0.094611
+  type: 'test'
+  ...
+# Subtest: negative: empty provenance
+ok 481 - negative: empty provenance
+  ---
+  duration_ms: 0.097246
+  type: 'test'
+  ...
+# Subtest: negative: blank provenance
+ok 482 - negative: blank provenance
+  ---
+  duration_ms: 0.090653
+  type: 'test'
+  ...
+# Subtest: negative: oversized provenance
+ok 483 - negative: oversized provenance
+  ---
+  duration_ms: 0.099404
+  type: 'test'
+  ...
+# Subtest: negative: spoof provenance group
+ok 484 - negative: spoof provenance group
+  ---
+  duration_ms: 0.100196
+  type: 'test'
+  ...
+# Subtest: negative: spoof provenance actor
+ok 485 - negative: spoof provenance actor
+  ---
+  duration_ms: 0.086864
+  type: 'test'
+  ...
+# Subtest: negative: invalid provenance UUID
+ok 486 - negative: invalid provenance UUID
+  ---
+  duration_ms: 0.085716
+  type: 'test'
+  ...
+# Subtest: negative: invalid occurrence UUID
+ok 487 - negative: invalid occurrence UUID
+  ---
+  duration_ms: 0.085989
+  type: 'test'
+  ...
+# Subtest: negative: invalid evidence
+ok 488 - negative: invalid evidence
+  ---
+  duration_ms: 0.093735
+  type: 'test'
+  ...
+# Subtest: negative: too many evidence references
+ok 489 - negative: too many evidence references
+  ---
+  duration_ms: 0.096315
+  type: 'test'
+  ...
+# Subtest: negative: invalid source date
+ok 490 - negative: invalid source date
+  ---
+  duration_ms: 0.113528
+  type: 'test'
+  ...
+# Subtest: negative: missing fund
+ok 491 - negative: missing fund
+  ---
+  duration_ms: 0.109367
+  type: 'test'
+  ...
+# Subtest: negative: missing account
+ok 492 - negative: missing account
+  ---
+  duration_ms: 0.148438
+  type: 'test'
+  ...
+# Subtest: negative: nonexistent fund
+ok 493 - negative: nonexistent fund
+  ---
+  duration_ms: 0.191632
+  type: 'test'
+  ...
+# Subtest: negative: kind mobile_money
+ok 494 - negative: kind mobile_money
+  ---
+  duration_ms: 0.303583
+  type: 'test'
+  ...
+# Subtest: negative: kind wallet
+ok 495 - negative: kind wallet
+  ---
+  duration_ms: 0.272591
+  type: 'test'
+  ...
+# Subtest: negative: kind other
+ok 496 - negative: kind other
+  ---
+  duration_ms: 0.171291
+  type: 'test'
+  ...
+# Subtest: negative: kind receivable
+ok 497 - negative: kind receivable
+  ---
+  duration_ms: 0.171692
+  type: 'test'
+  ...
+# Subtest: negative: unauthorized
+ok 498 - negative: unauthorized
+  ---
+  duration_ms: 0.12663
+  type: 'test'
+  ...
+# Subtest: negative: authority revoked after wait
+ok 499 - negative: authority revoked after wait
+  ---
+  duration_ms: 0.728524
+  type: 'test'
+  ...
+# Subtest: negative: duplicate provenance rows
+ok 500 - negative: duplicate provenance rows
+  ---
+  duration_ms: 0.193786
+  type: 'test'
+  ...
+# Subtest: replay: identical
+ok 501 - replay: identical
+  ---
+  duration_ms: 0.683747
+  type: 'test'
+  ...
+# Subtest: replay: normalized amount
+ok 502 - replay: normalized amount
+  ---
+  duration_ms: 0.299037
+  type: 'test'
+  ...
+# Subtest: replay: equivalent timestamp
+ok 503 - replay: equivalent timestamp
+  ---
+  duration_ms: 0.225658
+  type: 'test'
+  ...
+# Subtest: replay: narrative first wins
+ok 504 - replay: narrative first wins
+  ---
+  duration_ms: 0.227909
+  type: 'test'
+  ...
+# Subtest: replay: evidence first wins
+ok 505 - replay: evidence first wins
+  ---
+  duration_ms: 0.225229
+  type: 'test'
+  ...
+# Subtest: replay: archive after post
+ok 506 - replay: archive after post
+  ---
+  duration_ms: 0.251979
+  type: 'test'
+  ...
+# Subtest: replay: another authorized actor
+ok 507 - replay: another authorized actor
+  ---
+  duration_ms: 0.257877
+  type: 'test'
+  ...
+# Subtest: replay: new epoch does not rebind
+ok 508 - replay: new epoch does not rebind
+  ---
+  duration_ms: 0.228762
+  type: 'test'
+  ...
+# Subtest: replay: changed amount
+ok 509 - replay: changed amount
+  ---
+  duration_ms: 0.323571
+  type: 'test'
+  ...
+# Subtest: replay: changed fund
+ok 510 - replay: changed fund
+  ---
+  duration_ms: 0.289404
+  type: 'test'
+  ...
+# Subtest: replay: changed account
+ok 511 - replay: changed account
+  ---
+  duration_ms: 0.205866
+  type: 'test'
+  ...
+# Subtest: replay: changed date
+ok 512 - replay: changed date
+  ---
+  duration_ms: 0.279068
+  type: 'test'
+  ...
+# Subtest: replay: changed currency
+ok 513 - replay: changed currency
+  ---
+  duration_ms: 0.226561
+  type: 'test'
+  ...
+# Subtest: replay: changed provenance
+ok 514 - replay: changed provenance
+  ---
+  duration_ms: 0.197069
+  type: 'test'
+  ...
+# Subtest: replay: revoked before retry
+ok 515 - replay: revoked before retry
+  ---
+  duration_ms: 0.190392
+  type: 'test'
+  ...
+# Subtest: replay: revoked while waiting
+ok 516 - replay: revoked while waiting
+  ---
+  duration_ms: 0.172171
+  type: 'test'
+  ...
+# Subtest: replay: lost provenance binding
+ok 517 - replay: lost provenance binding
+  ---
+  duration_ms: 0.269727
+  type: 'test'
+  ...
+# Subtest: replay: corrupt economic binding
+ok 518 - replay: corrupt economic binding
+  ---
+  duration_ms: 0.338629
+  type: 'test'
+  ...
+# Subtest: replay: duplicate occurrence
+ok 519 - replay: duplicate occurrence
+  ---
+  duration_ms: 0.750898
+  type: 'test'
+  ...
+# Subtest: scenario: General foundation
+ok 520 - scenario: General foundation
+  ---
+  duration_ms: 0.573911
+  type: 'test'
+  ...
+# Subtest: scenario: Restricted split
+ok 521 - scenario: Restricted split
+  ---
+  duration_ms: 0.389002
+  type: 'test'
+  ...
+# Subtest: scenario: Bank plus Cash
+ok 522 - scenario: Bank plus Cash
+  ---
+  duration_ms: 0.307547
+  type: 'test'
+  ...
+# Subtest: scenario: Shared statement three occurrences
+ok 523 - scenario: Shared statement three occurrences
+  ---
+  duration_ms: 0.358319
+  type: 'test'
+  ...
+# Subtest: archive preserves projections but denies new occurrence
+ok 524 - archive preserves projections but denies new occurrence
+  ---
+  duration_ms: 0.517509
+  type: 'test'
+  ...
+# Subtest: shared provenance new occurrence keeps first committed evidence
+ok 525 - shared provenance new occurrence keeps first committed evidence
+  ---
+  duration_ms: 0.255784
+  type: 'test'
+  ...
+# Subtest: USD and XAF same group successive epochs remain separate buckets
+ok 526 - USD and XAF same group successive epochs remain separate buckets
+  ---
+  duration_ms: 0.416898
+  type: 'test'
+  ...
+# Subtest: opening is not operating income in periods before, including or after economic date
+ok 527 - opening is not operating income in periods before, including or after economic date
+  ---
+  duration_ms: 0.349272
+  type: 'test'
+  ...
+# Subtest: economic time, not posted time, drives balance cutoff and cashbook
+ok 528 - economic time, not posted time, drives balance cutoff and cashbook
+  ---
+  duration_ms: 0.325045
+  type: 'test'
+  ...
+# Subtest: F3-04 correction excludes opening
+ok 529 - F3-04 correction excludes opening
+  ---
+  duration_ms: 0.745084
+  type: 'test'
+  ...
+# Subtest: ordinary manual channel cannot masquerade as opening
+ok 530 - ordinary manual channel cannot masquerade as opening
+  ---
+  duration_ms: 0.115349
+  type: 'test'
+  ...
+# Subtest: opening occurrence cannot reuse a manual Money In request UUID
+ok 531 - opening occurrence cannot reuse a manual Money In request UUID
+  ---
+  duration_ms: 0.315435
+  type: 'test'
+  ...
+# Subtest: minimal north-star composition through unchanged F3-02, F3-04 and F3-03
+ok 532 - minimal north-star composition through unchanged F3-02, F3-04 and F3-03
+  ---
+  duration_ms: 2.968428
+  type: 'test'
+  ...
+# Subtest: golden: USD General
+ok 533 - golden: USD General
+  ---
+  duration_ms: 0.309927
+  type: 'test'
+  ...
+# Subtest: golden: USD restricted
+ok 534 - golden: USD restricted
+  ---
+  duration_ms: 0.136678
+  type: 'test'
+  ...
+# Subtest: golden: XAF
+ok 535 - golden: XAF
+  ---
+  duration_ms: 0.113205
+  type: 'test'
+  ...
+# Subtest: golden: shared provenance distinct occurrence
+ok 536 - golden: shared provenance distinct occurrence
+  ---
+  duration_ms: 0.106038
+  type: 'test'
+  ...
+# Subtest: oracle has no IO, product imports or side-effect interfaces
+ok 537 - oracle has no IO, product imports or side-effect interfaces
+  ---
+  duration_ms: 0.731088
+  type: 'test'
+  ...
+# (node:132629) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/f3-psql-poison-requal-20260916/tip-work/src/lib/financial-f3-recognition.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to /workspace/f3-psql-poison-requal-20260916/tip-work/package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: allowlist is exactly manual_income
+ok 538 - allowlist is exactly manual_income
+  ---
+  duration_ms: 2.470523
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("manual_income") → true
+ok 539 - isRecognizedSoaIncome("manual_income") → true
+  ---
+  duration_ms: 0.120251
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("manual_expense") → false
+ok 540 - isRecognizedSoaIncome("manual_expense") → false
+  ---
+  duration_ms: 0.063726
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("account_transfer") → false
+ok 541 - isRecognizedSoaIncome("account_transfer") → false
+  ---
+  duration_ms: 0.055675
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("opening_custody") → false
+ok 542 - isRecognizedSoaIncome("opening_custody") → false
+  ---
+  duration_ms: 0.063036
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("correction_reversal") → false
+ok 543 - isRecognizedSoaIncome("correction_reversal") → false
+  ---
+  duration_ms: 0.056671
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("correction_replacement") → false
+ok 544 - isRecognizedSoaIncome("correction_replacement") → false
+  ---
+  duration_ms: 0.046958
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("dues_allocation") → false
+ok 545 - isRecognizedSoaIncome("dues_allocation") → false
+  ---
+  duration_ms: 0.049187
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("loan_principal_repayment") → false
+ok 546 - isRecognizedSoaIncome("loan_principal_repayment") → false
+  ---
+  duration_ms: 0.202775
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("relief_remittance") → false
+ok 547 - isRecognizedSoaIncome("relief_remittance") → false
+  ---
+  duration_ms: 0.263732
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("future_income_v2") → false
+ok 548 - isRecognizedSoaIncome("future_income_v2") → false
+  ---
+  duration_ms: 0.102964
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("pending") → false
+ok 549 - isRecognizedSoaIncome("pending") → false
+  ---
+  duration_ms: 0.041849
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("rejected") → false
+ok 550 - isRecognizedSoaIncome("rejected") → false
+  ---
+  duration_ms: 0.969434
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("voided") → false
+ok 551 - isRecognizedSoaIncome("voided") → false
+  ---
+  duration_ms: 0.055304
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("relief_misapplied") → false
+ok 552 - isRecognizedSoaIncome("relief_misapplied") → false
+  ---
+  duration_ms: 0.04039
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("dues_assessment") → false
+ok 553 - isRecognizedSoaIncome("dues_assessment") → false
+  ---
+  duration_ms: 0.027698
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("opening_arrears") → false
+ok 554 - isRecognizedSoaIncome("opening_arrears") → false
+  ---
+  duration_ms: 0.025819
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("refundable_deposit") → false
+ok 555 - isRecognizedSoaIncome("refundable_deposit") → false
+  ---
+  duration_ms: 0.024293
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("njangi_contribution") → false
+ok 556 - isRecognizedSoaIncome("njangi_contribution") → false
+  ---
+  duration_ms: 0.024665
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("unconfirmed") → false
+ok 557 - isRecognizedSoaIncome("unconfirmed") → false
+  ---
+  duration_ms: 0.025011
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("") → false
+ok 558 - isRecognizedSoaIncome("") → false
+  ---
+  duration_ms: 0.024327
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome(" ") → false
+ok 559 - isRecognizedSoaIncome(" ") → false
+  ---
+  duration_ms: 0.024249
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("   ") → false
+ok 560 - isRecognizedSoaIncome("   ") → false
+  ---
+  duration_ms: 0.023434
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("\\t") → false
+ok 561 - isRecognizedSoaIncome("\\t") → false
+  ---
+  duration_ms: 0.025835
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("\\n") → false
+ok 562 - isRecognizedSoaIncome("\\n") → false
+  ---
+  duration_ms: 0.025122
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome(" \\t\\n ") → false
+ok 563 - isRecognizedSoaIncome(" \\t\\n ") → false
+  ---
+  duration_ms: 0.024551
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("manual_income ") → false
+ok 564 - isRecognizedSoaIncome("manual_income ") → false
+  ---
+  duration_ms: 0.030861
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome(" manual_income") → false
+ok 565 - isRecognizedSoaIncome(" manual_income") → false
+  ---
+  duration_ms: 0.030036
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("manual_income\\n") → false
+ok 566 - isRecognizedSoaIncome("manual_income\\n") → false
+  ---
+  duration_ms: 0.026367
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("MANUAL_INCOME") → false
+ok 567 - isRecognizedSoaIncome("MANUAL_INCOME") → false
+  ---
+  duration_ms: 0.030464
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("Manual_Income") → false
+ok 568 - isRecognizedSoaIncome("Manual_Income") → false
+  ---
+  duration_ms: 0.030222
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("manual-income") → false
+ok 569 - isRecognizedSoaIncome("manual-income") → false
+  ---
+  duration_ms: 0.026542
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("manual_income\\u0000") → false
+ok 570 - isRecognizedSoaIncome("manual_income\\u0000") → false
+  ---
+  duration_ms: 0.025913
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("not_a_real_effect") → false
+ok 571 - isRecognizedSoaIncome("not_a_real_effect") → false
+  ---
+  duration_ms: 0.030752
+  type: 'test'
+  ...
+# Subtest: isRecognizedSoaIncome("arbitrary_unknown") → false
+ok 572 - isRecognizedSoaIncome("arbitrary_unknown") → false
+  ---
+  duration_ms: 0.024917
+  type: 'test'
+  ...
+# Subtest: malformed non-strings fail closed
+ok 573 - malformed non-strings fail closed
+  ---
+  duration_ms: 0.091305
+  type: 'test'
+  ...
+# Subtest: F3-02 oracle effect kinds bind to the allowlist
+ok 574 - F3-02 oracle effect kinds bind to the allowlist
+  ---
+  duration_ms: 0.072858
+  type: 'test'
+  ...
+# Subtest: posted F3-02 commands: only money_in is recognized SoA income
+ok 575 - posted F3-02 commands: only money_in is recognized SoA income
+  ---
+  duration_ms: 2.77636
+  type: 'test'
+  ...
+# Subtest: identical money_in retry keeps allowlisted effect_kind and does not invent income
+ok 576 - identical money_in retry keeps allowlisted effect_kind and does not invent income
+  ---
+  duration_ms: 0.333792
+  type: 'test'
+  ...
+# Subtest: F3-04 reversal/replacement are not SoA income; identical retry keeps that claim
+ok 577 - F3-04 reversal/replacement are not SoA income; identical retry keeps that claim
+  ---
+  duration_ms: 3.541243
+  type: 'test'
+  ...
+1..577
+# tests 577
+# suites 0
+# pass 577
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 350.953917

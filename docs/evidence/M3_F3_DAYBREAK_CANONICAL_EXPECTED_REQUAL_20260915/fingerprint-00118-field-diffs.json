@@ -1,0 +1,348 @@
+{
+  "expected_sha256": "8299680fd5b3def52a981ae8c8ee097f29f13507b91d4f0799557236f1b5001c",
+  "observed_sha256": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+  "changedKeys": [
+    "acl",
+    "acls",
+    "relations"
+  ],
+  "fields": {
+    "acl": {
+      "expected_type": "list",
+      "observed_type": "list",
+      "expected_len": 27,
+      "observed_len": 34,
+      "expected_sha256": "7d9078856d3844775bc27659c6a0c55eb6ead6c88b26ea52b92c7c355c4e8a00",
+      "observed_sha256": "2569a35858f9c8a08df262dccf570c0db73616013a3b9ca26b0b5728fd71ac53",
+      "only_in_expected_count": 0,
+      "only_in_observed_count": 7,
+      "only_in_expected_sample": [],
+      "only_in_observed_sample": [
+        {
+          "grantable": false,
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "identity_arguments": "",
+          "object_name": "financial_ledger_epochs",
+          "object_type": "table",
+          "privilege": "DELETE",
+          "prokind": "",
+          "schema": "public"
+        },
+        {
+          "grantable": false,
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "identity_arguments": "",
+          "object_name": "financial_ledger_epochs",
+          "object_type": "table",
+          "privilege": "INSERT",
+          "prokind": "",
+          "schema": "public"
+        },
+        {
+          "grantable": false,
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "identity_arguments": "",
+          "object_name": "financial_ledger_epochs",
+          "object_type": "table",
+          "privilege": "MAINTAIN",
+          "prokind": "",
+          "schema": "public"
+        },
+        {
+          "grantable": false,
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "identity_arguments": "",
+          "object_name": "financial_ledger_epochs",
+          "object_type": "table",
+          "privilege": "REFERENCES",
+          "prokind": "",
+          "schema": "public"
+        },
+        {
+          "grantable": false,
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "identity_arguments": "",
+          "object_name": "financial_ledger_epochs",
+          "object_type": "table",
+          "privilege": "TRIGGER",
+          "prokind": "",
+          "schema": "public"
+        }
+      ]
+    },
+    "acls": {
+      "expected_type": "list",
+      "observed_type": "list",
+      "expected_len": 27,
+      "observed_len": 34,
+      "expected_sha256": "7d9078856d3844775bc27659c6a0c55eb6ead6c88b26ea52b92c7c355c4e8a00",
+      "observed_sha256": "2569a35858f9c8a08df262dccf570c0db73616013a3b9ca26b0b5728fd71ac53",
+      "only_in_expected_count": 0,
+      "only_in_observed_count": 7,
+      "only_in_expected_sample": [],
+      "only_in_observed_sample": [
+        {
+          "grantable": false,
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "identity_arguments": "",
+          "object_name": "financial_ledger_epochs",
+          "object_type": "table",
+          "privilege": "DELETE",
+          "prokind": "",
+          "schema": "public"
+        },
+        {
+          "grantable": false,
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "identity_arguments": "",
+          "object_name": "financial_ledger_epochs",
+          "object_type": "table",
+          "privilege": "INSERT",
+          "prokind": "",
+          "schema": "public"
+        },
+        {
+          "grantable": false,
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "identity_arguments": "",
+          "object_name": "financial_ledger_epochs",
+          "object_type": "table",
+          "privilege": "MAINTAIN",
+          "prokind": "",
+          "schema": "public"
+        },
+        {
+          "grantable": false,
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "identity_arguments": "",
+          "object_name": "financial_ledger_epochs",
+          "object_type": "table",
+          "privilege": "REFERENCES",
+          "prokind": "",
+          "schema": "public"
+        },
+        {
+          "grantable": false,
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "identity_arguments": "",
+          "object_name": "financial_ledger_epochs",
+          "object_type": "table",
+          "privilege": "TRIGGER",
+          "prokind": "",
+          "schema": "public"
+        }
+      ]
+    },
+    "relations": {
+      "expected_type": "list",
+      "observed_type": "list",
+      "expected_len": 3,
+      "observed_len": 3,
+      "expected_sha256": "8fbf2432b36faa92065998fe6717cb9fc88a8c0f1b29cfd4da5b475fa148a9d7",
+      "observed_sha256": "2f7c6476a23e9528e17b8d1eb9b928a7116d70577de7cfde1a78fb6ab8b143b5",
+      "only_in_expected_count": 1,
+      "only_in_observed_count": 1,
+      "only_in_expected_sample": [
+        {
+          "acl": [
+            {
+              "grantable": false,
+              "grantee": "authenticated",
+              "grantor": "postgres",
+              "privilege": "SELECT"
+            },
+            {
+              "grantable": false,
+              "grantee": "postgres",
+              "grantor": "postgres",
+              "privilege": "DELETE"
+            },
+            {
+              "grantable": false,
+              "grantee": "postgres",
+              "grantor": "postgres",
+              "privilege": "INSERT"
+            },
+            {
+              "grantable": false,
+              "grantee": "postgres",
+              "grantor": "postgres",
+              "privilege": "MAINTAIN"
+            },
+            {
+              "grantable": false,
+              "grantee": "postgres",
+              "grantor": "postgres",
+              "privilege": "REFERENCES"
+            },
+            {
+              "grantable": false,
+              "grantee": "postgres",
+              "grantor": "postgres",
+              "privilege": "SELECT"
+            },
+            {
+              "grantable": false,
+              "grantee": "postgres",
+              "grantor": "postgres",
+              "privilege": "TRIGGER"
+            },
+            {
+              "grantable": false,
+              "grantee": "postgres",
+              "grantor": "postgres",
+              "privilege": "TRUNCATE"
+            },
+            {
+              "grantable": false,
+              "grantee": "postgres",
+              "grantor": "postgres",
+              "privilege": "UPDATE"
+            },
+            {
+              "grantable": false,
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege": "SELECT"
+            }
+          ],
+          "name": "financial_ledger_epochs",
+          "owner": "postgres",
+          "persistence": "permanent",
+          "relkind": "r",
+          "replica_identity": "default",
+          "rls_enabled": true,
+          "rls_force": false,
+          "schema": "public"
+        }
+      ],
+      "only_in_observed_sample": [
+        {
+          "acl": [
+            {
+              "grantable": false,
+              "grantee": "authenticated",
+              "grantor": "postgres",
+              "privilege": "SELECT"
+            },
+            {
+              "grantable": false,
+              "grantee": "postgres",
+              "grantor": "postgres",
+              "privilege": "DELETE"
+            },
+            {
+              "grantable": false,
+              "grantee": "postgres",
+              "grantor": "postgres",
+              "privilege": "INSERT"
+            },
+            {
+              "grantable": false,
+              "grantee": "postgres",
+              "grantor": "postgres",
+              "privilege": "MAINTAIN"
+            },
+            {
+              "grantable": false,
+              "grantee": "postgres",
+              "grantor": "postgres",
+              "privilege": "REFERENCES"
+            },
+            {
+              "grantable": false,
+              "grantee": "postgres",
+              "grantor": "postgres",
+              "privilege": "SELECT"
+            },
+            {
+              "grantable": false,
+              "grantee": "postgres",
+              "grantor": "postgres",
+              "privilege": "TRIGGER"
+            },
+            {
+              "grantable": false,
+              "grantee": "postgres",
+              "grantor": "postgres",
+              "privilege": "TRUNCATE"
+            },
+            {
+              "grantable": false,
+              "grantee": "postgres",
+              "grantor": "postgres",
+              "privilege": "UPDATE"
+            },
+            {
+              "grantable": false,
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege": "DELETE"
+            },
+            {
+              "grantable": false,
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege": "INSERT"
+            },
+            {
+              "grantable": false,
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege": "MAINTAIN"
+            },
+            {
+              "grantable": false,
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege": "REFERENCES"
+            },
+            {
+              "grantable": false,
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege": "SELECT"
+            },
+            {
+              "grantable": false,
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege": "TRIGGER"
+            },
+            {
+              "grantable": false,
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege": "TRUNCATE"
+            },
+            {
+              "grantable": false,
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege": "UPDATE"
+            }
+          ],
+          "name": "financial_ledger_epochs",
+          "owner": "postgres",
+          "persistence": "permanent",
+          "relkind": "r",
+          "replica_identity": "default",
+          "rls_enabled": true,
+          "rls_force": false,
+          "schema": "public"
+        }
+      ]
+    }
+  },
+  "note": "HOLD \u2014 tip not resealed from hosted observed"
+}

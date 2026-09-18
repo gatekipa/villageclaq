@@ -1,0 +1,18 @@
+{
+  "suite": "test-s0-cut2",
+  "classification": "ENV_DEPENDENT_FAIL",
+  "expect": {
+    "tests": 21,
+    "pass": 14,
+    "fail": 7,
+    "skipped": 0
+  },
+  "observed": {
+    "tests": 21,
+    "pass": 14,
+    "fail": 7,
+    "skipped": 0
+  },
+  "outSha256": "556ede576229f49cdcc4c1406d67cedbadf353ba5d62a8ee4798aa7bdd28fbec",
+  "outBytes": 14260
+}

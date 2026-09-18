@@ -1,0 +1,16 @@
+{
+  "status": "PENDING_INDEPENDENT_QA",
+  "F18_FUNCTIONAL_TIP": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "required": [
+    "reviewer/task identity",
+    "reviewed pin",
+    "environment",
+    "actual PG server version",
+    "commands",
+    "raw sanitized logs",
+    "lock observations",
+    "process records",
+    "postconditions"
+  ],
+  "scoreAloneInsufficient": true
+}

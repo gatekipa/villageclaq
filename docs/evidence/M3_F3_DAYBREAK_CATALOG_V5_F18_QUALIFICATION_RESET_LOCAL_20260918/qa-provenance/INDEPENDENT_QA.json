@@ -1,0 +1,6 @@
+{
+  "status": "PENDING",
+  "excludedFromF18ReadyClaim": true,
+  "slot": "qa-package/",
+  "note": "Chief dispatches independent Grok QA against F18_FUNCTIONAL_TIP. Do not treat Builder gates as the accepted independent QA package."
+}

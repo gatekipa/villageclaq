@@ -1,0 +1,63 @@
+{
+  "schema": "f18-qualification-reset-process-evidence-v1",
+  "boundary": "f18-process-evidence-boundary-v1",
+  "sanitization": {
+    "schema": "f18-qualification-reset-process-evidence-v1",
+    "replacesAbsoluteTempAndHomePaths": true,
+    "preservesCompleteSanitizedStreams": true,
+    "originalStreamsRetainedAsHashesOnly": true,
+    "neverClaimsOriginalByteEqualityAfterTransform": true,
+    "neverReconstructsFromSummaries": true,
+    "neverRecomputeOriginalFromTransformed": true,
+    "neverReplaceExplicitTrueFlagsOrErrorFieldsWithDefaults": true,
+    "validateAlreadyEncodedRecords": true,
+    "rejectAmbiguousShapes": true,
+    "preserves": [
+      "status",
+      "signal",
+      "timeout",
+      "timedOut",
+      "thrown",
+      "termination",
+      "structuredError.message",
+      "structuredError.code",
+      "structuredError.syscall",
+      "structuredError.name"
+    ],
+    "pathRedactionToken": "[REDACTED_PATH]"
+  },
+  "commandIdentity": "psql -X -q -v ON_ERROR_STOP=1 -f [FILE] (session-mode pooler via child env; never -p)",
+  "argv": [
+    "psql",
+    "-f",
+    "[REDACTED_PATH]/file.sql"
+  ],
+  "status": 1,
+  "signal": null,
+  "timeout": false,
+  "timedOut": false,
+  "thrown": false,
+  "error": "open '[REDACTED_PATH]/file.sql'",
+  "structuredError": {
+    "code": "EACCES",
+    "name": "Error",
+    "syscall": "open",
+    "message": "open '[REDACTED_PATH]/file.sql'"
+  },
+  "stdout": "",
+  "stderr": "psql:[REDACTED_PATH]/file.sql:12: ERROR: F13_UNEXPECTED_OBJECT_OR_DEPENDENCY\n",
+  "streams": {
+    "capturedBeforeEncode": true,
+    "originalStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "originalStdoutByteLength": 0,
+    "originalStderrSha256": "eccd064732673a873758ff3273932de407be6046eee07233ae9acbaea71b3aa0",
+    "originalStderrByteLength": 85,
+    "packagedStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "packagedStdoutByteLength": 0,
+    "packagedStderrSha256": "6e0cde19ab13245d83455f5985ea376963568bb1e5b04b444acba4d80fdd6d28",
+    "packagedStderrByteLength": 77,
+    "originalByteEqual": false,
+    "reconstructedFromSummary": false,
+    "transformApplied": true
+  }
+}

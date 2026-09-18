@@ -1,7 +1,7 @@
 # PROPOSED HOSTED REQUALIFICATION PLAN — PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE
 
 **Status:** PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE
-**Label:** F18 LOCAL CORRECTION CANDIDATE — AWAITING QA / LOCAL TX PROOF
+**Label:** F18 LOCAL CORRECTION CANDIDATE — INDEPENDENT QA F18 ACCEPT
 **This document does not authorize wipe, hosted reset, credential use, Daybreak/Astra contact, or Management API apply.**
 
 ## Bound identities

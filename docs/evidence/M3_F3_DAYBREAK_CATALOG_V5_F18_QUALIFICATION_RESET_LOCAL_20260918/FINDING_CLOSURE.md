@@ -4,9 +4,12 @@
 Historical F17 evidence at `docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F17_QUALIFICATION_RESET_LOCAL_20260918/` is preserved and **not rewritten**.
 
 ## Status
-- Local: **LOCAL HOLD — independent QA package pending**
+- Local: **LOCAL CANDIDATE READY** — independent QA **F18 ACCEPT**
 - Overall: **DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN**
-- Functional tip: `ca2c0d536037da8c7f55627ac1694cacb932d1d7`
+- Functional tip: `ca2c0d536037da8c7f55627ac1694cacb932d1d7` (unchanged)
+- QA package commit: `e85a7a537275596d54c5ccb6bd632bb6f12c0e4e`
+- Reviewer: `bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf`
+- Classification: `LOCAL_PG_EXECUTED` on PostgreSQL 17.11
 - Starting ref: `3fcbcbc438ccc90faf7e87d06ba0d270e3d17598`
 - F17 functional pin: `83b9f79483f3ba53f4f8cd60016450ff38a723b4`
 
@@ -17,7 +20,7 @@ Historical F17 evidence at `docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F17_QUALIFIC
 | A unbound lock-wait waiter | granted holder + any ungranted waiter accepted without proving waiter is the reset worker | reset backend pid from the same connection executing generated SQL; bound to spawned process + execution id; HOLDER_COMMITTED + holder result + catalog change + worker-bound acquisition required; negatives cannot PASS | CLOSED locally |
 | B process provenance | runner encode/sanitize then helper re-package lost Error/EACCES/syscall, timedOut true→false, labeled sanitized hash original | one contract captures original hashes/lengths and termination/error at the pre-encode boundary; helper validates already-encoded records; E2E runner→helper→serialize→reread→parser | CLOSED locally |
 | C success-reparse attestations | TX_SUCCESS_REPARSE interpretedCommitted:false despite T7 + CLEAN_BASELINE | explicit adapter maps processStatus→status; missing status is not success; attestations from finalized reread; inconsistent attestations fail finalization | CLOSED locally |
-| D authentic QA on authoritative head | F17 cited QA dir missing / #84 presented sibling QA as authoritative | F18 evidence includes Builder LOCAL_PG proofs + QA slot for Chief independent package on the same functional tip | SLOT READY — independent QA pending |
+| D authentic QA on authoritative head | F17 cited QA dir missing / #84 presented sibling QA as authoritative | Complete independent QA package on the same functional tip at `qa-package/` (commit `e85a7a53`); reviewer `bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf`; outer index covers the full tree | **F18 ACCEPT** |
 
 ## Two-session T3 proofs (committed helper, real local PG 17.11)
 - Unapproved FK: reset backend 29511 / process 29138; holder committed; backend-bound proof true; mutationPhaseReached=false; rolledBack=null

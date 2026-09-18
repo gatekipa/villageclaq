@@ -3,9 +3,20 @@
   "functionalTip": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
   "startingRef": "3fcbcbc438ccc90faf7e87d06ba0d270e3d17598",
   "f17Functional": "83b9f79483f3ba53f4f8cd60016450ff38a723b4",
-  "localStatus": "LOCAL HOLD — independent QA package pending",
+  "qaPackageCommit": "e85a7a537275596d54c5ccb6bd632bb6f12c0e4e",
+  "localStatus": "LOCAL CANDIDATE READY",
   "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
   "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "f18IndependentQa": "F18 ACCEPT",
+  "independentQa": {
+    "verdict": "F18 ACCEPT",
+    "reviewerBcId": "bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
+    "reviewedPin": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+    "classification": "LOCAL_PG_EXECUTED",
+    "postgresServerVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+    "qaPackageCommit": "e85a7a537275596d54c5ccb6bd632bb6f12c0e4e",
+    "scoreAloneInsufficient": true
+  },
   "gates": {
     "resetDesign": {
       "tests": 30,
@@ -67,10 +78,9 @@
     "captureBeforeTransform": true
   },
   "nativeWindowsExecuted": false,
-  "f18IndependentQa": "PENDING",
   "attestationFinalization": {
     "ok": true,
     "count": 3
   },
-  "checksumDistinctionPolicy": "digest inside evidence-index.sha256 is sha256 of evidence-index.json bytes; digest of that checksum file's bytes is a different identity"
+  "checksumDistinctionPolicy": "digest inside evidence-index.sha256 is sha256 of evidence-index.json bytes (interior digest); digest of that checksum file's bytes is a different identity and is recorded only in pack-scan.json"
 }

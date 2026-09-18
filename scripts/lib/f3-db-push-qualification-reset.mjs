@@ -6,13 +6,16 @@
  * Refuses extras, production, wipe, CASCADE, Management API apply.
  *
  * LOCAL / OFFLINE by default. Live apply is gated psql -X -v ON_ERROR_STOP=1 -f
- * of SQL generated from the finite allowlist, inside one SERIALIZABLE TX.
+ * of SQL generated from the finite allowlist, inside one READ COMMITTED TX
+ * serialized by relation locks + T3 exact revalidation. SERIALIZABLE
+ * snapshot-before-lock cannot see commits that land while reset waits.
  * Test adapters are not a production validation bypass.
  *
  * Label: F13 RESET IMPLEMENTATION CANDIDATE — LOCAL VERIFICATION PENDING CHIEF / QA
  */
 import { createHash } from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -72,19 +75,24 @@ const DEFAULT_REPO_ROOT = path.resolve(RESET_MODULE_DIR, "../..");
 export { scopeSqlIdentityDigest, AUTHENTICATED_HISTORY_KEYS };
 
 export const F13_RUNTIME_PHASE = 2;
-export const F16_RUNTIME_LABEL =
-  "F16 LOCAL CORRECTION CANDIDATE — AWAITING QA / LOCAL TX PROOF";
-export const F15_RUNTIME_LABEL = F16_RUNTIME_LABEL;
-export const F14_RUNTIME_LABEL = F16_RUNTIME_LABEL;
-export const F13_RUNTIME_LABEL = F16_RUNTIME_LABEL;
+export const F17_RUNTIME_LABEL =
+  "F17 LOCAL CORRECTION CANDIDATE — AWAITING QA / LOCAL TX PROOF";
+export const F16_RUNTIME_LABEL = F17_RUNTIME_LABEL;
+export const F15_RUNTIME_LABEL = F17_RUNTIME_LABEL;
+export const F14_RUNTIME_LABEL = F17_RUNTIME_LABEL;
+export const F13_RUNTIME_LABEL = F17_RUNTIME_LABEL;
 export const F13_SHARED_ORCHESTRATION_ID = "runQualificationReset";
 export const F13_WIPE_STILL_REJECTED = F13_WIPE_REJECTION_CODE;
-export const F13_F16_RUNTIME_CLOSURE_LABEL = "F16_QUALIFICATION_RESET_RUNTIME_CLOSURE";
-export const F13_F16_VERIFICATION_UNION_LABEL = "F16_QUALIFICATION_RESET_VERIFICATION_UNION";
-export const F13_F15_RUNTIME_CLOSURE_LABEL = F13_F16_RUNTIME_CLOSURE_LABEL;
-export const F13_F15_VERIFICATION_UNION_LABEL = F13_F16_VERIFICATION_UNION_LABEL;
-export const F13_F14_RUNTIME_CLOSURE_LABEL = F13_F16_RUNTIME_CLOSURE_LABEL;
-export const F13_F14_VERIFICATION_UNION_LABEL = F13_F16_VERIFICATION_UNION_LABEL;
+export const F13_F17_RUNTIME_CLOSURE_LABEL = "F17_QUALIFICATION_RESET_RUNTIME_CLOSURE";
+export const F13_F17_VERIFICATION_UNION_LABEL = "F17_QUALIFICATION_RESET_VERIFICATION_UNION";
+export const F13_F16_RUNTIME_CLOSURE_LABEL = F13_F17_RUNTIME_CLOSURE_LABEL;
+export const F13_F16_VERIFICATION_UNION_LABEL = F13_F17_VERIFICATION_UNION_LABEL;
+export const F13_F15_RUNTIME_CLOSURE_LABEL = F13_F17_RUNTIME_CLOSURE_LABEL;
+export const F13_F15_VERIFICATION_UNION_LABEL = F13_F17_VERIFICATION_UNION_LABEL;
+export const F13_F14_RUNTIME_CLOSURE_LABEL = F13_F17_RUNTIME_CLOSURE_LABEL;
+export const F13_F14_VERIFICATION_UNION_LABEL = F13_F17_VERIFICATION_UNION_LABEL;
+export const F16_HISTORICAL_RUNTIME_CLOSURE_LABEL = "F16_QUALIFICATION_RESET_RUNTIME_CLOSURE";
+export const F16_HISTORICAL_VERIFICATION_UNION_LABEL = "F16_QUALIFICATION_RESET_VERIFICATION_UNION";
 export const F13_BASELINE_RUNTIME_CLOSURE = Object.freeze({
   count: 45,
   sha256: "51c4a98fe2f249978dad09451b1a5e4a88617b833f66cafb6252870e6be7ed6d",
@@ -116,6 +124,61 @@ export const F15_BASELINE_VERIFICATION_UNION = Object.freeze({
   count: 48,
   sha256: "30dd8ad9972db6ef6dc7d4c35d49ae420ce2c445103c6180d469d901f88c5752",
   notExpectedF16: true,
+  notExpectedF17: true,
+});
+export const F16_BASELINE_RUNTIME_CLOSURE = Object.freeze({
+  count: 45,
+  sha256: "1ca2a1ceddca278889c7ea92fc10e6a59150e06c5b4f13d4426b293fda29ee78",
+  notExpectedF17: true,
+  historicalLabel: F16_HISTORICAL_RUNTIME_CLOSURE_LABEL,
+});
+export const F16_BASELINE_VERIFICATION_UNION = Object.freeze({
+  count: 48,
+  sha256: "989c6c99ead2b84190486b856d7e04a1e76824f870f3bbf9438935808c8fb7ff",
+  notExpectedF17: true,
+  historicalLabel: F16_HISTORICAL_VERIFICATION_UNION_LABEL,
+});
+export const QUALIFICATION_RESET_ISOLATION_LEVEL = "READ COMMITTED";
+export const QUALIFICATION_RESET_LOCK_ORDER = Object.freeze({
+  schema: "f17-qualification-reset-lock-order-v1",
+  isolation: QUALIFICATION_RESET_ISOLATION_LEVEL,
+  serializableSnapshotBeforeLockInsufficient: true,
+  order: Object.freeze([
+    "BEGIN ISOLATION LEVEL READ COMMITTED",
+    "SET LOCAL timeouts",
+    "T1 advisory xact lock (cooperative helper; may precede relation locks)",
+    "T1 observation SELECT (does not freeze a SERIALIZABLE snapshot)",
+    "T2 LOCK schema_migrations SHARE ROW EXCLUSIVE + allowlisted tables ACCESS EXCLUSIVE (wait window)",
+    "T3 live catalog exact-tuple revalidation sees commits that landed while waiting",
+  ]),
+  protectionsRetained: Object.freeze([
+    "ACCESS EXCLUSIVE on leftover allowlisted relations",
+    "SHARE ROW EXCLUSIVE on supabase_migrations.schema_migrations",
+    "T3 exact (kind,identity,from,to) vs captured approved set AND 37-tuple contract",
+    "T6 final allowlisted-absent + history-absent assertions",
+    "unexpected object / history mismatch still abort before mutation",
+    "advisory lock remains helper-only",
+  ]),
+});
+export const PROCESS_EVIDENCE_SANITIZATION_RULES = Object.freeze({
+  schema: "f17-qualification-reset-process-evidence-v1",
+  replacesAbsoluteTempAndHomePaths: true,
+  preservesCompleteSanitizedStreams: true,
+  originalStreamsRetainedAsHashesOnly: true,
+  neverClaimsOriginalByteEqualityAfterTransform: true,
+  neverReconstructsFromSummaries: true,
+  preserves: Object.freeze([
+    "status",
+    "signal",
+    "timeout",
+    "timedOut",
+    "thrown",
+    "structuredError.message",
+    "structuredError.code",
+    "structuredError.syscall",
+    "structuredError.name",
+  ]),
+  pathRedactionToken: "[REDACTED_PATH]",
 });
 export const F13_SUMMARY_FILE_HASH_FORBIDDEN =
   "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d";
@@ -734,10 +797,16 @@ export function buildQualificationResetSql({
   lines.push("-- RESTRICT only. Generated from the finite allowlist; unexpected leftovers block.");
   lines.push("-- T0_BIND completed client-side (candidate SHA, disposable pins, founder artifact, production refuse).");
   lines.push("-- T1_BEGIN");
-  lines.push("BEGIN ISOLATION LEVEL SERIALIZABLE;");
+  lines.push("-- Isolation is READ COMMITTED: SERIALIZABLE snapshot is taken at the first");
+  lines.push("-- query (T1 observation / advisory DO) BEFORE T2 relation locks, so T3 would");
+  lines.push("-- miss dependency drift committed while reset waits. ACCESS EXCLUSIVE on");
+  lines.push("-- leftover relations + SHARE ROW EXCLUSIVE on schema_migrations + T3 exact");
+  lines.push("-- tuple revalidation retain the previous protections.");
+  lines.push("BEGIN ISOLATION LEVEL READ COMMITTED;");
   lines.push(`SET LOCAL lock_timeout = ${sqlString(F13_TX_TIMEOUTS.lock_timeout)};`);
   lines.push(`SET LOCAL statement_timeout = ${sqlString(F13_TX_TIMEOUTS.statement_timeout)};`);
   lines.push(`SET LOCAL idle_in_transaction_session_timeout = ${sqlString(F13_TX_TIMEOUTS.idle_in_transaction_session_timeout)};`);
+  lines.push("SET LOCAL application_name = 'f13_qualification_reset';");
   // PERFORM inside DO emits no client row. Top-level SELECT of void
   // pg_advisory_xact_lock prints a blank line under psql -At and must not
   // appear among observation records.
@@ -975,6 +1044,142 @@ export function buildQualificationResetSql({
     dropOrder: ordered.map((row) => row.id),
     historyDeletes,
     timeouts: F13_TX_TIMEOUTS,
+  };
+}
+
+function captureRawProcessResult(result, commandIdentity) {
+  const errorRaw = result?.error ?? null;
+  return {
+    commandIdentity: commandIdentity || result?.commandIdentity || GATED_PSQL_FILE_RENDERED,
+    argv: Array.isArray(result?.argv) ? [...result.argv] : [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", "[FILE]"],
+    status: Object.prototype.hasOwnProperty.call(result || {}, "status") && Number.isInteger(result.status)
+      ? result.status
+      : null,
+    stdout: result?.stdout ?? "",
+    stderr: result?.stderr ?? "",
+    error: errorRaw,
+    signal: result?.signal ?? null,
+    timeout: result?.timeout === true || result?.timedOut === true,
+    timedOut: result?.timedOut === true,
+    thrown: result?.thrown === true,
+  };
+}
+
+export function redactAbsoluteFilesystemPaths(text, extraRoots = []) {
+  let s = String(text ?? "");
+  const roots = [];
+  const pushRoot = (root) => {
+    if (!root) return;
+    const normalized = String(root);
+    if (normalized && !roots.includes(normalized)) roots.push(normalized);
+  };
+  pushRoot(os.tmpdir());
+  pushRoot(os.homedir());
+  pushRoot("/tmp");
+  pushRoot("/var/folders");
+  pushRoot("/private/var/folders");
+  for (const root of extraRoots) pushRoot(root);
+  for (const root of roots.sort((a, b) => b.length - a.length)) {
+    const posix = root.replace(/\\/g, "/");
+    const escaped = posix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const flexible = escaped.replace(/\//g, "[\\\\/]");
+    s = s.replace(new RegExp(flexible, "gi"), PROCESS_EVIDENCE_SANITIZATION_RULES.pathRedactionToken);
+  }
+  s = s.replace(/(?:^|[^\w])((?:\/tmp\/|\/var\/folders\/|\/private\/var\/folders\/|\/home\/|\/Users\/)[^\s"'\\]+)/g, (match, captured) => (
+    match.replace(captured, PROCESS_EVIDENCE_SANITIZATION_RULES.pathRedactionToken)
+  ));
+  s = s.replace(/[A-Za-z]:\\(?:Users|Windows\\Temp|Temp)\\[^\s"']+/g, PROCESS_EVIDENCE_SANITIZATION_RULES.pathRedactionToken);
+  return s;
+}
+
+export function packageQualificationResetProcessEvidence(result, { commandIdentity, workdir } = {}) {
+  const captured = captureRawProcessResult(result, commandIdentity || result?.commandIdentity);
+  const originalStdout = String(captured.stdout ?? "");
+  const originalStderr = String(captured.stderr ?? "");
+  const originalErrorMessage = captured.error == null
+    ? ""
+    : String(captured.error.message || captured.error.code || captured.error);
+  const extraRoots = [];
+  if (workdir) extraRoots.push(workdir);
+  const stdout = redactAbsoluteFilesystemPaths(String(sanitizeForLog(originalStdout) ?? ""), extraRoots);
+  const stderr = redactAbsoluteFilesystemPaths(String(sanitizeForLog(originalStderr) ?? ""), extraRoots);
+  const structuredError = captured.error == null
+    ? null
+    : {
+      code: captured.error.code ?? null,
+      name: captured.error.name ?? null,
+      syscall: captured.error.syscall ?? null,
+      message: redactAbsoluteFilesystemPaths(String(sanitizeForLog(originalErrorMessage) ?? ""), extraRoots),
+    };
+  const argv = (captured.argv || []).map((item) => (
+    redactAbsoluteFilesystemPaths(String(sanitizeForLog(String(item)) ?? ""), extraRoots)
+  ));
+  const originalStdoutSha256 = sha256Utf8(originalStdout);
+  const originalStderrSha256 = sha256Utf8(originalStderr);
+  const packagedStdoutSha256 = sha256Utf8(stdout);
+  const packagedStderrSha256 = sha256Utf8(stderr);
+  return {
+    schema: PROCESS_EVIDENCE_SANITIZATION_RULES.schema,
+    sanitization: PROCESS_EVIDENCE_SANITIZATION_RULES,
+    commandIdentity: captured.commandIdentity,
+    argv,
+    status: captured.status,
+    signal: captured.signal ?? null,
+    timeout: captured.timeout === true,
+    timedOut: captured.timedOut === true,
+    thrown: captured.thrown === true,
+    error: structuredError?.message ?? null,
+    structuredError,
+    stdout,
+    stderr,
+    streams: {
+      originalStdoutSha256,
+      originalStdoutByteLength: Buffer.byteLength(originalStdout, "utf8"),
+      originalStderrSha256,
+      originalStderrByteLength: Buffer.byteLength(originalStderr, "utf8"),
+      packagedStdoutSha256,
+      packagedStdoutByteLength: Buffer.byteLength(stdout, "utf8"),
+      packagedStderrSha256,
+      packagedStderrByteLength: Buffer.byteLength(stderr, "utf8"),
+      originalByteEqual: false,
+      reconstructedFromSummary: false,
+      transformApplied: originalStdout !== stdout || originalStderr !== stderr,
+    },
+  };
+}
+
+export function scanEvidenceValueForLeaks(value, { path = "$" } = {}) {
+  const pathLeaks = [];
+  const secrets = [];
+  const pathRe = /(\/tmp\/|\/var\/folders\/|\/private\/var\/folders\/|\/home\/|\/Users\/|[A-Za-z]:\\(?:Users|Windows\\Temp|Temp)\\|AppData\\Local\\Temp\\)/i;
+  const secretRe = /DATABASE_URL|DISPOSABLE_DB_URL|VILLAGECLAQ_F3_DISPOSABLE_DB_PASSWORD|PGPASSWORD|postgresql:\/\/|postgres:\/\/|pgbouncer/i;
+  const walk = (node, at) => {
+    if (node == null) return;
+    if (typeof node === "string") {
+      if (pathRe.test(node) && !node.includes(PROCESS_EVIDENCE_SANITIZATION_RULES.pathRedactionToken)) {
+        pathLeaks.push({ path: at, sample: node.slice(0, 120) });
+      }
+      if (secretRe.test(node) && !node.includes("[REDACTED]")) {
+        secrets.push({ path: at, kind: "secret-needle" });
+      }
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach((item, idx) => walk(item, `${at}[${idx}]`));
+      return;
+    }
+    if (typeof node === "object") {
+      for (const [key, val] of Object.entries(node)) {
+        walk(val, `${at}.${key}`);
+      }
+    }
+  };
+  walk(value, path);
+  return {
+    pathLeaks: pathLeaks.length,
+    secrets: secrets.length,
+    pathLeakHits: pathLeaks,
+    secretHits: secrets,
   };
 }
 
@@ -2002,7 +2207,7 @@ export function publishQualificationResetClosures({
   const helperInRuntime = runtimeFiles.includes(QUALIFICATION_RESET_LOCAL_PROOF_HELPER_RELPATH);
   return {
     runtime: {
-      label: F13_F16_RUNTIME_CLOSURE_LABEL,
+      label: F13_F17_RUNTIME_CLOSURE_LABEL,
       notSummaryFileHash: true,
       forbiddenSummaryHash: F13_SUMMARY_FILE_HASH_FORBIDDEN,
       entrypoint: "scripts/qualify-f3-db-push-disposable.mjs",
@@ -2012,7 +2217,7 @@ export function publishQualificationResetClosures({
       proofHelperIncludedBecauseRead: helperInRuntime,
     },
     completeVerificationUnion: {
-      label: F13_F16_VERIFICATION_UNION_LABEL,
+      label: F13_F17_VERIFICATION_UNION_LABEL,
       notSummaryFileHash: true,
       count: unionFiles.length,
       sha256: digestOf(unionFiles),
@@ -2042,6 +2247,10 @@ export function publishQualificationResetClosures({
     f15BaselineCitedNotExpected: {
       runtime: F15_BASELINE_RUNTIME_CLOSURE,
       union: F15_BASELINE_VERIFICATION_UNION,
+    },
+    f16BaselineCitedNotExpected: {
+      runtime: F16_BASELINE_RUNTIME_CLOSURE,
+      union: F16_BASELINE_VERIFICATION_UNION,
     },
   };
 }

@@ -14,6 +14,7 @@ import {
 } from "./lib/f3-db-push-pins.mjs";
 import {
   BASELINE_AFFECTING_INVENTORY_FIELDS,
+  FAILED_FLOOR_STORAGE_BUCKETS,
   FAILED_FLOOR_STORAGE_POLICY_NAMES,
   QUALIFICATION_RESET_INVENTORY_PSQL_ARGV,
   QUALIFICATION_RESET_INVENTORY_SCHEMA,
@@ -41,6 +42,16 @@ import {
   F13_F15_VERIFICATION_UNION_LABEL,
   F13_F16_RUNTIME_CLOSURE_LABEL,
   F13_F16_VERIFICATION_UNION_LABEL,
+  F13_F17_RUNTIME_CLOSURE_LABEL,
+  F13_F17_VERIFICATION_UNION_LABEL,
+  F16_BASELINE_RUNTIME_CLOSURE,
+  F16_BASELINE_VERIFICATION_UNION,
+  F16_HISTORICAL_RUNTIME_CLOSURE_LABEL,
+  PROCESS_EVIDENCE_SANITIZATION_RULES,
+  QUALIFICATION_RESET_ISOLATION_LEVEL,
+  QUALIFICATION_RESET_LOCK_ORDER,
+  packageQualificationResetProcessEvidence,
+  scanEvidenceValueForLeaks,
   F15_BASELINE_RUNTIME_CLOSURE,
   F13_INVENTORY_CAPTURE_REQUIRED,
   F13_RESET_ALREADY_CLEAN_VERDICT,
@@ -425,7 +436,8 @@ test("F13-R07 emitted SQL is RESTRICT-only with exact version+name deletes", () 
   assert.doesNotMatch(sql.sql, /\bCASCADE\b/i);
   assert.doesNotMatch(sql.sql, /name\s+IS\s+NULL/i);
   assert.doesNotMatch(sql.sql, /financial_\*/);
-  assert.match(sql.sql, /BEGIN ISOLATION LEVEL SERIALIZABLE/);
+  assert.match(sql.sql, /BEGIN ISOLATION LEVEL READ COMMITTED/);
+  assert.doesNotMatch(sql.sql, /BEGIN ISOLATION LEVEL SERIALIZABLE/);
   assert.match(sql.sql, /DROP TABLE IF EXISTS public\.financial_accounts RESTRICT/);
   assert.match(sql.sql, /version = '20260913173000' AND name = 'f3_bounded_financial_epoch_foundation'/);
   assert.match(sql.sql, /COMMIT;/);
@@ -922,7 +934,7 @@ test("F14-R04 real transport contract: status0, SQL fail, truncate, COMMIT loss,
 test("F14-R05 committed local proof helper reports wipe rejection and MUST_LOCAL honestly", async () => {
   const { proveQualificationResetLocal } = await import("./prove-f3-qualification-reset-local.mjs");
   const proof = await proveQualificationResetLocal();
-  assert.equal(proof.schema, "f16-qualification-reset-local-proof-v1");
+  assert.equal(proof.schema, "f17-qualification-reset-local-proof-v1");
   assert.equal(proof.hostedIdentityProof, false);
   assert.equal(proof.disposableContact, false);
   assert.equal(proof.wipeRejectionCode, F13_WIPE_REJECTION_CODE);
@@ -959,8 +971,15 @@ test("F14-R06 runtime closure is entrypoint digest, not summary-file hash", () =
   assert.equal(closures.f14BaselineCitedNotExpected.runtime.notExpectedF15, true);
   assert.equal(closures.runtime.label, F13_F16_RUNTIME_CLOSURE_LABEL);
   assert.equal(closures.completeVerificationUnion.label, F13_F16_VERIFICATION_UNION_LABEL);
+  assert.equal(closures.runtime.label, F13_F17_RUNTIME_CLOSURE_LABEL);
+  assert.equal(closures.completeVerificationUnion.label, F13_F17_VERIFICATION_UNION_LABEL);
   assert.equal(closures.f15BaselineCitedNotExpected.runtime.sha256, F15_BASELINE_RUNTIME_CLOSURE.sha256);
   assert.equal(closures.f15BaselineCitedNotExpected.runtime.notExpectedF16, true);
+  assert.equal(closures.f16BaselineCitedNotExpected.runtime.sha256, F16_BASELINE_RUNTIME_CLOSURE.sha256);
+  assert.equal(closures.f16BaselineCitedNotExpected.runtime.notExpectedF17, true);
+  assert.equal(closures.f16BaselineCitedNotExpected.runtime.historicalLabel, F16_HISTORICAL_RUNTIME_CLOSURE_LABEL);
+  assert.notEqual(closures.runtime.sha256, F16_BASELINE_RUNTIME_CLOSURE.sha256);
+  assert.notEqual(closures.completeVerificationUnion.sha256, F16_BASELINE_VERIFICATION_UNION.sha256);
   const publishedCtx = qualificationResetRuntimeContext();
   assert.equal(publishedCtx.closureDigest, closures.runtime.sha256);
   assert.notEqual(publishedCtx.closureDigest, F13_SUMMARY_FILE_HASH_FORBIDDEN);
@@ -1494,6 +1513,8 @@ test("F15-C5-R01 committed helper records three real TX scenarios or MUST_LOCAL"
     "TX_T3_UNAPPROVED_FK_ROLLBACK",
     "TX_T3_RETARGETED_FK_ROLLBACK",
     "TX_T3_APPROVED_SET_SUCCESS",
+    "TX_T3_LOCKWAIT_UNAPPROVED_FK_ROLLBACK",
+    "TX_T3_LOCKWAIT_RETARGETED_FK_ROLLBACK",
   ];
   for (const id of required) {
     assert.ok(proof.cases.some((row) => row.id === id), `missing ${id}`);
@@ -1510,7 +1531,7 @@ test("F15-C5-R01 committed helper records three real TX scenarios or MUST_LOCAL"
       assert.match(String(row.note || row.code || ""), /MUST_LOCAL/);
     }
   } else {
-    assert.equal(proof.distinctions.executedTransactions >= 6, true);
+    assert.equal(proof.distinctions.executedTransactions >= 8, true);
     for (const id of required) {
       const row = proof.cases.find((item) => item.id === id);
       assert.equal(row.ok, true);
@@ -1556,6 +1577,7 @@ test("F16-A01 empty discovery plus auth/unnest/unexpected storage cannot be CLEA
     { auth_handle_new_user_trigger: true },
     { unnest_uuid_shim: true },
     { storage_policies: ["unexpected_access_policy"] },
+    { storage_buckets: ["unexpected_secret_bucket"] },
   ];
   for (const inventoryOverrides of cases) {
     const body = contradictoryEmptyUniverse(inventoryOverrides);
@@ -1601,6 +1623,7 @@ test("F16-A02 baseline-affecting inventory matrix is table-driven and fail-close
     groups_group_level: true,
     committees_budget_allocation: true,
     storage_policies: ["unexpected_access_policy"],
+    storage_buckets: ["unexpected_secret_bucket"],
   };
 
   for (const row of fields) {
@@ -1690,5 +1713,219 @@ test("F16-B01 generated T3 SQL queries live catalog tuples and captured starting
   });
   assert.equal(emptyExpected.ok, true);
   assert.match(emptyExpected.sql, /ARRAY\[\]::text\[\]/);
+});
+
+test("F17-A01 unexpected storage_buckets alone cannot be CLEAN_BASELINE", async () => {
+  const body = contradictoryEmptyUniverse({ storage_buckets: ["unexpected_secret_bucket"] });
+  const { result, emit } = await runQualifyMainPath({ captureBody: body });
+  assert.equal(result.ok, false);
+  assert.notEqual(result.alreadyClean, true);
+  assert.notEqual(result.verdict, F13_RESET_ALREADY_CLEAN_VERDICT);
+  assert.equal(result.spies.captureCalls, 1);
+  assert.equal(result.spies.applyCalls || 0, 0);
+  assert.equal(result.spies.sqlCalls || 0, 0);
+  assert.equal(result.spies.transportCalls || 0, 0);
+  assert.equal(emit.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
+  assert.notEqual(result.wipeRouted, true);
+});
+
+test("F17-A02 unexpected bucket plus valid baseline buckets still HOLD", async () => {
+  const body = contradictoryEmptyUniverse({
+    storage_buckets: [...FAILED_FLOOR_STORAGE_BUCKETS, "unexpected_secret_bucket"],
+  });
+  const { result } = await runQualifyMainPath({ captureBody: body });
+  assert.equal(result.ok, false);
+  assert.notEqual(result.alreadyClean, true);
+  assert.equal(result.spies.applyCalls || 0, 0);
+  assert.equal(result.spies.sqlCalls || 0, 0);
+  assert.equal(result.spies.transportCalls || 0, 0);
+});
+
+test("F17-A03 supported clean and named residual buckets still CLEAN_BASELINE", async () => {
+  const empty = await runQualifyMainPath({ captureBody: emptyCaptureBody() });
+  assert.equal(empty.result.ok, true);
+  assert.equal(empty.result.alreadyClean, true);
+  assert.equal(empty.result.spies.applyCalls || 0, 0);
+  assert.equal(empty.result.verdict, F13_RESET_ALREADY_CLEAN_VERDICT);
+
+  const residuals = await runQualifyMainPath({
+    captureBody: emptyCaptureBody({
+      inventory: { storage_buckets: [...FAILED_FLOOR_STORAGE_BUCKETS] },
+    }),
+  });
+  assert.equal(residuals.result.ok, true);
+  assert.equal(residuals.result.alreadyClean, true);
+  assert.equal(residuals.result.spies.applyCalls || 0, 0);
+  assert.equal(residuals.result.verdict, F13_RESET_ALREADY_CLEAN_VERDICT);
+});
+
+test("F17-A04 leftover plus unexpected bucket HOLDs; leftover plus named buckets stays eligible", async () => {
+  const leftoverPlusUnexpected = await runQualifyMainPath({
+    captureBody: leftoverCaptureBody({
+      inventory: {
+        public_tables: ["financial_accounts"],
+        schema_migrations_rows: AUTHENTICATED_HISTORY_KEYS.length,
+        storage_buckets: ["unexpected_secret_bucket"],
+      },
+    }),
+  });
+  assert.equal(leftoverPlusUnexpected.result.ok, false);
+  assert.equal(leftoverPlusUnexpected.result.eligible, false);
+  assert.equal(leftoverPlusUnexpected.result.spies.applyCalls || 0, 0);
+  assert.equal(leftoverPlusUnexpected.emit.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
+
+  const leftoverNamed = await runQualifyMainPath({
+    captureBody: leftoverCaptureBody({
+      inventory: {
+        public_tables: ["financial_accounts"],
+        schema_migrations_rows: AUTHENTICATED_HISTORY_KEYS.length,
+        storage_buckets: [...FAILED_FLOOR_STORAGE_BUCKETS],
+        storage_policies: [...FAILED_FLOOR_STORAGE_POLICY_NAMES],
+      },
+    }),
+  });
+  assert.equal(leftoverNamed.result.ok, true);
+  assert.equal(leftoverNamed.result.plan.eligible, true);
+  assert.equal(leftoverNamed.result.spies.applyCalls, 1);
+});
+
+test("F17-A05 malformed and contradictory storage_buckets fail closed", async () => {
+  const malformed = await runQualifyMainPath({
+    captureBody: contradictoryEmptyUniverse({ storage_buckets: "unexpected_secret_bucket" }),
+  });
+  assert.equal(malformed.result.ok, false);
+  assert.notEqual(malformed.result.alreadyClean, true);
+  assert.equal(malformed.result.spies.applyCalls || 0, 0);
+
+  const missing = evaluateQualificationResetEligibility({
+    observedObjectIdentities: [],
+    observedDependencies: [],
+    observedHistoryRows: [],
+    inventory: (() => {
+      const inv = emptyQualificationResetInventoryObject();
+      delete inv.storage_buckets;
+      return inv;
+    })(),
+    inventoryCaptured: true,
+    captureComplete: true,
+  });
+  assert.notEqual(missing.alreadyClean, true);
+  assert.equal(missing.verdict, "HOLD");
+
+  const field = BASELINE_AFFECTING_INVENTORY_FIELDS.find((row) => row.field === "storage_buckets");
+  assert.equal(field.dirtyBlocksCleanBaseline, true);
+  assert.equal(field.classifier, true);
+  assert.equal(field.holdWithoutDeletion, true);
+  assert.equal(field.wipeRouted, false);
+  assert.equal(field.nonDeletedIsNotNonBlocking, true);
+  const omitted = BASELINE_AFFECTING_INVENTORY_FIELDS.filter((row) => row.dirtyBlocksCleanBaseline !== true);
+  assert.deepEqual(omitted.map((row) => row.field), []);
+});
+
+test("F17-B01 isolation is READ COMMITTED and lock order is documented", () => {
+  assert.equal(QUALIFICATION_RESET_ISOLATION_LEVEL, "READ COMMITTED");
+  assert.equal(QUALIFICATION_RESET_LOCK_ORDER.serializableSnapshotBeforeLockInsufficient, true);
+  const sql = buildQualificationResetSql({
+    observedHistoryRows: authenticatedHistory(),
+    observedDependencies: [MEMBERSHIPS_GROUP_FK],
+    scopeSqlIdentitySha256: scopeSqlIdentityDigest(),
+  });
+  assert.equal(sql.ok, true);
+  assert.match(sql.sql, /BEGIN ISOLATION LEVEL READ COMMITTED/);
+  assert.doesNotMatch(sql.sql, /BEGIN ISOLATION LEVEL SERIALIZABLE/);
+  assert.match(sql.sql, /SET LOCAL application_name = 'f13_qualification_reset'/);
+  assert.match(sql.sql, /PERFORM\s+pg_advisory_xact_lock/);
+  assert.match(sql.sql, /LOCK TABLE supabase_migrations\.schema_migrations IN SHARE ROW EXCLUSIVE MODE/);
+  assert.match(sql.sql, /live catalog dependency tuples after lock/);
+  const t1 = sql.sql.indexOf("BEGIN ISOLATION LEVEL READ COMMITTED");
+  const adv = sql.sql.indexOf("pg_advisory_xact_lock");
+  const lock = sql.sql.indexOf("LOCK TABLE supabase_migrations.schema_migrations");
+  const t3 = sql.sql.indexOf("live catalog dependency tuples after lock");
+  assert.ok(t1 >= 0 && adv > t1 && lock > adv && t3 > lock);
+});
+
+test("F17-B02 two-session lock-wait scenarios are recorded or MUST_LOCAL", async () => {
+  const { proveQualificationResetLocal } = await import("./prove-f3-qualification-reset-local.mjs");
+  const proof = await proveQualificationResetLocal();
+  const required = [
+    "TX_T3_LOCKWAIT_UNAPPROVED_FK_ROLLBACK",
+    "TX_T3_LOCKWAIT_RETARGETED_FK_ROLLBACK",
+  ];
+  for (const id of required) {
+    const row = proof.cases.find((item) => item.id === id);
+    assert.ok(row, `missing ${id}`);
+    if (proof.localPg.available !== true) {
+      assert.equal(row.executedTransaction, false);
+      assert.match(String(row.note || row.code || ""), /MUST_LOCAL/);
+    } else {
+      assert.equal(row.ok, true);
+      assert.equal(row.executedTransaction, true);
+      assert.equal(row.lockWaitObserved, true);
+      assert.equal(row.mutationPhaseReached, false);
+      assert.notEqual(row.commit, true);
+      assert.equal(row.rollback, null);
+      assert.ok(row.interleaving?.t1ReachedThenWaited === true);
+      assert.ok(Array.isArray(row.interleaving?.waiterPids) && row.interleaving.waiterPids.length > 0);
+      assert.ok(row.preResetCommittedDrift);
+    }
+  }
+});
+
+test("F17-C01 process evidence packaging preserves failure metadata and stream hashes", () => {
+  const successRaw = {
+    status: 0,
+    signal: null,
+    timeout: false,
+    stdout: `${JSON.stringify({ schema: TX_OBSERVATION_SCHEMA, phase: "T7_COMMIT", event: "committed", committed: true })}\n`,
+    stderr: "",
+    argv: [...QUALIFICATION_RESET_APPLY_PSQL_ARGV, "-f", "/tmp/f17-qual-reset-abc/file.sql"],
+  };
+  const success = packageQualificationResetProcessEvidence(successRaw, { workdir: "/tmp/f17-qual-reset-abc" });
+  assert.equal(success.status, 0);
+  assert.equal(success.signal, null);
+  assert.equal(success.timeout, false);
+  assert.equal(success.streams.originalByteEqual, false);
+  assert.equal(success.streams.reconstructedFromSummary, false);
+  assert.equal(success.streams.originalStdoutByteLength, Buffer.byteLength(successRaw.stdout, "utf8"));
+  assert.notEqual(success.argv.join(" "), successRaw.argv.join(" "));
+  assert.doesNotMatch(JSON.stringify(success), /\/tmp\/f17-qual-reset-abc/);
+  assert.equal(scanEvidenceValueForLeaks(success).pathLeaks, 0);
+
+  const failedRaw = {
+    status: 1,
+    signal: null,
+    timeout: false,
+    stdout: "",
+    stderr: "psql:/tmp/f17-qual-reset-abc/file.sql:12: ERROR: boom\n",
+    error: { code: "EACCES", name: "Error", syscall: "open", message: "open '/tmp/f17-qual-reset-abc/file.sql'" },
+    argv: ["psql", "-f", "/tmp/f17-qual-reset-abc/file.sql"],
+  };
+  const failed = packageQualificationResetProcessEvidence(failedRaw, { workdir: "/tmp/f17-qual-reset-abc" });
+  assert.equal(failed.status, 1);
+  assert.equal(failed.structuredError.code, "EACCES");
+  assert.equal(failed.structuredError.syscall, "open");
+  assert.match(failed.structuredError.message, /\[REDACTED_PATH\]/);
+  assert.doesNotMatch(failed.stderr, /\/tmp\/f17-qual-reset-abc/);
+  assert.notEqual(failed.status, 0);
+  const reparsed = JSON.parse(JSON.stringify(failed));
+  assert.equal(reparsed.status, 1);
+  assert.equal(reparsed.structuredError.code, "EACCES");
+  assert.notEqual(reparsed.status, 0);
+
+  const timeoutRaw = {
+    status: null,
+    signal: "SIGTERM",
+    timeout: true,
+    timedOut: true,
+    stdout: "",
+    stderr: "killed after timeout at /tmp/f17-qual-reset-abc/file.sql\n",
+  };
+  const timed = packageQualificationResetProcessEvidence(timeoutRaw, { workdir: "/tmp/f17-qual-reset-abc" });
+  assert.equal(timed.status, null);
+  assert.equal(timed.signal, "SIGTERM");
+  assert.equal(timed.timeout, true);
+  assert.equal(timed.timedOut, true);
+  assert.notEqual(timed.status, 0);
+  assert.equal(PROCESS_EVIDENCE_SANITIZATION_RULES.neverClaimsOriginalByteEqualityAfterTransform, true);
 });
 

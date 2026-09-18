@@ -491,6 +491,17 @@ test("F15-C3-A01 allowlist carries actual catalog FK identities from migrations"
   );
 });
 
+test("F17-B01 T1 isolation is READ COMMITTED after snapshot-before-lock proof", () => {
+  const t1 = TRANSACTION_PHASES.find((phase) => phase.id === "T1_BEGIN");
+  assert.equal(t1.name, "begin_read_committed_serialized_by_locks");
+  assert.ok(t1.checks.some((check) => /BEGIN ISOLATION LEVEL READ COMMITTED/.test(check)));
+  assert.ok(t1.checks.some((check) => /SERIALIZABLE snapshot-before-lock is insufficient/.test(check)));
+  assert.ok(t1.checks.some((check) => /READ COMMITTED after lock-held T3/.test(check)));
+  assert.equal(t1.checks.some((check) => /BEGIN ISOLATION LEVEL SERIALIZABLE/.test(check)), false);
+  const t3 = TRANSACTION_PHASES.find((phase) => phase.id === "T3_REVALIDATE");
+  assert.ok(t3.checks.some((check) => /captured approved starting set/.test(check)));
+});
+
 test("F16-B01 finite dependency contract remains 37 complete tuples", () => {
   assert.equal(FINITE_DEPENDENCY_ALLOWLIST.length, 37);
   assert.equal(APPROVED_DEPENDENCY_TUPLE_COUNT, 37);

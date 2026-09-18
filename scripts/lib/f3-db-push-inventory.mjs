@@ -1179,19 +1179,48 @@ export const BASELINE_AFFECTING_INVENTORY_FIELDS = Object.freeze([
   }),
   Object.freeze({
     field: "storage_buckets",
-    cleanEvidence: "[] or named failed-floor residuals (not a veto)",
-    classifier: false,
-    dirtyBlocksCleanBaseline: false,
-    unsupportedManagedLeftover: false,
+    cleanEvidence: "[] or named failed-floor residuals only",
+    classifier: true,
+    dirtyBlocksCleanBaseline: true,
+    unsupportedManagedLeftover: true,
     namedFloorResidualAllowed: true,
+    holdWithoutDeletion: true,
     wipeRouted: false,
+    permittedIdentitiesFrom: "FAILED_FLOOR_STORAGE_BUCKETS",
+    nonDeletedIsNotNonBlocking: true,
   }),
 ]);
+
+/** Permitted bucket identities from the existing approved baseline contract. Not an auto-allowlist. */
+export const APPROVED_BASELINE_STORAGE_BUCKETS = FAILED_FLOOR_STORAGE_BUCKETS;
 
 export function extraStoragePolicies(inventory) {
   return asList(inventory?.storage_policies).filter((name) => (
     !FAILED_FLOOR_STORAGE_POLICY_NAMES.includes(name)
   ));
+}
+
+export function readInventoryNameListField(inventory, field) {
+  if (inventory == null || typeof inventory !== "object" || Array.isArray(inventory)) {
+    return { present: false, ok: false, missing: true, malformed: false, names: [] };
+  }
+  if (!Object.prototype.hasOwnProperty.call(inventory, field)) {
+    return { present: false, ok: false, missing: true, malformed: false, names: [] };
+  }
+  const value = inventory[field];
+  if (!Array.isArray(value)) {
+    return { present: true, ok: false, missing: false, malformed: true, names: [] };
+  }
+  if (value.some((item) => typeof item !== "string" || item.length === 0)) {
+    return { present: true, ok: false, missing: false, malformed: true, names: [] };
+  }
+  return { present: true, ok: true, missing: false, malformed: false, names: value };
+}
+
+export function extraStorageBuckets(inventory) {
+  const read = readInventoryNameListField(inventory, "storage_buckets");
+  if (!read.ok) return [];
+  return read.names.filter((name) => !APPROVED_BASELINE_STORAGE_BUCKETS.includes(name));
 }
 
 export function listUnsupportedManagedLeftovers(inventory) {
@@ -1228,6 +1257,29 @@ export function listUnsupportedManagedLeftovers(inventory) {
       reason: "Unexpected storage policies are unsupported leftovers; HOLD without expanding deletion",
     });
   }
+  const bucketsField = readInventoryNameListField(inventory, "storage_buckets");
+  if (bucketsField.present && bucketsField.malformed) {
+    items.push({
+      kind: "storage_buckets",
+      field: "storage_buckets",
+      names: [],
+      deletionExpanded: false,
+      wipeRouted: false,
+      reason: "Malformed storage_buckets is fail-closed HOLD; deletion is not expanded and wipe is not used",
+    });
+  } else {
+    const unexpectedBuckets = extraStorageBuckets(inventory);
+    if (unexpectedBuckets.length) {
+      items.push({
+        kind: "storage_buckets",
+        field: "storage_buckets",
+        names: unexpectedBuckets,
+        deletionExpanded: false,
+        wipeRouted: false,
+        reason: "Unexpected storage buckets are unsupported leftovers; HOLD without expanding deletion or wipe",
+      });
+    }
+  }
   return items;
 }
 
@@ -1261,6 +1313,19 @@ export function evaluateQualificationResetCleanBaseline({
       code: "F13_INVENTORY_CAPTURE_INCOMPLETE",
       reason: "CLEAN_BASELINE is missing required inventory facts",
       missing,
+      deletionExpanded: false,
+      wipeRouted: false,
+    };
+  }
+  const bucketsField = readInventoryNameListField(inventory, "storage_buckets");
+  if (bucketsField.malformed) {
+    return {
+      ok: false,
+      cleanBaseline: false,
+      alreadyClean: false,
+      verdict: "HOLD",
+      code: "F13_INVENTORY_CAPTURE_MALFORMED",
+      reason: "storage_buckets must be an array of non-empty strings; malformed values fail closed",
       deletionExpanded: false,
       wipeRouted: false,
     };
@@ -1335,8 +1400,11 @@ export function classifyInventory(inventory) {
   );
   const failedStoragePolicies = storagePolicies.filter((p) => FAILED_FLOOR_STORAGE_POLICY_NAMES.includes(p));
   const extraStoragePolicies = storagePolicies.filter((p) => !FAILED_FLOOR_STORAGE_POLICY_NAMES.includes(p));
-  const storageBuckets = asList(inventory?.storage_buckets);
-  const incompleteWipeBuckets = storageBuckets.filter((b) => FAILED_FLOOR_STORAGE_BUCKETS.includes(b));
+  const bucketsField = readInventoryNameListField(inventory, "storage_buckets");
+  const storageBuckets = bucketsField.ok ? bucketsField.names : asList(inventory?.storage_buckets);
+  const extraStorageBuckets = storageBuckets.filter((b) => !APPROVED_BASELINE_STORAGE_BUCKETS.includes(b));
+  const incompleteWipeBuckets = storageBuckets.filter((b) => APPROVED_BASELINE_STORAGE_BUCKETS.includes(b));
+  const storageBucketsMalformed = bucketsField.present && bucketsField.malformed;
 
   const financialPresent = Boolean(
     inventory?.financial_private ||
@@ -1353,6 +1421,8 @@ export function classifyInventory(inventory) {
   if (extraTypes.length) ambiguous.push({ kind: "public_type", names: extraTypes });
   if (extraFunctions.length) ambiguous.push({ kind: "public_function", names: extraFunctions });
   if (extraStoragePolicies.length) ambiguous.push({ kind: "extra_storage_policy", names: extraStoragePolicies });
+  if (extraStorageBuckets.length) ambiguous.push({ kind: "extra_storage_bucket", names: extraStorageBuckets });
+  if (storageBucketsMalformed) ambiguous.push({ kind: "malformed_storage_buckets", names: ["storage_buckets"] });
   if (financialPresent) ambiguous.push({ kind: "financial_object", names: ["financial_*"] });
   if (historyRows > 0) ambiguous.push({ kind: "schema_migrations_rows", names: [String(historyRows)] });
 
@@ -1368,9 +1438,10 @@ export function classifyInventory(inventory) {
 
   const failedPresent = publicFailedPresent || failedStoragePolicies.length > 0;
 
-  // Chief 06: public empty + history empty + F3 absent. The 10 named floor
-  // storage policies + avatars/group-documents/receipts buckets are incomplete
-  // prior-wipe residuals — not a veto. Extra/unknown storage policies HOLD.
+  // Named floor storage policies + approved baseline buckets (avatars /
+  // group-documents / receipts) are incomplete prior-wipe residuals.
+  // Extra/unknown storage policies or buckets HOLD. Non-deletion of a
+  // captured field is not a non-blocking exemption.
   const cleanBaseline =
     !publicFailedPresent &&
     extraTables.length === 0 &&
@@ -1378,6 +1449,8 @@ export function classifyInventory(inventory) {
     extraTypes.length === 0 &&
     extraFunctions.length === 0 &&
     extraStoragePolicies.length === 0 &&
+    extraStorageBuckets.length === 0 &&
+    !storageBucketsMalformed &&
     !financialPresent &&
     historyRows === 0 &&
     leftoverOk;
@@ -1414,8 +1487,11 @@ export function classifyInventory(inventory) {
     failedStoragePolicies,
     extraStoragePolicies,
     extraStoragePoliciesPreserved: extraStoragePolicies,
+    extraStorageBuckets,
+    extraStorageBucketsPreserved: extraStorageBuckets,
     incompleteWipeStoragePolicies: failedStoragePolicies,
     incompleteWipeBuckets,
+    storageBucketsMalformed,
     publicFailedPresent,
     unnestShim: inventory?.unnest_uuid_shim === true,
     authTrigger: inventory?.auth_handle_new_user_trigger === true,
@@ -1473,6 +1549,20 @@ export function evaluateQualificationResetEligibility({
     };
   }
   if (inventory != null) {
+    const bucketsField = readInventoryNameListField(inventory, "storage_buckets");
+    if (bucketsField.present && bucketsField.malformed) {
+      return {
+        ok: false,
+        eligible: false,
+        alreadyClean: false,
+        verdict: "HOLD",
+        code: "F13_INVENTORY_CAPTURE_MALFORMED",
+        reason: "storage_buckets must be an array of non-empty strings; malformed values fail closed",
+        deletionExpanded: false,
+        wipeRouted: false,
+        financialPrefixUsedAsSelector: false,
+      };
+    }
     const reconciled = reconcileQualificationResetInventoryFacts({
       inventory,
       discovered_objects: observedObjectIdentities,

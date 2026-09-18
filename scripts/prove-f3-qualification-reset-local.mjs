@@ -1,12 +1,12 @@
 /**
- * F16 local PostgreSQL proof helper for qualification-reset.
+ * F17 local PostgreSQL proof helper for qualification-reset.
  *
  * Fresh task-owned f3_* database only. Preserves other DBs/containers.
  * NOT hosted identity proof. NOT disposable. NOT production.
  * If this VM has no local PostgreSQL, reports MUST_LOCAL honestly.
  *
- * Preserved F15 three real local TX scenarios plus F16 T3 exact
- * dependency-tuple scenarios execute generated reset SQL through
+ * Preserved F15/F16 TX scenarios plus F17 unexpected-bucket HOLD and
+ * two-session lock-wait T3 proofs execute generated reset SQL through
  * shared runQualificationReset + the local-fixture psql adapter + the
  * actual process-result parser. Disabled adapter is not DB execution.
  */
@@ -14,7 +14,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { APPROVED_DISPOSABLE_PROJECT_REF } from "./lib/f3-db-push-pins.mjs";
 import {
   AUTHENTICATED_HISTORY_KEYS,
@@ -24,6 +24,7 @@ import {
   scopeSqlIdentityDigest,
 } from "./lib/f3-db-push-qualification-reset-design.mjs";
 import {
+  FAILED_FLOOR_STORAGE_BUCKETS,
   FAILED_FLOOR_STORAGE_POLICY_NAMES,
   QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL,
   buildQualificationResetInventoryPsqlCommand,
@@ -33,8 +34,12 @@ import {
   parseQualificationResetInventoryProcessResult,
 } from "./lib/f3-db-push-inventory.mjs";
 import {
-  F16_RUNTIME_LABEL,
+  F17_RUNTIME_LABEL,
+  F16_BASELINE_RUNTIME_CLOSURE,
   QUALIFICATION_RESET_APPLY_PSQL_ARGV,
+  QUALIFICATION_RESET_ISOLATION_LEVEL,
+  QUALIFICATION_RESET_LOCK_ORDER,
+  packageQualificationResetProcessEvidence,
   QUALIFICATION_RESET_LOCAL_PROOF_HELPER_RELPATH,
   TX_OBSERVATION_SCHEMA,
   TX_OBSERVATION_SUCCESS_SEQUENCE,
@@ -73,11 +78,16 @@ function secretsRemoved(value) {
 }
 
 function processEvidence(result, { captureCalls = 1 } = {}) {
-  const encoded = result?.processResult || result?.transportInterpretation?.processResult || {};
+  const raw = result?.processResult || result?.transportInterpretation?.processResult || {};
+  const packaged = packageQualificationResetProcessEvidence(raw);
   return {
-    processStatus: Number.isInteger(encoded.status) ? encoded.status : null,
-    stdout: secretsRemoved(encoded.stdout || ""),
-    stderr: secretsRemoved(encoded.stderr || ""),
+    processStatus: Number.isInteger(packaged.status) ? packaged.status : null,
+    signal: packaged.signal ?? null,
+    timeout: packaged.timeout === true,
+    structuredError: packaged.structuredError,
+    stdout: secretsRemoved(packaged.stdout || ""),
+    stderr: secretsRemoved(packaged.stderr || ""),
+    streams: packaged.streams,
     captureCalls,
     transportCalls: result?.spies?.transportCalls ?? 0,
     applyCalls: result?.spies?.applyCalls ?? 0,
@@ -109,8 +119,16 @@ function record(id, kind, extra = {}) {
     sqlCalls: extra.sqlCalls ?? extra.sql ?? null,
     mutationPhaseReached: extra.mutationPhaseReached ?? false,
     processStatus: extra.processStatus ?? null,
+    signal: extra.signal ?? null,
+    timeout: extra.timeout ?? null,
+    structuredError: extra.structuredError ?? null,
+    streams: extra.streams ?? null,
     stdout: extra.stdout ?? null,
     stderr: extra.stderr ?? null,
+    lockWaitObserved: extra.lockWaitObserved ?? null,
+    lockSamples: extra.lockSamples ?? null,
+    preResetCommittedDrift: extra.preResetCommittedDrift ?? null,
+    interleaving: extra.interleaving ?? null,
   };
 }
 
@@ -234,6 +252,34 @@ function runOfflineChecks() {
     code: storageHold.code,
     verdict: storageHold.verdict,
   }));
+  const bucketHold = evaluateQualificationResetEligibility({
+    observedObjectIdentities: [],
+    observedDependencies: [],
+    observedHistoryRows: [],
+    inventory: emptyQualificationResetInventoryObject({ storage_buckets: ["unexpected_secret_bucket"] }),
+    inventoryCaptured: true,
+    captureComplete: true,
+  });
+  checks.push(record("CLEAN_BASELINE_UNEXPECTED_BUCKET_HOLD", "check", {
+    ok: bucketHold.alreadyClean !== true && bucketHold.verdict === "HOLD" && bucketHold.wipeRouted !== true,
+    code: bucketHold.code,
+    verdict: bucketHold.verdict,
+  }));
+  const bucketPlusNamed = evaluateQualificationResetEligibility({
+    observedObjectIdentities: [],
+    observedDependencies: [],
+    observedHistoryRows: [],
+    inventory: emptyQualificationResetInventoryObject({
+      storage_buckets: [...FAILED_FLOOR_STORAGE_BUCKETS, "unexpected_secret_bucket"],
+    }),
+    inventoryCaptured: true,
+    captureComplete: true,
+  });
+  checks.push(record("CLEAN_BASELINE_UNEXPECTED_PLUS_NAMED_BUCKET_HOLD", "check", {
+    ok: bucketPlusNamed.alreadyClean !== true && bucketPlusNamed.verdict === "HOLD",
+    code: bucketPlusNamed.code,
+    verdict: bucketPlusNamed.verdict,
+  }));
   const genuineClean = evaluateQualificationResetEligibility({
     observedObjectIdentities: [],
     observedDependencies: [],
@@ -351,9 +397,20 @@ function runOfflineChecks() {
   checks.push(record("RUNTIME_CLOSURE_NOT_SUMMARY", "check", {
     ok: closures.runtime.sha256 !== "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d"
       && closures.completeVerificationUnion.proofHelperIncluded === true
-      && closures.runtime.label === "F16_QUALIFICATION_RESET_RUNTIME_CLOSURE"
+      && closures.runtime.label === "F17_QUALIFICATION_RESET_RUNTIME_CLOSURE"
       && closures.f14BaselineCitedNotExpected.runtime.sha256 === "f6205869b233eaccf375b299112f7b9c352d58c6f2659471e06d2ca7a241e31d"
-      && closures.f15BaselineCitedNotExpected.runtime.sha256 === "949e68359e55870050e53ef3f93ec8179fc7a5e1587a908044e0ab26cfdbbb92",
+      && closures.f15BaselineCitedNotExpected.runtime.sha256 === "949e68359e55870050e53ef3f93ec8179fc7a5e1587a908044e0ab26cfdbbb92"
+      && closures.f16BaselineCitedNotExpected.runtime.sha256 === F16_BASELINE_RUNTIME_CLOSURE.sha256
+      && closures.f16BaselineCitedNotExpected.runtime.notExpectedF17 === true
+      && closures.runtime.sha256 !== F16_BASELINE_RUNTIME_CLOSURE.sha256,
+  }));
+  checks.push(record("READ_COMMITTED_LOCK_ORDER_DOCUMENTED", "check", {
+    ok: QUALIFICATION_RESET_ISOLATION_LEVEL === "READ COMMITTED"
+      && QUALIFICATION_RESET_LOCK_ORDER.serializableSnapshotBeforeLockInsufficient === true
+      && generated.ok === true
+      && /BEGIN ISOLATION LEVEL READ COMMITTED/.test(generated.sql)
+      && !/BEGIN ISOLATION LEVEL SERIALIZABLE/.test(generated.sql),
+    sql: generated.ok === true,
   }));
 
   const plan = validateProposedQualificationResetHostedPlanOffline();
@@ -436,6 +493,251 @@ function dropApprovedDependencyState(psql, url) {
   psql(url, "DELETE FROM supabase_migrations.schema_migrations;");
 }
 
+function sqlLiteral(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function queryLockState(psql, url, relation, holderPid) {
+  const raw = psql(url, `
+    SELECT json_build_object(
+      'holderPid', ${Number(holderPid)},
+      'holderGranted', EXISTS (
+        SELECT 1 FROM pg_locks l
+        WHERE l.pid = ${Number(holderPid)}
+          AND l.granted
+          AND l.relation = ${sqlLiteral(relation)}::regclass
+      ),
+      'waiterPids', COALESCE((
+        SELECT json_agg(l.pid)
+        FROM pg_locks l
+        WHERE NOT l.granted
+          AND l.relation = ${sqlLiteral(relation)}::regclass
+          AND l.pid IS DISTINCT FROM ${Number(holderPid)}
+      ), '[]'::json),
+      'waitEvents', COALESCE((
+        SELECT json_agg(json_build_object(
+          'pid', a.pid,
+          'wait_event_type', a.wait_event_type,
+          'wait_event', a.wait_event,
+          'state', a.state
+        ))
+        FROM pg_stat_activity a
+        WHERE a.datname = current_database()
+          AND a.pid IS DISTINCT FROM ${Number(holderPid)}
+          AND a.wait_event_type = 'Lock'
+      ), '[]'::json)
+    );
+  `);
+  return JSON.parse(String(raw));
+}
+
+async function waitForResetRelationWait(psql, url, relation, holderPid, timeoutMs = 4000) {
+  const started = Date.now();
+  const samples = [];
+  while (Date.now() - started < timeoutMs) {
+    const state = queryLockState(psql, url, relation, holderPid);
+    samples.push({ atMs: Date.now() - started, ...state });
+    if (state.holderGranted === true && Array.isArray(state.waiterPids) && state.waiterPids.length > 0) {
+      return { waited: true, state, samples };
+    }
+    await sleep(25);
+  }
+  return { waited: false, state: samples.at(-1) || null, samples };
+}
+
+async function startHolderLock(url, relation) {
+  const { spawnLocalPsql } = await import("./lib/f3-local-connection-guard.mjs");
+  const child = spawnLocalPsql(url, ["-At"]);
+  let out = "";
+  child.stdout?.on("data", (chunk) => {
+    out += String(chunk);
+  });
+  child.stderr?.on("data", (chunk) => {
+    out += String(chunk);
+  });
+  const send = (sql) => child.stdin.write(`${sql}\n`);
+  send("BEGIN;");
+  send("SET lock_timeout = '30s';");
+  send("SET idle_in_transaction_session_timeout = '60s';");
+  send(`LOCK TABLE ${relation} IN ACCESS EXCLUSIVE MODE;`);
+  send("SELECT pg_backend_pid();");
+  const started = Date.now();
+  let holderPid = null;
+  while (Date.now() - started < 2000) {
+    const tokens = out.trim().split(/\s+/).filter(Boolean);
+    const last = tokens.at(-1);
+    if (/^\d+$/.test(last)) {
+      holderPid = Number(last);
+      break;
+    }
+    await sleep(20);
+  }
+  if (!Number.isInteger(holderPid)) {
+    throw new Error(`holder pid not observed: ${out.slice(-400)}`);
+  }
+  return {
+    child,
+    holderPid,
+    send,
+    output: () => out,
+    async close() {
+      try {
+        send("ROLLBACK;");
+      } catch {
+        // holder teardown
+      }
+      try {
+        child.stdin.end();
+      } catch {
+        // holder teardown
+      }
+      child.kill("SIGTERM");
+    },
+  };
+}
+
+function spawnSharedResetWorker(db, observed) {
+  const payloadDir = fs.mkdtempSync(path.join(os.tmpdir(), "f17-reset-worker-"));
+  const payloadPath = path.join(payloadDir, "payload.json");
+  const resultPath = path.join(payloadDir, "result.json");
+  fs.writeFileSync(payloadPath, `${JSON.stringify({ url: db.url, observed, resultPath })}\n`);
+  const child = spawn(process.execPath, [path.join(ROOT, HELPER_RELPATH), "--shared-reset-worker", payloadPath], {
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const stdoutChunks = [];
+  const stderrChunks = [];
+  child.stdout.on("data", (chunk) => stdoutChunks.push(chunk));
+  child.stderr.on("data", (chunk) => stderrChunks.push(chunk));
+  const done = new Promise((resolve) => {
+    child.on("close", (status, signal) => {
+      let result = null;
+      try {
+        result = JSON.parse(fs.readFileSync(resultPath, "utf8"));
+      } catch {
+        result = null;
+      }
+      resolve({
+        status,
+        signal: signal || null,
+        stdout: Buffer.concat(stdoutChunks).toString("utf8"),
+        stderr: Buffer.concat(stderrChunks).toString("utf8"),
+        result,
+        payloadDir,
+      });
+    });
+  });
+  return { child, done, payloadDir };
+}
+
+async function runLockWaitDriftScenario({
+  psql,
+  db,
+  id,
+  driftSql,
+  relation,
+  retainQuery,
+  retainNeedle,
+  note,
+}) {
+  dropApprovedDependencyState(psql, db.url);
+  seedApprovedDependencyState(psql, db.url);
+  const capture = captureViaLocalPsql(psql, db.url);
+  const observed = capture.ok
+    ? (await import("./lib/f3-db-push-inventory.mjs")).observedFromQualificationResetCapture(capture.body)
+    : capture;
+  if (!observed.ok) {
+    return record(id, "scenario", {
+      ok: false,
+      executedTransaction: false,
+      code: observed.code,
+      note: "capture failed before lock-wait scenario",
+    });
+  }
+  const holder = await startHolderLock(db.url, relation);
+  const worker = spawnSharedResetWorker(db, observed);
+  const wait = await waitForResetRelationWait(psql, db.url, relation, holder.holderPid);
+  const interleaving = {
+    t1ReachedThenWaited: wait.waited === true,
+    holderPid: holder.holderPid,
+    waiterPids: wait.state?.waiterPids || [],
+    waitEvents: wait.state?.waitEvents || [],
+    isolation: QUALIFICATION_RESET_ISOLATION_LEVEL,
+  };
+  if (wait.waited !== true) {
+    await holder.close();
+    const finished = await worker.done;
+    fs.rmSync(worker.payloadDir, { recursive: true, force: true });
+    return record(id, "scenario", {
+      ok: false,
+      executedTransaction: true,
+      lockWaitObserved: false,
+      lockSamples: wait.samples,
+      interleaving,
+      note: "reset never demonstrably waited for the held relation lock",
+      processStatus: finished.status,
+      stdout: finished.stdout,
+      stderr: finished.stderr,
+    });
+  }
+  for (const stmt of driftSql) {
+    holder.send(stmt);
+  }
+  holder.send("COMMIT;");
+  holder.send("SELECT 'HOLDER_COMMITTED';");
+  const commitStarted = Date.now();
+  while (Date.now() - commitStarted < 2000 && !String(holder.output()).includes("HOLDER_COMMITTED")) {
+    await sleep(20);
+  }
+  const committedDrift = (() => {
+    try {
+      return String(psql(db.url, retainQuery));
+    } catch (err) {
+      return String(err?.message || err);
+    }
+  })();
+  const finished = await worker.done;
+  await holder.close();
+  fs.rmSync(worker.payloadDir, { recursive: true, force: true });
+  const reset = finished.result || {};
+  const evidence = processEvidence(reset);
+  const retained = String(psql(db.url, retainQuery));
+  const accountsKept = psql(db.url, "SELECT to_regclass('public.financial_accounts') IS NOT NULL;");
+  return record(id, "scenario", {
+    ok: reset.ok === false
+      && reset.committed !== true
+      && evidence.mutationPhaseReached !== true
+      && wait.waited === true
+      && String(retained).includes(retainNeedle)
+      && String(accountsKept).includes("t")
+      && String(committedDrift).includes(retainNeedle),
+    capture: "approved-set-then-lock-wait-then-externally-committed-drift",
+    resetApply: reset.spies?.applyCalls ?? 0,
+    sql: true,
+    commit: false,
+    rollback: reset.rolledBack ?? null,
+    replay: reset.spies?.replayCalls === 1,
+    observedPhase: reset.transportInterpretation?.phaseReached ?? null,
+    code: reset.code,
+    verdict: reset.verdict || "HOLD",
+    executedTransaction: true,
+    lockWaitObserved: true,
+    lockSamples: wait.samples,
+    interleaving,
+    preResetCommittedDrift: {
+      retained: String(retained),
+      observedAfterHolderCommit: String(committedDrift),
+    },
+    note,
+    ...evidence,
+  });
+}
+
+export { executeSharedReset };
+
 async function executeSharedReset(db, observed) {
   const workdir = fs.mkdtempSync(path.join(os.tmpdir(), "f15-qual-reset-"));
   try {
@@ -480,6 +782,8 @@ async function runLocalPgScenarios() {
         mustLocalRecord("TX_T3_UNAPPROVED_FK_ROLLBACK"),
         mustLocalRecord("TX_T3_RETARGETED_FK_ROLLBACK"),
         mustLocalRecord("TX_T3_APPROVED_SET_SUCCESS"),
+        mustLocalRecord("TX_T3_LOCKWAIT_UNAPPROVED_FK_ROLLBACK"),
+        mustLocalRecord("TX_T3_LOCKWAIT_RETARGETED_FK_ROLLBACK"),
       ],
     };
   }
@@ -736,6 +1040,43 @@ async function runLocalPgScenarios() {
       note: "unchanged approved dependency set commits CLEAN_BASELINE",
       ...t3SuccessEvidence,
     }));
+
+    scenarios.push(await runLockWaitDriftScenario({
+      psql,
+      db,
+      id: "TX_T3_LOCKWAIT_UNAPPROVED_FK_ROLLBACK",
+      relation: "public.financial_accounts",
+      driftSql: [
+        "ALTER TABLE public.financial_accounts ADD COLUMN group_id uuid;",
+        `ALTER TABLE public.financial_accounts
+          ADD CONSTRAINT unapproved_accounts_groups_fkey
+          FOREIGN KEY (group_id) REFERENCES public.groups(id);`,
+      ],
+      retainQuery: "SELECT conname FROM pg_constraint WHERE conname = 'unapproved_accounts_groups_fkey';",
+      retainNeedle: "unapproved_accounts_groups_fkey",
+      note: "holder kept required lock; reset reached T1 and waited; drift committed; T3 rejected before mutation",
+    }));
+    scenarios.push(await runLockWaitDriftScenario({
+      psql,
+      db,
+      id: "TX_T3_LOCKWAIT_RETARGETED_FK_ROLLBACK",
+      relation: "public.memberships",
+      driftSql: [
+        "ALTER TABLE public.memberships DROP CONSTRAINT memberships_group_id_fkey;",
+        `ALTER TABLE public.memberships
+          ADD CONSTRAINT memberships_group_id_fkey
+          FOREIGN KEY (group_id) REFERENCES public.profiles(id);`,
+      ],
+      retainQuery: `SELECT fn.nspname || '.' || frel.relname
+        FROM pg_constraint con
+        JOIN pg_class rel ON rel.oid = con.conrelid
+        JOIN pg_namespace n ON n.oid = rel.relnamespace
+        JOIN pg_class frel ON frel.oid = con.confrelid
+        JOIN pg_namespace fn ON fn.oid = frel.relnamespace
+        WHERE con.conname = 'memberships_group_id_fkey';`,
+      retainNeedle: "public.profiles",
+      note: "holder kept memberships lock; reset waited; approved identity retargeted; T3 rejected before mutation",
+    }));
   } finally {
     try {
       db.close();
@@ -762,6 +1103,8 @@ export async function proveQualificationResetLocal() {
         mustLocalRecord("TX_T3_UNAPPROVED_FK_ROLLBACK"),
         mustLocalRecord("TX_T3_RETARGETED_FK_ROLLBACK"),
         mustLocalRecord("TX_T3_APPROVED_SET_SUCCESS"),
+        mustLocalRecord("TX_T3_LOCKWAIT_UNAPPROVED_FK_ROLLBACK"),
+        mustLocalRecord("TX_T3_LOCKWAIT_RETARGETED_FK_ROLLBACK"),
       ],
     };
 
@@ -769,8 +1112,8 @@ export async function proveQualificationResetLocal() {
   const mustLocal = pg.available !== true;
   const failCount = cases.filter((row) => row.ok !== true).length;
   return {
-    schema: "f16-qualification-reset-local-proof-v1",
-    label: F16_RUNTIME_LABEL,
+    schema: "f17-qualification-reset-local-proof-v1",
+    label: F17_RUNTIME_LABEL,
     helper: HELPER_RELPATH,
     hostedIdentityProof: false,
     disposableContact: false,
@@ -795,11 +1138,45 @@ export async function proveQualificationResetLocal() {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  proveQualificationResetLocal().then((result) => {
-    console.log(JSON.stringify(result, null, 2));
-    process.exit(result.overallOk ? 0 : 1);
-  }).catch((err) => {
-    console.error(err);
-    process.exit(1);
-  });
+  const workerIdx = process.argv.indexOf("--shared-reset-worker");
+  if (workerIdx >= 0) {
+    const payloadPath = process.argv[workerIdx + 1];
+    const payload = JSON.parse(fs.readFileSync(payloadPath, "utf8"));
+    executeSharedReset({ url: payload.url }, payload.observed).then((result) => {
+      const rawProcess = result.processResult || result.transportInterpretation?.processResult || {};
+      fs.writeFileSync(payload.resultPath, `${JSON.stringify({
+        ok: result.ok,
+        committed: result.committed,
+        rolledBack: result.rolledBack ?? null,
+        verdict: result.verdict,
+        code: result.code,
+        spies: result.spies,
+        transportInterpretation: {
+          phaseReached: result.transportInterpretation?.phaseReached ?? null,
+          observed: result.transportInterpretation?.observed ?? null,
+        },
+        // Raw capture is packaged once by the parent helper. Do not pre-transform
+        // here or original-stream hashes become hashes of already-redacted text.
+        processResult: rawProcess,
+      })}\n`);
+      process.exit(0);
+    }).catch((err) => {
+      fs.writeFileSync(payload.resultPath, `${JSON.stringify({
+        ok: false,
+        committed: false,
+        rolledBack: null,
+        code: err?.code || "F17_SHARED_RESET_WORKER_FAILED",
+        reason: String(err?.message || err),
+      })}\n`);
+      process.exit(1);
+    });
+  } else {
+    proveQualificationResetLocal().then((result) => {
+      console.log(JSON.stringify(result, null, 2));
+      process.exit(result.overallOk ? 0 : 1);
+    }).catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });
+  }
 }

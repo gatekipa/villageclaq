@@ -1838,13 +1838,15 @@ export const TRANSACTION_PHASES = Object.freeze([
   }),
   Object.freeze({
     id: "T1_BEGIN",
-    name: "begin_serializable",
+    name: "begin_read_committed_serialized_by_locks",
     required: true,
     mutation: false,
     checks: Object.freeze([
-      "BEGIN ISOLATION LEVEL SERIALIZABLE",
+      "BEGIN ISOLATION LEVEL READ COMMITTED",
       "SET lock_timeout / statement_timeout / idle_in_transaction_session_timeout",
-      "transaction-scoped advisory lock is helper only; not sufficient without SERIALIZABLE + object locks + revalidation",
+      "transaction-scoped advisory lock is helper only; not sufficient without relation locks + T3 revalidation",
+      "SERIALIZABLE snapshot-before-lock is insufficient: T1 observation SELECT and advisory DO assign a snapshot before T2 relation locks",
+      "READ COMMITTED after lock-held T3 retains exact-tuple/history/unexpected-object protections because writers are excluded by ACCESS EXCLUSIVE / SHARE ROW EXCLUSIVE",
     ]),
   }),
   Object.freeze({

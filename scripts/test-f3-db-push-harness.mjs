@@ -521,6 +521,10 @@ test("frozen 00118-00123 digests stay byte-identical", () => {
   }
 });
 
+function canonicalManifestPath(value) {
+  return String(value ?? "").split(/[\\/]+/).join("/");
+}
+
 test("isolated workdir copies are byte-identical and do not rewrite repo files", () => {
   const before = assertFrozenDigestsOnDisk();
   const isolated = createIsolatedDbPushWorkdir();
@@ -529,12 +533,26 @@ test("isolated workdir copies are byte-identical and do not rewrite repo files",
     assert.equal(copy.sha256Before, FROZEN_DIGESTS[copy.sourceFile]);
     assert.equal(copy.sha256After, copy.sha256Before);
     assert.equal(fs.existsSync(copy.destAbs), true);
-    assert.equal(copy.destAbs.includes("supabase/migrations"), true);
-    assert.equal(copy.destAbs.includes(path.join(root, "supabase/migrations")), false);
+    assert.equal(canonicalManifestPath(copy.destAbs).includes("supabase/migrations"), true);
+    assert.equal(copy.destAbs.includes(path.join(root, "supabase", "migrations")), false);
     assert.equal(path.basename(copy.destAbs), timestampFilenameFor(copy.sourceFile));
   }
   assert.deepEqual(assertFrozenDigestsOnDisk(), before);
   fs.rmSync(isolated.workdir, { recursive: true, force: true });
+});
+
+test("isolated workdir dest path assertion is portable across Windows and POSIX", () => {
+  const posixDest = "/tmp/f3-dbpush-wd-abc/supabase/migrations/20260913173000_f3.sql";
+  const winDest = "C:\\Users\\qa\\AppData\\Local\\Temp\\f3-dbpush-wd-abc\\supabase\\migrations\\20260913173000_f3.sql";
+  assert.equal(canonicalManifestPath(posixDest).includes("supabase/migrations"), true);
+  assert.equal(canonicalManifestPath(winDest).includes("supabase/migrations"), true);
+  assert.equal(canonicalManifestPath("supabase\\migrations\\file.sql").includes("supabase/migrations"), true);
+  const repoMigrations = path.join(root, "supabase", "migrations");
+  assert.equal(posixDest.includes(repoMigrations), false);
+  assert.equal(winDest.includes(repoMigrations), false);
+  const nativeWindowsExecuted = process.platform === "win32";
+  assert.equal(typeof nativeWindowsExecuted, "boolean");
+  assert.equal(nativeWindowsExecuted, process.platform === "win32");
 });
 
 test("gates refuse production ref before any spawn", () => {
@@ -8908,7 +8926,7 @@ test("F13 reset wiring keeps wipe rejected, extras HOLD, CASCADE refused, name m
   records.push({ caseId: "F13-H08-FLAG-NOT-AUTH", result: "rejected" });
 
   assert.equal(F13_SHARED_ORCHESTRATION_ID, "runQualificationReset");
-  assert.match(F13_RUNTIME_LABEL, /F16 LOCAL CORRECTION CANDIDATE/);
+  assert.match(F13_RUNTIME_LABEL, /F17 LOCAL CORRECTION CANDIDATE/);
   assert.equal(F13_RUNTIME_LABEL, F14_RUNTIME_LABEL);
 
   let qualifyCaptureSql = "";

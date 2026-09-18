@@ -1,0 +1,119 @@
+{
+  "artifact": "phase-b-qualification-reset",
+  "functional_sha": "104a5b514c35b5a3bee6526578f7bccc3575dfb3",
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "production_contacted": false,
+  "project_deleted_or_paused": false,
+  "reset_done": true,
+  "statements_emitted": 47,
+  "dropped": {
+    "f3_schemas": [],
+    "public_tables_count": 31,
+    "public_tables": [
+      "announcements",
+      "contribution_obligations",
+      "elections",
+      "events",
+      "fines",
+      "group_positions",
+      "group_subscriptions",
+      "groups",
+      "hosting_assignments",
+      "hosting_rosters",
+      "hosting_swap_requests",
+      "invitations",
+      "loans",
+      "meeting_minutes",
+      "member_transfers",
+      "memberships",
+      "notification_policies",
+      "notification_policy_occurrences",
+      "notification_policy_triggers",
+      "notifications_queue",
+      "organizations",
+      "payment_obligation_applications",
+      "payments",
+      "position_assignments",
+      "position_permissions",
+      "profiles",
+      "projects",
+      "relief_claims",
+      "relief_enrollments",
+      "relief_plans",
+      "relief_remittances"
+    ],
+    "public_enums_count": 1,
+    "app_functions": [
+      "m2_is_valid_iana_timezone(text)",
+      "has_group_permission(uuid,text,uuid)",
+      "execute_member_transfer(jsonb)",
+      "notification_policy_set_updated_at()",
+      "enqueue_outbound_notification(text,uuid,notification_channel,uuid,text)",
+      "compute_member_standing(uuid)",
+      "uuid_generate_v5(uuid,text)",
+      "request_member_transfer(jsonb)"
+    ],
+    "btree_gist": true,
+    "auth_trigger": false,
+    "storage_policies": [],
+    "schema_migrations_versions": [
+      "20260913173000",
+      "20260913173001",
+      "20260913173002",
+      "20260913173003",
+      "20260913173004",
+      "20260913173005"
+    ]
+  },
+  "reset_result": {
+    "status": 0,
+    "stdout": "         reset_status         \n------------------------------\n qualification_reset_complete\n(1 row)\n\n",
+    "stderr": "psql:[ISOLATED_HOME] NOTICE:  drop cascades to 2 other objects\nDETAIL:  drop cascades to constraint position_assignments_position_id_fkey on table position_assignments\ndrop cascades to constraint position_permissions_position_id_fkey on table position_permissions\npsql:[ISOLATED_HOME] NOTICE:  drop cascades to 4 other objects\nDETAIL:  drop cascades to constraint memberships_group_id_fkey on table memberships\ndrop cascades to constraint projects_group_id_fkey on table projects\ndrop cascades to constraint notification_policies_group_id_fkey on table notification_policies\ndrop cascades to constraint notification_policy_occurrences_group_id_fkey on table notification_policy_occurrences\npsql:[ISOLATED_HOME] NOTICE:  drop cascades to constraint position_assignments_membership_id_fkey on table position_assignments\npsql:[ISOLATED_HOME] NOTICE:  drop cascades to 5 other objects\nDETAIL:  drop cascades to constraint notification_policy_triggers_policy_id_fkey on table notification_policy_triggers\ndrop cascades to policy m2_npt_select on table notification_policy_triggers\ndrop cascades to policy m2_npt_insert on table notification_policy_triggers\ndrop cascades to policy m2_npt_update on table notification_policy_triggers\ndrop cascades to policy m2_npt_delete on table notification_policy_triggers\n"
+  },
+  "post_reset_classification": {
+    "verdict": "CLEAN_BASELINE",
+    "reason": "public VillageClaq floor objects absent; managed schemas preserved; schema_migrations leftover empty or absent",
+    "cleanBaseline": true,
+    "historyRows": 0,
+    "financialPresent": false,
+    "publicTables": [],
+    "ambiguous": []
+  },
+  "post_reset_history_get": [],
+  "pre_stub_floor_clean_check": {
+    "artifact": "06-pre-stub-floor-clean-check",
+    "clean_ok": true,
+    "residuals": [],
+    "residual_cleanup": {
+      "storage_policies": [],
+      "storage_buckets": [],
+      "blocking": false,
+      "drop_narrowly": false,
+      "wipe_to_baseline": false,
+      "note": "incomplete prior wipe residuals: the 10 named FAILED_FLOOR_STORAGE_POLICY_NAMES (+ empty floor buckets avatars/group-documents/receipts if safe) may be dropped narrowly. Not --wipe-to-baseline. Not blocking when public/history/F3 match Chief 06."
+    },
+    "public_tables": 0,
+    "public_tables_list": [],
+    "migrations": [],
+    "schema_migrations_rows": 0,
+    "schema_migrations_history": [],
+    "f3_absent": true,
+    "matches_post_wipe_baseline": true,
+    "do_not_wipe": true,
+    "classification_verdict": "CLEAN_BASELINE",
+    "label": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+    "recognition": [
+      "manual_income"
+    ],
+    "hold": null
+  },
+  "poison_absent": {
+    "ok": true,
+    "absent": true,
+    "row": {
+      "function_present": false,
+      "trigger_present": false
+    }
+  },
+  "sql_artifact": "phase-b-reset.sql"
+}

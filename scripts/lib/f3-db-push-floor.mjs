@@ -1,0 +1,436 @@
+/**
+ * Pre-00118 floor for the db push qualification candidate.
+ *
+ * Uses repository-controlled floor authority: bootstrap + migrations
+ * through 00117 as listed by `_f3_apply_current_main_floor.mjs`.
+ * This is NOT the candidate runner (not db push of 00118–00123).
+ *
+ * Floor SQL is applied via the gated remote `psql -f` executor
+ * (`f3-db-push-remote-sql-file.mjs`) — the same multi-statement authority
+ * as `_f3_apply_current_main_floor.mjs`. `supabase db query --file` is
+ * forbidden for floor files (Chief hosted HOLD: prepared-statement
+ * multi-command rejection). If the exact pre-00118 state cannot be
+ * reproduced → HOLD.
+ *
+ * Recognition allowlist remains exactly ["manual_income"] (source pin;
+ * F3 objects must be absent at the floor).
+ */
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { extractHasGroupPermissionCreateSql } from "../_m2_apply_disposable_floor.mjs";
+import {
+  HOSTED_FLOOR_BOOTSTRAP,
+  listMainMigrationsThrough00117,
+} from "../_f3_apply_current_main_floor.mjs";
+import {
+  FLOOR_00030_FILENAME,
+  deleteEphemeralTransformed00030,
+  scanFloorFilesForUnnest,
+  writeEphemeralTransformed00030,
+} from "./f3-00030-floor-replay-transform.mjs";
+import {
+  FLOOR_00057_FILENAME,
+  deleteEphemeralTransformed00057,
+  writeEphemeralTransformed00057,
+} from "./f3-00057-floor-replay-transform.mjs";
+import { assertAuthorizedExecutableUnnestInventory } from "./f3-unnest-floor-scan.mjs";
+import { RECOGNITION_ALLOWLIST } from "./f3-db-push-pins.mjs";
+import { runGatedRemoteSqlFile, writeGatedSqlFile } from "./f3-db-push-remote-sql-file.mjs";
+import { assertFrozenDigestsOnDisk } from "./f3-db-push-version-map.mjs";
+import {
+  FLOOR_MODES,
+  GREENFIELD_DISALLOWED_FOR_THIS_AUTH,
+  HOSTED_DEFAULT_FLOOR_MODE,
+  QUALIFICATION_FLOOR_LABEL,
+  STUB_LIVE_PIN_FLOOR_AUTHORITY,
+  installStubLivePinFloor,
+  resolveHostedFloorMode,
+  stubLivePinFloorPrecheck,
+} from "./f3-db-push-stub-live-pin-floor.mjs";
+
+const root = fileURLToPath(new URL("../..", import.meta.url));
+
+export const FLOOR_AUTHORITY =
+  "repository-controlled floor through 00117 via existing `_f3_apply_current_main_floor.mjs` file list + HOSTED bootstrap WITHOUT unnest(uuid) shim + ephemeral 00030 unnest→get_user_group_ids transform (exactly 14) + ephemeral 00057 unnest→get_user_group_ids transform (exactly 1) + installLiveHasGroupPermission before 00116/00117; applied with gated remote psql -f against the session-mode pooler URL (NOT db query --file, NOT db push, NOT Management API apply). Historical disposable floor reconstruction — NOT production migration correction, NOT candidate runner.";
+
+export const FLOOR_HOLD_IF_INEXACT =
+  "HOLD: exact legitimate VillageClaq state immediately before 00118 could not be reproduced from repository-controlled floor authority";
+
+export const HOSTED_FLOOR_MODE_DEFAULT = HOSTED_DEFAULT_FLOOR_MODE;
+export const HOSTED_FLOOR_LABEL = QUALIFICATION_FLOOR_LABEL;
+export const HOSTED_STUB_LIVE_PIN_AUTHORITY = STUB_LIVE_PIN_FLOOR_AUTHORITY;
+
+export const CATALOG_FINGERPRINT_SQL = `
+SELECT jsonb_build_object(
+  'schema', (
+    SELECT coalesce(string_agg(nspname || ':' || pg_get_userbyid(nspowner), ',' ORDER BY nspname), '')
+    FROM pg_namespace WHERE nspname IN ('financial_core','financial_private')
+  ),
+  'function_owner', (
+    SELECT coalesce(string_agg(
+      n.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || '):' ||
+      pg_get_userbyid(p.proowner) || ':' || p.prosecdef::text || ':' || coalesce(p.proconfig::text, ''),
+      ',' ORDER BY 1), '')
+    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname IN ('public','financial_core','financial_private')
+      AND (n.nspname LIKE 'financial_%' OR p.proname ~ 'financial|f3_|guard_ledger')
+  ),
+  'acl', (
+    SELECT coalesce(string_agg(part, ',' ORDER BY part), '') FROM (
+      SELECT n.nspname || '.' || c.relname || ':' || coalesce(c.relacl::text, '') AS part
+      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE c.relkind = 'r'
+        AND (n.nspname IN ('financial_core','financial_private')
+             OR (n.nspname = 'public' AND c.relname LIKE 'financial_%'))
+      UNION ALL
+      SELECT n.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || '):' ||
+             coalesce(p.proacl::text, '')
+      FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname IN ('public','financial_core','financial_private')
+        AND (n.nspname LIKE 'financial_%' OR p.proname ~ 'financial|f3_|guard_ledger')
+    ) a
+  ),
+  'policy', (
+    SELECT coalesce(string_agg(
+      schemaname || '.' || tablename || '.' || policyname || ':' || cmd || ':' ||
+      coalesce(roles::text, '') || ':' || coalesce(qual, '') || ':' || coalesce(with_check, ''),
+      ',' ORDER BY 1), '')
+    FROM pg_policies
+    WHERE schemaname IN ('public','financial_core','financial_private')
+      AND (tablename LIKE 'financial_%' OR schemaname LIKE 'financial_%')
+  ),
+  'f3_objects_absent', (
+    to_regnamespace('financial_private') IS NULL
+    AND to_regnamespace('financial_core') IS NULL
+    AND to_regclass('public.financial_ledger_epochs') IS NULL
+    AND to_regclass('public.financial_accounts') IS NULL
+    AND to_regprocedure('public.post_financial_command(jsonb)') IS NULL
+    AND to_regprocedure('public.correct_financial_event(jsonb)') IS NULL
+    AND to_regprocedure('public.post_financial_opening_cash(jsonb)') IS NULL
+  )
+)::text
+`;
+
+export const RECOGNITION_SOURCE_SQL = `
+SELECT '${RECOGNITION_ALLOWLIST[0]}'::text AS recognition_allowlist_pin;
+`;
+
+export function listFloorMigrationsThrough00117() {
+  const files = listMainMigrationsThrough00117();
+  if (files.some((f) => /^0011[89]_/.test(f) || /^0012[0-3]_/.test(f))) {
+    throw new Error("REFUSE: floor file list leaked 00118–00123");
+  }
+  if (!files.includes("00117_m2_notification_policy_foundation.sql")) {
+    throw new Error("HOLD: floor list is missing 00117");
+  }
+  return files;
+}
+
+export function floorFileAbsPath(name) {
+  return path.join(root, "supabase/migrations", name);
+}
+
+export function readFloorBootstrapSql() {
+  return readHostedFloorBootstrapSql();
+}
+
+export function readHostedFloorBootstrapSql() {
+  if (
+    !HOSTED_FLOOR_BOOTSTRAP ||
+    !HOSTED_FLOOR_BOOTSTRAP.includes("CREATE EXTENSION IF NOT EXISTS pgcrypto")
+  ) {
+    throw new Error("HOLD: hosted floor bootstrap is missing");
+  }
+  if (/CREATE OR REPLACE FUNCTION public\.unnest\(uuid\)/i.test(HOSTED_FLOOR_BOOTSTRAP)) {
+    throw new Error("HOLD: hosted floor bootstrap must not install public.unnest(uuid) shim");
+  }
+  return HOSTED_FLOOR_BOOTSTRAP;
+}
+
+export function remainingUnnestAfter00030() {
+  const files = listFloorMigrationsThrough00117().filter((f) => f > FLOOR_00030_FILENAME);
+  return scanFloorFilesForUnnest(files);
+}
+
+export function remainingUnnestAfterAuthorizedTransforms() {
+  const files = listFloorMigrationsThrough00117().filter(
+    (f) => f !== FLOOR_00030_FILENAME && f !== FLOOR_00057_FILENAME,
+  );
+  return scanFloorFilesForUnnest(files);
+}
+
+/**
+ * Hosted default for this founder auth is stub+live-pin.
+ * Greenfield 00001–00117 replay is retained only as a unit-testable
+ * historical function and is refused when selected as the hosted mode.
+ */
+export function installHostedFloor({ workdir, mode = HOSTED_DEFAULT_FLOOR_MODE } = {}) {
+  const resolved = resolveHostedFloorMode(mode);
+  if (resolved !== FLOOR_MODES.STUB_LIVE_PIN) {
+    const err = new Error(GREENFIELD_DISALLOWED_FOR_THIS_AUTH);
+    err.code = "F3_DBPUSH_GREENFIELD_DISALLOWED";
+    throw err;
+  }
+  return installStubLivePinFloor({ workdir });
+}
+
+export function hostedFloorPrecheck(mode = HOSTED_DEFAULT_FLOOR_MODE) {
+  const resolved = resolveHostedFloorMode(mode);
+  return {
+    ...stubLivePinFloorPrecheck(),
+    mode: resolved,
+    greenfieldAuthorityRetainedForTestsOnly: FLOOR_AUTHORITY,
+  };
+}
+
+export function assertFloorDoesNotUseCandidateRunner() {
+  const src = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-floor.mjs"), "utf8");
+  if (/applyRemoteManagementApiMigration\s*\(/.test(src)) {
+    throw new Error("REFUSE: floor module must not call Management API apply");
+  }
+  if (/runDbQuery\s*\(/.test(src)) {
+    throw new Error("REFUSE: floor module must not apply via supabase db query");
+  }
+  return true;
+}
+
+/**
+ * Same live HGP pin as `installLiveHasGroupPermission` in
+ * `f3-forward-prerequisites.mjs`. ubuntu REVOKE is skipped when that
+ * local-only role is absent on hosted Supabase.
+ */
+export function liveHasGroupPermissionSql() {
+  return (
+    extractHasGroupPermissionCreateSql() +
+    `
+ALTER FUNCTION public.has_group_permission(uuid, text, uuid) OWNER TO postgres;
+DO $hgp$
+BEGIN
+  REVOKE ALL ON FUNCTION public.has_group_permission(uuid, text, uuid) FROM PUBLIC;
+  REVOKE ALL ON FUNCTION public.has_group_permission(uuid, text, uuid) FROM anon;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ubuntu') THEN
+    REVOKE ALL ON FUNCTION public.has_group_permission(uuid, text, uuid) FROM ubuntu;
+  END IF;
+END
+$hgp$;
+GRANT EXECUTE ON FUNCTION public.has_group_permission(uuid, text, uuid)
+  TO authenticated, service_role;
+`
+  );
+}
+
+export function installLiveHasGroupPermissionRemote(workdir) {
+  const abs = writeGatedSqlFile(workdir, "floor-live-hgp.sql", liveHasGroupPermissionSql());
+  return runGatedRemoteSqlFile(abs);
+}
+
+function floorApplyOk(result) {
+  if (result.status === 0) return { ok: true, already: false };
+  const text = `${result.stdout || ""}\n${result.stderr || ""}`;
+  if (/already exists|duplicate_object|duplicate_function/i.test(text)) {
+    return { ok: true, already: true };
+  }
+  return { ok: false, already: false };
+}
+
+/**
+ * Install hosted disposable floor: no-shim bootstrap + 00001–00029 +
+ * ephemeral transformed 00030 + ephemeral transformed 00057 +
+ * remaining repo bytes through 00117 + HGP pins, via gated `psql -f`.
+ * If any unauthorized floor file still contains
+ * `unnest(get_user_group_ids())`, HOLD before applying it so a mid-file
+ * partial is not created. Temp 00030/00057 copies are always deleted.
+ */
+export function installRepositoryControlledFloor({
+  workdir,
+  stopBeforeRemainingUnnest = true,
+} = {}) {
+  if (!workdir) throw new Error("HOLD: isolated workdir required for floor install");
+  assertFloorDoesNotUseCandidateRunner();
+  const steps = [];
+  let transformRecord = null;
+  let transform00057Record = null;
+  const remainingUnnest = remainingUnnestAfter00030();
+  const unauthorizedUnnest = remainingUnnestAfterAuthorizedTransforms();
+  const bootstrapFile = writeGatedSqlFile(workdir, "floor-bootstrap.sql", readHostedFloorBootstrapSql());
+  const boot = runGatedRemoteSqlFile(bootstrapFile);
+  const bootOk = floorApplyOk(boot);
+  steps.push({
+    id: "bootstrap",
+    runner: "gated_psql_file",
+    status: boot.status,
+    ok: bootOk.ok,
+    already: bootOk.already,
+    shimInstalled: false,
+  });
+  if (!bootOk.ok) {
+    return {
+      installed: false,
+      exact: false,
+      steps,
+      failedAt: "bootstrap",
+      transform: null,
+      transform00057: null,
+    };
+  }
+
+  for (const file of listFloorMigrationsThrough00117()) {
+    if (stopBeforeRemainingUnnest) {
+      const hit = unauthorizedUnnest.find((row) => row.file === file);
+      if (hit) {
+        steps.push({
+          id: `hold-before-${file}`,
+          runner: "preflight",
+          ok: false,
+          remainingUnnest: hit,
+        });
+        return {
+          installed: false,
+          exact: false,
+          steps,
+          failedAt: file,
+          transform: transformRecord,
+          transform00057: transform00057Record,
+          remainingUnnest,
+          remainingUnnestAfterAuthorizedTransforms: unauthorizedUnnest,
+          hold:
+            `HOLD: ${file} still contains ${hit.count} unnest(get_user_group_ids()); refuse apply to avoid a mid-file partial. Authorized transforms are 00030 (14) and 00057 (1) only.`,
+        };
+      }
+    }
+    if (/^0011[6-7]_/.test(file)) {
+      const hgp = installLiveHasGroupPermissionRemote(workdir);
+      const hgpOk = floorApplyOk(hgp);
+      steps.push({ id: `hgp-before-${file}`, runner: "gated_psql_file", status: hgp.status, ok: hgpOk.ok, already: hgpOk.already });
+      if (!hgpOk.ok) {
+        return {
+          installed: false,
+          exact: false,
+          steps,
+          failedAt: `hgp-before-${file}`,
+          transform: transformRecord,
+          transform00057: transform00057Record,
+        };
+      }
+    }
+    let applyPath = floorFileAbsPath(file);
+    if (file === FLOOR_00030_FILENAME) {
+      transformRecord = writeEphemeralTransformed00030(workdir);
+      applyPath = transformRecord.destAbs;
+      steps.push({
+        id: "00030-ephemeral-transform",
+        runner: "ephemeral_workdir",
+        ok: true,
+        originalDigest: transformRecord.originalDigest,
+        transformedDigest: transformRecord.transformedDigest,
+        unnestCount: transformRecord.unnestCount,
+        label: transformRecord.label,
+      });
+    }
+    if (file === FLOOR_00057_FILENAME) {
+      transform00057Record = writeEphemeralTransformed00057(workdir);
+      applyPath = transform00057Record.destAbs;
+      steps.push({
+        id: "00057-ephemeral-transform",
+        runner: "ephemeral_workdir",
+        ok: true,
+        originalDigest: transform00057Record.originalDigest,
+        transformedDigest: transform00057Record.transformedDigest,
+        unnestCount: transform00057Record.unnestCount,
+        label: transform00057Record.label,
+      });
+    }
+    const applied = runGatedRemoteSqlFile(applyPath);
+    const ok = floorApplyOk(applied);
+    steps.push({
+      id: file,
+      runner: "gated_psql_file",
+      status: applied.status,
+      ok: ok.ok,
+      already: ok.already,
+      transformed: file === FLOOR_00030_FILENAME || file === FLOOR_00057_FILENAME,
+    });
+    if (file === FLOOR_00030_FILENAME) {
+      deleteEphemeralTransformed00030(applyPath);
+      steps.push({ id: "00030-ephemeral-deleted", ok: true });
+    }
+    if (file === FLOOR_00057_FILENAME) {
+      deleteEphemeralTransformed00057(applyPath);
+      steps.push({ id: "00057-ephemeral-deleted", ok: true });
+    }
+    if (!ok.ok) {
+      return {
+        installed: false,
+        exact: false,
+        steps,
+        failedAt: file,
+        transform: transformRecord,
+        transform00057: transform00057Record,
+      };
+    }
+  }
+
+  const hgpAfter = installLiveHasGroupPermissionRemote(workdir);
+  const afterOk = floorApplyOk(hgpAfter);
+  steps.push({ id: "hgp-after-00117", runner: "gated_psql_file", status: hgpAfter.status, ok: afterOk.ok, already: afterOk.already });
+  if (!afterOk.ok) {
+    return {
+      installed: false,
+      exact: false,
+      steps,
+      failedAt: "hgp-after-00117",
+      transform: transformRecord,
+      transform00057: transform00057Record,
+    };
+  }
+  return {
+    installed: true,
+    exact: true,
+    steps,
+    failedAt: null,
+    transform: transformRecord,
+    transform00057: transform00057Record,
+    remainingUnnest,
+    remainingUnnestAfterAuthorizedTransforms: unauthorizedUnnest,
+    shimInstalled: false,
+  };
+}
+
+export function recognitionFromSource() {
+  const src = fs.readFileSync(path.join(root, "src/lib/financial-f3-recognition.ts"), "utf8");
+  const match = src.match(
+    /export const F3_RECOGNIZED_SOA_INCOME_EFFECT_KINDS = \[([^\]]+)\] as const/,
+  );
+  if (!match) throw new Error("HOLD: recognition allowlist export missing");
+  const kinds = [...match[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  if (JSON.stringify(kinds) !== JSON.stringify([...RECOGNITION_ALLOWLIST])) {
+    throw new Error(`HOLD: recognition allowlist drifted: ${JSON.stringify(kinds)}`);
+  }
+  return [...RECOGNITION_ALLOWLIST];
+}
+
+export function floorPrecheck() {
+  const files = listFloorMigrationsThrough00117();
+  const recognition = recognitionFromSource();
+  const digests = assertFrozenDigestsOnDisk();
+  const remainingUnnest = remainingUnnestAfter00030();
+  const unauthorizedUnnest = remainingUnnestAfterAuthorizedTransforms();
+  const authorizedUnnestInventory = assertAuthorizedExecutableUnnestInventory();
+  const hostedBootstrap = readHostedFloorBootstrapSql();
+  return {
+    authority: FLOOR_AUTHORITY,
+    files,
+    fileCount: files.length,
+    includes00117: files.includes("00117_m2_notification_policy_foundation.sql"),
+    excludes00118plus: !files.some((f) => /^0011[89]_/.test(f) || /^0012[0-3]_/.test(f)),
+    recognition,
+    frozenDigests: digests,
+    holdIfInexact: FLOOR_HOLD_IF_INEXACT,
+    hostedBootstrapHasUnnestShim: /CREATE OR REPLACE FUNCTION public\.unnest\(uuid\)/i.test(hostedBootstrap),
+    remainingUnnestAfter00030: remainingUnnest,
+    remainingUnnestAfterAuthorizedTransforms: unauthorizedUnnest,
+    remainingUnnestHold: unauthorizedUnnest.length > 0,
+    authorizedUnnestInventory,
+  };
+}

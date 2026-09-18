@@ -1,0 +1,10 @@
+{
+  "tip_digest_constant": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "tip_envelope_digest_field": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "tip_recomputed": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "expected_pin": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "match": true,
+  "not_from_hosted_fingerprint_72af6699": true,
+  "not_from_financial_ledger_epochs": true,
+  "provenance_claim": "INDEPENDENT SUPABASE PLATFORM-ACL CALIBRATION \u2014 derived ONLY from disposable pg_default_acl + canary agreement"
+}

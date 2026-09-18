@@ -1,0 +1,12 @@
+{
+  "status": "COMPLETE",
+  "verdict": "F18 ACCEPT",
+  "excludedFromF18ReadyClaim": false,
+  "slot": "qa-package/",
+  "bcId": "bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
+  "reviewedPin": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "postgresServerVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+  "classification": "LOCAL_PG_EXECUTED",
+  "builderGatesNotAcceptedAsProof": true,
+  "note": "Independent Grok QA executed committed helper + process E2E + success reparse on this VM. Builder artifacts were not reused as raw proof."
+}

@@ -1,0 +1,333 @@
+{
+  "artifact": "floor-limitation",
+  "floor": {
+    "precheck": {
+      "mode": "stub-live-pin",
+      "label": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+      "authority": "hosted default: stub+live-pin qualification floor via gated disposable psql -f (STUB_CORE_SQL + REGRESSION_SLICE_SQL + CUT2_QUEUE_SLICE_SQL + Cut 3 live has_group_permission + 00115 enqueue extract + remoteFloorOwnershipAndAclSql + exact unmodified 00117 bytes). Isolated db-push workdir only has 00118–00123. Earlier production history intentionally not reproduced. Do not invent 00117 history rows. NOT Management API, NOT db push for 00117, NOT 00001–00116 replay, NOT 00030/00057 transforms, NOT production-equivalent.",
+      "components": [
+        "STUB_CORE_SQL",
+        "public_uuid_generate_v5_wrapper",
+        "REGRESSION_SLICE_SQL",
+        "CUT2_QUEUE_SLICE_SQL",
+        "live_has_group_permission_cut3",
+        "enqueue_outbound_notification_00115_extract",
+        "remoteFloorOwnershipAndAclSql",
+        "unmodified_00117_gated_psql"
+      ],
+      "recognition": [
+        "manual_income"
+      ],
+      "frozenDigests": {
+        "00118_f3_bounded_financial_epoch_foundation.sql": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+        "00119_f3_01_core_ledger_foundation.sql": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+        "00120_f3_02_secure_posting_idempotency.sql": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+        "00121_f3_03_projection_read_proof.sql": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+        "00122_f3_04_correction_reversal.sql": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+        "00123_f3_05_opening_cash_command.sql": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d"
+      },
+      "file00117": {
+        "sha256": "aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02",
+        "byteLength": 52187
+      },
+      "cleanReplay00001_00117": false,
+      "productionEquivalent": false,
+      "invented00117History": false,
+      "greenfieldDisallowed": true,
+      "transformsDisallowed": true,
+      "greenfieldAuthorityRetainedForTestsOnly": "repository-controlled floor through 00117 via existing `_f3_apply_current_main_floor.mjs` file list + HOSTED bootstrap WITHOUT unnest(uuid) shim + ephemeral 00030 unnest→get_user_group_ids transform (exactly 14) + ephemeral 00057 unnest→get_user_group_ids transform (exactly 1) + installLiveHasGroupPermission before 00116/00117; applied with gated remote psql -f against the session-mode pooler URL (NOT db query --file, NOT db push, NOT Management API apply). Historical disposable floor reconstruction — NOT production migration correction, NOT candidate runner."
+    },
+    "authority": "hosted default: stub+live-pin qualification floor via gated disposable psql -f (STUB_CORE_SQL + REGRESSION_SLICE_SQL + CUT2_QUEUE_SLICE_SQL + Cut 3 live has_group_permission + 00115 enqueue extract + remoteFloorOwnershipAndAclSql + exact unmodified 00117 bytes). Isolated db-push workdir only has 00118–00123. Earlier production history intentionally not reproduced. Do not invent 00117 history rows. NOT Management API, NOT db push for 00117, NOT 00001–00116 replay, NOT 00030/00057 transforms, NOT production-equivalent.",
+    "label": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+    "mode": "stub-live-pin",
+    "installed": true,
+    "exact": true,
+    "runner": "gated_psql_file",
+    "shimInstalled": false,
+    "transforms": {
+      "00030": false,
+      "00057": false
+    },
+    "components": [
+      "STUB_CORE_SQL",
+      "public_uuid_generate_v5_wrapper",
+      "REGRESSION_SLICE_SQL",
+      "CUT2_QUEUE_SLICE_SQL",
+      "live_has_group_permission_cut3",
+      "enqueue_outbound_notification_00115_extract",
+      "remoteFloorOwnershipAndAclSql",
+      "unmodified_00117_gated_psql"
+    ],
+    "cleanReplay00001_00117": false,
+    "productionEquivalent": false,
+    "invented00117History": false,
+    "file00117": {
+      "sha256": "aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02",
+      "byteLength": 52187
+    },
+    "isolatedMigrations": {
+      "names": [
+        "20260913173000_f3_bounded_financial_epoch_foundation.sql",
+        "20260913173001_f3_01_core_ledger_foundation.sql",
+        "20260913173002_f3_02_secure_posting_idempotency.sql",
+        "20260913173003_f3_03_projection_read_proof.sql",
+        "20260913173004_f3_04_correction_reversal.sql",
+        "20260913173005_f3_05_opening_cash_command.sql"
+      ],
+      "expected": [
+        "20260913173000_f3_bounded_financial_epoch_foundation.sql",
+        "20260913173001_f3_01_core_ledger_foundation.sql",
+        "20260913173002_f3_02_secure_posting_idempotency.sql",
+        "20260913173003_f3_03_projection_read_proof.sql",
+        "20260913173004_f3_04_correction_reversal.sql",
+        "20260913173005_f3_05_opening_cash_command.sql"
+      ]
+    },
+    "hold": null,
+    "steps": [
+      {
+        "id": "prerequisite_stub",
+        "runner": "gated_psql_file",
+        "file": "floor-stub-core.sql",
+        "status": 0,
+        "ok": true,
+        "already": false,
+        "stderrTail": "psql:<redacted-path> NOTICE:  extension \"pgcrypto\" already exists, skipping\npsql:<redacted-path> NOTICE:  extension \"uuid-ossp\" already exists, skipping\npsql:<redacted-path> NOTICE:  schema \"auth\" already exists, skipping\npsql:<redacted-path> WARNING:  no privileges were granted for \"auth\"\npsql:<redacted-path> WARNING:  no privileges were granted for \"uid\"\n",
+        "errors": []
+      },
+      {
+        "id": "public_uuid_generate_v5_wrapper",
+        "runner": "gated_psql_file",
+        "file": "floor-uuid-v5-wrapper.sql",
+        "status": 0,
+        "ok": true,
+        "already": false,
+        "stderrTail": "psql:<redacted-path> NOTICE:  extension \"uuid-ossp\" already exists, skipping\n",
+        "errors": []
+      },
+      {
+        "id": "regression_slice",
+        "runner": "gated_psql_file",
+        "file": "floor-regression-slice.sql",
+        "status": 0,
+        "ok": true,
+        "already": false,
+        "stderrTail": "",
+        "errors": []
+      },
+      {
+        "id": "cut2_queue_slice",
+        "runner": "gated_psql_file",
+        "file": "floor-cut2-queue-slice.sql",
+        "status": 0,
+        "ok": true,
+        "already": false,
+        "stderrTail": "",
+        "errors": []
+      },
+      {
+        "id": "live_has_group_permission_cut3",
+        "runner": "gated_psql_file",
+        "file": "floor-live-hgp.sql",
+        "status": 0,
+        "ok": true,
+        "already": false,
+        "stderrTail": "",
+        "errors": []
+      },
+      {
+        "id": "enqueue_outbound_notification_00115_extract",
+        "runner": "gated_psql_file",
+        "file": "floor-live-enq.sql",
+        "status": 0,
+        "ok": true,
+        "already": false,
+        "stderrTail": "",
+        "errors": []
+      },
+      {
+        "id": "remote_floor_ownership_and_acl",
+        "runner": "gated_psql_file",
+        "file": "floor-live-acl.sql",
+        "status": 0,
+        "ok": true,
+        "already": false,
+        "stderrTail": "",
+        "errors": []
+      },
+      {
+        "id": "unmodified_00117_gated_psql",
+        "runner": "gated_psql_file",
+        "file": "00117_m2_notification_policy_foundation.sql",
+        "status": 0,
+        "ok": true,
+        "already": false,
+        "stderrTail": "",
+        "errors": [],
+        "sha256": "aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02",
+        "notManagementApi": true,
+        "notDbPush": true
+      }
+    ],
+    "failedAt": null,
+    "fingerprint": {
+      "status": 0,
+      "body": {
+        "acl": [],
+        "hgp": {
+          "name": "has_group_permission",
+          "count": 1,
+          "owner": "postgres",
+          "schema": "public",
+          "def_md5": "695368464e97297fbf0f90ce7345162f",
+          "src_md5": "96a296dfd541c7fc75ec68c4da1d92ff",
+          "language": "plpgsql",
+          "proconfig": [
+            "search_path=\"\""
+          ],
+          "result_type": "boolean",
+          "security_definer": true,
+          "identity_arguments": "gid uuid, perm_key text, uid uuid"
+        },
+        "rls": [],
+        "acls": [],
+        "types": [],
+        "views": [],
+        "policy": [],
+        "schema": [],
+        "columns": [],
+        "enqueue": {
+          "name": "enqueue_outbound_notification",
+          "count": 1,
+          "owner": "postgres",
+          "schema": "public",
+          "def_md5": "dbdb16cdced6cae9cbdbfb6a6a9f421f",
+          "src_md5": "3fa76af51e431ccbd31eb033dcff0b80",
+          "language": "plpgsql",
+          "proconfig": [
+            "search_path=\"\""
+          ],
+          "result_type": "TABLE(queue_id uuid, result text)",
+          "security_definer": true,
+          "identity_arguments": "p_notification_type text, p_domain_object_id uuid, p_channel notification_channel, p_recipient_membership_id uuid, p_locale text"
+        },
+        "indexes": [],
+        "schemas": [],
+        "policies": [],
+        "routines": [],
+        "triggers": [],
+        "relations": [],
+        "constraints": [],
+        "function_owner": [],
+        "schema_version": "f3-full-catalog-v1",
+        "f3_objects_absent": true
+      }
+    },
+    "gateQuery": {
+      "status": 0
+    }
+  },
+  "preStubFloorCleanCheck": {
+    "artifact": "06-pre-stub-floor-clean-check",
+    "clean_ok": true,
+    "residuals": [],
+    "residual_cleanup": {
+      "storage_policies": [],
+      "storage_buckets": [],
+      "blocking": false,
+      "drop_narrowly": false,
+      "wipe_to_baseline": false,
+      "note": "incomplete prior wipe residuals: the 10 named FAILED_FLOOR_STORAGE_POLICY_NAMES (+ empty floor buckets avatars/group-documents/receipts if safe) may be dropped narrowly. Not --wipe-to-baseline. Not blocking when public/history/F3 match Chief 06."
+    },
+    "public_tables": 0,
+    "public_tables_list": [],
+    "migrations": [],
+    "schema_migrations_rows": 0,
+    "schema_migrations_history": [],
+    "f3_absent": true,
+    "matches_post_wipe_baseline": true,
+    "do_not_wipe": true,
+    "classification_verdict": "CLEAN_BASELINE",
+    "label": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+    "recognition": [
+      "manual_income"
+    ],
+    "hold": null
+  },
+  "preDbPushGates": {
+    "ok": true,
+    "hold": null,
+    "label": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+    "cleanReplay00001_00117": false,
+    "productionEquivalent": false,
+    "gates": [
+      {
+        "id": "hgp_md5",
+        "ok": true,
+        "detail": "695368464e97297fbf0f90ce7345162f|96a296dfd541c7fc75ec68c4da1d92ff"
+      },
+      {
+        "id": "hgp_acl",
+        "ok": true,
+        "detail": "authenticated|EXECUTE|postgres|false,postgres|EXECUTE|postgres|false,service_role|EXECUTE|postgres|false"
+      },
+      {
+        "id": "enqueue_md5",
+        "ok": true,
+        "detail": "dbdb16cdced6cae9cbdbfb6a6a9f421f|3fa76af51e431ccbd31eb033dcff0b80"
+      },
+      {
+        "id": "enqueue_acl",
+        "ok": true,
+        "detail": "postgres|EXECUTE|postgres|false,service_role|EXECUTE|postgres|false"
+      },
+      {
+        "id": "queue_table_acl",
+        "ok": true,
+        "detail": "exact"
+      },
+      {
+        "id": "queue_col_acl",
+        "ok": true,
+        "detail": "exact"
+      },
+      {
+        "id": "m2_00117_postconditions",
+        "ok": true,
+        "detail": "notification_policies,notification_policy_occurrences,notification_policy_triggers"
+      },
+      {
+        "id": "f3_absent",
+        "ok": true,
+        "detail": "absent"
+      },
+      {
+        "id": "recognition",
+        "ok": true,
+        "detail": "[\"manual_income\"]"
+      },
+      {
+        "id": "history_empty",
+        "ok": true,
+        "detail": "[]"
+      },
+      {
+        "id": "no_residue",
+        "ok": true,
+        "detail": "no shim / no pre-00117 history"
+      },
+      {
+        "id": "frozen_digests",
+        "ok": true,
+        "detail": "00118-00123 unchanged"
+      },
+      {
+        "id": "isolated_workdir_00118_00123_only",
+        "ok": true,
+        "detail": "20260913173000_f3_bounded_financial_epoch_foundation.sql,20260913173001_f3_01_core_ledger_foundation.sql,20260913173002_f3_02_secure_posting_idempotency.sql,20260913173003_f3_03_projection_read_proof.sql,20260913173004_f3_04_correction_reversal.sql,20260913173005_f3_05_opening_cash_command.sql"
+      }
+    ]
+  },
+  "label": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "mode": "stub+live-pin"
+}

@@ -1,0 +1,30 @@
+{
+  "role": "QA-Windows-historical",
+  "executableCommit": "b74c6854869acf0e826446ea0488c42469621a3b",
+  "platform": "win32",
+  "nativeWindowsExecuted": true,
+  "appliesToF17Functional": false,
+  "excludedFromF17PassEvidence": true,
+  "resetDesign": {
+    "tests": 29,
+    "pass": 29,
+    "fail": 0,
+    "skipped": 0
+  },
+  "reset": {
+    "tests": 51,
+    "pass": 51,
+    "fail": 0,
+    "skipped": 0
+  },
+  "dbPush": {
+    "tests": 230,
+    "pass": 228,
+    "fail": 1,
+    "skipped": 1
+  },
+  "failReason": "isolated workdir destAbs forward-slash assertion (F16 harness)",
+  "skipReason": "peer-auth / local PG skip preserved",
+  "f17Fix": "canonicalManifestPath portable assertion; intended exclusion of repo migrations path preserved",
+  "authenticatedSeparatelyFromBuilder": true
+}

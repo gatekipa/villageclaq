@@ -1,0 +1,405 @@
+{
+  "process_exit": 0,
+  "verdict": "FILE-BASED RUNNER QUALIFICATION PASS \u2014 STUB/LIVE-PIN FLOOR LIMITATION",
+  "floorLabel": "DOCUMENTED QUALIFICATION FIXTURE \u2014 NOT A CLEAN 00001\u201300117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "schema": "f3-full-catalog-v3",
+  "all_six_fingerprint_equality": true,
+  "proofs": [
+    {
+      "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+      "version": "20260913173000",
+      "digest": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+      "classification": {
+        "nonzeroExit": true,
+        "historyFailed": true,
+        "historyInsertMentioned": true,
+        "targetVersionPresent": false,
+        "targetVersionAbsent": true,
+        "sqlCommitted": true,
+        "rolledBack": false,
+        "split": "POST_COMMIT_HISTORY_FAILURE",
+        "knownFilenameVersion": "20260913173000",
+        "repairAuthorizedByFilenameVersion": true
+      },
+      "push_status": 1,
+      "repair_status": 0,
+      "repairAttempted": true,
+      "retry_status": 0,
+      "objectsPresent": true,
+      "phases": {
+        "fingerprintBeforeRepair": null,
+        "fingerprintAfterCommitFailedHistory": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9",
+        "fingerprintAfterPoisonCleanup": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9",
+        "fingerprintAfterRepair": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9",
+        "fingerprintAfterRetryNoPending": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9",
+        "fingerprintAfterCleanContinuation": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9"
+      },
+      "evals_slim": {
+        "postRepairFingerprintEval": {
+          "ok": true
+        },
+        "postRetryFingerprintEval": {
+          "ok": true
+        },
+        "postContinuationFingerprintEval": {
+          "ok": true
+        },
+        "poisonFingerprintEval": {
+          "ok": true
+        }
+      },
+      "equality": {
+        "expected": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9",
+        "matches_cloud_v3_tip": true,
+        "before_eq_expected": null,
+        "after_repair_eq": true,
+        "after_retry_eq": true,
+        "after_continuation_eq": true
+      },
+      "repairSafety_ok": true
+    },
+    {
+      "file": "00119_f3_01_core_ledger_foundation.sql",
+      "version": "20260913173001",
+      "digest": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+      "classification": {
+        "nonzeroExit": true,
+        "historyFailed": true,
+        "historyInsertMentioned": true,
+        "targetVersionPresent": false,
+        "targetVersionAbsent": true,
+        "sqlCommitted": true,
+        "rolledBack": false,
+        "split": "POST_COMMIT_HISTORY_FAILURE",
+        "knownFilenameVersion": "20260913173001",
+        "repairAuthorizedByFilenameVersion": true
+      },
+      "push_status": 1,
+      "repair_status": 0,
+      "repairAttempted": true,
+      "retry_status": 0,
+      "objectsPresent": true,
+      "phases": {
+        "fingerprintBeforeRepair": null,
+        "fingerprintAfterCommitFailedHistory": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589",
+        "fingerprintAfterPoisonCleanup": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589",
+        "fingerprintAfterRepair": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589",
+        "fingerprintAfterRetryNoPending": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589",
+        "fingerprintAfterCleanContinuation": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589"
+      },
+      "evals_slim": {
+        "postRepairFingerprintEval": {
+          "ok": true
+        },
+        "postRetryFingerprintEval": {
+          "ok": true
+        },
+        "postContinuationFingerprintEval": {
+          "ok": true
+        },
+        "poisonFingerprintEval": {
+          "ok": true
+        }
+      },
+      "equality": {
+        "expected": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589",
+        "matches_cloud_v3_tip": true,
+        "before_eq_expected": null,
+        "after_repair_eq": true,
+        "after_retry_eq": true,
+        "after_continuation_eq": true
+      },
+      "repairSafety_ok": true
+    },
+    {
+      "file": "00120_f3_02_secure_posting_idempotency.sql",
+      "version": "20260913173002",
+      "digest": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+      "classification": {
+        "nonzeroExit": true,
+        "historyFailed": true,
+        "historyInsertMentioned": true,
+        "targetVersionPresent": false,
+        "targetVersionAbsent": true,
+        "sqlCommitted": true,
+        "rolledBack": false,
+        "split": "POST_COMMIT_HISTORY_FAILURE",
+        "knownFilenameVersion": "20260913173002",
+        "repairAuthorizedByFilenameVersion": true
+      },
+      "push_status": 1,
+      "repair_status": 0,
+      "repairAttempted": true,
+      "retry_status": 0,
+      "objectsPresent": true,
+      "phases": {
+        "fingerprintBeforeRepair": null,
+        "fingerprintAfterCommitFailedHistory": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e",
+        "fingerprintAfterPoisonCleanup": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e",
+        "fingerprintAfterRepair": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e",
+        "fingerprintAfterRetryNoPending": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e",
+        "fingerprintAfterCleanContinuation": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e"
+      },
+      "evals_slim": {
+        "postRepairFingerprintEval": {
+          "ok": true
+        },
+        "postRetryFingerprintEval": {
+          "ok": true
+        },
+        "postContinuationFingerprintEval": {
+          "ok": true
+        },
+        "poisonFingerprintEval": {
+          "ok": true
+        }
+      },
+      "equality": {
+        "expected": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e",
+        "matches_cloud_v3_tip": true,
+        "before_eq_expected": null,
+        "after_repair_eq": true,
+        "after_retry_eq": true,
+        "after_continuation_eq": true
+      },
+      "repairSafety_ok": true
+    },
+    {
+      "file": "00121_f3_03_projection_read_proof.sql",
+      "version": "20260913173003",
+      "digest": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+      "classification": {
+        "nonzeroExit": true,
+        "historyFailed": true,
+        "historyInsertMentioned": true,
+        "targetVersionPresent": false,
+        "targetVersionAbsent": true,
+        "sqlCommitted": true,
+        "rolledBack": false,
+        "split": "POST_COMMIT_HISTORY_FAILURE",
+        "knownFilenameVersion": "20260913173003",
+        "repairAuthorizedByFilenameVersion": true
+      },
+      "push_status": 1,
+      "repair_status": 0,
+      "repairAttempted": true,
+      "retry_status": 0,
+      "objectsPresent": true,
+      "phases": {
+        "fingerprintBeforeRepair": null,
+        "fingerprintAfterCommitFailedHistory": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c",
+        "fingerprintAfterPoisonCleanup": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c",
+        "fingerprintAfterRepair": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c",
+        "fingerprintAfterRetryNoPending": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c",
+        "fingerprintAfterCleanContinuation": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c"
+      },
+      "evals_slim": {
+        "postRepairFingerprintEval": {
+          "ok": true
+        },
+        "postRetryFingerprintEval": {
+          "ok": true
+        },
+        "postContinuationFingerprintEval": {
+          "ok": true
+        },
+        "poisonFingerprintEval": {
+          "ok": true
+        }
+      },
+      "equality": {
+        "expected": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c",
+        "matches_cloud_v3_tip": true,
+        "before_eq_expected": null,
+        "after_repair_eq": true,
+        "after_retry_eq": true,
+        "after_continuation_eq": true
+      },
+      "repairSafety_ok": true
+    },
+    {
+      "file": "00122_f3_04_correction_reversal.sql",
+      "version": "20260913173004",
+      "digest": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+      "classification": {
+        "nonzeroExit": true,
+        "historyFailed": true,
+        "historyInsertMentioned": true,
+        "targetVersionPresent": false,
+        "targetVersionAbsent": true,
+        "sqlCommitted": true,
+        "rolledBack": false,
+        "split": "POST_COMMIT_HISTORY_FAILURE",
+        "knownFilenameVersion": "20260913173004",
+        "repairAuthorizedByFilenameVersion": true
+      },
+      "push_status": 1,
+      "repair_status": 0,
+      "repairAttempted": true,
+      "retry_status": 0,
+      "objectsPresent": true,
+      "phases": {
+        "fingerprintBeforeRepair": null,
+        "fingerprintAfterCommitFailedHistory": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146",
+        "fingerprintAfterPoisonCleanup": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146",
+        "fingerprintAfterRepair": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146",
+        "fingerprintAfterRetryNoPending": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146",
+        "fingerprintAfterCleanContinuation": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146"
+      },
+      "evals_slim": {
+        "postRepairFingerprintEval": {
+          "ok": true
+        },
+        "postRetryFingerprintEval": {
+          "ok": true
+        },
+        "postContinuationFingerprintEval": {
+          "ok": true
+        },
+        "poisonFingerprintEval": {
+          "ok": true
+        }
+      },
+      "equality": {
+        "expected": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146",
+        "matches_cloud_v3_tip": true,
+        "before_eq_expected": null,
+        "after_repair_eq": true,
+        "after_retry_eq": true,
+        "after_continuation_eq": true
+      },
+      "repairSafety_ok": true
+    },
+    {
+      "file": "00123_f3_05_opening_cash_command.sql",
+      "version": "20260913173005",
+      "digest": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
+      "classification": {
+        "nonzeroExit": true,
+        "historyFailed": true,
+        "historyInsertMentioned": true,
+        "targetVersionPresent": false,
+        "targetVersionAbsent": true,
+        "sqlCommitted": true,
+        "rolledBack": false,
+        "split": "POST_COMMIT_HISTORY_FAILURE",
+        "knownFilenameVersion": "20260913173005",
+        "repairAuthorizedByFilenameVersion": true
+      },
+      "push_status": 1,
+      "repair_status": 0,
+      "repairAttempted": true,
+      "retry_status": 0,
+      "objectsPresent": true,
+      "phases": {
+        "fingerprintBeforeRepair": null,
+        "fingerprintAfterCommitFailedHistory": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
+        "fingerprintAfterPoisonCleanup": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
+        "fingerprintAfterRepair": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
+        "fingerprintAfterRetryNoPending": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
+        "fingerprintAfterCleanContinuation": null
+      },
+      "evals_slim": {
+        "postRepairFingerprintEval": {
+          "ok": true
+        },
+        "postRetryFingerprintEval": {
+          "ok": true
+        },
+        "postContinuationFingerprintEval": {},
+        "poisonFingerprintEval": {
+          "ok": true
+        }
+      },
+      "equality": {
+        "expected": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
+        "matches_cloud_v3_tip": true,
+        "before_eq_expected": null,
+        "after_repair_eq": true,
+        "after_retry_eq": true,
+        "after_continuation_eq": false
+      },
+      "repairSafety_ok": true
+    }
+  ],
+  "sha256BeforeDb": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9",
+    "00119_f3_01_core_ledger_foundation.sql": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589",
+    "00120_f3_02_secure_posting_idempotency.sql": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e",
+    "00121_f3_03_projection_read_proof.sql": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c",
+    "00122_f3_04_correction_reversal.sql": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146",
+    "00123_f3_05_opening_cash_command.sql": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41"
+  },
+  "recognition": [
+    "manual_income"
+  ],
+  "closure_complete": true,
+  "migrations_slim": [
+    {
+      "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+      "push_status": 1,
+      "repair_status": 0,
+      "classification_split": "POST_COMMIT_HISTORY_FAILURE",
+      "expected": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9",
+      "after_repair": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9",
+      "after_retry": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9",
+      "after_continuation": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9",
+      "row_ok": true
+    },
+    {
+      "file": "00119_f3_01_core_ledger_foundation.sql",
+      "push_status": 1,
+      "repair_status": 0,
+      "classification_split": "POST_COMMIT_HISTORY_FAILURE",
+      "expected": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589",
+      "after_repair": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589",
+      "after_retry": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589",
+      "after_continuation": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589",
+      "row_ok": true
+    },
+    {
+      "file": "00120_f3_02_secure_posting_idempotency.sql",
+      "push_status": 1,
+      "repair_status": 0,
+      "classification_split": "POST_COMMIT_HISTORY_FAILURE",
+      "expected": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e",
+      "after_repair": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e",
+      "after_retry": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e",
+      "after_continuation": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e",
+      "row_ok": true
+    },
+    {
+      "file": "00121_f3_03_projection_read_proof.sql",
+      "push_status": 1,
+      "repair_status": 0,
+      "classification_split": "POST_COMMIT_HISTORY_FAILURE",
+      "expected": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c",
+      "after_repair": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c",
+      "after_retry": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c",
+      "after_continuation": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c",
+      "row_ok": true
+    },
+    {
+      "file": "00122_f3_04_correction_reversal.sql",
+      "push_status": 1,
+      "repair_status": 0,
+      "classification_split": "POST_COMMIT_HISTORY_FAILURE",
+      "expected": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146",
+      "after_repair": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146",
+      "after_retry": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146",
+      "after_continuation": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146",
+      "row_ok": true
+    },
+    {
+      "file": "00123_f3_05_opening_cash_command.sql",
+      "push_status": 1,
+      "repair_status": 0,
+      "classification_split": "POST_COMMIT_HISTORY_FAILURE",
+      "expected": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
+      "after_repair": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
+      "after_retry": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
+      "after_continuation": null,
+      "row_ok": true
+    }
+  ]
+}

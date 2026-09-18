@@ -1,0 +1,30 @@
+{
+  "verdict": "HOLD",
+  "functional_sha": "2fcc65114d89f098dc5d0f7787a99cb08c643c21",
+  "stopped_at": "00118_f3_bounded_financial_epoch_foundation.sql",
+  "failedGates": [
+    "fingerprint_exact"
+  ],
+  "repairAttempted": false,
+  "repairCalls": 0,
+  "poison_cleaned": true,
+  "continuation": false,
+  "expected_sha256": "8299680fd5b3def52a981ae8c8ee097f29f13507b91d4f0799557236f1b5001c",
+  "observed_sha256": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+  "observed_equals_forbidden_hosted": true,
+  "expected_ne_observed": true,
+  "no_reseal_from_observed": true,
+  "classification_split": "POST_COMMIT_HISTORY_FAILURE",
+  "limitation": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+  "diffsVsExpected": {
+    "comparable": true,
+    "equal": false,
+    "changedKeys": [
+      "acl",
+      "acls",
+      "relations"
+    ],
+    "missingKeys": [],
+    "extraKeys": []
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "runtime": {
+    "label": "F15_QUALIFICATION_RESET_RUNTIME_CLOSURE",
+    "sha256": "949e68359e55870050e53ef3f93ec8179fc7a5e1587a908044e0ab26cfdbbb92",
+    "count": 45
+  },
+  "verificationUnion": {
+    "label": "F15_QUALIFICATION_RESET_VERIFICATION_UNION",
+    "sha256": "30dd8ad9972db6ef6dc7d4c35d49ae420ce2c445103c6180d469d901f88c5752",
+    "count": 48
+  },
+  "forbiddenSummary": "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d",
+  "framingHoldClosed": true
+}

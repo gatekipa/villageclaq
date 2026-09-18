@@ -1,0 +1,8 @@
+{
+  "id": "F12-RESET-HOLD-HISTORY-OR-F3-OBJECTS",
+  "disclosed": true,
+  "invented_delete_procedure": false,
+  "wipe_to_baseline_still_rejected": true,
+  "wipe_rejection_code": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
+  "reason": "Pinned wipe library HOLDs when schema_migrations_rows>0 or financial_* objects are present. No authorized DELETE FROM supabase_migrations.schema_migrations WHERE version/name IN (preassigned 20260913173000–005 / PREASSIGNED_NAMES) exists in pinned source. Do not invent that SQL. Do not use --wipe-to-baseline."
+}

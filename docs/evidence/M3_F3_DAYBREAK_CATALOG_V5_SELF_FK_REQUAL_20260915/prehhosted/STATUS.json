@@ -1,0 +1,8 @@
+{
+  "verdict": "CONTINUE",
+  "reason": "Local READY_TO_FF; tip hashes \u2261 17.6 primary\u2261independent; partitions reconcile; self-FK RI roles OK; F5 additive FF complete",
+  "local_verdict": "READY_TO_FF",
+  "F5": "228549412cf3b7a3cfa3a1c6c6bdee553a1c0a65",
+  "schema": "f3-full-catalog-v5",
+  "captured_at_et": "09/16/2026, 01:19:42 PM ET"
+}

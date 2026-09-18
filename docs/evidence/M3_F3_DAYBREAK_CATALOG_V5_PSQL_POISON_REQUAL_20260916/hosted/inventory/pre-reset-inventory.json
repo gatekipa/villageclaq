@@ -1,0 +1,31 @@
+{
+  "artifact": "hosted-inventory",
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "production_contacted": false,
+  "inventory": {
+    "server_version": "17.6",
+    "current_database": "postgres",
+    "f3_history": [],
+    "all_history_count": 0,
+    "financial_schemas": [
+      "financial_private"
+    ],
+    "financial_public_tables": [
+      "financial_ledger_epochs"
+    ],
+    "public_table_count": 32,
+    "canary_present": false,
+    "schema_migrations_exists": true,
+    "poison_markers": [],
+    "ambiguous_objects": [
+      "financial_schemas",
+      "financial_public_tables"
+    ]
+  },
+  "classification_verdict": "NOT_CLEAN",
+  "cleanBaseline": false,
+  "ambiguous_objects": [
+    "financial_schemas",
+    "financial_public_tables"
+  ]
+}

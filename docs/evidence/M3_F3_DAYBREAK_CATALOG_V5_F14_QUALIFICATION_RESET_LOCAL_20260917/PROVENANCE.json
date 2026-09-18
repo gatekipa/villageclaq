@@ -1,0 +1,256 @@
+{
+  "packedAt": "2026-09-17T12:27:51.118Z",
+  "tipExact": true,
+  "tip": "2d502a028b0d01808a871fb1d48d051813591ed2",
+  "parentIsAncestor": true,
+  "suiteBindings": [
+    {
+      "suite": "test-f3-reset-design",
+      "classification": "PASS",
+      "expect": {
+        "tests": 26,
+        "pass": 26,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 26,
+        "pass": 26,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "fe51761d8965c250a774bf65cadcb9ad4c467dab82c4596ff95c27e4194a3d11",
+      "outBytes": 5232
+    },
+    {
+      "suite": "test-f3-reset",
+      "classification": "PASS",
+      "expect": {
+        "tests": 29,
+        "pass": 29,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 29,
+        "pass": 29,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "129610457a8b5d1b7c7bcdacbde99e64580535f46ea89c26b4eaca84583b0314",
+      "outBytes": 6320
+    },
+    {
+      "suite": "test-f3-db-push",
+      "classification": "PASS_WITH_SKIPS",
+      "expect": {
+        "tests": 205,
+        "pass": 204,
+        "fail": 0,
+        "skipped": 1
+      },
+      "observed": {
+        "tests": 205,
+        "pass": 204,
+        "fail": 0,
+        "skipped": 1
+      },
+      "outSha256": "71314ecab80f055ff44a9bf40152ab76541bdff5959dcefb4df720ab347c7ba6",
+      "outBytes": 207463
+    },
+    {
+      "suite": "test-f3-recognition",
+      "classification": "PASS",
+      "expect": {
+        "tests": 40,
+        "pass": 40,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 40,
+        "pass": 40,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "75d693ebfdf1daa3e9bcfff1a9023e3a8303716eba81fde8a46a9480cf9294e8",
+      "outBytes": 7502
+    },
+    {
+      "suite": "test-f3-oracles",
+      "classification": "PASS",
+      "expect": {
+        "tests": 577,
+        "pass": 577,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 577,
+        "pass": 577,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "4c8a1931aeb75fa59383615b1829369825991f5c2808726079caf178a2d2d91c",
+      "outBytes": 87331
+    },
+    {
+      "suite": "test-f3-local-safety",
+      "classification": "PASS",
+      "expect": {
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "c967a2ef9e03176c2ced397bfce1a7742daf2fb0857e9d3bc07264cd328c1748",
+      "outBytes": 8183
+    },
+    {
+      "suite": "test-f3-mapi-harness",
+      "classification": "PASS",
+      "expect": {
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "784f7a0aaad529c5aee873200f46a031921514a67c67d1095a3629abe6d44310",
+      "outBytes": 4554
+    },
+    {
+      "suite": "test-m2",
+      "classification": "PASS",
+      "expect": {
+        "tests": 111,
+        "pass": 111,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 111,
+        "pass": 111,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "5506719aaf5b3c1cc93a045ba1c5d45a2e53e1eee22629e3d361ab3d4f711d77",
+      "outBytes": 22327
+    },
+    {
+      "suite": "test-m2-static-security",
+      "classification": "PASS",
+      "expect": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "72e75992bcddd883d4ba051a3170664733d013ea66d9dae0dcd152f421112d08",
+      "outBytes": 1915
+    },
+    {
+      "suite": "test-s0-cut1",
+      "classification": "PASS",
+      "expect": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "16e8941b01ae299fb2771a351790d6c27f509f8180487b74f3f8bddef8921d78",
+      "outBytes": 2402
+    },
+    {
+      "suite": "test-s0-cut2",
+      "classification": "ENV_DEPENDENT_FAIL",
+      "expect": {
+        "tests": 21,
+        "pass": 14,
+        "fail": 7,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 21,
+        "pass": 14,
+        "fail": 7,
+        "skipped": 0
+      },
+      "outSha256": "556ede576229f49cdcc4c1406d67cedbadf353ba5d62a8ee4798aa7bdd28fbec",
+      "outBytes": 14260
+    },
+    {
+      "suite": "test-storage-buckets",
+      "classification": "PASS",
+      "expect": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      },
+      "observed": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outSha256": "ba22a97b01de978fb08ddfe64169efe79dcb2d30aa911e8b6e11aadf711d8455",
+      "outBytes": 2427
+    },
+    {
+      "suite": "tsc-noEmit",
+      "classification": "PASS",
+      "expect": null,
+      "observed": null,
+      "outSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outBytes": 0
+    },
+    {
+      "suite": "next-build",
+      "classification": "PASS",
+      "expect": null,
+      "observed": null,
+      "outSha256": "5e40bf4694a19bf65ed5a4294144662a093a3dad099140365817750a8d1056cd",
+      "outBytes": 6884
+    },
+    {
+      "suite": "local-pg-proof",
+      "classification": "PASS",
+      "expect": null,
+      "observed": null,
+      "outSha256": "0326dab26877945c05d6086897c80ba2b82c2087357441a000c803e4d4db6ac4",
+      "outBytes": 1458
+    },
+    {
+      "suite": "committed-helper-must-local",
+      "classification": "MUST_LOCAL_THEN_EXPANDED",
+      "expect": null,
+      "observed": null,
+      "outSha256": "3a9f1248ac5083a973b8d55df4da9d99a157078dc6f52748b91229cf3a04e355",
+      "outBytes": 5528
+    }
+  ]
+}

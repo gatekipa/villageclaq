@@ -1,0 +1,13 @@
+{
+  "sha256": "fc76bd42047357bffc82dffe0a905c2b53a76c33bd324a479889a8f5fab609d7",
+  "bytes": 259,
+  "encoding": "utf8",
+  "sanitized_before_hash": true,
+  "tests": [
+    {
+      "name": "qualify-f3-db-push-disposable",
+      "ok": null,
+      "exact_error": null
+    }
+  ]
+}

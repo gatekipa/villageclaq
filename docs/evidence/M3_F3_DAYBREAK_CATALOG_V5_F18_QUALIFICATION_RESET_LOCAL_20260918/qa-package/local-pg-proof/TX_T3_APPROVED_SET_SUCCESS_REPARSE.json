@@ -1,0 +1,59 @@
+{
+  "id": "TX_T3_APPROVED_SET_SUCCESS",
+  "helperAttestation": {
+    "ok": true,
+    "consistent": true,
+    "schema": "f18-qualification-reset-stored-process-adapter-v1",
+    "parsedOk": true,
+    "observationCount": 8,
+    "lastEvent": {
+      "schema": "f15-qualification-reset-tx-observation-v1",
+      "phase": "T7_COMMIT",
+      "event": "committed",
+      "committed": true
+    },
+    "interpretedCommitted": true,
+    "interpretedVerdictPath": "CLEAN_BASELINE",
+    "phaseReached": "T7_COMMIT",
+    "t7CommitAttempted": true,
+    "t7CommittedTrue": true,
+    "processStatus": 0,
+    "processFailed": false,
+    "genuineSuccess": true,
+    "genuineFailure": false,
+    "successClaimedUncommitted": false,
+    "failureBecameCommitted": false,
+    "mappedProcessStatusToStatus": false
+  },
+  "independentAdapted": {
+    "ok": true,
+    "mapped": false
+  },
+  "independentInterpretedCommitted": true,
+  "independentAttest": {
+    "ok": true,
+    "consistent": true,
+    "schema": "f18-qualification-reset-stored-process-adapter-v1",
+    "parsedOk": true,
+    "observationCount": 8,
+    "lastEvent": {
+      "schema": "f15-qualification-reset-tx-observation-v1",
+      "phase": "T7_COMMIT",
+      "event": "committed",
+      "committed": true
+    },
+    "interpretedCommitted": true,
+    "interpretedVerdictPath": "CLEAN_BASELINE",
+    "phaseReached": "T7_COMMIT",
+    "t7CommitAttempted": true,
+    "t7CommittedTrue": true,
+    "processStatus": 0,
+    "processFailed": false,
+    "genuineSuccess": true,
+    "genuineFailure": false,
+    "successClaimedUncommitted": false,
+    "failureBecameCommitted": false,
+    "mappedProcessStatusToStatus": false
+  },
+  "missingStatusDoesNotSucceed": true
+}

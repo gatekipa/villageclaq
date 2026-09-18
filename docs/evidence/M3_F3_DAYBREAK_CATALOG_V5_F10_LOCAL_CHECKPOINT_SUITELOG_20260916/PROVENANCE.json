@@ -1,0 +1,30 @@
+{
+  "package": "M3_F3_DAYBREAK_CATALOG_V5_F10_LOCAL_CHECKPOINT_SUITELOG_20260916",
+  "mode": "LOCAL_ONLY",
+  "functional_tip": "3a842910b3cd3cc9eafb3216e3e4f65326f003c2",
+  "evidence_parent": "f5727733a036536c0374d93570f61e80a127d428",
+  "ancestry": [
+    "facec73a21ec62025d7a33d0ae142dcf05bc1183",
+    "268f974a1adec7d3525beb850f7768137262c135",
+    "f5727733a036536c0374d93570f61e80a127d428",
+    "3a842910b3cd3cc9eafb3216e3e4f65326f003c2"
+  ],
+  "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "hosted_forbidden": true,
+  "disposable_forbidden": true,
+  "production_forbidden": true,
+  "f9_evidence_immutable": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F9_EVENT_DURABLE_REQUAL_20260916/",
+  "suite_log_pipeline": [
+    "capture",
+    "sanitize",
+    "durable_write",
+    "reread",
+    "hash",
+    "suite_metadata",
+    "indexes"
+  ],
+  "producer": "scripts/lib/f3-db-push-repair-safety-gate.mjs#packageF10LocalSuiteLog",
+  "verbatim_floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "captured_at_et": "9/16/2026, 7:39:18 PM EDT"
+}

@@ -1,0 +1,11 @@
+{
+  "title": "M3_F3_DAYBREAK_HOLD_00119_FUNCTION_OWNER_ORDER_20260914",
+  "verdict": "HOLD",
+  "functional_sha": "104a5b514c35b5a3bee6526578f7bccc3575dfb3",
+  "root_cause": "fingerprint_exact at 00119: function_owner same members different order vs frozen expected; prefix-complete staging OK; repairAttempted=false",
+  "00118": "PASS",
+  "00119": "HOLD STOP",
+  "00120_00123": "NOT RUN",
+  "staging": "PREFIX-COMPLETE SINGLE-PENDING PASS through 00119",
+  "negatives_all_zero": true
+}

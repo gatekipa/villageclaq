@@ -1,0 +1,250 @@
+{
+  "artifact": "negative-hosted-matrix",
+  "functional_sha": "b45042d8c9927a72fa1fddf9e6be27b96ee56919",
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "cli": "2.117.0",
+  "tip_modules": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs"
+  ],
+  "real_apis_exercised": [
+    "runRepairSafetyThenMaybeRepair",
+    "syncIsolatedMigrationsThrough",
+    "evaluateObjectProbe",
+    "evaluatePoisonAbsent",
+    "evaluateCleanupProven",
+    "fingerprintCompleteAndExact"
+  ],
+  "isolated_staging": {
+    "staged118": [
+      "20260913173000_f3_bounded_financial_epoch_foundation.sql"
+    ],
+    "stagedNames": [
+      "20260913173000_f3_bounded_financial_epoch_foundation.sql"
+    ]
+  },
+  "cases": [
+    {
+      "id": "N1",
+      "title": "Malformed/non-JSON object-probe",
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [
+        "expected_objects",
+        "security_postconditions"
+      ],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "objectProbe": {
+        "present": false,
+        "reason": "non-JSON"
+      },
+      "cleanupStatus": 0,
+      "poisonAbsent": false,
+      "teardownRecorded": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "evaluateObjectProbe": true,
+        "syncIsolatedMigrationsThrough": true,
+        "tip_sha": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+      },
+      "evaluateObjectProbe": {
+        "present": false,
+        "reason": "non-JSON"
+      }
+    },
+    {
+      "id": "N2",
+      "title": "Nonzero/query-error object probe",
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [
+        "no_unrelated_sql_error",
+        "expected_objects",
+        "security_postconditions"
+      ],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "objectProbe": {
+        "present": false,
+        "reason": "probe status 1"
+      },
+      "cleanupStatus": 0,
+      "poisonAbsent": false,
+      "teardownRecorded": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "evaluateObjectProbe": true,
+        "syncIsolatedMigrationsThrough": true,
+        "tip_sha": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+      },
+      "evaluateObjectProbe": {
+        "present": false,
+        "reason": "probe status 1"
+      }
+    },
+    {
+      "id": "N3",
+      "title": "Exact fingerprint mismatch",
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [
+        "fingerprint_exact"
+      ],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "objectProbe": {
+        "present": true,
+        "schema": "array_rows",
+        "row": {
+          "p0": "financial_private",
+          "p1": "public.financial_ledger_epochs"
+        }
+      },
+      "cleanupStatus": 0,
+      "poisonAbsent": false,
+      "teardownRecorded": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "evaluateObjectProbe": true,
+        "syncIsolatedMigrationsThrough": true,
+        "tip_sha": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+      },
+      "fingerprintEval": {
+        "ok": false,
+        "reason": "fingerprint expected and observed are not canonically equal"
+      }
+    },
+    {
+      "id": "N4",
+      "title": "Cleanup status 1",
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [],
+      "hold": null,
+      "objectProbe": {
+        "present": true,
+        "schema": "array_rows",
+        "row": {
+          "p0": "financial_private",
+          "p1": "public.financial_ledger_epochs"
+        }
+      },
+      "cleanupStatus": 1,
+      "poisonAbsent": false,
+      "teardownRecorded": true,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "evaluateObjectProbe": true,
+        "syncIsolatedMigrationsThrough": true,
+        "tip_sha": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+      },
+      "poison_install": {
+        "status": 0
+      },
+      "poison_pre_verify_status": 0,
+      "cleanupProof": {
+        "ok": false,
+        "reason": "cleanup status 1"
+      }
+    },
+    {
+      "id": "N5",
+      "title": "Cleanup succeeds but poison remains",
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [],
+      "hold": null,
+      "objectProbe": {
+        "present": true,
+        "schema": "array_rows",
+        "row": {
+          "p0": "financial_private",
+          "p1": "public.financial_ledger_epochs"
+        }
+      },
+      "cleanupStatus": 0,
+      "poisonAbsent": false,
+      "teardownRecorded": true,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "evaluateObjectProbe": true,
+        "syncIsolatedMigrationsThrough": true,
+        "tip_sha": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+      },
+      "poison_install": {
+        "status": 0
+      },
+      "realPoisonEval": {
+        "ok": false,
+        "absent": false,
+        "reason": "poison trigger remains present"
+      }
+    },
+    {
+      "id": "N6",
+      "title": "Unexpected or multiple staged migrations",
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [
+        "staged_exact_one"
+      ],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "objectProbe": {
+        "present": true,
+        "schema": "array_rows",
+        "row": {
+          "p0": "financial_private",
+          "p1": "public.financial_ledger_epochs"
+        }
+      },
+      "cleanupStatus": 0,
+      "poisonAbsent": false,
+      "teardownRecorded": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "evaluateObjectProbe": true,
+        "syncIsolatedMigrationsThrough": true,
+        "tip_sha": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+      },
+      "syncIsolatedMigrationsThrough_reject": {
+        "threw": false,
+        "message": null
+      },
+      "staged_used": [
+        "20260913173000_f3_bounded_financial_epoch_foundation.sql",
+        "20260913173001_f3_01_core_ledger_foundation.sql"
+      ]
+    }
+  ],
+  "all_repairCalls_zero": true,
+  "teardowns": [
+    {
+      "case": "N4",
+      "status": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "case": "N5",
+      "status": 0
+    }
+  ],
+  "final_poison_absent": {
+    "ok": true,
+    "absent": true,
+    "row": {
+      "function_present": false,
+      "trigger_present": false
+    }
+  },
+  "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation"
+}

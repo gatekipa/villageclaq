@@ -1,0 +1,246 @@
+{
+  "phase": "local",
+  "verdict": "CONTINUE",
+  "captured_at_et": "9/16/2026, 2:25:22 PM EDT",
+  "tip_sha": "83c48192ef0309ae2ebdd1f087994319b19fc024",
+  "parent_f7_evidence": "41b913ecf5885a2f2f012d58ed200b3f429ce72e",
+  "only_allowlisted_4": true,
+  "diff_files": [
+    "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_PSQL_POISON_REQUAL_20260916/psql-proof/psql-proof/run-local-psql-poison-proof.mjs",
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "independent_ref_sha256": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+  "independent_ref_ok": true,
+  "schema_version": "f3-full-catalog-v5",
+  "cli": "2.117.0",
+  "suites": {
+    "test-f3-db-push": {
+      "exit": 0,
+      "classification": "PASS_WITH_SKIPS",
+      "counts": {
+        "tests": 130,
+        "pass": 129,
+        "fail": 0,
+        "skipped": 1
+      },
+      "out_sha256": "9b480662d6ca2cfdf6d1d62976c9b4faa6e54cd5dfb6ea230a485a44fe27411b",
+      "out_bytes": 163710
+    },
+    "test-f3-recognition": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 40,
+        "pass": 40,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "8bd215afaba89c1e1c6fc59534258881ab2c76dfe4b5eecfcf98224f0512baa0",
+      "out_bytes": 7541
+    },
+    "test-f3-oracles": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 577,
+        "pass": 577,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "04b4452f454c554279ba8d04b78707dbc5fb831bcf6e81198417b070c89a3068",
+      "out_bytes": 87440
+    },
+    "test-f3-local-safety": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "f30e489d6b9d1b29d7cfd54e7899b36b4a1df31ee9240b5f159d7f1dd3651c2f",
+      "out_bytes": 10226
+    },
+    "test-f3-mapi-harness": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "ead05b4e67894c6c5798cf03c4118e2dabbbb853776968fd46c2b5a05fbaf37d",
+      "out_bytes": 4560
+    },
+    "test-m2": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 111,
+        "pass": 111,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "0d596ab5c2c8f24cf171ec30ffd28c7b479bd2c03dfa554a3b4350027bb32e9b",
+      "out_bytes": 22432
+    },
+    "test-m2-static-security": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "ac2e86277b4f87eee40c26259e70e6378a044a668b68d3d2d74b443ebf35242a",
+      "out_bytes": 1914
+    },
+    "test-s0-cut1": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "c1899588665985c4e9df553de8b237a9eba0cf07fea81f0ee52872618522f018",
+      "out_bytes": 2406
+    },
+    "test-s0-cut2": {
+      "exit": 1,
+      "classification": "ENV_DEPENDENT_FAIL",
+      "counts": {
+        "tests": 21,
+        "pass": 14,
+        "fail": 7,
+        "skipped": 0
+      },
+      "out_sha256": "939c3d581468edfd35867787d23ff313e7fc75ac404c78d72ac3fd98da3e146d",
+      "out_bytes": 15197
+    },
+    "test-storage-buckets": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "194ff2d76bd485d0e26386fe4c07de9b3b501d07b1b02964ee0114e7e3ef1231",
+      "out_bytes": 2426
+    },
+    "tsc-noEmit": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "out_bytes": 0
+    },
+    "next-build": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "fdd559ee482c0e67fa18ac56e4c9b06e8490389122f7e343a9789bb9ff71a6f2",
+      "out_bytes": 7206,
+      "note": "PASS after bind-mount node_modules (symlink rejected by turbopack)"
+    }
+  },
+  "local_proof": {
+    "verdict": "CONTINUE",
+    "positive_repairCalls": 1,
+    "positivesOk": true,
+    "negativesOk": true,
+    "stdout_sha256": "b13be10ffcd515af2b0e34b54400484c7bf7715ae6d786ff585c661551f70d02",
+    "client": "psql (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+    "server_version_ok": true
+  },
+  "matrix": {
+    "F3_N01_N37": true,
+    "F3_T01_T25": true,
+    "f8_ids": {
+      "F8-R01": true,
+      "F8-R02": true,
+      "F8-R03": true,
+      "F8-R04": true,
+      "F8-R05": true,
+      "F8-R06": true,
+      "F8-R07": true,
+      "F8-R08": true,
+      "F8-R09": true,
+      "F8-R10": true,
+      "F8-R11": true,
+      "F8-I01": true,
+      "F8-I02": true,
+      "F8-I03": true,
+      "F8-I04": true,
+      "F8-I05": true,
+      "F8-I06": true,
+      "F8-I07": true,
+      "F8-I08": true,
+      "F8-I09": true,
+      "F8-I10": true,
+      "F8-I11": true,
+      "F8-I12": true
+    },
+    "f8_ids_all_present": true
+  },
+  "synthetic_evidence": {
+    "ok": true,
+    "nested_ok": true,
+    "outer_ok": true,
+    "index_ok": true,
+    "index_sha256": "902bd45384947fe15fc2c145447adb5ddf49169d42547dec0bafbd841d1195a6",
+    "artifact_count": 3,
+    "unindexed_count": 0,
+    "unindexed": [],
+    "written_paths": [
+      "outPath",
+      "metaPath",
+      "meta",
+      "sanitizedBytes",
+      "outSha256",
+      "outBytes",
+      "metaFileSha256",
+      "metaFileBytes",
+      "indexPath",
+      "checksumPath",
+      "index",
+      "sha256",
+      "bytes",
+      "executable",
+      "packaging"
+    ]
+  },
+  "secret_scan": "PASS (fixture URLs / local disposable fixture strings only; no live tokens; ambient PG*/DATABASE_URL absent)",
+  "recursive_closure": {
+    "closure_complete": true,
+    "assert_ok": true,
+    "git_verification": {
+      "ok": true,
+      "porcelain_empty": true,
+      "head": "83c48192ef0309ae2ebdd1f087994319b19fc024"
+    },
+    "independent_reference_source_sha256": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+    "closure_sha256": "75037db675b829aaed2f07965b38f5b4d566840b6e2400191cb4b5702daced0f",
+    "file_count": 38
+  },
+  "hosted_functional_tree_seal": "c46d6132ac50b010e4426e043866d655fe0fe6a1fbe3c52145d1f76f6bc4eaa2",
+  "hardFail": false
+}

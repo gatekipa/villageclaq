@@ -1,0 +1,18 @@
+{
+  "suite": "test-storage-buckets",
+  "classification": "PASS",
+  "expect": {
+    "tests": 11,
+    "pass": 11,
+    "fail": 0,
+    "skipped": 0
+  },
+  "observed": {
+    "tests": 11,
+    "pass": 11,
+    "fail": 0,
+    "skipped": 0
+  },
+  "outSha256": "8f059065141ff8af678afc8e6bf634f9482b378c929cf7d5552ca93c374a35f8",
+  "outBytes": 2426
+}

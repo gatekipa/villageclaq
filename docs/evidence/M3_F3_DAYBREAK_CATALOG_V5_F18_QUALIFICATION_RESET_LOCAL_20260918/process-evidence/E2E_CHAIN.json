@@ -1,0 +1,22 @@
+{
+  "contract": {
+    "schema": "f18-qualification-reset-process-evidence-v1",
+    "boundary": "f18-process-evidence-boundary-v1",
+    "captureOriginalBeforeEncode": true,
+    "neverRecomputeOriginalFromTransformed": true,
+    "neverReplaceExplicitTrueFlagsOrErrorFieldsWithDefaults": true,
+    "validateAlreadyEncodedRecords": true,
+    "rejectAmbiguousShapes": true,
+    "originalStreamsRetainedAsHashesOnly": true,
+    "sanitizedStreamsAreSeparate": true
+  },
+  "successOriginalPreserved": true,
+  "failureEACCES": {
+    "code": "EACCES",
+    "name": "Error",
+    "syscall": "open",
+    "message": "open '[REDACTED_PATH]/file.sql'"
+  },
+  "timeoutTimedOut": true,
+  "originalNeverRecomputedFromTransformed": true
+}

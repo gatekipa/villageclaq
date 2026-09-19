@@ -1,0 +1,18 @@
+{
+  "suite": "test-f3-recognition",
+  "classification": "PASS",
+  "expect": {
+    "tests": 40,
+    "pass": 40,
+    "fail": 0,
+    "skipped": 0
+  },
+  "observed": {
+    "tests": 40,
+    "pass": 40,
+    "fail": 0,
+    "skipped": 0
+  },
+  "outSha256": "281e7967ecd578f92cda13d98fc076b6420ba9436b3e00eefd2bceef5b0ae772",
+  "outBytes": 7530
+}

@@ -1,0 +1,329 @@
+
+> villageclaq@0.1.0 test:f3-reset
+> node --test scripts/test-f3-qualification-reset.mjs
+
+TAP version 13
+# Subtest: F13-R00 wipe flag remains unconditionally rejected with reset argv
+ok 1 - F13-R00 wipe flag remains unconditionally rejected with reset argv
+  ---
+  duration_ms: 1.369978
+  ...
+# Subtest: F13-R01 missing and malformed founder auth fail closed
+ok 2 - F13-R01 missing and malformed founder auth fail closed
+  ---
+  duration_ms: 1.454755
+  ...
+# Subtest: F13-R02 stale and mismatched founder auth fail closed
+ok 3 - F13-R02 stale and mismatched founder auth fail closed
+  ---
+  duration_ms: 0.947371
+  ...
+# Subtest: F13-R03 wrong and production targets are refused
+ok 4 - F13-R03 wrong and production targets are refused
+  ---
+  duration_ms: 1.070784
+  ...
+# Subtest: F13-R04 invalid flags, artifact path, and SQL digest fail closed
+ok 5 - F13-R04 invalid flags, artifact path, and SQL digest fail closed
+  ---
+  duration_ms: 8.016844
+  ...
+# Subtest: F13-R05 unexpected objects and deps block eligibility and plan
+ok 6 - F13-R05 unexpected objects and deps block eligibility and plan
+  ---
+  duration_ms: 0.91945
+  ...
+# Subtest: F13-R06 wrong/missing/extra/null/empty history abort the whole plan
+ok 7 - F13-R06 wrong/missing/extra/null/empty history abort the whole plan
+  ---
+  duration_ms: 4.581792
+  ...
+# Subtest: F13-R07 emitted SQL is RESTRICT-only with exact version+name deletes
+ok 8 - F13-R07 emitted SQL is RESTRICT-only with exact version+name deletes
+  ---
+  duration_ms: 1.807721
+  ...
+# Subtest: F13-R08 state change between plan and TX validation aborts without commit
+ok 9 - F13-R08 state change between plan and TX validation aborts without commit
+  ---
+  duration_ms: 1.990399
+  ...
+# Subtest: F13-R09 failure before mutation counts no committed effects
+ok 10 - F13-R09 failure before mutation counts no committed effects
+  ---
+  duration_ms: 8.770924
+  ...
+# Subtest: F13-R10 failure after begin does not claim success or infer rollback
+ok 11 - F13-R10 failure after begin does not claim success or infer rollback
+  ---
+  duration_ms: 7.121439
+  ...
+# Subtest: F13-R11 incorrect affected-row and failed final baseline do not claim commit
+ok 12 - F13-R11 incorrect affected-row and failed final baseline do not claim commit
+  ---
+  duration_ms: 4.243163
+  ...
+# Subtest: F13-R12 uncertain commit is labeled and never auto-replayed
+ok 13 - F13-R12 uncertain commit is labeled and never auto-replayed
+  ---
+  duration_ms: 2.362837
+  ...
+# Subtest: F13-R13 successful authorized synthetic execution uses the real planner
+ok 14 - F13-R13 successful authorized synthetic execution uses the real planner
+  ---
+  duration_ms: 2.651794
+  ...
+# Subtest: F13-R14 disabled transport is not a production bypass
+ok 15 - F13-R14 disabled transport is not a production bypass
+  ---
+  duration_ms: 2.044601
+  ...
+# Subtest: F13-R15 valid artifact plus matching runtime context is accepted
+ok 16 - F13-R15 valid artifact plus matching runtime context is accepted
+  ---
+  duration_ms: 0.564216
+  ...
+# Subtest: F13-R16 qualify runtime context helper stays disposable-bound
+ok 17 - F13-R16 qualify runtime context helper stays disposable-bound
+  ---
+  duration_ms: 583.137614
+  ...
+# Subtest: F13-R17 hardcoded empty inventory is refused until capture is wired
+ok 18 - F13-R17 hardcoded empty inventory is refused until capture is wired
+  ---
+  duration_ms: 1.949925
+  ...
+# Subtest: F13-R18 leftover emit requires eligible===true; alreadyClean is no-mutation
+ok 19 - F13-R18 leftover emit requires eligible===true; alreadyClean is no-mutation
+  ---
+  duration_ms: 1.782967
+  ...
+# Subtest: F13-R19 qualify-main path wires INVENTORY_CAPTURE_SQL before plan/emit
+ok 20 - F13-R19 qualify-main path wires INVENTORY_CAPTURE_SQL before plan/emit
+  ---
+  duration_ms: 4.076997
+  ...
+# Subtest: F13-R20 qualify-main empty capture is alreadyClean no-mutation; missing capture is refused
+ok 21 - F13-R20 qualify-main empty capture is alreadyClean no-mutation; missing capture is refused
+  ---
+  duration_ms: 0.992951
+  ...
+# Subtest: F13-R21 qualify-main leftover path requires eligible===true; extras HOLD with no DROP
+ok 22 - F13-R21 qualify-main leftover path requires eligible===true; extras HOLD with no DROP
+  ---
+  duration_ms: 3.793445
+  ...
+# Subtest: F14-R01 inventory parser rejects aligned framing and never defaults malformed to empty
+ok 23 - F14-R01 inventory parser rejects aligned framing and never defaults malformed to empty
+  ---
+  duration_ms: 2.019714
+  ...
+# Subtest: F14-R02 unexpected objects/deps stay in discovered universe and block apply
+ok 24 - F14-R02 unexpected objects/deps stay in discovered universe and block apply
+  ---
+  duration_ms: 0.724331
+  ...
+# Subtest: F14-R03 catalog-backed function identities canonicalize named args without stripping
+ok 25 - F14-R03 catalog-backed function identities canonicalize named args without stripping
+  ---
+  duration_ms: 4.852562
+  ...
+# Subtest: F14-R04 real transport contract: status0, SQL fail, truncate, COMMIT loss, timeout, ECONNRESET
+ok 26 - F14-R04 real transport contract: status0, SQL fail, truncate, COMMIT loss, timeout, ECONNRESET
+  ---
+  duration_ms: 34.194827
+  ...
+# Subtest: F14-R05 committed local proof helper reports wipe rejection and MUST_LOCAL honestly
+ok 27 - F14-R05 committed local proof helper reports wipe rejection and MUST_LOCAL honestly
+  ---
+  duration_ms: 7312.502486
+  ...
+# Subtest: F14-R06 runtime closure is entrypoint digest, not summary-file hash
+ok 28 - F14-R06 runtime closure is entrypoint digest, not summary-file hash
+  ---
+  duration_ms: 1039.834414
+  ...
+# Subtest: F14-R07 proposed hosted plan is complete, offline, and unauthorized
+ok 29 - F14-R07 proposed hosted plan is complete, offline, and unauthorized
+  ---
+  duration_ms: 1535.748147
+  ...
+# Subtest: F15-C1-R01 empty discovered vs inventory.public_tables cannot be CLEAN_BASELINE
+ok 30 - F15-C1-R01 empty discovered vs inventory.public_tables cannot be CLEAN_BASELINE
+  ---
+  duration_ms: 0.748735
+  ...
+# Subtest: F15-C1-R02 empty discovered vs inventory.public_views cannot be CLEAN_BASELINE
+ok 31 - F15-C1-R02 empty discovered vs inventory.public_views cannot be CLEAN_BASELINE
+  ---
+  duration_ms: 0.309925
+  ...
+# Subtest: F15-C1-R03 empty discovered vs inventory.financial_core cannot be CLEAN_BASELINE
+ok 32 - F15-C1-R03 empty discovered vs inventory.financial_core cannot be CLEAN_BASELINE
+  ---
+  duration_ms: 0.266875
+  ...
+# Subtest: F15-C1-R04 empty history vs inventory.schema_migrations_rows=6 cannot be CLEAN_BASELINE
+ok 33 - F15-C1-R04 empty history vs inventory.schema_migrations_rows=6 cannot be CLEAN_BASELINE
+  ---
+  duration_ms: 0.314415
+  ...
+# Subtest: F15-C1-R05 combined inventory contradictions HOLD with zero apply/SQL
+ok 34 - F15-C1-R05 combined inventory contradictions HOLD with zero apply/SQL
+  ---
+  duration_ms: 0.291507
+  ...
+# Subtest: F15-C1-R06 duplicate JSON member names are rejected at the raw boundary
+ok 35 - F15-C1-R06 duplicate JSON member names are rejected at the raw boundary
+  ---
+  duration_ms: 0.510368
+  ...
+# Subtest: F15-C1-R07 genuine complete matching inventories remain usable
+ok 36 - F15-C1-R07 genuine complete matching inventories remain usable
+  ---
+  duration_ms: 0.791185
+  ...
+# Subtest: F15-C2-R01 same-name FK with altered endpoints is rejected before apply
+ok 37 - F15-C2-R01 same-name FK with altered endpoints is rejected before apply
+  ---
+  duration_ms: 0.939312
+  ...
+# Subtest: F15-C2-R02 name-only dependency strings are not a fallback identity
+ok 38 - F15-C2-R02 name-only dependency strings are not a fallback identity
+  ---
+  duration_ms: 0.370014
+  ...
+# Subtest: F15-C2-R03 complete matching dependency tuples are retained through plan
+ok 39 - F15-C2-R03 complete matching dependency tuples are retained through plan
+  ---
+  duration_ms: 1.876714
+  ...
+# Subtest: F15-C3-R01 genuine migration-created financial FKs are eligible leftovers
+ok 40 - F15-C3-R01 genuine migration-created financial FKs are eligible leftovers
+  ---
+  duration_ms: 5.165274
+  ...
+# Subtest: F15-C3-R02 same catalog name with altered kind/source/target is rejected
+ok 41 - F15-C3-R02 same catalog name with altered kind/source/target is rejected
+  ---
+  duration_ms: 0.561586
+  ...
+# Subtest: F15-C4-R01 PREFIX+WRONG_PHASE committed+SUFFIX status0 is not CLEAN_BASELINE
+ok 42 - F15-C4-R01 PREFIX+WRONG_PHASE committed+SUFFIX status0 is not CLEAN_BASELINE
+  ---
+  duration_ms: 1.956244
+  ...
+# Subtest: F15-C4-R02 PREFIX committed observation plus EACCES is not success
+ok 43 - F15-C4-R02 PREFIX committed observation plus EACCES is not success
+  ---
+  duration_ms: 1.835626
+  ...
+# Subtest: F15-C4-R04 advisory-lock void SELECT blank line must not break success observation framing
+ok 44 - F15-C4-R04 advisory-lock void SELECT blank line must not break success observation framing
+  ---
+  duration_ms: 3.549094
+  ...
+# Subtest: F15-C4-R03 new protocol still rejects equivalent WRONG_PHASE / missing / reorder mutations
+ok 45 - F15-C4-R03 new protocol still rejects equivalent WRONG_PHASE / missing / reorder mutations
+  ---
+  duration_ms: 0.608782
+  ...
+# Subtest: F15-C5-R01 committed helper records three real TX scenarios or MUST_LOCAL
+ok 46 - F15-C5-R01 committed helper records three real TX scenarios or MUST_LOCAL
+  ---
+  duration_ms: 6677.534797
+  ...
+# Subtest: F15-C6-R01 hosted plan builder emits complete unauthorized candidate plan
+ok 47 - F15-C6-R01 hosted plan builder emits complete unauthorized candidate plan
+  ---
+  duration_ms: 493.574757
+  ...
+# Subtest: F16-A01 empty discovery plus auth/unnest/unexpected storage cannot be CLEAN_BASELINE
+ok 48 - F16-A01 empty discovery plus auth/unnest/unexpected storage cannot be CLEAN_BASELINE
+  ---
+  duration_ms: 1.42956
+  ...
+# Subtest: F16-A02 baseline-affecting inventory matrix is table-driven and fail-closed
+ok 49 - F16-A02 baseline-affecting inventory matrix is table-driven and fail-closed
+  ---
+  duration_ms: 3.427846
+  ...
+# Subtest: F16-A03 genuine already-clean and approved leftovers still reach supported paths
+ok 50 - F16-A03 genuine already-clean and approved leftovers still reach supported paths
+  ---
+  duration_ms: 3.066984
+  ...
+# Subtest: F16-B01 generated T3 SQL queries live catalog tuples and captured starting state
+ok 51 - F16-B01 generated T3 SQL queries live catalog tuples and captured starting state
+  ---
+  duration_ms: 2.870458
+  ...
+# Subtest: F17-A01 unexpected storage_buckets alone cannot be CLEAN_BASELINE
+ok 52 - F17-A01 unexpected storage_buckets alone cannot be CLEAN_BASELINE
+  ---
+  duration_ms: 0.372235
+  ...
+# Subtest: F17-A02 unexpected bucket plus valid baseline buckets still HOLD
+ok 53 - F17-A02 unexpected bucket plus valid baseline buckets still HOLD
+  ---
+  duration_ms: 0.295078
+  ...
+# Subtest: F17-A03 supported clean and named residual buckets still CLEAN_BASELINE
+ok 54 - F17-A03 supported clean and named residual buckets still CLEAN_BASELINE
+  ---
+  duration_ms: 0.452673
+  ...
+# Subtest: F17-A04 leftover plus unexpected bucket HOLDs; leftover plus named buckets stays eligible
+ok 55 - F17-A04 leftover plus unexpected bucket HOLDs; leftover plus named buckets stays eligible
+  ---
+  duration_ms: 2.31186
+  ...
+# Subtest: F17-A05 malformed and contradictory storage_buckets fail closed
+ok 56 - F17-A05 malformed and contradictory storage_buckets fail closed
+  ---
+  duration_ms: 0.402158
+  ...
+# Subtest: F17-B01 isolation is READ COMMITTED and lock order is documented
+ok 57 - F17-B01 isolation is READ COMMITTED and lock order is documented
+  ---
+  duration_ms: 1.078381
+  ...
+# Subtest: F17-B02 two-session lock-wait scenarios are recorded or MUST_LOCAL
+ok 58 - F17-B02 two-session lock-wait scenarios are recorded or MUST_LOCAL
+  ---
+  duration_ms: 6656.428377
+  ...
+# Subtest: F17-C01 process evidence packaging preserves failure metadata and stream hashes
+ok 59 - F17-C01 process evidence packaging preserves failure metadata and stream hashes
+  ---
+  duration_ms: 1.238117
+  ...
+# Subtest: F18-A01 backend-bound lock proof negatives cannot PASS
+ok 60 - F18-A01 backend-bound lock proof negatives cannot PASS
+  ---
+  duration_ms: 0.262987
+  ...
+# Subtest: F18-B01 runner-helper-serialize-reread-parser preserves provenance E2E
+ok 61 - F18-B01 runner-helper-serialize-reread-parser preserves provenance E2E
+  ---
+  duration_ms: 8.663698
+  ...
+# Subtest: F18-C01 success records reparse committed; failures stay rejected
+ok 62 - F18-C01 success records reparse committed; failures stay rejected
+  ---
+  duration_ms: 0.832452
+  ...
+1..62
+# tests 62
+# suites 0
+# pass 62
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 25559.003025
+npm notice
+npm notice New major version of npm available! 10.9.7 -> 12.0.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
+npm notice To update run: npm install -g npm@12.0.2
+npm notice

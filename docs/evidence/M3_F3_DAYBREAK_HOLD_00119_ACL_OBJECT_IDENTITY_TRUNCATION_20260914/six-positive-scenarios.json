@@ -1,0 +1,290 @@
+{
+  "status": "HOLD",
+  "verdict": "HOLD",
+  "candidateOnly": true,
+  "productionApproved": false,
+  "expectedFingerprintsBeforeDb": {
+    "recordedBeforeDbAccess": true,
+    "independentOfObserved": true,
+    "constructedOffline": true,
+    "sha256BeforeDb": {
+      "00118_f3_bounded_financial_epoch_foundation.sql": "07ce0b411f0a7098de31ada42dd2863cb6fc50e94fe685ff998b0bd16613e535",
+      "00119_f3_01_core_ledger_foundation.sql": "e8005d0591d974d4b24ced9529904bd7c0727bc3fd98a5aeabf61c7325ab4d26",
+      "00120_f3_02_secure_posting_idempotency.sql": "ebeb5c45edc4ee41e1fc98687b11d6c0fe122d629a972c8d4b507ab2096b117b",
+      "00121_f3_03_projection_read_proof.sql": "f026b6abcfd37efda7c5d12c687077958acf0be01cf9154a77070b32fd245976",
+      "00122_f3_04_correction_reversal.sql": "e245610827cc6aebbfd64b86f684f8cea9b6d53311b7788bbd5459c93029faae",
+      "00123_f3_05_opening_cash_command.sql": "f25e2ea4a86650faf3d5f0a01175bac4a1d2f44f11e3c2e7fc5a9acff422c09a"
+    }
+  },
+  "projectRef": "jkorwnwwmdeflfntxntl",
+  "recognition": [
+    "manual_income"
+  ],
+  "frozenDigests": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+    "00119_f3_01_core_ledger_foundation.sql": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+    "00120_f3_02_secure_posting_idempotency.sql": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+    "00121_f3_03_projection_read_proof.sql": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+    "00122_f3_04_correction_reversal.sql": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+    "00123_f3_05_opening_cash_command.sql": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d"
+  },
+  "versionsKnownBeforeExecution": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "20260913173000",
+    "00119_f3_01_core_ledger_foundation.sql": "20260913173001",
+    "00120_f3_02_secure_posting_idempotency.sql": "20260913173002",
+    "00121_f3_03_projection_read_proof.sql": "20260913173003",
+    "00122_f3_04_correction_reversal.sql": "20260913173004",
+    "00123_f3_05_opening_cash_command.sql": "20260913173005"
+  },
+  "preStubFloorCleanCheck": {
+    "clean_ok": true,
+    "f3_absent": true
+  },
+  "preDbPushGates": {
+    "ok": true
+  },
+  "floor": {
+    "installed": true,
+    "exact": true,
+    "mode": "stub-live-pin",
+    "label": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT"
+  },
+  "sequence": [
+    {
+      "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+      "destName": "20260913173000_f3_bounded_financial_epoch_foundation.sql",
+      "version": "20260913173000",
+      "digest": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+      "stagingPreflight": {
+        "ok": true,
+        "pending": [
+          "20260913173000"
+        ],
+        "staged": [
+          "20260913173000_f3_bounded_financial_epoch_foundation.sql"
+        ],
+        "expectedPending": [
+          "00118_f3_bounded_financial_epoch_foundation.sql"
+        ]
+      },
+      "objectsPresent": true,
+      "repairSafety": {
+        "ok": true,
+        "repairAuthorized": true,
+        "continuation": true,
+        "failedGates": [],
+        "hold": null,
+        "gates": [
+          {
+            "id": "authorized_file",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "disposable_identity",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "production_rejected",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "cli_pin",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "staged_prefix_complete",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "inject_installed_exact_version",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "nonzero_exit",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "target_inject_marker",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "no_unrelated_sql_error",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "target_history_absent",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "expected_objects",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "security_postconditions",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "fingerprint_exact",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "sql_digest",
+            "ok": true,
+            "detail": true
+          }
+        ]
+      },
+      "fingerprintBeforeRepair": {
+        "expectedSha256BeforeDb": "07ce0b411f0a7098de31ada42dd2863cb6fc50e94fe685ff998b0bd16613e535",
+        "observedPresent": true
+      },
+      "repairAttempted": true,
+      "continuation": true,
+      "retryPreflight": {
+        "ok": true,
+        "pending": [],
+        "staged": [
+          "20260913173000_f3_bounded_financial_epoch_foundation.sql"
+        ]
+      },
+      "retry": {
+        "status": 0
+      },
+      "push": {
+        "status": 1
+      }
+    },
+    {
+      "file": "00119_f3_01_core_ledger_foundation.sql",
+      "destName": "20260913173001_f3_01_core_ledger_foundation.sql",
+      "version": "20260913173001",
+      "digest": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+      "stagingPreflight": {
+        "ok": true,
+        "pending": [
+          "20260913173001"
+        ],
+        "staged": [
+          "20260913173000_f3_bounded_financial_epoch_foundation.sql",
+          "20260913173001_f3_01_core_ledger_foundation.sql"
+        ],
+        "expectedPending": [
+          "00119_f3_01_core_ledger_foundation.sql"
+        ]
+      },
+      "objectsPresent": true,
+      "repairSafety": {
+        "ok": false,
+        "repairAuthorized": false,
+        "continuation": false,
+        "failedGates": [
+          "fingerprint_exact"
+        ],
+        "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+        "gates": [
+          {
+            "id": "authorized_file",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "disposable_identity",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "production_rejected",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "cli_pin",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "staged_prefix_complete",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "inject_installed_exact_version",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "nonzero_exit",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "target_inject_marker",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "no_unrelated_sql_error",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "target_history_absent",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "expected_objects",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "security_postconditions",
+            "ok": true,
+            "detail": true
+          },
+          {
+            "id": "fingerprint_exact",
+            "ok": false,
+            "detail": "fingerprint expected and observed are not canonically equal"
+          },
+          {
+            "id": "sql_digest",
+            "ok": true,
+            "detail": true
+          }
+        ]
+      },
+      "fingerprintBeforeRepair": {
+        "expectedSha256BeforeDb": "e8005d0591d974d4b24ced9529904bd7c0727bc3fd98a5aeabf61c7325ab4d26",
+        "observedPresent": true
+      },
+      "repairAttempted": false,
+      "continuation": false,
+      "retryPreflight": null,
+      "retry": null,
+      "push": {
+        "status": 1
+      }
+    }
+  ],
+  "claims": {
+    "productionApproval": "NOT CLAIMED",
+    "managementApiApply": "PERMANENTLY DISQUALIFIED",
+    "dbPush": "QUALIFICATION CANDIDATE ONLY",
+    "applyTimeClock": "FORBIDDEN / NOT USED",
+    "automaticRepair": "FORBIDDEN"
+  }
+}

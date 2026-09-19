@@ -1,0 +1,389 @@
+{
+  "schema": "f18-qa-independent-requalify-v1",
+  "reviewedPin": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "localPg": {
+    "available": true,
+    "reason": null,
+    "classification": "LOCAL_PG_EXECUTED",
+    "serverVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)"
+  },
+  "helper": {
+    "overallOk": true,
+    "passCount": 33,
+    "failCount": 0,
+    "distinctions": {
+      "checks": 24,
+      "scenarios": 9,
+      "executedTransactions": 8
+    },
+    "wipeRejectionCode": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH"
+  },
+  "lock": {
+    "unapproved": {
+      "id": "TX_T3_LOCKWAIT_UNAPPROVED_FK_ROLLBACK",
+      "helperOk": true,
+      "independentProof": {
+        "schema": "f18-qualification-reset-backend-bound-lock-v1",
+        "ok": true,
+        "pass": true,
+        "failures": [],
+        "code": null
+      },
+      "waiterIsResetBackend": true,
+      "resetProcessId": 13830,
+      "resetBackendPid": 14754,
+      "holderBackendPid": 13827,
+      "datname": "f3_f15_qual_reset_5057_mu749l0q",
+      "relation": "public.financial_accounts",
+      "holderLock": {
+        "pid": 13827,
+        "mode": "AccessExclusiveLock",
+        "granted": true,
+        "locktype": "relation",
+        "relation": "public.financial_accounts"
+      },
+      "waiterLock": {
+        "pid": 14754,
+        "mode": "AccessExclusiveLock",
+        "granted": false,
+        "locktype": "relation",
+        "relation": "public.financial_accounts",
+        "blockedByHolder": true
+      },
+      "holderCommitted": true,
+      "mutationPhaseReached": false,
+      "rolledBack": null,
+      "driftRetained": {
+        "retained": "unapproved_accounts_groups_fkey",
+        "observedAfterHolderCommit": "unapproved_accounts_groups_fkey"
+      },
+      "sequence": {
+        "t1ThenWait": true,
+        "holderCommitted": true,
+        "acquisitionAfterCommit": true,
+        "t3RejectBeforeMutation": true
+      },
+      "negativesFail": {
+        "unrelatedWaiter": {
+          "ok": false,
+          "code": "F18_LOCK_PROOF_ANY_WAITER",
+          "failures": [
+            {
+              "code": "F18_LOCK_PROOF_ANY_WAITER",
+              "reason": "any available waiter is not the reset worker"
+            },
+            {
+              "code": "F18_LOCK_PROOF_WAITER_NOT_RESET_BACKEND",
+              "reason": "waiter is not the reset backend"
+            }
+          ]
+        },
+        "mismatchedBackend": {
+          "ok": false,
+          "code": "F18_LOCK_PROOF_ACQUISITION_BACKEND",
+          "failures": [
+            {
+              "code": "F18_LOCK_PROOF_ACQUISITION_BACKEND",
+              "reason": "lock acquisition is not bound to reset backend"
+            }
+          ]
+        },
+        "mismatchedRelation": {
+          "ok": false,
+          "code": "F18_LOCK_PROOF_HOLDER_RELATION",
+          "failures": [
+            {
+              "code": "F18_LOCK_PROOF_HOLDER_RELATION",
+              "reason": "holder lock relation mismatch"
+            },
+            {
+              "code": "F18_LOCK_PROOF_WAITER_RELATION",
+              "reason": "waiter relation mismatch"
+            },
+            {
+              "code": "F18_LOCK_PROOF_ACQUISITION_RELATION",
+              "reason": "lock acquisition relation mismatch"
+            }
+          ]
+        },
+        "missingCommit": {
+          "ok": false,
+          "code": "F18_LOCK_PROOF_HOLDER_COMMIT_MISSING",
+          "failures": [
+            {
+              "code": "F18_LOCK_PROOF_HOLDER_COMMIT_MISSING",
+              "reason": "HOLDER_COMMITTED confirmation missing"
+            },
+            {
+              "code": "F18_LOCK_PROOF_HOLDER_RESULT_NOT_OK",
+              "reason": "holder result must be successful"
+            }
+          ]
+        },
+        "missingAcquisition": {
+          "ok": false,
+          "code": "F18_LOCK_PROOF_ACQUISITION_MISSING",
+          "failures": [
+            {
+              "code": "F18_LOCK_PROOF_ACQUISITION_MISSING",
+              "reason": "missing acquisition evidence"
+            }
+          ]
+        }
+      },
+      "allNegativesRejected": true,
+      "stdoutBackendPid": 14754,
+      "noticeBackendPid": 14754
+    },
+    "retargeted": {
+      "id": "TX_T3_LOCKWAIT_RETARGETED_FK_ROLLBACK",
+      "helperOk": true,
+      "independentProof": {
+        "schema": "f18-qualification-reset-backend-bound-lock-v1",
+        "ok": true,
+        "pass": true,
+        "failures": [],
+        "code": null
+      },
+      "waiterIsResetBackend": true,
+      "resetProcessId": 14988,
+      "resetBackendPid": 15811,
+      "holderBackendPid": 14982,
+      "datname": "f3_f15_qual_reset_5057_mu749l0q",
+      "relation": "public.memberships",
+      "holderLock": {
+        "pid": 14982,
+        "mode": "AccessExclusiveLock",
+        "granted": true,
+        "locktype": "relation",
+        "relation": "public.memberships"
+      },
+      "waiterLock": {
+        "pid": 15811,
+        "mode": "AccessExclusiveLock",
+        "granted": false,
+        "locktype": "relation",
+        "relation": "public.memberships",
+        "blockedByHolder": true
+      },
+      "holderCommitted": true,
+      "mutationPhaseReached": false,
+      "rolledBack": null,
+      "driftRetained": {
+        "retained": "public.profiles",
+        "observedAfterHolderCommit": "public.profiles"
+      },
+      "sequence": {
+        "t1ThenWait": true,
+        "holderCommitted": true,
+        "acquisitionAfterCommit": true,
+        "t3RejectBeforeMutation": true
+      },
+      "negativesFail": {
+        "unrelatedWaiter": {
+          "ok": false,
+          "code": "F18_LOCK_PROOF_ANY_WAITER",
+          "failures": [
+            {
+              "code": "F18_LOCK_PROOF_ANY_WAITER",
+              "reason": "any available waiter is not the reset worker"
+            },
+            {
+              "code": "F18_LOCK_PROOF_WAITER_NOT_RESET_BACKEND",
+              "reason": "waiter is not the reset backend"
+            }
+          ]
+        },
+        "mismatchedBackend": {
+          "ok": false,
+          "code": "F18_LOCK_PROOF_ACQUISITION_BACKEND",
+          "failures": [
+            {
+              "code": "F18_LOCK_PROOF_ACQUISITION_BACKEND",
+              "reason": "lock acquisition is not bound to reset backend"
+            }
+          ]
+        },
+        "mismatchedRelation": {
+          "ok": false,
+          "code": "F18_LOCK_PROOF_HOLDER_RELATION",
+          "failures": [
+            {
+              "code": "F18_LOCK_PROOF_HOLDER_RELATION",
+              "reason": "holder lock relation mismatch"
+            },
+            {
+              "code": "F18_LOCK_PROOF_WAITER_RELATION",
+              "reason": "waiter relation mismatch"
+            },
+            {
+              "code": "F18_LOCK_PROOF_ACQUISITION_RELATION",
+              "reason": "lock acquisition relation mismatch"
+            }
+          ]
+        },
+        "missingCommit": {
+          "ok": false,
+          "code": "F18_LOCK_PROOF_HOLDER_COMMIT_MISSING",
+          "failures": [
+            {
+              "code": "F18_LOCK_PROOF_HOLDER_COMMIT_MISSING",
+              "reason": "HOLDER_COMMITTED confirmation missing"
+            },
+            {
+              "code": "F18_LOCK_PROOF_HOLDER_RESULT_NOT_OK",
+              "reason": "holder result must be successful"
+            }
+          ]
+        },
+        "missingAcquisition": {
+          "ok": false,
+          "code": "F18_LOCK_PROOF_ACQUISITION_MISSING",
+          "failures": [
+            {
+              "code": "F18_LOCK_PROOF_ACQUISITION_MISSING",
+              "reason": "missing acquisition evidence"
+            }
+          ]
+        }
+      },
+      "allNegativesRejected": true,
+      "stdoutBackendPid": 15811,
+      "noticeBackendPid": 15811
+    }
+  },
+  "reparse": {
+    "TX_SUCCESS": {
+      "id": "TX_SUCCESSFUL_RESET",
+      "helperAttestation": {
+        "ok": true,
+        "consistent": true,
+        "schema": "f18-qualification-reset-stored-process-adapter-v1",
+        "parsedOk": true,
+        "observationCount": 8,
+        "lastEvent": {
+          "schema": "f15-qualification-reset-tx-observation-v1",
+          "phase": "T7_COMMIT",
+          "event": "committed",
+          "committed": true
+        },
+        "interpretedCommitted": true,
+        "interpretedVerdictPath": "CLEAN_BASELINE",
+        "phaseReached": "T7_COMMIT",
+        "t7CommitAttempted": true,
+        "t7CommittedTrue": true,
+        "processStatus": 0,
+        "processFailed": false,
+        "genuineSuccess": true,
+        "genuineFailure": false,
+        "successClaimedUncommitted": false,
+        "failureBecameCommitted": false,
+        "mappedProcessStatusToStatus": false
+      },
+      "independentAdapted": {
+        "ok": true,
+        "mapped": false
+      },
+      "independentInterpretedCommitted": true,
+      "independentAttest": {
+        "ok": true,
+        "consistent": true,
+        "schema": "f18-qualification-reset-stored-process-adapter-v1",
+        "parsedOk": true,
+        "observationCount": 8,
+        "lastEvent": {
+          "schema": "f15-qualification-reset-tx-observation-v1",
+          "phase": "T7_COMMIT",
+          "event": "committed",
+          "committed": true
+        },
+        "interpretedCommitted": true,
+        "interpretedVerdictPath": "CLEAN_BASELINE",
+        "phaseReached": "T7_COMMIT",
+        "t7CommitAttempted": true,
+        "t7CommittedTrue": true,
+        "processStatus": 0,
+        "processFailed": false,
+        "genuineSuccess": true,
+        "genuineFailure": false,
+        "successClaimedUncommitted": false,
+        "failureBecameCommitted": false,
+        "mappedProcessStatusToStatus": false
+      },
+      "missingStatusDoesNotSucceed": true
+    },
+    "TX_T3_APPROVED_SET": {
+      "id": "TX_T3_APPROVED_SET_SUCCESS",
+      "helperAttestation": {
+        "ok": true,
+        "consistent": true,
+        "schema": "f18-qualification-reset-stored-process-adapter-v1",
+        "parsedOk": true,
+        "observationCount": 8,
+        "lastEvent": {
+          "schema": "f15-qualification-reset-tx-observation-v1",
+          "phase": "T7_COMMIT",
+          "event": "committed",
+          "committed": true
+        },
+        "interpretedCommitted": true,
+        "interpretedVerdictPath": "CLEAN_BASELINE",
+        "phaseReached": "T7_COMMIT",
+        "t7CommitAttempted": true,
+        "t7CommittedTrue": true,
+        "processStatus": 0,
+        "processFailed": false,
+        "genuineSuccess": true,
+        "genuineFailure": false,
+        "successClaimedUncommitted": false,
+        "failureBecameCommitted": false,
+        "mappedProcessStatusToStatus": false
+      },
+      "independentAdapted": {
+        "ok": true,
+        "mapped": false
+      },
+      "independentInterpretedCommitted": true,
+      "independentAttest": {
+        "ok": true,
+        "consistent": true,
+        "schema": "f18-qualification-reset-stored-process-adapter-v1",
+        "parsedOk": true,
+        "observationCount": 8,
+        "lastEvent": {
+          "schema": "f15-qualification-reset-tx-observation-v1",
+          "phase": "T7_COMMIT",
+          "event": "committed",
+          "committed": true
+        },
+        "interpretedCommitted": true,
+        "interpretedVerdictPath": "CLEAN_BASELINE",
+        "phaseReached": "T7_COMMIT",
+        "t7CommitAttempted": true,
+        "t7CommittedTrue": true,
+        "processStatus": 0,
+        "processFailed": false,
+        "genuineSuccess": true,
+        "genuineFailure": false,
+        "successClaimedUncommitted": false,
+        "failureBecameCommitted": false,
+        "mappedProcessStatusToStatus": false
+      },
+      "missingStatusDoesNotSucceed": true
+    }
+  },
+  "leaks": {
+    "helperRaw": {
+      "pathLeaks": 0,
+      "secrets": 0,
+      "pathLeakHits": [],
+      "secretHits": []
+    },
+    "derived": {
+      "pathLeaks": 0,
+      "secrets": 0,
+      "pathLeakHits": [],
+      "secretHits": []
+    }
+  }
+}

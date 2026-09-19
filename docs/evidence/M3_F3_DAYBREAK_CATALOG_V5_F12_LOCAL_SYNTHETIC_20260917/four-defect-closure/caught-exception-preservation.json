@@ -1,0 +1,19 @@
+{
+  "schema": "f3-f12-caught-exception-preservation-v1",
+  "evidence_ids": [
+    "F12-E01",
+    "F12-E02",
+    "F12-E03"
+  ],
+  "present": {
+    "F12-E01": true,
+    "F12-E02": true,
+    "F12-E03": true
+  },
+  "preserved_fields": [
+    "code=EACCES",
+    "syscall=spawn psql",
+    "message contains EACCES"
+  ],
+  "encoded": "sanitized-process-error-v1"
+}

@@ -1,0 +1,161 @@
+{
+  "command": "npm run test:f3-db-push",
+  "tests": 122,
+  "pass": 121,
+  "fail": 0,
+  "skipped": 1,
+  "skipped_detail": "optional-role REVOKE is a no-op when absent and revokes when present \u2014 SKIP local PostgreSQL 17 unavailable via default socket (TCP 55432 oracle still used for seal)",
+  "exit_ok": true,
+  "repairCalls_all_zero_where_observed": true,
+  "dbPushCalls_all_zero_where_observed": true,
+  "cli_version": "2.117.0",
+  "tsc_exit": 0,
+  "build_exit": 0,
+  "suite_metas": {
+    "next-build": {
+      "suite": "next-build",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": null,
+      "pass": null,
+      "fail": null,
+      "skipped": null,
+      "sha256": "f5ce27735cfab1c506f3f94c57bcfb29c046dc1cb4c2fac12006d7a870c107f0",
+      "bytes": 6891
+    },
+    "test-f3-db-push": {
+      "suite": "test-f3-db-push",
+      "exit_code": 0,
+      "classification": "PASS_WITH_SKIPS",
+      "tests": 122,
+      "pass": 121,
+      "fail": 0,
+      "skipped": 1,
+      "sha256": "af95f2245907836a3804c97890e1b5fdfb42ee88b9f5d491e653d59d34beff25",
+      "bytes": 49053
+    },
+    "test-f3-local-safety": {
+      "suite": "test-f3-local-safety",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": 45,
+      "pass": 45,
+      "fail": 0,
+      "skipped": 0,
+      "sha256": "4f9e579a10c4701b94729c3885a99caead7470f0da83960f1feaf296379b0b7a",
+      "bytes": 10227
+    },
+    "test-f3-mapi-harness": {
+      "suite": "test-f3-mapi-harness",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": 22,
+      "pass": 22,
+      "fail": 0,
+      "skipped": 0,
+      "sha256": "f2601dbb45cc407c45777e7a5db72e46f60660ff178bd457fe9099a51079c696",
+      "bytes": 4566
+    },
+    "test-f3-oracles": {
+      "suite": "test-f3-oracles",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": 577,
+      "pass": 577,
+      "fail": 0,
+      "skipped": 0,
+      "sha256": "a2e02e38b13b99589fe23fdaca74e073bb72851534167821129c92f0708750b7",
+      "bytes": 87581
+    },
+    "test-f3-recognition": {
+      "suite": "test-f3-recognition",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": 40,
+      "pass": 40,
+      "fail": 0,
+      "skipped": 0,
+      "sha256": "71888262dbb681f1e55c7efbd223aab7bbc66ad9cc63208d3efbfb2fc61ee753",
+      "bytes": 7590
+    },
+    "test-m2-static-security": {
+      "suite": "test-m2-static-security",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "skipped": 0,
+      "sha256": "553a1b8a87fee2218ed10aad6c60dcc3df9fe1cfd584d112a065935aaf60aa51",
+      "bytes": 1923
+    },
+    "test-m2": {
+      "suite": "test-m2",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": 111,
+      "pass": 111,
+      "fail": 0,
+      "skipped": 0,
+      "sha256": "5451d701e1ca9de4598bdbbf2ebc38c3cab1e1bf07d418a69d199733dac94ae5",
+      "bytes": 22564
+    },
+    "test-s0-cut1": {
+      "suite": "test-s0-cut1",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0,
+      "sha256": "04c8f5f58d47b7ca6956e2656028e2b741161fe426dafcc4f2654318db27aa86",
+      "bytes": 2413
+    },
+    "test-s0-cut2": {
+      "suite": "test-s0-cut2",
+      "exit_code": 1,
+      "classification": "ENV_DEPENDENT_FAIL",
+      "tests": 21,
+      "pass": 14,
+      "fail": 7,
+      "skipped": 0,
+      "sha256": "b0409d67dba8b412b7550d8fda950af581932d2969150b30944df3b3042a1a41",
+      "bytes": 15905
+    },
+    "test-storage-buckets": {
+      "suite": "test-storage-buckets",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0,
+      "sha256": "d48abbb1f9aed9a67b427d13cd0a20e0a33290be0c12640422fa9b84ee12ff17",
+      "bytes": 2434
+    },
+    "tsc-noEmit": {
+      "suite": "tsc-noEmit",
+      "exit_code": 0,
+      "classification": "PASS",
+      "tests": null,
+      "pass": null,
+      "fail": null,
+      "skipped": null,
+      "sha256": "194ff5bca66278888f0f00be5c7ca523d15098ece958b14952533811089f6106",
+      "bytes": 7
+    }
+  },
+  "env_dependent_non_blocking": [
+    {
+      "suite": "test-s0-cut2",
+      "exit_code": 1,
+      "classification": "ENV_DEPENDENT_FAIL",
+      "tests": 21,
+      "pass": 14,
+      "fail": 7,
+      "skipped": 0,
+      "sha256": "b0409d67dba8b412b7550d8fda950af581932d2969150b30944df3b3042a1a41",
+      "bytes": 15905
+    }
+  ]
+}

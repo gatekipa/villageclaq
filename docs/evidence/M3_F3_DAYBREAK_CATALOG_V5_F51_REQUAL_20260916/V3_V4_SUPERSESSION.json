@@ -1,0 +1,13 @@
+{
+  "prior_dirs_unmodified": true,
+  "supersedes": [
+    "docs/evidence/M3_F3_DAYBREAK_CATALOG_V4_REFERENCED_FK_REQUAL_20260915",
+    "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915"
+  ],
+  "do_not_relabel_V4_as_PASS": true,
+  "V4_00123": "a1eb6ba2741c8337bea35553f3d8b128e0ca83d1db014bd67342187b59cb78b6",
+  "V5_00123": "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34",
+  "d692": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
+  "d802": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d802703b4e8ead41",
+  "both_d692_d802_superseded_by_v5": true
+}

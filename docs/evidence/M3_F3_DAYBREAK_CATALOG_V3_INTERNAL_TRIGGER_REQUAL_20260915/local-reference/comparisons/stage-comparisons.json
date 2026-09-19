@@ -1,0 +1,62 @@
+{
+  "00118_f3_bounded_financial_epoch_foundation.sql": {
+    "ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "primaryHash": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9",
+    "independentHash": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9",
+    "primarySha256": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9",
+    "independentSha256": "2ab9a22846b8c6f12a5880b7dd7fe246a1746fdcf887c00a60c51d3ccc388bf9"
+  },
+  "00119_f3_01_core_ledger_foundation.sql": {
+    "ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "primaryHash": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589",
+    "independentHash": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589",
+    "primarySha256": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589",
+    "independentSha256": "bb5f9245e511b94580d7ca22ea73d03755022399da3ddf700afc2db69be58589"
+  },
+  "00120_f3_02_secure_posting_idempotency.sql": {
+    "ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "primaryHash": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e",
+    "independentHash": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e",
+    "primarySha256": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e",
+    "independentSha256": "fecd3b80ff9956204cba6281c08992b1e98252897de1d5af4f587f5a92d25d0e"
+  },
+  "00121_f3_03_projection_read_proof.sql": {
+    "ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "primaryHash": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c",
+    "independentHash": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c",
+    "primarySha256": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c",
+    "independentSha256": "817f069d3f40f1416806d9cd7722b9a427a750b2f3d55a82b571f440a4fe2d5c"
+  },
+  "00122_f3_04_correction_reversal.sql": {
+    "ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "primaryHash": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146",
+    "independentHash": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146",
+    "primarySha256": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146",
+    "independentSha256": "078dd66aeb13a1331c08c8d2492a0f07c38835b5510f1097c0100792bcf7d146"
+  },
+  "00123_f3_05_opening_cash_command.sql": {
+    "ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "primaryHash": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
+    "independentHash": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
+    "primarySha256": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
+    "independentSha256": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41"
+  }
+}

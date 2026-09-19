@@ -1,0 +1,29 @@
+{
+  "reviewer": "independent Grok-family QA",
+  "notImplementer": true,
+  "noDaybreakAstraContact": true,
+  "task": "F18 independent QA raw evidence on frozen tip",
+  "bcId": "bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
+  "url": "https://cursor.com/agents/bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
+  "reviewedPin": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "F18_FUNCTIONAL_TIP": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "builderEvidenceParent": "ba8fc0015337fd6aa854ccd0cc94a066e5c87166",
+  "startingRef": "3fcbcbc438ccc90faf7e87d06ba0d270e3d17598",
+  "draft116": "non-authoritative",
+  "pr115F17Qa": "NON-AUTHORITATIVE — does not supply F18 raw proof",
+  "environment": {
+    "os": "Ubuntu 24.04.4 LTS",
+    "kernel": "Linux cursor 6.12.94+",
+    "node": "v22.14.0",
+    "postgresServerVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+    "psqlClient": "psql (PostgreSQL) 17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+    "socket": "/var/run/postgresql/.s.PGSQL.5432",
+    "role": "ubuntu",
+    "classification": "LOCAL_PG_EXECUTED",
+    "localPgInstalledByThisReviewer": true,
+    "builderArtifactsNotUsedAsProof": true
+  },
+  "verdict": "F18 ACCEPT",
+  "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT"
+}

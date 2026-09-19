@@ -1,0 +1,24 @@
+{
+  "pathLeaks": 0,
+  "secrets": 0,
+  "pathLeakHits": [],
+  "secretHits": [],
+  "derivedFromFullPackageScan": true,
+  "nestedJsonArgvStderrCopiesIncluded": true,
+  "unindexed": 0,
+  "unindexedPaths": [],
+  "missingFromDisk": [],
+  "fileCountIndexed": 55,
+  "qaPackageFileCountIndexed": 31,
+  "f19IndependentQa": "F19 ACCEPT",
+  "f18IndependentQa": "INHERITED",
+  "reviewerBcId": "bc-8c2797cf-e789-5ab9-afd1-ff9a47a05cfa",
+  "reviewedPin": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
+  "attestationFinalizationOk": true,
+  "outerIndexValidation": {
+    "indexFilename": "evidence-index.json",
+    "detachedChecksumFilename": "evidence-index.sha256",
+    "checksumBodyMustMatchIndexSha256": true,
+    "finalDigestsReportedOutsideIndexedPackage": true
+  }
+}

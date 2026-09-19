@@ -1,0 +1,20 @@
+{
+  "id": "TX_T3_UNAPPROVED_FK_ROLLBACK",
+  "ok": true,
+  "executedTransaction": true,
+  "verdict": "HOLD",
+  "code": "F13_RESET_SQL_FAILED",
+  "observedPhase": "T2_LOCK",
+  "commit": false,
+  "rollback": null,
+  "replay": false,
+  "captureCalls": 1,
+  "transportCalls": 1,
+  "applyCalls": 1,
+  "sqlCalls": 1,
+  "mutationPhaseReached": false,
+  "processStatus": 3,
+  "stdout": "{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T1_BEGIN\",\"event\":\"began\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T2_LOCK\",\"event\":\"locked\"}\n",
+  "stderr": "psql:/tmp/f15-qual-reset-3w6RMx/f15-qualification-reset.sql:334: ERROR:  F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: live tuple not in FINITE_DEPENDENCY_ALLOWLIST foreign_key|unapproved_accounts_groups_fkey|public.financial_accounts|public.groups\nCONTEXT:  PL/pgSQL function inline_code_block line 82 at RAISE\n",
+  "note": "unapproved FK between allowlisted tables after capture is T3-rejected; injected change retained"
+}

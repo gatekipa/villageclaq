@@ -1,0 +1,29 @@
+{
+  "artifact": "M3_F3_DAYBREAK_CATALOG_V5_PSQL_POISON_REQUAL_20260916",
+  "verdict": "REMEDIATION PASS",
+  "pass_scope": "disposable CLI 2.117.0 file-based runner + isolated psql poison transport under stub/live-pin floor ONLY \u2014 not production/merge auth",
+  "captured_at_et": "2026-09-16 12:09:09 EDT",
+  "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "HOLD_parent": "0ba4e293d5d0895e3e107a367887745a877d0756",
+  "F6_in_ancestry": "1f965219d73ec4c4c3455d8119e232757bba6ee6",
+  "tip102_blob_source": "19e997dfadd9f6a8bc1a221a7edb5f6e8ec02d80",
+  "F7": "5d480db63592b85dfdeeb3dc4b955bd9b83878f1",
+  "schema": "f3-full-catalog-v5",
+  "envelope": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "independent_ref_blob": "09b6e97ee0605d4af81b027746e49a6e43ff6ff1",
+  "V5_hashes_immutable": true,
+  "disposable_ref": "jkorwnwwmdeflfntxntl",
+  "production_never": true,
+  "second_reset": false,
+  "second_hosted_run": false,
+  "silent_patch_reseal": false,
+  "reconstruction_reintroduced": false,
+  "parser_weakened": false,
+  "scope_expanded_beyond_4_files": false,
+  "prior_HOLD_packages_preserved": true,
+  "supersedes_authority_for_poison_transport": [
+    "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_STRICT_POISON_REQUAL_20260916"
+  ],
+  "prior_dirs_untouched": true
+}

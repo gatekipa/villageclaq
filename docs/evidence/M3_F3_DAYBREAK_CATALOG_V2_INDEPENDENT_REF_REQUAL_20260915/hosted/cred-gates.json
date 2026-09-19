@@ -1,0 +1,10 @@
+{
+  "password_present": true,
+  "token_present": true,
+  "sentinel_ok": true,
+  "destructive_ok": true,
+  "production_ref_in_env_values": false,
+  "production_password_env_absent": true,
+  "database_url_absent": true,
+  "direct_url_absent": true
+}

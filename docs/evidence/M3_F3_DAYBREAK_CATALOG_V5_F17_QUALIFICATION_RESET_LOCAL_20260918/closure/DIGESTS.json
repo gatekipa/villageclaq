@@ -1,0 +1,28 @@
+{
+  "runtime": {
+    "label": "F17_QUALIFICATION_RESET_RUNTIME_CLOSURE",
+    "sha256": "0db1c600c620c0e406038fa3ebc5c4d7df6104bce64545ef9e16a63a6237c741",
+    "count": 45
+  },
+  "union": {
+    "label": "F17_QUALIFICATION_RESET_VERIFICATION_UNION",
+    "sha256": "d3fd2eb52a2adc2a1f963a54955b888b2d3e8eadea0283894c4a51f5effc41cb",
+    "count": 48
+  },
+  "f16BaselineCitedNotExpected": {
+    "runtime": {
+      "count": 45,
+      "sha256": "1ca2a1ceddca278889c7ea92fc10e6a59150e06c5b4f13d4426b293fda29ee78",
+      "notExpectedF17": true,
+      "historicalLabel": "F16_QUALIFICATION_RESET_RUNTIME_CLOSURE"
+    },
+    "union": {
+      "count": 48,
+      "sha256": "989c6c99ead2b84190486b856d7e04a1e76824f870f3bbf9438935808c8fb7ff",
+      "notExpectedF17": true,
+      "historicalLabel": "F16_QUALIFICATION_RESET_VERIFICATION_UNION"
+    }
+  },
+  "forbiddenSummary": "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d",
+  "independentReference": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91"
+}

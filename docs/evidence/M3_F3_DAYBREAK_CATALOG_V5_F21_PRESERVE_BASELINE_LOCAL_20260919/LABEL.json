@@ -1,0 +1,12 @@
+{
+  "package": "M3_f3_[REDACTED_DB]",
+  "localStatus": "LOCAL CANDIDATE READY",
+  "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "classification": "LOCAL_PG_EXECUTED",
+  "postgresServerVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+  "functionalTip": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+  "proveHead": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+  "supersedesStub": "64b4abe65e938daac32b160882e358253c141015",
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "label": "F21 LOCAL PRESERVE-BASELINE PROOF — TIP-BOUND LOCAL_PG_EXECUTED — AWAITING QA"
+}

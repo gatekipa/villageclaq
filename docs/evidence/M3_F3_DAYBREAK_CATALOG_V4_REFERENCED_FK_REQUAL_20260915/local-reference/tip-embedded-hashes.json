@@ -1,0 +1,8 @@
+{
+  "00118_f3_bounded_financial_epoch_foundation.sql": "92140cbe453f5edc47d7d85c022adfeb69212fff18ebfbff09dd588918756c94",
+  "00119_f3_01_core_ledger_foundation.sql": "647e0174fcd0ed47a5281aad66dd2e056b1ae69c603b670c2fe6aea66e685109",
+  "00120_f3_02_secure_posting_idempotency.sql": "8ab365c03f6340d42676f5f7c06bca9e0386e7bcdd5d9d18d34d2726123b050a",
+  "00121_f3_03_projection_read_proof.sql": "9c02198e6e277590cf5c514704314a719d5323ae547623edd630f6c5591b1dc6",
+  "00122_f3_04_correction_reversal.sql": "41fd34c976ed48f7a9d1ce6a154a2dba16d37487cffb364693bbae2046cbc31c",
+  "00123_f3_05_opening_cash_command.sql": "a1eb6ba2741c8337bea35553f3d8b128e0ca83d1db014bd67342187b59cb78b6"
+}

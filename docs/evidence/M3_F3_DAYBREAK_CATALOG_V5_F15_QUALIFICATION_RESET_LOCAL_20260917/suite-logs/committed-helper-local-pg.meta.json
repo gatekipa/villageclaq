@@ -1,0 +1,8 @@
+{
+  "suite": "committed-helper-local-pg",
+  "classification": "PASS_LOCAL_PG_3TX",
+  "expect": null,
+  "observed": null,
+  "outSha256": "ee33365cc6a96d54f241a3767b81e66e0730f77bbfb66733f15c4955ddd42d47",
+  "outBytes": 6775
+}

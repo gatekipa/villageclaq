@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "applied": true,
+  "dbPushAuthorized": true,
+  "sealAuthorized": true,
+  "digest": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "roles": [
+    "anon",
+    "authenticated",
+    "service_role"
+  ],
+  "creating_role": "postgres",
+  "schema_name": "public"
+}

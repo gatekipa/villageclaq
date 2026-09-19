@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "exclusions": [
+    "evidence-index.json",
+    "evidence-index.sha256"
+  ],
+  "self_hash": false,
+  "detached_checksum": "evidence-index.sha256",
+  "artifacts": [
+    {
+      "path": "executable-manifest.json",
+      "sha256": "65d69348fce71b09c46c0945c7d79b89cc455f38f36e27175827841daa22be23",
+      "bytes": 441
+    },
+    {
+      "path": "qualify-result.json",
+      "sha256": "66acd354d7a7c55273a083dfd197906c6dcc85e3ff1fc9881a78a0dfecc85db9",
+      "bytes": 418
+    },
+    {
+      "path": "qualify-result.json.meta.json",
+      "sha256": "8b5954c1fb6a6c2395615ac9852f76e16b24587285e0d8d7486569c871e4ddcb",
+      "bytes": 1140
+    }
+  ]
+}

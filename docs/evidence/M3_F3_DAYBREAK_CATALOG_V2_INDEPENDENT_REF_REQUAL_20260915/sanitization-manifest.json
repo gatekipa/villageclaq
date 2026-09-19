@@ -1,0 +1,140 @@
+{
+  "artifact": "sanitization-manifest",
+  "policy": "credentials/tokens/connection URLs/API keys/absolute machine paths ONLY; never role names, service_role ACL grantee, grantors, owners, schema/object identities, migration versions/names/digests, privileges, policy expressions, definitions, types, catalog fields, fingerprint values",
+  "entries": [
+    {
+      "inputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/local-reference/primary/00118_f3_bounded_financial_epoch_foundation.sql.json",
+      "outputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/local-reference/primary/00118_f3_bounded_financial_epoch_foundation.sql.json.sanitized-check",
+      "pre_sha256": "a96181503dab87a82dcc5bca05b588c4daa692f77c988f0a4266fb09a769a4d0",
+      "post_sha256": "a96181503dab87a82dcc5bca05b588c4daa692f77c988f0a4266fb09a769a4d0",
+      "byte_equal": true,
+      "semantic": true,
+      "semantic_byte_equal": true,
+      "redaction_counts": {},
+      "total_redactions": 0
+    },
+    {
+      "inputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/local-reference/independent/00118_f3_bounded_financial_epoch_foundation.sql.json",
+      "outputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/local-reference/independent/00118_f3_bounded_financial_epoch_foundation.sql.json.sanitized-check",
+      "pre_sha256": "c1e523be1e1a8f120a3ffd016f4f28995a9255307e1fc6d78239d9c69635b20b",
+      "post_sha256": "c1e523be1e1a8f120a3ffd016f4f28995a9255307e1fc6d78239d9c69635b20b",
+      "byte_equal": true,
+      "semantic": true,
+      "semantic_byte_equal": true,
+      "redaction_counts": {},
+      "total_redactions": 0
+    },
+    {
+      "inputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/local-reference/primary/00123_f3_05_opening_cash_command.sql.json",
+      "outputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/local-reference/primary/00123_f3_05_opening_cash_command.sql.json.sanitized-check",
+      "pre_sha256": "491e2b729e93221bee95e2bff64d32907f0c1107b72e1d7acc48752174eb9796",
+      "post_sha256": "491e2b729e93221bee95e2bff64d32907f0c1107b72e1d7acc48752174eb9796",
+      "byte_equal": true,
+      "semantic": true,
+      "semantic_byte_equal": true,
+      "redaction_counts": {},
+      "total_redactions": 0
+    },
+    {
+      "inputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/local-reference/independent/00123_f3_05_opening_cash_command.sql.json",
+      "outputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/local-reference/independent/00123_f3_05_opening_cash_command.sql.json.sanitized-check",
+      "pre_sha256": "bcef6f1a0b2da48b368ce1a67537f1e9747b552fc72f8dbff62bee2238df3660",
+      "post_sha256": "bcef6f1a0b2da48b368ce1a67537f1e9747b552fc72f8dbff62bee2238df3660",
+      "byte_equal": true,
+      "semantic": true,
+      "semantic_byte_equal": true,
+      "redaction_counts": {},
+      "total_redactions": 0
+    },
+    {
+      "inputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/original-envelope/platform-acl-envelope.canonical.json",
+      "outputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/original-envelope/platform-acl-envelope.canonical.json.sanitized-check",
+      "pre_sha256": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+      "post_sha256": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+      "byte_equal": true,
+      "semantic": true,
+      "semantic_byte_equal": true,
+      "redaction_counts": {},
+      "total_redactions": 0
+    },
+    {
+      "inputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/original-envelope/platform-acl-envelope.json",
+      "outputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/original-envelope/platform-acl-envelope.json.sanitized-check",
+      "pre_sha256": "465b1477a0fe299dba3a2e4392feff8cde5fcfd1d19a0a0ea3be508731911eea",
+      "post_sha256": "465b1477a0fe299dba3a2e4392feff8cde5fcfd1d19a0a0ea3be508731911eea",
+      "byte_equal": true,
+      "semantic": true,
+      "semantic_byte_equal": true,
+      "redaction_counts": {},
+      "total_redactions": 0
+    },
+    {
+      "inputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/local-reference/independent-hashes.json",
+      "outputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/local-reference/independent-hashes.json.sanitized-check",
+      "pre_sha256": "964b8b09587e8c5dfc317741f1c383fc3959ffcc47f8c21be52b7cf80094def9",
+      "post_sha256": "964b8b09587e8c5dfc317741f1c383fc3959ffcc47f8c21be52b7cf80094def9",
+      "byte_equal": true,
+      "semantic": true,
+      "semantic_byte_equal": true,
+      "redaction_counts": {},
+      "total_redactions": 0
+    },
+    {
+      "inputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/local-reference/cloud-agent-v2-expected-hashes.json",
+      "outputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/local-reference/cloud-agent-v2-expected-hashes.json.sanitized-check",
+      "pre_sha256": "964b8b09587e8c5dfc317741f1c383fc3959ffcc47f8c21be52b7cf80094def9",
+      "post_sha256": "964b8b09587e8c5dfc317741f1c383fc3959ffcc47f8c21be52b7cf80094def9",
+      "byte_equal": true,
+      "semantic": true,
+      "semantic_byte_equal": true,
+      "redaction_counts": {},
+      "total_redactions": 0
+    },
+    {
+      "inputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/hosted/phase-d-qualify.stderr.txt",
+      "outputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/hosted/phase-d-qualify.stderr.txt.tmp",
+      "pre_sha256": "ad1b6227b495906f0e7d2f8f98e027f5a8e0f64e8b2a81c95da2639318cf86f7",
+      "post_sha256": "a6749d5c8f31bf8924344b0660da6dba276de2ef9cd303d5b55d1a849296186e",
+      "byte_equal": false,
+      "semantic": false,
+      "semantic_byte_equal": null,
+      "redaction_counts": {
+        "absolute_path": 2
+      },
+      "total_redactions": 2
+    },
+    {
+      "inputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/hosted/phase-d-qualify.stdout.txt",
+      "outputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/hosted/phase-d-qualify.stdout.txt.tmp",
+      "pre_sha256": "0251831140c4cd221760247f945fedb5efb5c8c5c4e4bb8e8044a36dd936e716",
+      "post_sha256": "0251831140c4cd221760247f945fedb5efb5c8c5c4e4bb8e8044a36dd936e716",
+      "byte_equal": true,
+      "semantic": false,
+      "semantic_byte_equal": null,
+      "redaction_counts": {},
+      "total_redactions": 0
+    },
+    {
+      "inputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/suite-logs/test-f3-db-push.out",
+      "outputPath": "/workspace/f3-remediate-daybreak-20260915/f2-work/docs/evidence/M3_F3_DAYBREAK_CATALOG_V2_INDEPENDENT_REF_REQUAL_20260915/suite-logs/test-f3-db-push.out.tmp",
+      "pre_sha256": "fd1b8df656daf057085528d4fc032965b13d9f00b710bcaa5870d7655c4f5613",
+      "post_sha256": "f11792a7e631cae6b14ee7676616240c2de1f1bce29ece4964ff080ead99a428",
+      "byte_equal": false,
+      "semantic": false,
+      "semantic_byte_equal": null,
+      "redaction_counts": {
+        "absolute_path": 1
+      },
+      "total_redactions": 1
+    }
+  ],
+  "redaction_count_by_type": {
+    "absolute_path": 3
+  },
+  "semantic_artifacts_changed": 0,
+  "semantic_redacted_inside_digest_bearing": 0,
+  "hold_required": false,
+  "redacted_nonsemantic_fields": [
+    "absolute_path"
+  ]
+}

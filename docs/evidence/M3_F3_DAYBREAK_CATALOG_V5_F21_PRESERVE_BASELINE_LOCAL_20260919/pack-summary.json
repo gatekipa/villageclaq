@@ -1,0 +1,68 @@
+{
+  "evidenceRel": "docs/evidence/M3_f3_[REDACTED_DB]",
+  "functionalTip": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+  "proveHead": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+  "proveHeadEqualsFunctionalTip": true,
+  "supersededStub": "64b4abe65e938daac32b160882e358253c141015",
+  "contractTip": "b7d16544cdbb86ce47baba329835bd93dcb16d6d",
+  "localStatus": "LOCAL CANDIDATE READY",
+  "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "gates": {
+    "resetDesign": {
+      "tests": 33,
+      "pass": 33,
+      "fail": 0,
+      "skipped": 0,
+      "executableCommit": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+      "platform": "linux"
+    },
+    "reset": {
+      "tests": 70,
+      "pass": 70,
+      "fail": 0,
+      "skipped": 0,
+      "executableCommit": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+      "platform": "linux"
+    },
+    "harness": {
+      "tests": 115,
+      "pass": 115,
+      "fail": 0,
+      "skipped": 0,
+      "executableCommit": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+      "platform": "linux"
+    },
+    "helper": {
+      "pass": 42,
+      "fail": 0,
+      "checks": 30,
+      "scenarios": 12,
+      "executedTransactions": 9,
+      "classification": "LOCAL_PG_EXECUTED",
+      "postgresServerVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+      "proveHead": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0"
+    }
+  },
+  "closures": {
+    "runtime": "c0f06211aa6018c153f9b735ce489aba50274ce997d627a1619803b24c5804e3",
+    "union": "5194bd761e183c48752bd232da18840ad8327d09f95369d195a84ef285dd0d43",
+    "runtimeCount": 45,
+    "unionCount": 48,
+    "independentReference": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+    "f18RuntimeCitedNotExpected": "c6ecf620e41dbbce340e2207b2b9b793c8df750c703d245363139b497526a392",
+    "f18UnionCitedNotExpected": "b9a9e6b7ad95f6e5935d05bb6c41bdabe543f0f88a086bc6b28fcb07dd03be78"
+  },
+  "catalog": {
+    "memberCountBefore": 264,
+    "memberCountAfter": 264,
+    "typedMembers": 188,
+    "leftoverRemoved": true,
+    "historyRemoved": true
+  },
+  "hosted188Ownership": "CANNOT CONFIRM",
+  "nativeWindowsExecuted": false,
+  "pathLeaks": 0,
+  "secrets": 0,
+  "checksumDistinctionPolicy": "digest inside evidence-index.sha256 is sha256 of evidence-index.json bytes; digest of that checksum file's bytes is a different identity"
+}

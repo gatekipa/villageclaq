@@ -1,0 +1,56 @@
+{
+  "thrownEacces": {
+    "thrownSurvived": true,
+    "code": "EACCES",
+    "syscallPreserved": true,
+    "messagePreserved": true,
+    "identitiesMatch": {
+      "packagedStdout": true,
+      "packagedStderr": true,
+      "packagedStdoutLength": true,
+      "packagedStderrLength": true
+    },
+    "originalStderrSha256": "1ec4d85dd19469967043713f0309175fb274ce40709a44c7492f48af8b464a17",
+    "packagedStderrSha256": "c4addd1a96d79a4a3cae4aacf2e4e298a16e3c9abd6f51b509e2c3b9b49587c2",
+    "originalsNotRelabeled": true,
+    "processErrorPresent": true,
+    "interpretedCommitted": false,
+    "successClaimOk": false,
+    "finalizationOk": false,
+    "rolledBack": null,
+    "pathLeaks": 0
+  },
+  "pathRedact": {
+    "identitiesMatch": {
+      "packagedStdout": true,
+      "packagedStderr": true,
+      "packagedStdoutLength": true,
+      "packagedStderrLength": true
+    },
+    "originalsNotRelabeled": true,
+    "packagedDiffers": true,
+    "pathLeaks": 0,
+    "secrets": 0
+  },
+  "thrownOnly": {
+    "interpretedCommitted": false,
+    "processErrorPresent": true,
+    "processFailed": true,
+    "attestationOk": false,
+    "finalizationOk": false,
+    "rolledBack": null
+  },
+  "success": {
+    "verdict": "CLEAN_BASELINE",
+    "interpretedCommitted": true,
+    "processFailed": false,
+    "attestationOk": true,
+    "finalizationOk": true,
+    "identitiesMatch": {
+      "packagedStdout": true,
+      "packagedStderr": true,
+      "packagedStdoutLength": true,
+      "packagedStderrLength": true
+    }
+  }
+}

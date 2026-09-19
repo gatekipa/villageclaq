@@ -1,0 +1,18 @@
+node:fs:561
+  return binding.open(
+                 ^
+
+Error: EISDIR: illegal operation on a directory, open '[REDACTED_PATH]'
+    at Object.openSync (node:fs:561:18)
+    at Object.writeFileSync (node:fs:2439:35)
+    at writeQualifyEvidenceArtifacts (file:///workspace/f3-remediate-daybreak-20260915/f2-work/scripts/lib/f3-db-push-repair-safety-gate.mjs:2082:6)
+    at main (file:///workspace/f3-remediate-daybreak-20260915/f2-work/scripts/qualify-f3-db-push-disposable.mjs:1030:5)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async file:///workspace/f3-remediate-daybreak-20260915/f2-work/scripts/qualify-f3-db-push-disposable.mjs:1044:1 {
+  errno: -21,
+  code: 'EISDIR',
+  syscall: 'open',
+  path: '[REDACTED_PATH]'
+}
+
+Node.js v22.19.0

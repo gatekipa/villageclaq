@@ -1,0 +1,12 @@
+{
+  "status": 0,
+  "stdout_len": 244,
+  "stderr_len": 33,
+  "stdout_preview_redacted": "[\n  {\n    \"jsonb_build_object\": {\n      \"current_database\": \"postgres\",\n      \"current_user\": \"postgres\",\n      \"poisonPresent\": false,\n      \"probe_marker\": \"f3_poison_absent_probe\",\n      \"schema_version\": \"f3-poison-envelope-v1\"\n    }\n  }\n]\n",
+  "stderr_preview_redacted": "Connecting to remote database...\n",
+  "stdout_is_array_json": true,
+  "stdout_is_object_json": false,
+  "has_schema_version_token": true,
+  "has_rows_token": false,
+  "has_jsonb_build_object_token": true
+}

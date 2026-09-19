@@ -1,0 +1,34 @@
+{
+  "artifact": "object-probe-contract",
+  "functional_sha": "c59afad411a07838688aeb5583ab179683f25a7f",
+  "identity_fields": [
+    "object_type",
+    "schema",
+    "object_name",
+    "prokind",
+    "identity_arguments"
+  ],
+  "no_oid": true,
+  "no_to_regprocedure_text_allowlist": true,
+  "catalog_identity_via_pg_get_function_identity_arguments": true,
+  "lookup_may_use_timestamptz_alias": true,
+  "canonical_identity_arguments_use": "timestamp with time zone",
+  "FILE121_live_observed": {
+    "p0": {
+      "identity_arguments": "p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_as_of_exclusive timestamp with time zone",
+      "object_name": "get_financial_projection_bundle",
+      "object_type": "routine",
+      "prokind": "f",
+      "schema": "public"
+    },
+    "p1": {
+      "identity_arguments": "p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer, p_limit integer",
+      "object_name": "get_financial_cashbook",
+      "object_type": "routine",
+      "prokind": "f",
+      "schema": "public"
+    }
+  },
+  "FILE121_exact_match_expected": true,
+  "note": " ; retargeted SHA marker for c59afad requal evidence continuity"
+}

@@ -1,0 +1,15 @@
+{
+  "schema": "f3-non-authoritative-staging-summary-v1",
+  "authoritative": false,
+  "see": "evidence-index.json",
+  "mode": "LOCAL_ONLY_SYNTHETIC",
+  "absolute_path_leaks": 0,
+  "secret_scan": "clean",
+  "artifact_count": 48,
+  "unindexed_count": 0,
+  "closure_digest": "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d",
+  "functional_tip": "51cc864d1efbefc1398ad3fd1895360c95474a57",
+  "suite_bindings": 15,
+  "qa_accept": true,
+  "local_status": "LOCAL CANDIDATE READY"
+}

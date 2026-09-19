@@ -1,0 +1,15 @@
+{
+  "runtime": "c6ecf620e41dbbce340e2207b2b9b793c8df750c703d245363139b497526a392",
+  "union": "b9a9e6b7ad95f6e5935d05bb6c41bdabe543f0f88a086bc6b28fcb07dd03be78",
+  "runtimeCount": 45,
+  "unionCount": 48,
+  "runtimeLabel": "F18_QUALIFICATION_RESET_RUNTIME_CLOSURE",
+  "unionLabel": "F18_QUALIFICATION_RESET_VERIFICATION_UNION",
+  "forbiddenSummary": "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d",
+  "f16RuntimeCitedNotExpected": "1ca2a1ceddca278889c7ea92fc10e6a59150e06c5b4f13d4426b293fda29ee78",
+  "f16UnionCitedNotExpected": "989c6c99ead2b84190486b856d7e04a1e76824f870f3bbf9438935808c8fb7ff",
+  "f17RuntimeCitedNotExpected": "0db1c600c620c0e406038fa3ebc5c4d7df6104bce64545ef9e16a63a6237c741",
+  "f17UnionCitedNotExpected": "d3fd2eb52a2adc2a1f963a54955b888b2d3e8eadea0283894c4a51f5effc41cb",
+  "independentReference": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+  "notEqualF17": true
+}

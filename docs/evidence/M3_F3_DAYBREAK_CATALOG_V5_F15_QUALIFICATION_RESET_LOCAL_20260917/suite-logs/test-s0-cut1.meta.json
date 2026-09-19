@@ -1,0 +1,18 @@
+{
+  "suite": "test-s0-cut1",
+  "classification": "PASS",
+  "expect": {
+    "tests": 11,
+    "pass": 11,
+    "fail": 0,
+    "skipped": 0
+  },
+  "observed": {
+    "tests": 11,
+    "pass": 11,
+    "fail": 0,
+    "skipped": 0
+  },
+  "outSha256": "6df9008f4e97be16d2b3c0b0f2f4f9ca498edd03270faa0d486492d020963b97",
+  "outBytes": 2406
+}

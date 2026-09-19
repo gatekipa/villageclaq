@@ -1,0 +1,152 @@
+{
+  "schema": "f19-qa-independent-process-e2e-v1",
+  "reviewedPin": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
+  "f18Pin": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "bcId": "bc-8c2797cf-e789-5ab9-afd1-ff9a47a05cfa",
+  "overallOk": true,
+  "chain": "runner\u2192helper processEvidence/record\u2192JSON.stringify\u2192reread\u2192adapt/interpret/attest/finalize",
+  "f18DefectsReproduced": true,
+  "f19TipClosesThem": true,
+  "cases": {
+    "THROWN_EACCES": {
+      "closed": {
+        "realThrownEacces": true,
+        "thrownSurvivedSerialize": true,
+        "messageSurvived": true,
+        "syscallSurvived": true,
+        "structuredCode": true,
+        "identitiesMatch": true,
+        "cannotAuthorizeSuccess": true,
+        "interpretedCommittedFalse": true,
+        "rolledBackUnproven": true,
+        "processErrorPresent": true
+      },
+      "recovered": {
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSha256": "c4addd1a96d79a4a3cae4aacf2e4e298a16e3c9abd6f51b509e2c3b9b49587c2",
+        "stdoutByteLength": 0,
+        "stderrByteLength": 32,
+        "stderr": "spawnSync [REDACTED_PATH] EACCES"
+      },
+      "structuredError": {
+        "code": "EACCES",
+        "name": "Error",
+        "syscall": "spawnSync [REDACTED_PATH]",
+        "message": "spawnSync [REDACTED_PATH] EACCES"
+      },
+      "failureFields": {
+        "committed": false,
+        "rolledBack": null,
+        "processErrorPresent": true,
+        "thrown": true
+      },
+      "successFinalization": {
+        "ok": false,
+        "code": "F18_ATTESTATION_INCONSISTENT",
+        "reason": "inconsistent attestations fail package finalization",
+        "inconsistentCount": 1
+      }
+    },
+    "PATH_REDACT": {
+      "closed": {
+        "originalIdentitiesDifferFromSanitized": true,
+        "packagedHashesMatchRecovered": true,
+        "storedOriginalMatchesRaw": true,
+        "recoveredHasRedactionToken": true,
+        "recoveredOmitsOriginalIdentity": true,
+        "pathLeaks": 0,
+        "secrets": 0
+      },
+      "originalStderrSha256": "fbb170870a3748b00c847d63a5777c2f32d1345acd07f6d86378532e6cf1cf37",
+      "originalStderrByteLength": 102,
+      "packagedStderrSha256": "7634adab7bf3ddaee21e72a24151a88c4b1e96c1d72f7e11bb095fb1872c70eb",
+      "packagedStderrByteLength": 73,
+      "recoveredStderrSha256": "7634adab7bf3ddaee21e72a24151a88c4b1e96c1d72f7e11bb095fb1872c70eb",
+      "recoveredStderrByteLength": 73,
+      "recoveredStderr": "psql:[REDACTED_PATH] ERROR: boom [REDACTED]=[REDACTED]example.invalid/db\n"
+    },
+    "THROWN_ONLY": {
+      "closed": {
+        "interpretedCommittedFalse": true,
+        "processErrorPresent": true,
+        "processFailed": true,
+        "attestationRejected": true,
+        "genuineSuccessFalse": true,
+        "finalizationRejected": true,
+        "thrownSurvivedRecord": true,
+        "rereadStillRejects": true,
+        "rolledBackUnproven": true
+      },
+      "interpreted": {
+        "committed": false,
+        "rolledBack": null,
+        "processErrorPresent": true,
+        "thrown": true
+      },
+      "attestation": {
+        "ok": false,
+        "processFailed": true,
+        "interpretedCommitted": false,
+        "genuineSuccess": false
+      },
+      "finalization": {
+        "ok": false,
+        "code": "F18_ATTESTATION_INCONSISTENT",
+        "reason": "inconsistent attestations fail package finalization",
+        "inconsistentCount": 1
+      },
+      "reread": {
+        "thrown": true,
+        "status": 0,
+        "verdict": "CLEAN_BASELINE"
+      }
+    },
+    "SUCCESS": {
+      "closed": {
+        "verdictCleanBaseline": true,
+        "interpretedCommitted": true,
+        "thrownFalse": true,
+        "processFailedFalse": true,
+        "attestationOk": true,
+        "genuineSuccess": true,
+        "t7CommittedTrue": true,
+        "finalizationOk": true,
+        "identitiesMatch": true
+      },
+      "verdict": "CLEAN_BASELINE",
+      "recoveredStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+      "recoveredStdoutByteLength": 794,
+      "interpretedCommitted": true,
+      "finalizationOk": true
+    }
+  },
+  "f18Conceptual": {
+    "pin": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+    "defectsStillPresent": true,
+    "thrownOnlyAuthorizesSuccess": {
+      "interpretedCommitted": true,
+      "processErrorPresent": false,
+      "processFailed": false,
+      "attestationOk": true,
+      "genuineSuccess": true,
+      "finalizationOk": true,
+      "defect": true
+    },
+    "recordDropsThrown": {
+      "evidenceThrown": true,
+      "storedHasThrownKey": false,
+      "defect": true
+    },
+    "processEvidenceMutatesAfterPackagedHashes": {
+      "originalStderrSha256": "fbb170870a3748b00c847d63a5777c2f32d1345acd07f6d86378532e6cf1cf37",
+      "packagedStderr": "psql:[REDACTED_PATH]/f19-qual-reset-redact/file.sql:12: ERROR: boom DATABASE_URL=postgresql://example.invalid/db\n",
+      "packagedStderrSha256": "2be8fca3a328d67a4deef97b058c7a07bbc91bbfabd2bb9c033edec746ebfe08",
+      "helperPathOnlyRedaction": "psql:[REDACTED_PATH]/file.sql:12: ERROR: boom DATABASE_URL=postgresql://example.invalid/db\n",
+      "helperLeavesRemainderOrSecret": true,
+      "recoveredAfterSecretsRemoved": "psql:[REDACTED_PATH]/f19-qual-reset-redact/file.sql:12: ERROR: boom [REDACTED]=[REDACTED]example.invalid/db\n",
+      "recoveredSha256": "d300f71e3505c254d573ba2e16fd6c85961a5d569d82b82188a934f1f03c5425",
+      "packagedHashMatchesRecovered": false,
+      "defect": true
+    }
+  }
+}

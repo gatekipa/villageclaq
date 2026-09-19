@@ -1,0 +1,40 @@
+{
+  "artifact": "structured-acl-query-schema",
+  "functional_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315",
+  "acl_fields": [
+    "object_type",
+    "schema",
+    "object_name",
+    "prokind",
+    "identity_arguments",
+    "grantee",
+    "grantor",
+    "privilege",
+    "grantable"
+  ],
+  "acl_sortBy": [
+    "object_type",
+    "schema",
+    "object_name",
+    "identity_arguments",
+    "grantee",
+    "grantor",
+    "privilege",
+    "grantable"
+  ],
+  "acl_doNotSort": [
+    "identity_arguments",
+    "object_name",
+    "prokind"
+  ],
+  "notes": "One record per privilege. Routine identity is schema+object_name+prokind+identity_arguments (never a comma-joined label). Canonicalization reorders complete records only. identity_arguments are never split or reordered.",
+  "no_object_identity_field": true,
+  "identity_from": [
+    "schema",
+    "object_name",
+    "prokind",
+    "identity_arguments"
+  ],
+  "sql_uses_pg_get_function_identity_arguments": true,
+  "no_comma_split_identity_parser": true
+}

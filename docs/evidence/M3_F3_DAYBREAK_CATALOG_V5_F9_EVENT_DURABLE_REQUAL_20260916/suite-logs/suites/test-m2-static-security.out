@@ -1,0 +1,68 @@
+
+> villageclaq@0.1.0 test:m2-static-security
+> node --experimental-strip-types --test scripts/test-m2-static-security.mjs
+
+TAP version 13
+# Subtest: M2 runtime files exist and stay pure (no queue insert, no provider, no fetch)
+ok 1 - M2 runtime files exist and stay pure (no queue insert, no provider, no fetch)
+  ---
+  duration_ms: 1.903889
+  type: 'test'
+  ...
+# Subtest: 00117 exists with dormant defaults; old timestamp filename absent
+ok 2 - 00117 exists with dormant defaults; old timestamp filename absent
+  ---
+  duration_ms: 0.936995
+  type: 'test'
+  ...
+# Subtest: 00118-00123 are the F3 forward batch; no 00124+ and no timestamp F3 history
+ok 3 - 00118-00123 are the F3 forward batch; no 00124+ and no timestamp F3 history
+  ---
+  duration_ms: 4.177781
+  type: 'test'
+  ...
+# Subtest: generic send routes remain 410 — no resurrection
+ok 4 - generic send routes remain 410 — no resurrection
+  ---
+  duration_ms: 0.359193
+  type: 'test'
+  ...
+# Subtest: live producers do not import M2 policy engine
+ok 5 - live producers do not import M2 policy engine
+  ---
+  duration_ms: 2.628153
+  type: 'test'
+  ...
+# Subtest: announcement-producer is not imported by live routes/crons
+ok 6 - announcement-producer is not imported by live routes/crons
+  ---
+  duration_ms: 28.176838
+  type: 'test'
+  ...
+# Subtest: no test file asserts push eligibility
+ok 7 - no test file asserts push eligibility
+  ---
+  duration_ms: 0.762684
+  type: 'test'
+  ...
+# Subtest: 00115 enqueue body is not copied/replaced by 00117
+ok 8 - 00115 enqueue body is not copied/replaced by 00117
+  ---
+  duration_ms: 0.755324
+  type: 'test'
+  ...
+# Subtest: bulk receipt P0 guard file is untouched by M2 policy imports
+ok 9 - bulk receipt P0 guard file is untouched by M2 policy imports
+  ---
+  duration_ms: 0.672902
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 116.576462

@@ -1,0 +1,5 @@
+{
+  "note": "Outer index is written after this plan from final committed bytes. Nested qualify-evidence/evidence-index.json is excluded from the outer index because F8 basename self-entry rule forbids listing any evidence-index.json.",
+  "artifact_count": 146,
+  "nested_qualify_index_sha256": "74933d96f80a5b13223184f21d6b11bca4dfdeb8c0a07d77af8962e67a4e76aa"
+}

@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "exclusions": [
+    "evidence-index.json",
+    "evidence-index.sha256"
+  ],
+  "self_hash": false,
+  "detached_checksum": "evidence-index.sha256",
+  "artifacts": [
+    {
+      "path": "executable-manifest.json",
+      "sha256": "a6dc67c4b72ad2a8ac1a526233158982eeeb6335261fa253483e11d5b2071724",
+      "bytes": 445
+    },
+    {
+      "path": "pre-continuation-20260913173000-00118_f3_bounded_financial_epoch_foundation.json",
+      "sha256": "7d787a13fb504b18dbf6399124f9d50d215542739f3c785d2cad6db12c375c90",
+      "bytes": 886451
+    },
+    {
+      "path": "pre-continuation-20260913173001-00119_f3_01_core_ledger_foundation.json",
+      "sha256": "d8ca901c6c1c3865fd3d991efdac1a92c4a48d065e8350b9f5accb2ebe25c077",
+      "bytes": 3610264
+    },
+    {
+      "path": "pre-continuation-20260913173002-00120_f3_02_secure_posting_idempotency.json",
+      "sha256": "e5082e39d09314a0d985665c06762f75e1199271907d8e8e560db982d71a29ab",
+      "bytes": 4323111
+    },
+    {
+      "path": "pre-continuation-20260913173003-00121_f3_03_projection_read_proof.json",
+      "sha256": "f460663724b45e127883ce4b0d6791b376c2bf968ed705b2be97cafce0615058",
+      "bytes": 4716711
+    },
+    {
+      "path": "pre-continuation-20260913173004-00122_f3_04_correction_reversal.json",
+      "sha256": "bb5fa227167dcf51cdece41a394ba6e03bc9b82773d34f40cc4fdd05f3ff2057",
+      "bytes": 5917242
+    },
+    {
+      "path": "pre-continuation-20260913173005-00123_f3_05_opening_cash_command.json",
+      "sha256": "bfdbf365772664f73c80447ec0d2373f6db96254ea18da4211b17d4f67c17c8e",
+      "bytes": 6375061
+    },
+    {
+      "path": "qualify-result.json",
+      "sha256": "6cd258bc112973f1948cd39c81a894011fa26780402eb98e4179331c53b1d39a",
+      "bytes": 95843454
+    },
+    {
+      "path": "qualify-result.json.meta.json",
+      "sha256": "9143d4a8a2e04b12d31e3afa5232c325eb63f3196c6db37da63226e2bb9b47e3",
+      "bytes": 280
+    }
+  ]
+}

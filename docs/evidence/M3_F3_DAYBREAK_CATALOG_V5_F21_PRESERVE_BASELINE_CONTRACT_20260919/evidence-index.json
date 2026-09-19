@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "exclusions": [
+    "evidence-index.json",
+    "evidence-index.sha256"
+  ],
+  "self_hash": false,
+  "detached_checksum": "evidence-index.sha256",
+  "artifacts": [
+    {
+      "path": "CHIEF_HANDOFF.md",
+      "sha256": "4f33473d6fa6f3403561bc3390da8dc713b5152e61ffd550798eb42783546c24",
+      "bytes": 3658
+    },
+    {
+      "path": "CONTRACT_REQUIREMENTS_TRACE.json",
+      "sha256": "250f78ac4a0b3c9c8dbc4f8bc77e44e9c03c02128d48ae7f3d99c64f5f5527f3",
+      "bytes": 15130
+    },
+    {
+      "path": "PINS.json",
+      "sha256": "b2bf9f2a0f2d1d9cad07eff2abc3a2bdf3adc074f7ac91c699d50bc7371ff09b",
+      "bytes": 2102
+    },
+    {
+      "path": "REVISED_CONTRACT.md",
+      "sha256": "6a7291860f38be664e192436bb98592aac38c3fc1253cae5b5b3286740a7322f",
+      "bytes": 34990
+    }
+  ]
+}

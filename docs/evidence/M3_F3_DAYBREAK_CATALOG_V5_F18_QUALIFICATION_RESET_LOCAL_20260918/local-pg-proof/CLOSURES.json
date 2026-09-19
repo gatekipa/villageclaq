@@ -1,0 +1,8 @@
+{
+  "runtime": "c6ecf620e41dbbce340e2207b2b9b793c8df750c703d245363139b497526a392",
+  "union": "b9a9e6b7ad95f6e5935d05bb6c41bdabe543f0f88a086bc6b28fcb07dd03be78",
+  "runtimeLabel": "F18_QUALIFICATION_RESET_RUNTIME_CLOSURE",
+  "unionLabel": "F18_QUALIFICATION_RESET_VERIFICATION_UNION",
+  "f17RuntimeCitedNotExpected": "0db1c600c620c0e406038fa3ebc5c4d7df6104bce64545ef9e16a63a6237c741",
+  "f17UnionCitedNotExpected": "d3fd2eb52a2adc2a1f963a54955b888b2d3e8eadea0283894c4a51f5effc41cb"
+}

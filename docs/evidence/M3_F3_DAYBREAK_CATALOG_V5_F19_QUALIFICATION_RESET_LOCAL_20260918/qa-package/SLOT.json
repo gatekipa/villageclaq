@@ -1,0 +1,26 @@
+{
+  "status": "FILLED_INDEPENDENT_QA",
+  "verdict": "F19 ACCEPT",
+  "F19_FUNCTIONAL_TIP": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
+  "bcId": "bc-8c2797cf-e789-5ab9-afd1-ff9a47a05cfa",
+  "required": [
+    "reviewer/task identity",
+    "reviewed pin",
+    "commands",
+    "execution outputs for the four cases",
+    "score.md"
+  ],
+  "present": [
+    "IDENTITY.json",
+    "score.md",
+    "COMMANDS.md",
+    "environment/",
+    "logs/",
+    "process-evidence/THROWN_EACCES.json",
+    "process-evidence/PATH_REDACT.json",
+    "process-evidence/THROWN_ONLY.json",
+    "process-evidence/SUCCESS.json",
+    "process-evidence/F18_DEFECTS.json"
+  ],
+  "scoreAloneInsufficient": true
+}

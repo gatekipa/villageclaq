@@ -1,0 +1,16 @@
+{
+  "status": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "verdict": "NOT FEASIBLE UNDER THE CURRENT CONTRACT",
+  "partA": "DEFERRED — no catalog-privilege exception",
+  "f20DesignHoldPreserved": true,
+  "f20HoldCode": "F20_EXTENSION_MEMBERSHIP_SERIALIZATION_UNSUPPORTED",
+  "designHead": "cc0ecacb55941ab038dd52095bd1be814569d1b0",
+  "functionalTip": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
+  "hostedHoldAncestor": "35b5be82acf01d11dd9f6578e8da7f384d8f925d",
+  "evidenceBeforeHosted": "20b4b340b49bccfc96f23333c731bac54056ea9c",
+  "hosted188Ownership": "CANNOT CONFIRM",
+  "partB": "retained in F20 design as 43=31+12 — not implemented in this task",
+  "noImplementation": true,
+  "noHostedContact": true
+}

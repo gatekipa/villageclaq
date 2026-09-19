@@ -1,0 +1,10 @@
+{
+  "id": "TX_SUCCESSFUL_RESET",
+  "ok": true,
+  "committed": true,
+  "verdict": "CLEAN_BASELINE",
+  "observedPhase": "T7_COMMIT",
+  "executedTransaction": true,
+  "framingHoldClosed": true,
+  "note": "shared runQualificationReset + local-fixture psql + generated SQL"
+}

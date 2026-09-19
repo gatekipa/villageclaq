@@ -1,0 +1,10 @@
+{
+  "suite": "test:f3-db-push",
+  "tests": 113,
+  "pass": 112,
+  "fail": 0,
+  "skipped": 1,
+  "exit_ok": true,
+  "skip_documented": true,
+  "functional_sha": "2fcc65114d89f098dc5d0f7787a99cb08c643c21"
+}

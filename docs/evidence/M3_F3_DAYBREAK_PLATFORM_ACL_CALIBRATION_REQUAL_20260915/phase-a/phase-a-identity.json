@@ -1,0 +1,82 @@
+{
+  "artifact": "phase-a-identity",
+  "phase": "A",
+  "functional_tip_reference_readonly": "2fcc65114d89f098dc5d0f7787a99cb08c643c21",
+  "captured_at_et": "9/15/2026, 7:22:57 PM ET",
+  "captured_at_iso": "2026-09-15T23:22:57.695Z",
+  "ref": "jkorwnwwmdeflfntxntl",
+  "name": "villageclaq-f3-management-api-disposable-20260913",
+  "organizationId": "eyztkzkprpmlmcabrfef",
+  "identity_host_pin": "db.jkorwnwwmdeflfntxntl.supabase.co",
+  "matches_allowlist": {
+    "ref": true,
+    "name": true,
+    "org": true
+  },
+  "not_production": true,
+  "production_ref_forbidden": "llbnliixczcqfftxpsmb",
+  "ref_ne_production": true,
+  "management_api_identity": {
+    "skipped": false,
+    "ok": true,
+    "ref": "jkorwnwwmdeflfntxntl",
+    "name": "villageclaq-f3-management-api-disposable-20260913",
+    "organizationId": "eyztkzkprpmlmcabrfef",
+    "status": 200,
+    "capture": {
+      "method": "GET",
+      "path": "/v1/projects/jkorwnwwmdeflfntxntl",
+      "status": 200
+    }
+  },
+  "mcp_get_project_corroboration": {
+    "id": "jkorwnwwmdeflfntxntl",
+    "ref": "jkorwnwwmdeflfntxntl",
+    "organization_id": "eyztkzkprpmlmcabrfef",
+    "name": "villageclaq-f3-management-api-disposable-20260913",
+    "status": "ACTIVE_HEALTHY"
+  },
+  "destructive_sentinel": {
+    "env": "F3_DBPUSH_DISPOSABLE_SENTINEL",
+    "present": true,
+    "matches_pin": true,
+    "destructive_opt_in": true
+  },
+  "credentials": {
+    "dedicated_disposable_password_env": "VILLAGECLAQ_F3_DISPOSABLE_DB_PASSWORD",
+    "dedicated_disposable_token_env": "VILLAGECLAQ_F3_DISPOSABLE_MGMT_TOKEN",
+    "password_present": true,
+    "token_present": true,
+    "sourced_from": [
+      "/tmp/f3-disposable-creds.env",
+      "process env VILLAGECLAQ_F3_DISPOSABLE_*"
+    ]
+  },
+  "ambient_env_proof": {
+    "DATABASE_URL_absent": true,
+    "DIRECT_URL_absent": true,
+    "POSTGRES_URL_absent": true,
+    "production_ref_absent_from_process_env_values": true,
+    "production_ref_absent_from_process_env_keys": true
+  },
+  "db_url_identity": {
+    "constructed_url_sslmode_require": true,
+    "sanitized_url": "postgresql://[REDACTED]:[REDACTED]@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require",
+    "user": "postgres.jkorwnwwmdeflfntxntl",
+    "host": "aws-0-us-east-1.pooler.supabase.com",
+    "port": 5432,
+    "database": "postgres",
+    "connection_mode": "session-mode pooler (same as db push candidate; direct db host IPv6-unreachable)",
+    "contains_approved_ref": true,
+    "contains_production_ref": false
+  },
+  "gates_satisfied": true,
+  "cli_pin": "2.117.0",
+  "pinned_identity": {
+    "ref": "jkorwnwwmdeflfntxntl",
+    "name": "villageclaq-f3-management-api-disposable-20260913",
+    "org": "eyztkzkprpmlmcabrfef",
+    "host": "db.jkorwnwwmdeflfntxntl.supabase.co"
+  },
+  "verified": true
+}

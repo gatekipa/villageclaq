@@ -1,0 +1,19 @@
+{
+  "verdict": "PASS",
+  "status": "FILE-BASED RUNNER QUALIFICATION PASS \u2014 STUB/LIVE-PIN FLOOR LIMITATION",
+  "functional_sha": "7d18aacaa163f9738be16be80489654b048e2150",
+  "hold_evidence_sha": "780f0922dcb3a3cb71e63cc0f2f4d158016520f1",
+  "prior_functional": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315",
+  "migrations": [
+    "00118",
+    "00119",
+    "00120",
+    "00121",
+    "00122",
+    "00123"
+  ],
+  "all_six_pass": true,
+  "negatives_repairCalls_zero": true,
+  "production_contacted": false,
+  "tip_modified_after_hosted": false
+}

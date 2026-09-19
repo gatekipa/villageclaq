@@ -1,0 +1,62 @@
+{
+  "artifact": "prehosted-gate",
+  "functional_sha": "11c9e3f763bba6dda999ec5554237b0ca39fdaba",
+  "verdict": "CONTINUE",
+  "failed_checks": [],
+  "checks": {
+    "local_pg_17_6_verify_READY_TO_FF": true,
+    "source_derived_expected_equals_independent_reference_all_six": true,
+    "expected_hashes_sealed_before_hosted": true,
+    "structures_deep_frozen_module_load": true,
+    "npm_test_f3_db_push": true,
+    "suite_counts": {
+      "command": "npm run test:f3-db-push",
+      "tests": 118,
+      "pass": 117,
+      "fail": 0,
+      "skipped": 1,
+      "exit_ok": true,
+      "captured_at_et": "9/15/2026, 7:51:11 PM ET",
+      "log": "test-f3-db-push.log"
+    },
+    "recursive_runtime_closure_complete": true,
+    "closure_counts": {
+      "local_files": 50,
+      "missing": 0,
+      "unresolved": 0,
+      "unexplained_exclusions": 0,
+      "uncommitted_functional_diffs": 0,
+      "exclusions": 15,
+      "six_migrations": 6
+    },
+    "cli_exactly_2_117_0": true,
+    "cli_path": "/workspace/f3-dbpush-qual/bin/supabase",
+    "cli_version": "2.117.0",
+    "migration_digests_exact": true,
+    "no_uncommitted_functional_drift": true,
+    "recognition_exact_manual_income": true,
+    "envelope_digest_eb58900b": true,
+    "envelope_not_from_hosted_flags": true,
+    "00118_independently_reproduced_may_eq_72af6699": true,
+    "local_verify_artifacts_present": true
+  },
+  "new_expected_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+    "00119_f3_01_core_ledger_foundation.sql": "af633e8c0c2cd5aa4df743960e03e5d9d2e17c36907c76cb9ee8ee2dfe8a2ebc",
+    "00120_f3_02_secure_posting_idempotency.sql": "b1b3b3c3ab4163378c8dfdbeb1da1421a5a1480b5a457424da9bc4a885d1027c",
+    "00121_f3_03_projection_read_proof.sql": "db68839cc5f61ab22a84a21965af4e90a41e7b4139a056c371aa0347eb4e04ca",
+    "00122_f3_04_correction_reversal.sql": "d8b2d0316e555339bcd95e944fd23e5c7686f16fa34d1d4c4691d610b1dc7659",
+    "00123_f3_05_opening_cash_command.sql": "07e984115ffc24f4e9e0f0d5d1d7f8c903c81064312e5c0b498e367ca11a0854"
+  },
+  "envelope_digest": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "absolute_bans_ack": {
+    "production_ref": "llbnliixczcqfftxpsmb",
+    "no_merge_deploy_delete_pause": true,
+    "no_daybreak_blue_astra": true,
+    "no_force_push": true,
+    "no_silent_patch_reseal_second_hosted": true,
+    "no_copy_hosted_observed_into_expected": true,
+    "no_second_hosted_retry_if_discrepancy": true
+  },
+  "captured_at_et": "9/15/2026, 7:53:31 PM ET"
+}

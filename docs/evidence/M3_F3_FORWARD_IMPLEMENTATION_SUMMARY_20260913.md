@@ -1,0 +1,87 @@
+# M3 F3 Forward Implementation Summary — 2026-09-13 (runner-fidelity / local-safety)
+
+**OVERALL VERDICT: repair-safety gate + optional-ubuntu ACL landed locally; prior hosted MECHANICS PASS SUPERSEDED; hosted db-push NOT RUN.** Greenfield `00001`–`00117` replay is **disallowed** for this auth. Hosted default floor is the documented stub+live-pin fixture (NOT a clean replay, NOT production-equivalent). Hosted HOLD was CLI text-table stdout (`inventoryCapture.body` started with `┌`). Qualifier now uses `--output-format json` + `inventoryFromQuery` unwrap. Chief disposable clean-check: `clean_ok=true`, residuals `[]`, public tables 0, migrations `[]`, `schema_migrations` rows 0, F3 absent — **do not wipe**. Local composition **PASS**. Local PG17 apply through 00117 **NOT_RUN**. Hosted `--prep-floor --sequence-f3` **NOT_RUN** (password absent). FILE-BASED RUNNER QUALIFICATION PASS, production PASS, clean replay PASS, and merge/deploy auth are **NOT** claimed. Prior hosted `FILE-BASED RUNNER MECHANICS PASS — STUB/LIVE-PIN QUALIFICATION FLOOR` is **SUPERSEDED** (do not erase).
+
+Current status: `docs/evidence/M3_F3_TIP_FIDELITY_HARNESS_DELTAS_20260913.md` (tip-fidelity HOLD closed). Prior ACL/repair-gate packaging (do not delete): `docs/evidence/M3_F3_REPAIR_GATE_ACL_PORTABILITY_20260913.md`. Prior stub+live-pin packaging (do not delete): `docs/evidence/M3_F3_STUB_LIVE_PIN_FLOOR_20260913.md`. Clean-check: `docs/evidence/M3_F3_06_PRE_STUB_FLOOR_CLEAN_CHECK_20260913.md`. Functional SHA `30f27954507ec22a0414628943408d7be91030a1`. Evidence SHA `5f85c0f57f5bd8a5b3d25d0d287da16718cd7494`. Tip SHA `38bbd3b4a26f46a23ac6d3bdb64e3549c143ead5`. Prior greenfield HOLD (do not delete): `docs/evidence/M3_F3_GREENFIELD_CUT_M2_PIN_HOLD_20260913.md`. Prior 00061 first-fail packaging (do not delete): `docs/evidence/M3_F3_00057_TRANSFORM_HOLD_20260913.md`. Prior wipe HOLD: `docs/evidence/M3_F3_WIPE_TRANSFORM_HOLD_20260913.md`.
+
+This document **supersedes** the external-ledger tip bound to `968660d` / `3937b01` insofar as that tip claimed Management API equivalence or apply-time-clock recovery. The 14/14 suite remains SQL pre-commit rollback only. The local two-phase suite remains a **NON-API simulation**.
+
+**DO NOT MERGE.**  
+**DO NOT APPLY 00118+ TO PRODUCTION.**  
+**NO F3-06 UI. NO PRODUCTION FINANCIAL WRITES. NO M4.**  
+**FCG-1 IS NOT CLOSED.**  
+**REMOTE Management API WRITE PATH IS GATED** to disposable `jkorwnwwmdeflfntxntl` only. Chief live probe: history INSERT blocked before version persistence → version unrecoverable; repair forbidden. This VM did not re-run hosted POST (token absent).
+
+Draft PR: https://github.com/gatekipa/villageclaq/pull/84
+
+## Pins
+
+| Pin | Value |
+|-----|-------|
+| Base main | `d83d13d4fe9915a0d1ff149ce29a53ad708c9853` |
+| Planning PR #83 (unchanged) | `a293f5958b31548ccec7591b653eff2857ae9a90` |
+| **db push functional SHA** | `164f57949df774586155b007bf8a6c067ded4874` (unchanged) |
+| Prior MAPI-era functional | `0c2fe83107fe440b46f978baf56ffd12db4f8cd4` |
+| Evidence | `docs/evidence/M3_F3_DB_PUSH_CANDIDATE_QUALIFICATION_20260913.md` |
+| Superseded scaffolding evidence | `74e001eb2fd336924497b45f8db243da1f672f2c` / `M3_F3_MANAGEMENT_API_RUNNER_FIDELITY_20260913.md` |
+| Prior Path B functional | `1ca63d9fe0d82a74a761fb742be87642b55329d6` |
+| Path B leftover-stamp | `3663e33b4dee8fbc97491f0dffe474c805c37113` |
+| Hosted Management API | **HOLD — MANAGEMENT API VERSION UNRECOVERABLE** (Chief live probe; this VM token absent) |
+| Superseded functional | `968660d4e079ceb6c8d081be9f985597eaed0465` |
+| Superseded evidence tip | `3937b01bff0bc37ed4035e8f708cf10e355f3eae` |
+| Recognition | exactly `["manual_income"]` |
+| Prod migrations | 32; F3 objects ABSENT (not applied) |
+
+See `M3_F3_RUNNER_CONTRACT_S0_M2_20260913.md` for proven-vs-UNPROVEN runner facts and `F3_FOUNDER_CONTROLLED_MIGRATION_REPAIR.md` for the corrected runbook.
+
+## Frozen digests (ACL-portability freeze; prior table SUPERSEDED)
+
+| File | SHA-256 |
+|------|---------|
+| `00118_f3_bounded_financial_epoch_foundation.sql` | `bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed` |
+| `00119_f3_01_core_ledger_foundation.sql` | `b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11` |
+| `00120_f3_02_secure_posting_idempotency.sql` | `d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60` |
+| `00121_f3_03_projection_read_proof.sql` | `51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce` |
+| `00122_f3_04_correction_reversal.sql` | `84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3` |
+| `00123_f3_05_opening_cash_command.sql` | `0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d` |
+
+Prior freeze (SUPERSEDED 2026-09-13; unconditional ubuntu REVOKE; do not erase):
+
+| File | SUPERSEDED SHA-256 |
+|------|--------------------|
+| `00118_f3_bounded_financial_epoch_foundation.sql` | `517774fd883ecc8c8ba7d2e287c7245a1289b21623c839f594b0801611968f3c` |
+| `00119_f3_01_core_ledger_foundation.sql` | `9b09a733ed848e2a88a894db0815bd0f33f86335b58f7c9cd58845b6607d785d` |
+| `00120_f3_02_secure_posting_idempotency.sql` | `4b870418ea15160a7aec0e6df707d9c8a3afc435f2d8bd1c861e0af7c47eb505` |
+| `00121_f3_03_projection_read_proof.sql` | `568ae0b15b1b6e6c0a7effd9e9b5644a294cc22d76dbbf0e6714a28888825cf5` |
+| `00122_f3_04_correction_reversal.sql` | `fd2c6e8729d1c7983421804b5f028edd16170c9f9056c8db2f3994f4dff8bdf9` |
+| `00123_f3_05_opening_cash_command.sql` | `848b7cbe7e4e20e2e284d88f9954be0be8ffdfe4fc6d7c649e536d0c09aab699` |
+
+## Fresh local qualification (this remediation)
+
+| Suite | Result |
+|-------|--------|
+| Local disposable safety | **45/45 PASS** |
+| Local two-phase failure+repair (NON-API simulation) | **9/9 PASS** |
+| SQL pre-commit atomicity | **14/14 PASS** |
+| Recognition direct | **40/40 PASS** |
+| Combined `npm run test:f3` | **991/991 PASS** |
+| db push harness (local) | **29/29 PASS** |
+| Management API harness (local) | **22/22 PASS** |
+| `test:m2` | **111/111 PASS** |
+| Cut 1 / Cut 2 / Cut 3 storage | **11/11 / 20/20 / 11/11 PASS** |
+| `tsc --noEmit` | **PASS** |
+| `npm run build` | **PASS** (dummy non-prod env) |
+| Remote Management API fidelity | **HOLD — MANAGEMENT API VERSION UNRECOVERABLE** |
+
+## Confirmations
+
+- No F3-06 UI routes or opening-cash product UX
+- No production apply / SQL / financial writes / storage mutation / queue insert / send / deploy
+- No merge to main
+- No Astra / Daybreak contact
+- PR #83 unchanged
+- No hosted Management API POST from this VM (token absent); Chief live probe facts copied, not re-run
+- Disposable project not deleted or paused
+- Repair not attempted; 00118–00123 remote apply not claimed
+- Chief live preflight incorporated: identity PASS, migrations `[]`, throwaway probe dropped, session-mode pooler connect OK, direct IPv6 host failed
+- Candidate `--db-url` is session-mode pooler only; this VM still has no password so hosted `db push` remains **BLOCKED**

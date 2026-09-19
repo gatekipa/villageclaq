@@ -1,0 +1,13 @@
+{
+  "name": "test-s0-cut2",
+  "command": "npm run test:s0-cut2",
+  "startedAt": "2026-09-14T21:33:09Z",
+  "endedAt": "2026-09-14T21:33:09Z",
+  "exit": 1,
+  "pass": 14,
+  "fail": 7,
+  "skip": 0,
+  "log": "<redacted-path>",
+  "sha256": "b1a2aa305b77c243d5e6968113cc56bc17ec2f2cfb9a6781a03e12c5ae4837dc",
+  "bytes": 14491
+}

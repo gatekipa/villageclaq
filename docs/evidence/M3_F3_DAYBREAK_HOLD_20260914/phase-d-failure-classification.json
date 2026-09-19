@@ -1,0 +1,26 @@
+{
+  "artifact": "phase-d-failure-classification",
+  "verdict": "HOLD",
+  "functional_sha": "b45042d8c9927a72fa1fddf9e6be27b96ee56919",
+  "stopped_at": "00118_f3_bounded_financial_epoch_foundation.sql",
+  "version": "20260913173000",
+  "failed_gates": [
+    "fingerprint_exact"
+  ],
+  "fingerprint_detail": {
+    "id": "fingerprint_exact",
+    "ok": false,
+    "detail": "fingerprint.expected missing or not an object"
+  },
+  "root_cause": "tip qualify-f3-db-push-disposable.mjs wires fingerprint.expected=null; repair-safety fingerprintCompleteAndExact requires expected object \u2192 fingerprint_exact fails before repair",
+  "tip_bug_locus": {
+    "file": "scripts/qualify-f3-db-push-disposable.mjs",
+    "pattern": "expected: null",
+    "sha": "b45042d8c9927a72fa1fddf9e6be27b96ee56919"
+  },
+  "repair_attempted": false,
+  "objects_present": true,
+  "classification_split": "POST_COMMIT_HISTORY_FAILURE",
+  "do_not_repair_on_partial": true,
+  "note": "Local harness passes because authorizedGateInput sets expected===observed; hosted qualify entrypoint does not. No tip tree modification performed (hosted-run constraint)."
+}

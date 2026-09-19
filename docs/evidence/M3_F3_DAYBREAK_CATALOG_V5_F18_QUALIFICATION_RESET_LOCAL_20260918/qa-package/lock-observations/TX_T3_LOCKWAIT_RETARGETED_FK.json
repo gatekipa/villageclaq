@@ -1,0 +1,156 @@
+{
+  "id": "TX_T3_LOCKWAIT_RETARGETED_FK_ROLLBACK",
+  "ok": true,
+  "executedTransaction": true,
+  "code": "F13_RESET_SQL_FAILED",
+  "verdict": "HOLD",
+  "commit": false,
+  "rollback": null,
+  "mutationPhaseReached": false,
+  "holderCommitted": true,
+  "holderResult": {
+    "ok": true
+  },
+  "lockWaitObserved": true,
+  "observedPhase": "T2_LOCK",
+  "processStatus": 3,
+  "status": 3,
+  "appliedSqlIdentity": "a3605e146714f435f7df791af8f5762404094b910973fb1a0f0ced67965c2ad5",
+  "interleaving": {
+    "t1ReachedThenWaited": true,
+    "resetProcessId": 14988,
+    "resetBackendPid": 15811,
+    "resetExecutionId": "f18_reset_5057_1789745513066_07e8a8c7ecf6a",
+    "holderBackendPid": 14982,
+    "datname": "f3_f15_qual_reset_5057_mu749l0q",
+    "relation": "public.memberships",
+    "holderLock": {
+      "pid": 14982,
+      "mode": "AccessExclusiveLock",
+      "granted": true,
+      "locktype": "relation",
+      "relation": "public.memberships"
+    },
+    "waiterLock": {
+      "pid": 15811,
+      "mode": "AccessExclusiveLock",
+      "granted": false,
+      "locktype": "relation",
+      "relation": "public.memberships",
+      "blockedByHolder": true
+    },
+    "isolation": "READ COMMITTED",
+    "inferredFromAnyWaiter": false,
+    "inferredFromApplicationNameAlone": false,
+    "inferredFromEventTypeAlone": false
+  },
+  "backendBoundLock": {
+    "observation": {
+      "resetProcessId": 14988,
+      "resetBackendPid": 15811,
+      "resetExecutionId": "f18_reset_5057_1789745513066_07e8a8c7ecf6a",
+      "holderBackendPid": 14982,
+      "datname": "f3_f15_qual_reset_5057_mu749l0q",
+      "relation": "public.memberships",
+      "holderLock": {
+        "pid": 14982,
+        "mode": "AccessExclusiveLock",
+        "granted": true,
+        "locktype": "relation",
+        "relation": "public.memberships"
+      },
+      "waiterLock": {
+        "pid": 15811,
+        "mode": "AccessExclusiveLock",
+        "granted": false,
+        "locktype": "relation",
+        "relation": "public.memberships",
+        "blockedByHolder": true
+      },
+      "resetWaitOnHolder": {
+        "waiterPid": 15811,
+        "holderPid": 14982,
+        "blockedByHolder": true
+      },
+      "holderCommitted": true,
+      "holderResult": {
+        "ok": true
+      },
+      "committedCatalogChange": true,
+      "lockAcquisitionByResetBackend": {
+        "resetBackendPid": 15811,
+        "relation": "public.memberships",
+        "granted": false,
+        "t2LockedSameBackend": true,
+        "afterHolderCommit": true
+      },
+      "t3RejectionFromSameReset": {
+        "sameResetExecution": true,
+        "rejected": true,
+        "mutationPhaseReached": false,
+        "code": "F13_RESET_SQL_FAILED"
+      },
+      "appliedSqlIdentity": "a3605e146714f435f7df791af8f5762404094b910973fb1a0f0ced67965c2ad5",
+      "postconditionsComplete": true,
+      "inferredFromAnyWaiter": false,
+      "inferredFromApplicationNameAlone": false,
+      "inferredFromEventTypeAlone": false
+    },
+    "proof": {
+      "schema": "f18-qualification-reset-backend-bound-lock-v1",
+      "ok": true,
+      "pass": true,
+      "failures": [],
+      "code": null
+    }
+  },
+  "preResetCommittedDrift": {
+    "retained": "public.profiles",
+    "observedAfterHolderCommit": "public.profiles"
+  },
+  "reparseAttestation": {
+    "ok": true,
+    "consistent": true,
+    "schema": "f18-qualification-reset-stored-process-adapter-v1",
+    "parsedOk": true,
+    "observationCount": 2,
+    "lastEvent": {
+      "schema": "f15-qualification-reset-tx-observation-v1",
+      "phase": "T2_LOCK",
+      "event": "locked",
+      "backendPid": 15811,
+      "datname": "f3_f15_qual_reset_5057_mu749l0q",
+      "applicationName": "f13_qualification_reset",
+      "usename": "ubuntu"
+    },
+    "interpretedCommitted": false,
+    "interpretedVerdictPath": "HOLD",
+    "phaseReached": "T2_LOCK",
+    "t7CommitAttempted": false,
+    "t7CommittedTrue": false,
+    "processStatus": 3,
+    "processFailed": true,
+    "genuineSuccess": false,
+    "genuineFailure": true,
+    "successClaimedUncommitted": false,
+    "failureBecameCommitted": false,
+    "mappedProcessStatusToStatus": false
+  },
+  "stdout": "{\"schema\" : \"f15-qualification-reset-tx-observation-v1\", \"phase\" : \"T1_BEGIN\", \"event\" : \"began\", \"backendPid\" : 15811, \"datname\" : \"f3_f15_qual_reset_5057_mu749l0q\", \"applicationName\" : \"f13_qualification_reset\", \"usename\" : \"ubuntu\"}\n{\"schema\" : \"f15-qualification-reset-tx-observation-v1\", \"phase\" : \"T2_LOCK\", \"event\" : \"locked\", \"backendPid\" : 15811, \"datname\" : \"f3_f15_qual_reset_5057_mu749l0q\", \"applicationName\" : \"f13_qualification_reset\", \"usename\" : \"ubuntu\"}\n",
+  "stderr": "psql:[REDACTED_PATH]/f15-qual-reset-jwjBoC/f15-qualification-reset.sql:27: NOTICE:  F18_RESET_BACKEND pid=15811 datname=f3_f15_qual_reset_5057_mu749l0q app=f13_qualification_reset\npsql:[REDACTED_PATH]/f15-qual-reset-jwjBoC/f15-qualification-reset.sql:178: NOTICE:  F18_RESET_LOCK_ACQUIRED pid=15811\npsql:[REDACTED_PATH]/f15-qual-reset-jwjBoC/f15-qualification-reset.sql:364: ERROR:  F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: live tuple not in FINITE_DEPENDENCY_ALLOWLIST foreign_key|memberships_group_id_fkey|public.memberships|public.profiles\nCONTEXT:  PL/pgSQL function inline_code_block line 82 at RAISE\n",
+  "streams": {
+    "capturedBeforeEncode": true,
+    "originalStdoutSha256": "21727a8f675f5332da841d51b5c7a4d747677ed5a6c33dc9061e343ade653cdc",
+    "originalStdoutByteLength": 472,
+    "originalStderrSha256": "2369f9eddb375ca773c6c22179467672c706c05313d2295989377ce77621079a",
+    "originalStderrByteLength": 569,
+    "packagedStdoutSha256": "21727a8f675f5332da841d51b5c7a4d747677ed5a6c33dc9061e343ade653cdc",
+    "packagedStdoutByteLength": 472,
+    "packagedStderrSha256": "8f7242a4810beefd3d5c163d7b0e09854af125c907fb561058673870f2e29d41",
+    "packagedStderrByteLength": 602,
+    "originalByteEqual": false,
+    "reconstructedFromSummary": false,
+    "transformApplied": true
+  },
+  "note": "holder kept memberships lock; reset waited; approved identity retargeted; T3 rejected before mutation"
+}

@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "exclusions": [
+    "evidence-index.json",
+    "evidence-index.sha256"
+  ],
+  "self_hash": false,
+  "detached_checksum": "evidence-index.sha256",
+  "artifacts": [
+    {
+      "path": "CHIEF_HANDOFF.md",
+      "sha256": "085867f96f22c98a0a5a0b4f35e4a5232ef9132069c91273c3453174b00c067e",
+      "bytes": 582
+    },
+    {
+      "path": "DECISION_NOTE.md",
+      "sha256": "ba35b2db147b289390fa02f0c042251fc5827cce7f115c16921e288beb97394d",
+      "bytes": 10821
+    },
+    {
+      "path": "PINS.json",
+      "sha256": "bc305943f549aec61bb15cb313922f13a34d7fafd267203713affc89c4057e33",
+      "bytes": 840
+    }
+  ]
+}

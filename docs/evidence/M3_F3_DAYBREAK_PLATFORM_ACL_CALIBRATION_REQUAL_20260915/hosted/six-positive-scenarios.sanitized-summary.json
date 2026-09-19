@@ -1,0 +1,805 @@
+{
+  "artifact": "six-positive-scenarios.sanitized-summary",
+  "status": "FILE-BASED RUNNER QUALIFICATION PASS \u2014 STUB/LIVE-PIN FLOOR LIMITATION",
+  "verdict": "FILE-BASED RUNNER QUALIFICATION PASS \u2014 STUB/LIVE-PIN FLOOR LIMITATION",
+  "projectRef": "jkorwnwwmdeflfntxntl",
+  "host": "db.jkorwnwwmdeflfntxntl.supabase.co",
+  "cli": {
+    "available": true,
+    "bin": "supabase",
+    "status": 0,
+    "text": "2.117.0",
+    "version": "2.117.0",
+    "pinned": "2.117.0",
+    "matchesPin": true
+  },
+  "floorLabel": "DOCUMENTED QUALIFICATION FIXTURE \u2014 NOT A CLEAN 00001\u201300117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "floor": {
+    "mode": "stub-live-pin",
+    "label": "DOCUMENTED QUALIFICATION FIXTURE \u2014 NOT A CLEAN 00001\u201300117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+    "installed": true,
+    "reached_00117": null,
+    "authority": "hosted default: stub+live-pin qualification floor via gated disposable psql -f (STUB_CORE_SQL + REGRESSION_SLICE_SQL + CUT2_QUEUE_SLICE_SQL + Cut 3 live has_group_permission + 00115 enqueue extract + remoteFloorOwnershipAndAclSql + exact unmodified 00117 bytes). Isolated db-push workdir only has 00118\u201300123. Earlier production history intentionally not reproduced. Do not invent 00117 history rows. NOT Management API, NOT db push for 00117, NOT 00001\u201300116 replay, NOT 00030/00057 transforms, NOT production-equivalent.",
+    "components": [
+      "STUB_CORE_SQL",
+      "public_uuid_generate_v5_wrapper",
+      "REGRESSION_SLICE_SQL",
+      "CUT2_QUEUE_SLICE_SQL",
+      "live_has_group_permission_cut3",
+      "enqueue_outbound_notification_00115_extract",
+      "remoteFloorOwnershipAndAclSql",
+      "unmodified_00117_gated_psql"
+    ]
+  },
+  "sealedPlatformAclEnvelopeDigest": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "platformAclCalibration": {
+    "ok": true,
+    "dbPushAuthorized": true,
+    "dbPushCalls": 0,
+    "repairCalls": 0,
+    "fingerprint_exact": true,
+    "hold": null,
+    "reason": null,
+    "digest": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "calibration": {
+      "ok": true,
+      "dbPushAuthorized": true,
+      "sealAuthorized": true,
+      "digest": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+      "envelope": {
+        "artifact": "platform-acl-envelope",
+        "phase": "A",
+        "sealed": true,
+        "provenance": "INDEPENDENT SUPABASE PLATFORM-ACL CALIBRATION \u2014 derived ONLY from disposable pg_default_acl + canary agreement",
+        "not_from_financial_ledger_epochs": true,
+        "not_from_hosted_fingerprint_72af6699": true,
+        "project_ref": "jkorwnwwmdeflfntxntl",
+        "creating_role": "postgres",
+        "public_schema_owner": "pg_database_owner",
+        "postgres": {
+          "server_version": "17.6",
+          "server_version_num": 170006
+        },
+        "default_acl_canonical": [
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "function",
+            "grantor": "postgres",
+            "grantee": "anon",
+            "privilege_type": "EXECUTE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "function",
+            "grantor": "postgres",
+            "grantee": "authenticated",
+            "privilege_type": "EXECUTE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "function",
+            "grantor": "postgres",
+            "grantee": "postgres",
+            "privilege_type": "EXECUTE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "function",
+            "grantor": "postgres",
+            "grantee": "service_role",
+            "privilege_type": "EXECUTE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "sequence",
+            "grantor": "postgres",
+            "grantee": "anon",
+            "privilege_type": "SELECT",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "sequence",
+            "grantor": "postgres",
+            "grantee": "anon",
+            "privilege_type": "UPDATE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "sequence",
+            "grantor": "postgres",
+            "grantee": "anon",
+            "privilege_type": "USAGE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "sequence",
+            "grantor": "postgres",
+            "grantee": "authenticated",
+            "privilege_type": "SELECT",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "sequence",
+            "grantor": "postgres",
+            "grantee": "authenticated",
+            "privilege_type": "UPDATE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "sequence",
+            "grantor": "postgres",
+            "grantee": "authenticated",
+            "privilege_type": "USAGE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "sequence",
+            "grantor": "postgres",
+            "grantee": "postgres",
+            "privilege_type": "SELECT",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "sequence",
+            "grantor": "postgres",
+            "grantee": "postgres",
+            "privilege_type": "UPDATE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "sequence",
+            "grantor": "postgres",
+            "grantee": "postgres",
+            "privilege_type": "USAGE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "sequence",
+            "grantor": "postgres",
+            "grantee": "service_role",
+            "privilege_type": "SELECT",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "sequence",
+            "grantor": "postgres",
+            "grantee": "service_role",
+            "privilege_type": "UPDATE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "sequence",
+            "grantor": "postgres",
+            "grantee": "service_role",
+            "privilege_type": "USAGE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "anon",
+            "privilege_type": "DELETE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "anon",
+            "privilege_type": "INSERT",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "anon",
+            "privilege_type": "MAINTAIN",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "anon",
+            "privilege_type": "REFERENCES",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "anon",
+            "privilege_type": "SELECT",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "anon",
+            "privilege_type": "TRIGGER",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "anon",
+            "privilege_type": "TRUNCATE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "anon",
+            "privilege_type": "UPDATE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "authenticated",
+            "privilege_type": "DELETE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "authenticated",
+            "privilege_type": "INSERT",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "authenticated",
+            "privilege_type": "MAINTAIN",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "authenticated",
+            "privilege_type": "REFERENCES",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "authenticated",
+            "privilege_type": "SELECT",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "authenticated",
+            "privilege_type": "TRIGGER",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "authenticated",
+            "privilege_type": "TRUNCATE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "authenticated",
+            "privilege_type": "UPDATE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "postgres",
+            "privilege_type": "DELETE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "postgres",
+            "privilege_type": "INSERT",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "postgres",
+            "privilege_type": "MAINTAIN",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "postgres",
+            "privilege_type": "REFERENCES",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "postgres",
+            "privilege_type": "SELECT",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "postgres",
+            "privilege_type": "TRIGGER",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "postgres",
+            "privilege_type": "TRUNCATE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "postgres",
+            "privilege_type": "UPDATE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "service_role",
+            "privilege_type": "DELETE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "service_role",
+            "privilege_type": "INSERT",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "service_role",
+            "privilege_type": "MAINTAIN",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "service_role",
+            "privilege_type": "REFERENCES",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "service_role",
+            "privilege_type": "SELECT",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "service_role",
+            "privilege_type": "TRIGGER",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "service_role",
+            "privilege_type": "TRUNCATE",
+            "is_grantable": false
+          },
+          {
+            "creating_role": "postgres",
+            "schema_name": "public",
+            "object_class": "table",
+            "grantor": "postgres",
+            "grantee": "service_role",
+            "privilege_type": "UPDATE",
+            "is_grantable": false
+          }
+        ],
+        "agreed_service_role_grants": {
+          "table": [
+            {
+              "object_class": "table",
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege_type": "DELETE",
+              "is_grantable": false
+            },
+            {
+              "object_class": "table",
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege_type": "INSERT",
+              "is_grantable": false
+            },
+            {
+              "object_class": "table",
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege_type": "MAINTAIN",
+              "is_grantable": false
+            },
+            {
+              "object_class": "table",
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege_type": "REFERENCES",
+              "is_grantable": false
+            },
+            {
+              "object_class": "table",
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege_type": "SELECT",
+              "is_grantable": false
+            },
+            {
+              "object_class": "table",
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege_type": "TRIGGER",
+              "is_grantable": false
+            },
+            {
+              "object_class": "table",
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege_type": "TRUNCATE",
+              "is_grantable": false
+            },
+            {
+              "object_class": "table",
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege_type": "UPDATE",
+              "is_grantable": false
+            }
+          ],
+          "sequence": [
+            {
+              "object_class": "sequence",
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege_type": "SELECT",
+              "is_grantable": false
+            },
+            {
+              "object_class": "sequence",
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege_type": "UPDATE",
+              "is_grantable": false
+            },
+            {
+              "object_class": "sequence",
+              "grantee": "service_role",
+              "grantor": "postgres",
+              "privilege_type": "USAGE",
+              "is_grantable": false
+            }
+          ]
+        },
+        "canary_agreement": {
+          "equal": true,
+          "sets_equal": true,
+          "canary": "public.__f3_acl_platform_canary_20260915",
+          "table_relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=[REDACTED]}",
+          "sequence_relacl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=[REDACTED]}",
+          "dropped": true
+        },
+        "digest_sha256": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+        "canonical_json_byte_length": 10222,
+        "sealed_at_iso": "2026-09-15T23:24:16.331Z",
+        "sealed_at_et": "9/15/2026, 7:24:16 PM ET"
+      },
+      "hold": null
+    }
+  },
+  "expectedFingerprintsBeforeDb": {
+    "recordedBeforeDbAccess": true,
+    "independentOfObserved": true,
+    "constructedOffline": true,
+    "sha256BeforeDb": {
+      "00118_f3_bounded_financial_epoch_foundation.sql": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+      "00119_f3_01_core_ledger_foundation.sql": "af633e8c0c2cd5aa4df743960e03e5d9d2e17c36907c76cb9ee8ee2dfe8a2ebc",
+      "00120_f3_02_secure_posting_idempotency.sql": "b1b3b3c3ab4163378c8dfdbeb1da1421a5a1480b5a457424da9bc4a885d1027c",
+      "00121_f3_03_projection_read_proof.sql": "db68839cc5f61ab22a84a21965af4e90a41e7b4139a056c371aa0347eb4e04ca",
+      "00122_f3_04_correction_reversal.sql": "d8b2d0316e555339bcd95e944fd23e5c7686f16fa34d1d4c4691d610b1dc7659",
+      "00123_f3_05_opening_cash_command.sql": "07e984115ffc24f4e9e0f0d5d1d7f8c903c81064312e5c0b498e367ca11a0854"
+    }
+  },
+  "recognition": [
+    "manual_income"
+  ],
+  "frozenDigests": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+    "00119_f3_01_core_ledger_foundation.sql": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+    "00120_f3_02_secure_posting_idempotency.sql": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+    "00121_f3_03_projection_read_proof.sql": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+    "00122_f3_04_correction_reversal.sql": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+    "00123_f3_05_opening_cash_command.sql": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d"
+  },
+  "claims": {
+    "productionApproval": "NOT CLAIMED",
+    "managementApiApply": "PERMANENTLY DISQUALIFIED",
+    "dbPush": "FILE-BASED RUNNER QUALIFICATION PASS \u2014 STUB/LIVE-PIN FLOOR LIMITATION; prior MECHANICS PASS SUPERSEDED; not production PASS; not clean replay PASS; not merge/deploy auth",
+    "applyTimeClock": "FORBIDDEN / NOT USED",
+    "automaticRepair": "FORBIDDEN",
+    "mechanicsPass": "SUPERSEDED"
+  },
+  "wipe": {
+    "skipped": true,
+    "noWipe": true,
+    "do_not_wipe": true,
+    "cleanCheck": {
+      "artifact": "06-pre-stub-floor-clean-check",
+      "clean_ok": true,
+      "residuals": [],
+      "residual_cleanup": {
+        "storage_policies": [],
+        "storage_buckets": [],
+        "blocking": false,
+        "drop_narrowly": false,
+        "wipe_to_baseline": false,
+        "note": "incomplete prior wipe residuals: the 10 named FAILED_FLOOR_STORAGE_POLICY_NAMES (+ empty floor buckets avatars/group-documents/receipts if safe) may be dropped narrowly. Not --wipe-to-baseline. Not blocking when public/history/F3 match Chief 06."
+      },
+      "public_tables": 0,
+      "public_tables_list": [],
+      "migrations": [],
+      "schema_migrations_rows": 0,
+      "schema_migrations_history": [],
+      "f3_absent": true,
+      "matches_post_wipe_baseline": true,
+      "do_not_wipe": true,
+      "classification_verdict": "CLEAN_BASELINE",
+      "label": "DOCUMENTED QUALIFICATION FIXTURE \u2014 NOT A CLEAN 00001\u201300117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+      "recognition": [
+        "manual_income"
+      ],
+      "hold": null
+    },
+    "note": "Chief 06 clean-check is the pre-floor pin. Do not re-wipe. Do not replay 00001\u201300116. Leftover FAILED_FLOOR_STORAGE_POLICY_NAMES + avatars/group-documents/receipts are residual cleanup (narrow DROP), not --wipe-to-baseline."
+  },
+  "identity": {
+    "ref": "jkorwnwwmdeflfntxntl",
+    "name": "villageclaq-f3-management-api-disposable-20260913",
+    "organization_id": null,
+    "organizationId": "eyztkzkprpmlmcabrfef",
+    "project_ref": null,
+    "project_name": null
+  },
+  "per_migration": [
+    {
+      "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+      "version": "20260913173000",
+      "digest": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+      "continuation": true,
+      "repairAttempted": true,
+      "objectsPresent": true,
+      "classification_split": "POST_COMMIT_HISTORY_FAILURE",
+      "repairSafety_ok": true,
+      "postRepairFingerprintEval_ok": true,
+      "postRetryFingerprintEval_ok": true,
+      "postContinuationFingerprintEval_ok": true,
+      "fingerprint_phases_sha256": {
+        "expected": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+        "after_commit_failed_history": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+        "after_poison_cleanup": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+        "after_repair": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+        "after_retry": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+        "after_clean_continuation": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f"
+      },
+      "fingerprint_equality_vs_expected": true
+    },
+    {
+      "file": "00119_f3_01_core_ledger_foundation.sql",
+      "version": "20260913173001",
+      "digest": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+      "continuation": true,
+      "repairAttempted": true,
+      "objectsPresent": true,
+      "classification_split": "POST_COMMIT_HISTORY_FAILURE",
+      "repairSafety_ok": true,
+      "postRepairFingerprintEval_ok": true,
+      "postRetryFingerprintEval_ok": true,
+      "postContinuationFingerprintEval_ok": true,
+      "fingerprint_phases_sha256": {
+        "expected": "af633e8c0c2cd5aa4df743960e03e5d9d2e17c36907c76cb9ee8ee2dfe8a2ebc",
+        "after_commit_failed_history": "af633e8c0c2cd5aa4df743960e03e5d9d2e17c36907c76cb9ee8ee2dfe8a2ebc",
+        "after_poison_cleanup": "af633e8c0c2cd5aa4df743960e03e5d9d2e17c36907c76cb9ee8ee2dfe8a2ebc",
+        "after_repair": "af633e8c0c2cd5aa4df743960e03e5d9d2e17c36907c76cb9ee8ee2dfe8a2ebc",
+        "after_retry": "af633e8c0c2cd5aa4df743960e03e5d9d2e17c36907c76cb9ee8ee2dfe8a2ebc",
+        "after_clean_continuation": "af633e8c0c2cd5aa4df743960e03e5d9d2e17c36907c76cb9ee8ee2dfe8a2ebc"
+      },
+      "fingerprint_equality_vs_expected": true
+    },
+    {
+      "file": "00120_f3_02_secure_posting_idempotency.sql",
+      "version": "20260913173002",
+      "digest": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+      "continuation": true,
+      "repairAttempted": true,
+      "objectsPresent": true,
+      "classification_split": "POST_COMMIT_HISTORY_FAILURE",
+      "repairSafety_ok": true,
+      "postRepairFingerprintEval_ok": true,
+      "postRetryFingerprintEval_ok": true,
+      "postContinuationFingerprintEval_ok": true,
+      "fingerprint_phases_sha256": {
+        "expected": "b1b3b3c3ab4163378c8dfdbeb1da1421a5a1480b5a457424da9bc4a885d1027c",
+        "after_commit_failed_history": "b1b3b3c3ab4163378c8dfdbeb1da1421a5a1480b5a457424da9bc4a885d1027c",
+        "after_poison_cleanup": "b1b3b3c3ab4163378c8dfdbeb1da1421a5a1480b5a457424da9bc4a885d1027c",
+        "after_repair": "b1b3b3c3ab4163378c8dfdbeb1da1421a5a1480b5a457424da9bc4a885d1027c",
+        "after_retry": "b1b3b3c3ab4163378c8dfdbeb1da1421a5a1480b5a457424da9bc4a885d1027c",
+        "after_clean_continuation": "b1b3b3c3ab4163378c8dfdbeb1da1421a5a1480b5a457424da9bc4a885d1027c"
+      },
+      "fingerprint_equality_vs_expected": true
+    },
+    {
+      "file": "00121_f3_03_projection_read_proof.sql",
+      "version": "20260913173003",
+      "digest": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+      "continuation": true,
+      "repairAttempted": true,
+      "objectsPresent": true,
+      "classification_split": "POST_COMMIT_HISTORY_FAILURE",
+      "repairSafety_ok": true,
+      "postRepairFingerprintEval_ok": true,
+      "postRetryFingerprintEval_ok": true,
+      "postContinuationFingerprintEval_ok": true,
+      "fingerprint_phases_sha256": {
+        "expected": "db68839cc5f61ab22a84a21965af4e90a41e7b4139a056c371aa0347eb4e04ca",
+        "after_commit_failed_history": "db68839cc5f61ab22a84a21965af4e90a41e7b4139a056c371aa0347eb4e04ca",
+        "after_poison_cleanup": "db68839cc5f61ab22a84a21965af4e90a41e7b4139a056c371aa0347eb4e04ca",
+        "after_repair": "db68839cc5f61ab22a84a21965af4e90a41e7b4139a056c371aa0347eb4e04ca",
+        "after_retry": "db68839cc5f61ab22a84a21965af4e90a41e7b4139a056c371aa0347eb4e04ca",
+        "after_clean_continuation": "db68839cc5f61ab22a84a21965af4e90a41e7b4139a056c371aa0347eb4e04ca"
+      },
+      "fingerprint_equality_vs_expected": true
+    },
+    {
+      "file": "00122_f3_04_correction_reversal.sql",
+      "version": "20260913173004",
+      "digest": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+      "continuation": true,
+      "repairAttempted": true,
+      "objectsPresent": true,
+      "classification_split": "POST_COMMIT_HISTORY_FAILURE",
+      "repairSafety_ok": true,
+      "postRepairFingerprintEval_ok": true,
+      "postRetryFingerprintEval_ok": true,
+      "postContinuationFingerprintEval_ok": true,
+      "fingerprint_phases_sha256": {
+        "expected": "d8b2d0316e555339bcd95e944fd23e5c7686f16fa34d1d4c4691d610b1dc7659",
+        "after_commit_failed_history": "d8b2d0316e555339bcd95e944fd23e5c7686f16fa34d1d4c4691d610b1dc7659",
+        "after_poison_cleanup": "d8b2d0316e555339bcd95e944fd23e5c7686f16fa34d1d4c4691d610b1dc7659",
+        "after_repair": "d8b2d0316e555339bcd95e944fd23e5c7686f16fa34d1d4c4691d610b1dc7659",
+        "after_retry": "d8b2d0316e555339bcd95e944fd23e5c7686f16fa34d1d4c4691d610b1dc7659",
+        "after_clean_continuation": "d8b2d0316e555339bcd95e944fd23e5c7686f16fa34d1d4c4691d610b1dc7659"
+      },
+      "fingerprint_equality_vs_expected": true
+    },
+    {
+      "file": "00123_f3_05_opening_cash_command.sql",
+      "version": "20260913173005",
+      "digest": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
+      "continuation": true,
+      "repairAttempted": true,
+      "objectsPresent": true,
+      "classification_split": "POST_COMMIT_HISTORY_FAILURE",
+      "repairSafety_ok": true,
+      "postRepairFingerprintEval_ok": true,
+      "postRetryFingerprintEval_ok": true,
+      "postContinuationFingerprintEval_ok": null,
+      "fingerprint_phases_sha256": {
+        "expected": "07e984115ffc24f4e9e0f0d5d1d7f8c903c81064312e5c0b498e367ca11a0854",
+        "after_commit_failed_history": "07e984115ffc24f4e9e0f0d5d1d7f8c903c81064312e5c0b498e367ca11a0854",
+        "after_poison_cleanup": "07e984115ffc24f4e9e0f0d5d1d7f8c903c81064312e5c0b498e367ca11a0854",
+        "after_repair": "07e984115ffc24f4e9e0f0d5d1d7f8c903c81064312e5c0b498e367ca11a0854",
+        "after_retry": "07e984115ffc24f4e9e0f0d5d1d7f8c903c81064312e5c0b498e367ca11a0854",
+        "after_clean_continuation": null
+      },
+      "fingerprint_equality_vs_expected": true
+    }
+  ],
+  "all_six_fingerprint_equality": true,
+  "note": "Full raw qualify JSON retained on executor box only; evidence commit carries sanitized summary."
+}

@@ -1,0 +1,471 @@
+{
+  "cases": [
+    {
+      "near_line": 140,
+      "name": "optional-role REVOKE is a no-op when absent and revokes when present",
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 151,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 152,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 163,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 164,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 175,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 176,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 187,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 188,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 199,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 200,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 211,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 212,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 223,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 224,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 235,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 236,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 247,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 248,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 259,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 260,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 271,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 272,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 283,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 284,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 295,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 296,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 307,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 308,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 319,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 320,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 331,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 332,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 343,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 344,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 355,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 356,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 367,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 368,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 379,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 380,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 391,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 392,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 403,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 404,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 415,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 416,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 427,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 428,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 439,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 440,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 451,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 452,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 463,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 464,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 475,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 476,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 487,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 488,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 499,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 500,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 511,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 512,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 523,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 524,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 535,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 536,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 547,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 548,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 559,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 560,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 571,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 572,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 583,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 584,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 595,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    },
+    {
+      "near_line": 596,
+      "name": null,
+      "repairCalls": 0,
+      "dbPushCalls": 0
+    }
+  ],
+  "all_required_zero": true,
+  "repairCalls_all_zero": true,
+  "dbPushCalls_all_zero": true,
+  "repairCalls_observations": 80,
+  "dbPushCalls_observations": 80
+}

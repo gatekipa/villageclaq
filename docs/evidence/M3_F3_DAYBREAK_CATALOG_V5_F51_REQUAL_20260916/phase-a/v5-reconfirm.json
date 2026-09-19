@@ -1,0 +1,180 @@
+{
+  "independent_reference_module_identical_F5_F51": true,
+  "independent_module_sha256_F51": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+  "prior_claimed_independent_module_sha": {
+    "claimed": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+    "tip_closure": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+    "file_sha256": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+    "match": true
+  },
+  "module_sha_matches_prior_claim": true,
+  "primary_eq_independent_from_prior_17_6": true,
+  "partitions_reconcile_from_prior": true,
+  "self_fk_ri_roles_from_prior": true,
+  "prior_partition_table": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": {
+      "required": {
+        "total": 21,
+        "internal_fk": 20,
+        "ordinary_user": 1,
+        "user_defined_constraint": 0,
+        "referencing": 10,
+        "referenced": 10
+      },
+      "reproduced": {
+        "total": 21,
+        "internal_fk": 20,
+        "ordinary_user": 1,
+        "user_defined_constraint": 0,
+        "referencing": 10,
+        "referenced": 10
+      },
+      "match": true,
+      "internal_fk_sum_ok": true
+    },
+    "00119_f3_01_core_ledger_foundation.sql": {
+      "required": {
+        "total": 101,
+        "internal_fk": 92,
+        "ordinary_user": 7,
+        "user_defined_constraint": 2,
+        "referencing": 46,
+        "referenced": 46
+      },
+      "reproduced": {
+        "total": 101,
+        "internal_fk": 92,
+        "ordinary_user": 7,
+        "user_defined_constraint": 2,
+        "referencing": 46,
+        "referenced": 46
+      },
+      "match": true,
+      "internal_fk_sum_ok": true
+    },
+    "00120_f3_02_secure_posting_idempotency.sql": {
+      "required": {
+        "total": 108,
+        "internal_fk": 96,
+        "ordinary_user": 9,
+        "user_defined_constraint": 3,
+        "referencing": 48,
+        "referenced": 48
+      },
+      "reproduced": {
+        "total": 108,
+        "internal_fk": 96,
+        "ordinary_user": 9,
+        "user_defined_constraint": 3,
+        "referencing": 48,
+        "referenced": 48
+      },
+      "match": true,
+      "internal_fk_sum_ok": true
+    },
+    "00121_f3_03_projection_read_proof.sql": {
+      "required": {
+        "total": 108,
+        "internal_fk": 96,
+        "ordinary_user": 9,
+        "user_defined_constraint": 3,
+        "referencing": 48,
+        "referenced": 48
+      },
+      "reproduced": {
+        "total": 108,
+        "internal_fk": 96,
+        "ordinary_user": 9,
+        "user_defined_constraint": 3,
+        "referencing": 48,
+        "referenced": 48
+      },
+      "match": true,
+      "internal_fk_sum_ok": true
+    },
+    "00122_f3_04_correction_reversal.sql": {
+      "required": {
+        "total": 131,
+        "internal_fk": 116,
+        "ordinary_user": 11,
+        "user_defined_constraint": 4,
+        "referencing": 58,
+        "referenced": 58
+      },
+      "reproduced": {
+        "total": 131,
+        "internal_fk": 116,
+        "ordinary_user": 11,
+        "user_defined_constraint": 4,
+        "referencing": 58,
+        "referenced": 58
+      },
+      "match": true,
+      "internal_fk_sum_ok": true
+    },
+    "00123_f3_05_opening_cash_command.sql": {
+      "required": {
+        "total": 140,
+        "internal_fk": 124,
+        "ordinary_user": 12,
+        "user_defined_constraint": 4,
+        "referencing": 62,
+        "referenced": 62
+      },
+      "reproduced": {
+        "total": 140,
+        "internal_fk": 124,
+        "ordinary_user": 12,
+        "user_defined_constraint": 4,
+        "referencing": 62,
+        "referenced": 62
+      },
+      "match": true,
+      "internal_fk_sum_ok": true
+    }
+  },
+  "prior_self_fk_summary": {
+    "ok": true,
+    "keys": [
+      "ok",
+      "method",
+      "not_relation_equality"
+    ]
+  },
+  "sealed_V5_hashes_unchanged": true,
+  "sealed_compare": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": {
+      "sealed": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d",
+      "tip_embedded": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d",
+      "match": true
+    },
+    "00119_f3_01_core_ledger_foundation.sql": {
+      "sealed": "5e03111ffb34be3ed76a714370c93e70210a9741a25ac7b9158a9a9ad22f12f4",
+      "tip_embedded": "5e03111ffb34be3ed76a714370c93e70210a9741a25ac7b9158a9a9ad22f12f4",
+      "match": true
+    },
+    "00120_f3_02_secure_posting_idempotency.sql": {
+      "sealed": "35eba6966d2c077a9467f09adc6c85306b951c9d8388ee758a60d924c05ae51a",
+      "tip_embedded": "35eba6966d2c077a9467f09adc6c85306b951c9d8388ee758a60d924c05ae51a",
+      "match": true
+    },
+    "00121_f3_03_projection_read_proof.sql": {
+      "sealed": "8f65797949d8c5afb7dfa99b8020da52385347099b2a5b9be5148b253e76bde6",
+      "tip_embedded": "8f65797949d8c5afb7dfa99b8020da52385347099b2a5b9be5148b253e76bde6",
+      "match": true
+    },
+    "00122_f3_04_correction_reversal.sql": {
+      "sealed": "6e3240759aec64d4692422aac006b4fb865e3039832be84efea86b39c0253175",
+      "tip_embedded": "6e3240759aec64d4692422aac006b4fb865e3039832be84efea86b39c0253175",
+      "match": true
+    },
+    "00123_f3_05_opening_cash_command.sql": {
+      "sealed": "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34",
+      "tip_embedded": "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34",
+      "match": true
+    }
+  },
+  "schema": "f3-full-catalog-v5",
+  "attestation": "F5.1 changes ONLY POISON_ABSENT_PROBE_SQL (+current_database/+current_user). Independent-reference and frozen V5 fingerprint seals are byte-identical to F5; prior PG 17.6 READY_TO_FF primary≡independent≡tip≡cloud, partitions, and self-FK RI roles remain valid without reseal.",
+  "verdict": "CONTINUE"
+}

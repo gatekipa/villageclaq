@@ -1,0 +1,188 @@
+
+> villageclaq@0.1.0 test:f3-reset
+> node --test scripts/test-f3-qualification-reset.mjs
+
+TAP version 13
+# Subtest: F13-R00 wipe flag remains unconditionally rejected with reset argv
+ok 1 - F13-R00 wipe flag remains unconditionally rejected with reset argv
+  ---
+  duration_ms: 1.334761
+  type: 'test'
+  ...
+# Subtest: F13-R01 missing and malformed founder auth fail closed
+ok 2 - F13-R01 missing and malformed founder auth fail closed
+  ---
+  duration_ms: 2.079809
+  type: 'test'
+  ...
+# Subtest: F13-R02 stale and mismatched founder auth fail closed
+ok 3 - F13-R02 stale and mismatched founder auth fail closed
+  ---
+  duration_ms: 1.227211
+  type: 'test'
+  ...
+# Subtest: F13-R03 wrong and production targets are refused
+ok 4 - F13-R03 wrong and production targets are refused
+  ---
+  duration_ms: 1.020398
+  type: 'test'
+  ...
+# Subtest: F13-R04 invalid flags, artifact path, and SQL digest fail closed
+ok 5 - F13-R04 invalid flags, artifact path, and SQL digest fail closed
+  ---
+  duration_ms: 7.650153
+  type: 'test'
+  ...
+# Subtest: F13-R05 unexpected objects and deps block eligibility and plan
+ok 6 - F13-R05 unexpected objects and deps block eligibility and plan
+  ---
+  duration_ms: 1.102295
+  type: 'test'
+  ...
+# Subtest: F13-R06 wrong/missing/extra/null/empty history abort the whole plan
+ok 7 - F13-R06 wrong/missing/extra/null/empty history abort the whole plan
+  ---
+  duration_ms: 1.854343
+  type: 'test'
+  ...
+# Subtest: F13-R07 emitted SQL is RESTRICT-only with exact version+name deletes
+ok 8 - F13-R07 emitted SQL is RESTRICT-only with exact version+name deletes
+  ---
+  duration_ms: 2.097686
+  type: 'test'
+  ...
+# Subtest: F13-R08 state change between plan and TX validation aborts without commit
+ok 9 - F13-R08 state change between plan and TX validation aborts without commit
+  ---
+  duration_ms: 2.463999
+  type: 'test'
+  ...
+# Subtest: F13-R09 failure before mutation counts no committed effects
+ok 10 - F13-R09 failure before mutation counts no committed effects
+  ---
+  duration_ms: 3.711028
+  type: 'test'
+  ...
+# Subtest: F13-R10 failure after begin does not claim success or infer rollback
+ok 11 - F13-R10 failure after begin does not claim success or infer rollback
+  ---
+  duration_ms: 2.317378
+  type: 'test'
+  ...
+# Subtest: F13-R11 incorrect affected-row and failed final baseline do not claim commit
+ok 12 - F13-R11 incorrect affected-row and failed final baseline do not claim commit
+  ---
+  duration_ms: 4.214473
+  type: 'test'
+  ...
+# Subtest: F13-R12 uncertain commit is labeled and never auto-replayed
+ok 13 - F13-R12 uncertain commit is labeled and never auto-replayed
+  ---
+  duration_ms: 2.080611
+  type: 'test'
+  ...
+# Subtest: F13-R13 successful authorized synthetic execution uses the real planner
+ok 14 - F13-R13 successful authorized synthetic execution uses the real planner
+  ---
+  duration_ms: 2.339051
+  type: 'test'
+  ...
+# Subtest: F13-R14 disabled transport is not a production bypass
+ok 15 - F13-R14 disabled transport is not a production bypass
+  ---
+  duration_ms: 1.61604
+  type: 'test'
+  ...
+# Subtest: F13-R15 valid artifact plus matching runtime context is accepted
+ok 16 - F13-R15 valid artifact plus matching runtime context is accepted
+  ---
+  duration_ms: 0.801449
+  type: 'test'
+  ...
+# Subtest: F13-R16 qualify runtime context helper stays disposable-bound
+ok 17 - F13-R16 qualify runtime context helper stays disposable-bound
+  ---
+  duration_ms: 583.855219
+  type: 'test'
+  ...
+# Subtest: F13-R17 hardcoded empty inventory is refused until capture is wired
+ok 18 - F13-R17 hardcoded empty inventory is refused until capture is wired
+  ---
+  duration_ms: 0.671338
+  type: 'test'
+  ...
+# Subtest: F13-R18 leftover emit requires eligible===true; alreadyClean is no-mutation
+ok 19 - F13-R18 leftover emit requires eligible===true; alreadyClean is no-mutation
+  ---
+  duration_ms: 2.036264
+  type: 'test'
+  ...
+# Subtest: F13-R19 qualify-main path wires INVENTORY_CAPTURE_SQL before plan/emit
+ok 20 - F13-R19 qualify-main path wires INVENTORY_CAPTURE_SQL before plan/emit
+  ---
+  duration_ms: 4.324728
+  type: 'test'
+  ...
+# Subtest: F13-R20 qualify-main empty capture is alreadyClean no-mutation; missing capture is refused
+ok 21 - F13-R20 qualify-main empty capture is alreadyClean no-mutation; missing capture is refused
+  ---
+  duration_ms: 1.021666
+  type: 'test'
+  ...
+# Subtest: F13-R21 qualify-main leftover path requires eligible===true; extras HOLD with no DROP
+ok 22 - F13-R21 qualify-main leftover path requires eligible===true; extras HOLD with no DROP
+  ---
+  duration_ms: 2.666441
+  type: 'test'
+  ...
+# Subtest: F14-R01 inventory parser rejects aligned framing and never defaults malformed to empty
+ok 23 - F14-R01 inventory parser rejects aligned framing and never defaults malformed to empty
+  ---
+  duration_ms: 0.851185
+  type: 'test'
+  ...
+# Subtest: F14-R02 unexpected objects/deps stay in discovered universe and block apply
+ok 24 - F14-R02 unexpected objects/deps stay in discovered universe and block apply
+  ---
+  duration_ms: 0.800118
+  type: 'test'
+  ...
+# Subtest: F14-R03 catalog-backed function identities canonicalize named args without stripping
+ok 25 - F14-R03 catalog-backed function identities canonicalize named args without stripping
+  ---
+  duration_ms: 1.165065
+  type: 'test'
+  ...
+# Subtest: F14-R04 real transport contract: status0, SQL fail, truncate, COMMIT loss, timeout, ECONNRESET
+ok 26 - F14-R04 real transport contract: status0, SQL fail, truncate, COMMIT loss, timeout, ECONNRESET
+  ---
+  duration_ms: 17.217261
+  type: 'test'
+  ...
+# Subtest: F14-R05 committed local proof helper reports wipe rejection and MUST_LOCAL honestly
+ok 27 - F14-R05 committed local proof helper reports wipe rejection and MUST_LOCAL honestly
+  ---
+  duration_ms: 2550.79719
+  type: 'test'
+  ...
+# Subtest: F14-R06 runtime closure is entrypoint digest, not summary-file hash
+ok 28 - F14-R06 runtime closure is entrypoint digest, not summary-file hash
+  ---
+  duration_ms: 1297.517901
+  type: 'test'
+  ...
+# Subtest: F14-R07 proposed hosted plan is complete, offline, and unauthorized
+ok 29 - F14-R07 proposed hosted plan is complete, offline, and unauthorized
+  ---
+  duration_ms: 1972.742929
+  type: 'test'
+  ...
+1..29
+# tests 29
+# suites 0
+# pass 29
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7337.304862

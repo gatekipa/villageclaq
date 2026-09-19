@@ -1,0 +1,19 @@
+{
+  "artifact": "post-reset-inventory",
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "production_contacted": false,
+  "inventory": {
+    "server_version": "17.6",
+    "current_database": "postgres",
+    "f3_history": [],
+    "all_history_count": 0,
+    "financial_schemas": [],
+    "financial_public_tables": [],
+    "public_table_count": 0,
+    "canary_present": false,
+    "schema_migrations_exists": true
+  },
+  "classification_verdict": "CLEAN_BASELINE",
+  "cleanBaseline": true,
+  "ambiguous_objects": "none"
+}

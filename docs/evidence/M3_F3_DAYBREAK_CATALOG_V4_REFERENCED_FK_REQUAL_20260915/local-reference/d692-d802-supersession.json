@@ -1,0 +1,36 @@
+{
+  "CATALOG_V3_00123_SUPERSESSION": {
+    "schema_version": "f3-full-catalog-v3",
+    "superseded_by": "f3-full-catalog-v4",
+    "migration": "00123_f3_05_opening_cash_command.sql",
+    "prior_evidence_dirs_unmodified": true,
+    "do_not_claim_d802_founder_prose_only": true,
+    "occurrences": [
+      {
+        "token": "d692",
+        "hash": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
+        "sources": [
+          "FROZEN_EXPECTED_FINGERPRINT_SHA256 tip E3 a0c71ad",
+          "scripts/test-f3-db-push-harness.mjs recorded.sha256BeforeDb",
+          "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/tip-embedded-hashes.json",
+          "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/hosted/STATUS.json",
+          "PR #98 body / cloud-agent transcript (tip/17.6)"
+        ]
+      },
+      {
+        "token": "d802",
+        "hash": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d802703b4e8ead41",
+        "sources": [
+          "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/cloud-agent-v3-expected-hashes.json",
+          "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/STATUS.json founder_brief_listed",
+          "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/prehhosted/phase-local-STATUS.json founder_brief_listed",
+          "docs/evidence/M3_F3_DAYBREAK_CATALOG_V3_INTERNAL_TRIGGER_REQUAL_20260915/local-reference/builder-vs-reference.json cloud_agent_v3_sha256"
+        ]
+      }
+    ],
+    "both_superseded_by_v4": true
+  },
+  "CATALOG_V3_00123_HASH_D692": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
+  "CATALOG_V3_00123_HASH_D802": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d802703b4e8ead41",
+  "both_superseded_by_v4": true
+}

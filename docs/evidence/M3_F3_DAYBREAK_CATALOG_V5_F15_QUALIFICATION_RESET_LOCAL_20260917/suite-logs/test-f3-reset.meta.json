@@ -1,0 +1,18 @@
+{
+  "suite": "test-f3-reset",
+  "classification": "PASS",
+  "expect": {
+    "tests": 47,
+    "pass": 47,
+    "fail": 0,
+    "skipped": 0
+  },
+  "observed": {
+    "tests": 47,
+    "pass": 47,
+    "fail": 0,
+    "skipped": 0
+  },
+  "outSha256": "b4dff9b9b381d9c71bf1b3e5ee113d73be323895b19e8a4cde7d20f4c0eb268b",
+  "outBytes": 10321
+}

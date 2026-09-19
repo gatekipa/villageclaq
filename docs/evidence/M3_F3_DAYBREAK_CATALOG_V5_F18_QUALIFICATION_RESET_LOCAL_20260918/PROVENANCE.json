@@ -1,0 +1,15 @@
+{
+  "packagedAt": "2026-09-18T15:25:04.209Z",
+  "functionalTip": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "startingRef": "3fcbcbc438ccc90faf7e87d06ba0d270e3d17598",
+  "helper": "scripts/prove-f3-qualification-reset-local.mjs",
+  "hostedContact": false,
+  "disposableContact": false,
+  "productionContact": false,
+  "daybreakAstraContact": false,
+  "wipeEnabled": false,
+  "invocationSecretsRemoved": true,
+  "observationMarkersAreNotSeparateTransactions": true,
+  "isolation": "READ COMMITTED",
+  "postgresServerVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)"
+}

@@ -1,0 +1,692 @@
+
+> villageclaq@0.1.0 test:m2
+> node --experimental-strip-types --test scripts/test-notification-policy.mjs scripts/test-notification-policy-contracts.mjs scripts/test-m2-cut2-nonregression.mjs scripts/test-m2-static-security.mjs
+
+TAP version 13
+# (node:132756) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/f3-psql-poison-requal-20260916/tip-work/src/lib/cut2-channel-matrix.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to /workspace/f3-psql-poison-requal-20260916/tip-work/package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: M2-C2-01 enqueue_outbound_notification identity args unchanged
+ok 1 - M2-C2-01 enqueue_outbound_notification identity args unchanged
+  ---
+  duration_ms: 1.723691
+  type: 'test'
+  ...
+# Subtest: M2-C2-02 EXECUTE granted to service_role only in Cut 2 SQL; 00117 does not regrant
+ok 2 - M2-C2-02 EXECUTE granted to service_role only in Cut 2 SQL; 00117 does not regrant
+  ---
+  duration_ms: 0.981957
+  type: 'test'
+  ...
+# Subtest: M2-C2-03 22 types exactly; unknown type is not a 23rd
+ok 3 - M2-C2-03 22 types exactly; unknown type is not a 23rd
+  ---
+  duration_ms: 0.216416
+  type: 'test'
+  ...
+# Subtest: M2-C2-04 WA ALLOW 22; SMS DENY 3; email DENY proxy_claim; push DENY all
+ok 4 - M2-C2-04 WA ALLOW 22; SMS DENY 3; email DENY proxy_claim; push DENY all
+  ---
+  duration_ms: 0.13419
+  type: 'test'
+  ...
+# Subtest: M2-C2-05 RPC rejects phone/email/message/components/groupId/template/data/status/user_id/provenance args
+ok 5 - M2-C2-05 RPC rejects phone/email/message/components/groupId/template/data/status/user_id/provenance args
+  ---
+  duration_ms: 0.781789
+  type: 'test'
+  ...
+# Subtest: M2-C2-06 Inserted rows have cut2_provenance_version=1 hardcoded in Cut 2 SQL
+ok 6 - M2-C2-06 Inserted rows have cut2_provenance_version=1 hardcoded in Cut 2 SQL
+  ---
+  duration_ms: 1.638371
+  type: 'test'
+  ...
+# Subtest: M2-C2-07 Drain select remains queued AND cut2_provenance_version=1
+ok 7 - M2-C2-07 Drain select remains queued AND cut2_provenance_version=1
+  ---
+  duration_ms: 0.314628
+  type: 'test'
+  ...
+# Subtest: M2-C2-08 generic relays remain 410 GET+POST
+ok 8 - M2-C2-08 generic relays remain 410 GET+POST
+  ---
+  duration_ms: 0.446771
+  type: 'test'
+  ...
+# Subtest: M2-C2-09 service_role has no INSERT/DELETE/TRUNCATE on queue in Cut 2 SQL; 00117 does not add any
+ok 9 - M2-C2-09 service_role has no INSERT/DELETE/TRUNCATE on queue in Cut 2 SQL; 00117 does not add any
+  ---
+  duration_ms: 1.09438
+  type: 'test'
+  ...
+# Subtest: M2-C2-10 ENQUEUE_ELIGIBLE does not call sendSMS/dispatchWhatsApp/sendEmail or insert queue
+ok 10 - M2-C2-10 ENQUEUE_ELIGIBLE does not call sendSMS/dispatchWhatsApp/sendEmail or insert queue
+  ---
+  duration_ms: 13.104393
+  type: 'test'
+  ...
+# Subtest: M2-C2-11 ChannelIntersection AND Cut 2: hosting email false even if policy email true
+ok 11 - M2-C2-11 ChannelIntersection AND Cut 2: hosting email false even if policy email true
+  ---
+  duration_ms: 0.270125
+  type: 'test'
+  ...
+# Subtest: M2-C2-12 Prefs fail-closed still blocks external channels
+ok 12 - M2-C2-12 Prefs fail-closed still blocks external channels
+  ---
+  duration_ms: 0.09199
+  type: 'test'
+  ...
+# Subtest: M2-C2-13 LEGACY_PAYMENT_CRON_CONTRACT.live === true and offset null
+ok 13 - M2-C2-13 LEGACY_PAYMENT_CRON_CONTRACT.live === true and offset null
+  ---
+  duration_ms: 0.053079
+  type: 'test'
+  ...
+# Subtest: M2-C2-14 PAYMENT_REMINDER_CONFIRMED_BASIS default path still uses env === true
+ok 14 - M2-C2-14 PAYMENT_REMINDER_CONFIRMED_BASIS default path still uses env === true
+  ---
+  duration_ms: 0.238503
+  type: 'test'
+  ...
+# Subtest: M2-C2-15 contributions/record bulkSendReceipts default false + reconfirm
+ok 15 - M2-C2-15 contributions/record bulkSendReceipts default false + reconfirm
+  ---
+  duration_ms: 0.305735
+  type: 'test'
+  ...
+# Subtest: M2-C2-16 announcement-producer.ts remains unimported by live routes/crons
+ok 16 - M2-C2-16 announcement-producer.ts remains unimported by live routes/crons
+  ---
+  duration_ms: 0.259954
+  type: 'test'
+  ...
+# Subtest: M2-C2-17 00117 does not replace enqueue_outbound_notification
+ok 17 - M2-C2-17 00117 does not replace enqueue_outbound_notification
+  ---
+  duration_ms: 0.351691
+  type: 'test'
+  ...
+# Subtest: M2-C2-18 Policy tables enabled default false; defaults dormant
+ok 18 - M2-C2-18 Policy tables enabled default false; defaults dormant
+  ---
+  duration_ms: 0.487247
+  type: 'test'
+  ...
+# Subtest: M2-C2-19 settings.manage is policy-admin; notifications.manage absent
+ok 19 - M2-C2-19 settings.manage is policy-admin; notifications.manage absent
+  ---
+  duration_ms: 0.526351
+  type: 'test'
+  ...
+# Subtest: M2-C2-20 Quiet-hours DEFER_UNTIL reuses occurrence identity
+ok 20 - M2-C2-20 Quiet-hours DEFER_UNTIL reuses occurrence identity
+  ---
+  duration_ms: 23.776413
+  type: 'test'
+  ...
+# Subtest: M2 runtime files exist and stay pure (no queue insert, no provider, no fetch)
+ok 21 - M2 runtime files exist and stay pure (no queue insert, no provider, no fetch)
+  ---
+  duration_ms: 1.652074
+  type: 'test'
+  ...
+# Subtest: 00117 exists with dormant defaults; old timestamp filename absent
+ok 22 - 00117 exists with dormant defaults; old timestamp filename absent
+  ---
+  duration_ms: 0.89632
+  type: 'test'
+  ...
+# Subtest: 00118-00123 are the F3 forward batch; no 00124+ and no timestamp F3 history
+ok 23 - 00118-00123 are the F3 forward batch; no 00124+ and no timestamp F3 history
+  ---
+  duration_ms: 8.142084
+  type: 'test'
+  ...
+# Subtest: generic send routes remain 410 — no resurrection
+ok 24 - generic send routes remain 410 — no resurrection
+  ---
+  duration_ms: 0.580824
+  type: 'test'
+  ...
+# Subtest: live producers do not import M2 policy engine
+ok 25 - live producers do not import M2 policy engine
+  ---
+  duration_ms: 3.827765
+  type: 'test'
+  ...
+# Subtest: announcement-producer is not imported by live routes/crons
+ok 26 - announcement-producer is not imported by live routes/crons
+  ---
+  duration_ms: 33.77819
+  type: 'test'
+  ...
+# Subtest: no test file asserts push eligibility
+ok 27 - no test file asserts push eligibility
+  ---
+  duration_ms: 0.908746
+  type: 'test'
+  ...
+# Subtest: 00115 enqueue body is not copied/replaced by 00117
+ok 28 - 00115 enqueue body is not copied/replaced by 00117
+  ---
+  duration_ms: 0.773688
+  type: 'test'
+  ...
+# Subtest: bulk receipt P0 guard file is untouched by M2 policy imports
+ok 29 - bulk receipt P0 guard file is untouched by M2 policy imports
+  ---
+  duration_ms: 0.631962
+  type: 'test'
+  ...
+# (node:132758) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/f3-psql-poison-requal-20260916/tip-work/src/lib/cut2-channel-matrix.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to /workspace/f3-psql-poison-requal-20260916/tip-work/package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: PolicyPrecedence order: system_legacy < group_domain < object_override
+ok 30 - PolicyPrecedence order: system_legacy < group_domain < object_override
+  ---
+  duration_ms: 0.896005
+  type: 'test'
+  ...
+# Subtest: resolveEffectivePolicy uses system_legacy when no group/object
+ok 31 - resolveEffectivePolicy uses system_legacy when no group/object
+  ---
+  duration_ms: 12.290407
+  type: 'test'
+  ...
+# Subtest: resolveEffectivePolicy prefers group_domain over system
+ok 32 - resolveEffectivePolicy prefers group_domain over system
+  ---
+  duration_ms: 0.404167
+  type: 'test'
+  ...
+# Subtest: resolveEffectivePolicy prefers object_override over group
+ok 33 - resolveEffectivePolicy prefers object_override over group
+  ---
+  duration_ms: 0.400081
+  type: 'test'
+  ...
+# Subtest: resolveEffectivePolicy rejects malformed object_override (fail closed)
+ok 34 - resolveEffectivePolicy rejects malformed object_override (fail closed)
+  ---
+  duration_ms: 0.497408
+  type: 'test'
+  ...
+# Subtest: resolveEffectivePolicy rejects malformed group_domain (fail closed)
+ok 35 - resolveEffectivePolicy rejects malformed group_domain (fail closed)
+  ---
+  duration_ms: 0.344751
+  type: 'test'
+  ...
+# Subtest: resolveEffectivePolicy rejects malformed systemDefault
+ok 36 - resolveEffectivePolicy rejects malformed systemDefault
+  ---
+  duration_ms: 0.17862
+  type: 'test'
+  ...
+# Subtest: ChannelIntersection is Cut2 AND group AND member AND failClosed; push forced false
+ok 37 - ChannelIntersection is Cut2 AND group AND member AND failClosed; push forced false
+  ---
+  duration_ms: 0.172347
+  type: 'test'
+  ...
+# Subtest: ChannelIntersection fail-closed prefs kill external channels
+ok 38 - ChannelIntersection fail-closed prefs kill external channels
+  ---
+  duration_ms: 0.336296
+  type: 'test'
+  ...
+# Subtest: ChannelIntersection hosting email false even if policy channel_email true
+ok 39 - ChannelIntersection hosting email false even if policy channel_email true
+  ---
+  duration_ms: 1.441685
+  type: 'test'
+  ...
+# Subtest: ChannelIntersection loan_overdue SMS DENY even if policy SMS true
+ok 40 - ChannelIntersection loan_overdue SMS DENY even if policy SMS true
+  ---
+  duration_ms: 0.291287
+  type: 'test'
+  ...
+# Subtest: ChannelIntersection unknown type fail-closed
+ok 41 - ChannelIntersection unknown type fail-closed
+  ---
+  duration_ms: 1.016882
+  type: 'test'
+  ...
+# Subtest: FAIL_CLOSED_PREFS_ON_ERROR keeps only in_app
+ok 42 - FAIL_CLOSED_PREFS_ON_ERROR keeps only in_app
+  ---
+  duration_ms: 0.063577
+  type: 'test'
+  ...
+# Subtest: exactly 22 Cut 2 types; announcement is a type not an M2 domain
+ok 43 - exactly 22 Cut 2 types; announcement is a type not an M2 domain
+  ---
+  duration_ms: 0.046108
+  type: 'test'
+  ...
+# Subtest: OccurrenceSupersession marks future unsent as superseded on anchor change
+ok 44 - OccurrenceSupersession marks future unsent as superseded on anchor change
+  ---
+  duration_ms: 0.175981
+  type: 'test'
+  ...
+# Subtest: OccurrenceSupersession keeps sent immutable
+ok 45 - OccurrenceSupersession keeps sent immutable
+  ---
+  duration_ms: 0.067872
+  type: 'test'
+  ...
+# Subtest: OccurrenceSupersession leaves rows alone when anchor unchanged
+ok 46 - OccurrenceSupersession leaves rows alone when anchor unchanged
+  ---
+  duration_ms: 0.057043
+  type: 'test'
+  ...
+# Subtest: OccurrenceSupersession leaves cancelled/stop_resolved as-is
+ok 47 - OccurrenceSupersession leaves cancelled/stop_resolved as-is
+  ---
+  duration_ms: 0.053038
+  type: 'test'
+  ...
+# Subtest: PaymentAdapter confirmed_full → resolved
+ok 48 - PaymentAdapter confirmed_full → resolved
+  ---
+  duration_ms: 0.072417
+  type: 'test'
+  ...
+# Subtest: PaymentAdapter waived → resolved
+ok 49 - PaymentAdapter waived → resolved
+  ---
+  duration_ms: 0.041109
+  type: 'test'
+  ...
+# Subtest: PaymentAdapter partial → unresolved
+ok 50 - PaymentAdapter partial → unresolved
+  ---
+  duration_ms: 0.03827
+  type: 'test'
+  ...
+# Subtest: PaymentAdapter unpaid → unresolved
+ok 51 - PaymentAdapter unpaid → unresolved
+  ---
+  duration_ms: 0.039065
+  type: 'test'
+  ...
+# Subtest: PaymentAdapter pending_confirmation → unresolved economically
+ok 52 - PaymentAdapter pending_confirmation → unresolved economically
+  ---
+  duration_ms: 0.038393
+  type: 'test'
+  ...
+# Subtest: PaymentAdapter pending + snoozeWhilePaymentPending sets snoozeHint only
+ok 53 - PaymentAdapter pending + snoozeWhilePaymentPending sets snoozeHint only
+  ---
+  duration_ms: 0.041656
+  type: 'test'
+  ...
+# Subtest: HostingAdapter assigned stays unresolved
+ok 54 - HostingAdapter assigned stays unresolved
+  ---
+  duration_ms: 0.057167
+  type: 'test'
+  ...
+# Subtest: HostingAdapter completed/exempt/cancelled resolve old host
+ok 55 - HostingAdapter completed/exempt/cancelled resolve old host
+  ---
+  duration_ms: 0.042952
+  type: 'test'
+  ...
+# Subtest: HostingAdapter swapped_away resolves old host and returns new object
+ok 56 - HostingAdapter swapped_away resolves old host and returns new object
+  ---
+  duration_ms: 0.0414
+  type: 'test'
+  ...
+# Subtest: EventAdapter cancelled → resolved
+ok 57 - EventAdapter cancelled → resolved
+  ---
+  duration_ms: 0.069147
+  type: 'test'
+  ...
+# Subtest: EventAdapter completed → resolved
+ok 58 - EventAdapter completed → resolved
+  ---
+  duration_ms: 0.037119
+  type: 'test'
+  ...
+# Subtest: EventAdapter reschedule yields new anchor (not resolved)
+ok 59 - EventAdapter reschedule yields new anchor (not resolved)
+  ---
+  duration_ms: 0.129443
+  type: 'test'
+  ...
+# Subtest: EventAdapter scheduled with changed previousStartsAt is reschedule
+ok 60 - EventAdapter scheduled with changed previousStartsAt is reschedule
+  ---
+  duration_ms: 0.05566
+  type: 'test'
+  ...
+# Subtest: EventAdapter active scheduled without previous is active
+ok 61 - EventAdapter active scheduled without previous is active
+  ---
+  duration_ms: 0.047795
+  type: 'test'
+  ...
+# Subtest: LEGACY_DEFAULTS hosting/event match foundation defaults
+ok 62 - LEGACY_DEFAULTS hosting/event match foundation defaults
+  ---
+  duration_ms: 0.040213
+  type: 'test'
+  ...
+# Subtest: legacyParityPolicyForDomain hosting/event/payment
+ok 63 - legacyParityPolicyForDomain hosting/event/payment
+  ---
+  duration_ms: 0.04672
+  type: 'test'
+  ...
+# Subtest: assertLegacyHostingParity / EventParity / PaymentCronParity
+ok 64 - assertLegacyHostingParity / EventParity / PaymentCronParity
+  ---
+  duration_ms: 0.072914
+  type: 'test'
+  ...
+# Subtest: legacy payment cron is NOT a +24h relative trigger
+ok 65 - legacy payment cron is NOT a +24h relative trigger
+  ---
+  duration_ms: 0.036284
+  type: 'test'
+  ...
+# Subtest: POLICY_ADMIN_PERMISSION is settings.manage only (no notifications.manage)
+ok 66 - POLICY_ADMIN_PERMISSION is settings.manage only (no notifications.manage)
+  ---
+  duration_ms: 0.03279
+  type: 'test'
+  ...
+# Subtest: channelsFromSqlBooleans ANDs Cut 2 and forces push false
+ok 67 - channelsFromSqlBooleans ANDs Cut 2 and forces push false
+  ---
+  duration_ms: 0.091944
+  type: 'test'
+  ...
+# Subtest: malformed partial with empty triggers fail closed via resolveEffectivePolicy
+ok 68 - malformed partial with empty triggers fail closed via resolveEffectivePolicy
+  ---
+  duration_ms: 0.277107
+  type: 'test'
+  ...
+# Subtest: validatePolicyConfig still required for object layer success path
+ok 69 - validatePolicyConfig still required for object layer success path
+  ---
+  duration_ms: 0.30134
+  type: 'test'
+  ...
+# Subtest: reschedule + supersession integration: sent kept, future superseded
+ok 70 - reschedule + supersession integration: sent kept, future superseded
+  ---
+  duration_ms: 0.143082
+  type: 'test'
+  ...
+# Subtest: toTrustedEnqueueConsideration is semantic only and omits push
+ok 71 - toTrustedEnqueueConsideration is semantic only and omits push
+  ---
+  duration_ms: 0.359394
+  type: 'test'
+  ...
+# Subtest: toTrustedEnqueueConsideration is null unless ENQUEUE_ELIGIBLE
+ok 72 - toTrustedEnqueueConsideration is null unless ENQUEUE_ELIGIBLE
+  ---
+  duration_ms: 0.087995
+  type: 'test'
+  ...
+# (node:132764) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/f3-psql-poison-requal-20260916/tip-work/src/lib/notification-policy.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to /workspace/f3-psql-poison-requal-20260916/tip-work/package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: hosting default is 7 days before, maxOccurrences 1, no repeat, dormant
+ok 73 - hosting default is 7 days before, maxOccurrences 1, no repeat, dormant
+  ---
+  duration_ms: 19.425226
+  type: 'test'
+  ...
+# Subtest: event default is 48 hours before, maxOccurrences 1, dormant
+ok 74 - event default is 48 hours before, maxOccurrences 1, dormant
+  ---
+  duration_ms: 0.289884
+  type: 'test'
+  ...
+# Subtest: payment compat contract docs object exists and does not pretend +24h live
+ok 75 - payment compat contract docs object exists and does not pretend +24h live
+  ---
+  duration_ms: 0.324782
+  type: 'test'
+  ...
+# Subtest: M2 domains are payment|hosting|event; announcement is Cut2 type not policy domain
+ok 76 - M2 domains are payment|hosting|event; announcement is Cut2 type not policy domain
+  ---
+  duration_ms: 0.183335
+  type: 'test'
+  ...
+# Subtest: stable identity unchanged for same inputs
+ok 77 - stable identity unchanged for same inputs
+  ---
+  duration_ms: 0.407278
+  type: 'test'
+  ...
+# Subtest: identity changes after reschedule (anchor change)
+ok 78 - identity changes after reschedule (anchor change)
+  ---
+  duration_ms: 0.122896
+  type: 'test'
+  ...
+# Subtest: identity includes anchorIso component
+ok 79 - identity includes anchorIso component
+  ---
+  duration_ms: 0.141643
+  type: 'test'
+  ...
+# Subtest: multiple trigger offsets ordered chronologically
+ok 80 - multiple trigger offsets ordered chronologically
+  ---
+  duration_ms: 0.50454
+  type: 'test'
+  ...
+# Subtest: repeat cadence generates index 0..maxOccurrences-1
+ok 81 - repeat cadence generates index 0..maxOccurrences-1
+  ---
+  duration_ms: 0.560596
+  type: 'test'
+  ...
+# Subtest: maxOccurrences without repeat generates only index 0 per trigger
+ok 82 - maxOccurrences without repeat generates only index 0 per trigger
+  ---
+  duration_ms: 0.552453
+  type: 'test'
+  ...
+# Subtest: stopAfterHours relative to anchor truncates occurrences
+ok 83 - stopAfterHours relative to anchor truncates occurrences
+  ---
+  duration_ms: 0.407045
+  type: 'test'
+  ...
+# Subtest: generated occurrences carry full identity and fields
+ok 84 - generated occurrences carry full identity and fields
+  ---
+  duration_ms: 0.213892
+  type: 'test'
+  ...
+# Subtest: valid IANA timezone accepted
+ok 85 - valid IANA timezone accepted
+  ---
+  duration_ms: 0.442024
+  type: 'test'
+  ...
+# Subtest: invalid timezone rejected (never silent ENQUEUE_ELIGIBLE)
+ok 86 - invalid timezone rejected (never silent ENQUEUE_ELIGIBLE)
+  ---
+  duration_ms: 0.479907
+  type: 'test'
+  ...
+# Subtest: duplicate offsets rejected
+ok 87 - duplicate offsets rejected
+  ---
+  duration_ms: 0.231293
+  type: 'test'
+  ...
+# Subtest: non-finite trigger offsets rejected
+ok 88 - non-finite trigger offsets rejected
+  ---
+  duration_ms: 0.301632
+  type: 'test'
+  ...
+# Subtest: negative maxOccurrences rejected
+ok 89 - negative maxOccurrences rejected
+  ---
+  duration_ms: 0.196972
+  type: 'test'
+  ...
+# Subtest: zero / non-integer maxOccurrences rejected
+ok 90 - zero / non-integer maxOccurrences rejected
+  ---
+  duration_ms: 0.198112
+  type: 'test'
+  ...
+# Subtest: zero / non-finite / negative repeatIntervalHours rejected
+ok 91 - zero / non-finite / negative repeatIntervalHours rejected
+  ---
+  duration_ms: 0.239566
+  type: 'test'
+  ...
+# Subtest: repeat without maxOccurrences fails validation (prevent infinite fan-out)
+ok 92 - repeat without maxOccurrences fails validation (prevent infinite fan-out)
+  ---
+  duration_ms: 0.198254
+  type: 'test'
+  ...
+# Subtest: stopAfterHours <= 0 or non-finite rejected
+ok 93 - stopAfterHours <= 0 or non-finite rejected
+  ---
+  duration_ms: 0.385842
+  type: 'test'
+  ...
+# Subtest: quiet-hour minutes outside 0..1439 or non-integers rejected
+ok 94 - quiet-hour minutes outside 0..1439 or non-integers rejected
+  ---
+  duration_ms: 0.295515
+  type: 'test'
+  ...
+# Subtest: empty / invalid channels object rejected
+ok 95 - empty / invalid channels object rejected
+  ---
+  duration_ms: 0.263895
+  type: 'test'
+  ...
+# Subtest: push true is rejected (Cut 2 DENY; no push eligibility)
+ok 96 - push true is rejected (Cut 2 DENY; no push eligibility)
+  ---
+  duration_ms: 0.185586
+  type: 'test'
+  ...
+# Subtest: hosting + email true is rejected by Cut 2 floor
+ok 97 - hosting + email true is rejected by Cut 2 floor
+  ---
+  duration_ms: 0.26119
+  type: 'test'
+  ...
+# Subtest: resolved stops with STOP_RESOLVED
+ok 98 - resolved stops with STOP_RESOLVED
+  ---
+  duration_ms: 0.171758
+  type: 'test'
+  ...
+# Subtest: disabled / dormant default policy stops with STOP_POLICY
+ok 99 - disabled / dormant default policy stops with STOP_POLICY
+  ---
+  duration_ms: 0.123804
+  type: 'test'
+  ...
+# Subtest: disabled channel skips
+ok 100 - disabled channel skips
+  ---
+  duration_ms: 0.178511
+  type: 'test'
+  ...
+# Subtest: push is hard DENY even when evaluating the push channel
+ok 101 - push is hard DENY even when evaluating the push channel
+  ---
+  duration_ms: 0.137566
+  type: 'test'
+  ...
+# Subtest: quiet hours defer instead of enqueue-eligible
+ok 102 - quiet hours defer instead of enqueue-eligible
+  ---
+  duration_ms: 24.966665
+  type: 'test'
+  ...
+# Subtest: defer keeps same identity (caller must not mint a new occurrence)
+ok 103 - defer keeps same identity (caller must not mint a new occurrence)
+  ---
+  duration_ms: 22.20762
+  type: 'test'
+  ...
+# Subtest: ENQUEUE_ELIGIBLE outside quiet hours (trusted-enqueue semantics, not send)
+ok 104 - ENQUEUE_ELIGIBLE outside quiet hours (trusted-enqueue semantics, not send)
+  ---
+  duration_ms: 0.39384
+  type: 'test'
+  ...
+# Subtest: overnight quiet window wraps midnight
+ok 105 - overnight quiet window wraps midnight
+  ---
+  duration_ms: 0.316719
+  type: 'test'
+  ...
+# Subtest: same-day quiet window
+ok 106 - same-day quiet window
+  ---
+  duration_ms: 0.356819
+  type: 'test'
+  ...
+# Subtest: exact quiet start is inclusive
+ok 107 - exact quiet start is inclusive
+  ---
+  duration_ms: 0.150802
+  type: 'test'
+  ...
+# Subtest: exact quiet end is exclusive
+ok 108 - exact quiet end is exclusive
+  ---
+  duration_ms: 0.283984
+  type: 'test'
+  ...
+# Subtest: maxOccurrences reached stops policy for that identity
+ok 109 - maxOccurrences reached stops policy for that identity
+  ---
+  duration_ms: 0.195334
+  type: 'test'
+  ...
+# Subtest: INVALID_POLICY when config fails validation
+ok 110 - INVALID_POLICY when config fails validation
+  ---
+  duration_ms: 0.17617
+  type: 'test'
+  ...
+# Subtest: evaluator module has no send/queue/provider side effects in this process
+ok 111 - evaluator module has no send/queue/provider side effects in this process
+  ---
+  duration_ms: 0.200579
+  type: 'test'
+  ...
+1..111
+# tests 111
+# suites 0
+# pass 111
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 269.468614

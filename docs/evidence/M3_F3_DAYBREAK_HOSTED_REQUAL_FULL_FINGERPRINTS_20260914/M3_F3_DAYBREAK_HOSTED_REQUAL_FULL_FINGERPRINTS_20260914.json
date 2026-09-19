@@ -1,0 +1,10 @@
+{
+  "pr_title_policy": "DAYBREAK HOLD \u2014 hosted requalification ready for review",
+  "hosted_verdict": "FILE-BASED RUNNER QUALIFICATION PASS \u2014 STUB/LIVE-PIN FLOOR LIMITATION",
+  "functional_sha": "c59afad411a07838688aeb5583ab179683f25a7f",
+  "daybreak_pass_label": false,
+  "merge_authorized": false,
+  "all_six_pass": true,
+  "full_phase_fingerprints": true,
+  "production_contacted": false
+}

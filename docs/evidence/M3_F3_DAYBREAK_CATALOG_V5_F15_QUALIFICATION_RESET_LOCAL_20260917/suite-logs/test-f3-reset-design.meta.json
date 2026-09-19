@@ -1,0 +1,18 @@
+{
+  "suite": "test-f3-reset-design",
+  "classification": "PASS",
+  "expect": {
+    "tests": 28,
+    "pass": 28,
+    "fail": 0,
+    "skipped": 0
+  },
+  "observed": {
+    "tests": 28,
+    "pass": 28,
+    "fail": 0,
+    "skipped": 0
+  },
+  "outSha256": "e63b500bb80c76f5a2d20777ec28c3caca7ff47291eea52df16690c09f283ea7",
+  "outBytes": 5669
+}

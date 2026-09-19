@@ -1,0 +1,11 @@
+{
+  "f18Concurrency": "INHERITED PASSED",
+  "reRun": false,
+  "classification": "MUST_LOCAL",
+  "localPgAvailable": false,
+  "reason": "psql binary not present; F19 process-record/thrown cases do not require a PG concurrency re-run",
+  "inheritedReviewer": "bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
+  "inheritedPin": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "citeAs": "INHERITED",
+  "notReAttributedAsF19": true
+}

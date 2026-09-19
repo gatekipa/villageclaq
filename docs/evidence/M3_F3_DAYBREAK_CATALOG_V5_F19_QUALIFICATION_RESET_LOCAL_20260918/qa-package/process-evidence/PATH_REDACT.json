@@ -1,0 +1,133 @@
+{
+  "reset": {
+    "ok": false,
+    "verdict": "HOLD",
+    "committed": false,
+    "rolledBack": null,
+    "code": "F13_RESET_SQL_FAILED"
+  },
+  "stored": {
+    "thrown": false,
+    "status": 1,
+    "processStatus": 1,
+    "structuredError": null,
+    "streams": {
+      "capturedBeforeEncode": true,
+      "originalStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalStdoutByteLength": 0,
+      "originalStderrSha256": "fbb170870a3748b00c847d63a5777c2f32d1345acd07f6d86378532e6cf1cf37",
+      "originalStderrByteLength": 102,
+      "packagedStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "packagedStdoutByteLength": 0,
+      "packagedStderrSha256": "7634adab7bf3ddaee21e72a24151a88c4b1e96c1d72f7e11bb095fb1872c70eb",
+      "packagedStderrByteLength": 73,
+      "originalByteEqual": false,
+      "reconstructedFromSummary": false,
+      "transformApplied": true
+    },
+    "stdout": "",
+    "stderr": "psql:[REDACTED_PATH] ERROR: boom [REDACTED]=[REDACTED]example.invalid/db\n"
+  },
+  "reread": {
+    "thrown": false,
+    "status": 1,
+    "processStatus": 1,
+    "structuredError": null,
+    "streams": {
+      "capturedBeforeEncode": true,
+      "originalStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalStdoutByteLength": 0,
+      "originalStderrSha256": "fbb170870a3748b00c847d63a5777c2f32d1345acd07f6d86378532e6cf1cf37",
+      "originalStderrByteLength": 102,
+      "packagedStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "packagedStdoutByteLength": 0,
+      "packagedStderrSha256": "7634adab7bf3ddaee21e72a24151a88c4b1e96c1d72f7e11bb095fb1872c70eb",
+      "packagedStderrByteLength": 73,
+      "originalByteEqual": false,
+      "reconstructedFromSummary": false,
+      "transformApplied": true
+    },
+    "stdout": "",
+    "stderr": "psql:[REDACTED_PATH] ERROR: boom [REDACTED]=[REDACTED]example.invalid/db\n",
+    "verdict": "HOLD"
+  },
+  "interpreted": {
+    "committed": false,
+    "rolledBack": null,
+    "processErrorPresent": true,
+    "thrown": false
+  },
+  "attestation": {
+    "ok": true,
+    "processFailed": true,
+    "interpretedCommitted": false,
+    "genuineSuccess": false,
+    "t7CommittedTrue": false
+  },
+  "successClaim": {
+    "ok": false,
+    "processFailed": true,
+    "interpretedCommitted": false,
+    "genuineSuccess": false
+  },
+  "finalization": {
+    "ok": true,
+    "count": 1
+  },
+  "successFinalization": {
+    "ok": false,
+    "code": "F18_ATTESTATION_INCONSISTENT",
+    "reason": "inconsistent attestations fail package finalization",
+    "inconsistentCount": 1
+  },
+  "identities": {
+    "recoveredStdout": "",
+    "recoveredStderr": "psql:[REDACTED_PATH] ERROR: boom [REDACTED]=[REDACTED]example.invalid/db\n",
+    "recoveredStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "recoveredStderrSha256": "7634adab7bf3ddaee21e72a24151a88c4b1e96c1d72f7e11bb095fb1872c70eb",
+    "recoveredStdoutByteLength": 0,
+    "recoveredStderrByteLength": 73,
+    "originalStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "originalStderrSha256": "fbb170870a3748b00c847d63a5777c2f32d1345acd07f6d86378532e6cf1cf37",
+    "originalStdoutByteLength": 0,
+    "originalStderrByteLength": 102,
+    "packagedStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "packagedStderrSha256": "7634adab7bf3ddaee21e72a24151a88c4b1e96c1d72f7e11bb095fb1872c70eb",
+    "packagedStdoutByteLength": 0,
+    "packagedStderrByteLength": 73,
+    "storedOriginalStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "storedOriginalStderrSha256": "fbb170870a3748b00c847d63a5777c2f32d1345acd07f6d86378532e6cf1cf37",
+    "storedOriginalStdoutByteLength": 0,
+    "storedOriginalStderrByteLength": 102,
+    "packagedStdoutMatchesRecovered": true,
+    "packagedStderrMatchesRecovered": true,
+    "packagedStdoutLengthMatchesRecovered": true,
+    "packagedStderrLengthMatchesRecovered": true,
+    "storedOriginalStdoutMatchesRaw": true,
+    "storedOriginalStderrMatchesRaw": true,
+    "originalStderrDiffersFromPackaged": true,
+    "originalStdoutDiffersFromPackaged": false
+  },
+  "leaks": {
+    "pathLeaks": 0,
+    "secrets": 0,
+    "pathLeakHits": [],
+    "secretHits": []
+  },
+  "originalIdentities": {
+    "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSha256": "fbb170870a3748b00c847d63a5777c2f32d1345acd07f6d86378532e6cf1cf37",
+    "stdoutByteLength": 0,
+    "stderrByteLength": 102,
+    "workdirToken": "[REDACTED_PATH]"
+  },
+  "closed": {
+    "originalIdentitiesDifferFromSanitized": true,
+    "packagedHashesMatchRecovered": true,
+    "storedOriginalMatchesRaw": true,
+    "recoveredHasRedactionToken": true,
+    "recoveredOmitsOriginalIdentity": true,
+    "pathLeaks": 0,
+    "secrets": 0
+  }
+}

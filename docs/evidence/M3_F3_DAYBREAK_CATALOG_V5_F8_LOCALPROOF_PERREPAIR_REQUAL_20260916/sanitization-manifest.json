@@ -1,0 +1,18 @@
+{
+  "sanitized_before_hash": true,
+  "qualify_result_meta": {
+    "sha256": "9d00b0ad148d430ff81e70074dda2881eae865a960ac13ddd01d10c6c8805c45",
+    "bytes": 95599000,
+    "encoding": "utf8",
+    "sanitized_before_hash": true,
+    "tests": [
+      {
+        "name": "qualify-f3-db-push-disposable",
+        "ok": null,
+        "exact_error": null
+      }
+    ]
+  },
+  "password_on_argv": false,
+  "production_contacted": false
+}

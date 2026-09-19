@@ -1,0 +1,28 @@
+{
+  "retry_success": true,
+  "pending_empty": true,
+  "migration_list_pairs": 6,
+  "strict_psql_process_result": {
+    "ok": true,
+    "status": 0,
+    "parser_verdict": "valid_json_exact_schema",
+    "poison_absence_verdict": "proven_absent"
+  },
+  "exact_raw_envelope": {
+    "stdout": "{\"schema_version\" : \"f3-poison-envelope-v1\", \"poisonPresent\" : false, \"current_database\" : \"postgres\", \"current_user\" : \"postgres\", \"probe_marker\" : \"f3_poison_absent_probe\"}\n",
+    "stdoutSha256": "b13be10ffcd515af2b0e34b54400484c7bf7715ae6d786ff585c661551f70d02",
+    "stdoutByteLength": 175,
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrByteLength": 0
+  },
+  "target_binding": {
+    "current_database": "postgres",
+    "current_user": "postgres",
+    "provenance": "original_query_output"
+  },
+  "poison_absent": true,
+  "six_history_rows": true,
+  "final_inventory_ok": true,
+  "process_exit": 0,
+  "evidence_out_file": true
+}

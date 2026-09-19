@@ -1,0 +1,21 @@
+{
+  "status": "PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE",
+  "authorized": false,
+  "executed": false,
+  "proposedOnly": true,
+  "functionalTip": "b74c6854869acf0e826446ea0488c42469621a3b",
+  "runtimeClosure": {
+    "label": "F16_QUALIFICATION_RESET_RUNTIME_CLOSURE",
+    "sha256": "1ca2a1ceddca278889c7ea92fc10e6a59150e06c5b4f13d4426b293fda29ee78",
+    "count": 45,
+    "notSummaryFileHash": true,
+    "forbiddenSummaryHash": "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d"
+  },
+  "verificationUnion": {
+    "label": "F16_QUALIFICATION_RESET_VERIFICATION_UNION",
+    "sha256": "989c6c99ead2b84190486b856d7e04a1e76824f870f3bbf9438935808c8fb7ff",
+    "count": 48
+  },
+  "bytes": 18254,
+  "lines": 268
+}

@@ -1,0 +1,338 @@
+{
+  "wipeAssert": {
+    "ok": true,
+    "rejected": false,
+    "hold": false
+  },
+  "procedure": {
+    "status": "PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE",
+    "executed": false,
+    "authorized": false,
+    "noResetOccurred": true,
+    "noServiceConnection": true,
+    "transportsDisabled": true,
+    "wipeToBaselineRejected": true,
+    "wipeToBaselineRejectionPreserved": true,
+    "supportedQualArgv": [
+      "--no-wipe",
+      "--prep-floor",
+      "--sequence-f3",
+      "--floor-mode=stub-live-pin"
+    ],
+    "supportedQualArgs": {
+      "noWipe": true,
+      "prepFloor": true,
+      "sequenceF3": true,
+      "wipeToBaseline": true,
+      "floorMode": "stub-live-pin"
+    },
+    "supportedArgWipeRejected": true,
+    "functionalTip": "1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+    "closureDigest": "08c2d46d7ff0d7e80d4df30342ca804cd7f1ddc408951491f77d5bb92ce1157b",
+    "cliPin": "2.117.0",
+    "target": {
+      "accept": {
+        "ref": "jkorwnwwmdeflfntxntl",
+        "name": "villageclaq-f3-management-api-disposable-20260913",
+        "org": "eyztkzkprpmlmcabrfef",
+        "host": "db.jkorwnwwmdeflfntxntl.supabase.co",
+        "poolerHost": "aws-0-us-east-1.pooler.supabase.com",
+        "poolerPort": 5432,
+        "poolerUser": "postgres.jkorwnwwmdeflfntxntl"
+      },
+      "reject": [
+        "llbnliixczcqfftxpsmb",
+        "any other ref/host/org",
+        "transaction pooler :6543"
+      ]
+    },
+    "entrypoints": {
+      "inventoryRead": "supabase db query --db-url [REDACTED] --workdir [ISOLATED] --output-format json",
+      "inventorySqlArtifact": "scripts/lib/f3-db-push-inventory.mjs INVENTORY_CAPTURE_SQL",
+      "wipePlan": "scripts/lib/f3-db-push-wipe.mjs planWipe/buildWipeSql",
+      "wipeApplyIfEligible": "psql -X -q -v ON_ERROR_STOP=1 -f [FILE] (session-mode pooler via child env; never -p)",
+      "wipeApplyFlagForbidden": "--wipe-to-baseline",
+      "qualify": "node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence-f3",
+      "apply": "supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault",
+      "repair": "supabase migration repair <FILENAME_VERSION> --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes"
+    },
+    "affectedIfWipeEligible": {
+      "schemasPreserved": [
+        "auth",
+        "storage",
+        "realtime",
+        "supabase_functions",
+        "supabase_migrations",
+        "extensions",
+        "graphql",
+        "graphql_public",
+        "vault",
+        "net",
+        "cron",
+        "pgbouncer",
+        "pgmq",
+        "pgsodium",
+        "information_schema",
+        "pg_catalog",
+        "pg_toast"
+      ],
+      "publicTables": [
+        "profiles",
+        "organizations",
+        "groups",
+        "memberships",
+        "group_positions",
+        "position_assignments",
+        "position_permissions",
+        "invitations",
+        "join_codes",
+        "notifications",
+        "contribution_types",
+        "contribution_obligations",
+        "payments",
+        "events",
+        "event_rsvps",
+        "event_attendances",
+        "hosting_rosters",
+        "hosting_assignments",
+        "hosting_swap_requests",
+        "meeting_minutes",
+        "relief_plans",
+        "relief_enrollments",
+        "relief_claims",
+        "relief_payouts",
+        "family_members",
+        "member_transfers",
+        "platform_staff",
+        "subscription_plans",
+        "vouchers",
+        "voucher_usages",
+        "contact_enquiries",
+        "platform_audit_logs",
+        "announcements",
+        "announcement_deliveries",
+        "savings_cycles",
+        "savings_participants",
+        "savings_contributions",
+        "elections",
+        "election_candidates",
+        "election_options",
+        "election_votes",
+        "documents",
+        "activity_feed",
+        "feed_reactions",
+        "payment_reminder_rules",
+        "payment_reminders_sent",
+        "fine_rules",
+        "fines",
+        "event_photos",
+        "loan_requests",
+        "loan_repayments",
+        "projects",
+        "project_contributions",
+        "project_expenses",
+        "project_milestones",
+        "badges",
+        "member_badges",
+        "help_articles",
+        "feedback",
+        "feedback_votes",
+        "changelogs",
+        "group_audit_logs",
+        "notifications_queue",
+        "testimonials",
+        "faqs",
+        "disputes",
+        "committees",
+        "committee_members",
+        "sub_group_transfers",
+        "group_payment_config",
+        "exchange_rates"
+      ],
+      "publicTypes": [
+        "membership_role",
+        "membership_standing",
+        "invitation_status",
+        "notification_type",
+        "contribution_frequency",
+        "obligation_status",
+        "payment_method",
+        "event_type",
+        "recurrence_rule",
+        "rsvp_response",
+        "attendance_status",
+        "checkin_method",
+        "event_status",
+        "rotation_type",
+        "hosting_status",
+        "swap_request_status",
+        "minutes_status",
+        "relief_event_type",
+        "relief_contribution_frequency",
+        "relief_claim_status",
+        "family_relationship",
+        "transfer_status",
+        "platform_role",
+        "plan_billing_period",
+        "voucher_discount_type",
+        "enquiry_status",
+        "announcement_channel",
+        "delivery_status",
+        "savings_frequency",
+        "savings_rotation_type",
+        "savings_cycle_status",
+        "savings_contribution_status",
+        "election_type",
+        "election_status",
+        "document_category",
+        "reminder_severity",
+        "fine_trigger",
+        "fine_status",
+        "loan_status",
+        "project_status",
+        "feedback_type",
+        "feedback_severity",
+        "feedback_status",
+        "notification_channel",
+        "notification_queue_status"
+      ],
+      "publicFunctions": [
+        "handle_new_user",
+        "update_updated_at",
+        "generate_obligations_for_type",
+        "update_obligation_on_payment",
+        "get_user_group_ids",
+        "is_group_member",
+        "is_group_admin",
+        "create_proxy_member",
+        "claim_proxy_membership",
+        "get_member_phones",
+        "is_group_owner",
+        "is_platform_staff",
+        "is_platform_super_admin"
+      ],
+      "storagePolicies": [
+        "Authenticated users can upload receipts",
+        "Authenticated users can view receipts",
+        "Authenticated users can delete own receipts",
+        "Anyone can view avatars",
+        "Authenticated users can upload avatars",
+        "Users can update own avatars",
+        "Users can delete own avatars",
+        "Authenticated users can upload group documents",
+        "Authenticated users can view group documents",
+        "Authenticated users can delete group documents"
+      ],
+      "storageBucketsNeverDroppedViaWipe": [
+        "avatars",
+        "group-documents",
+        "receipts"
+      ],
+      "authTrigger": "on_auth_user_created",
+      "authority": "founder-authorized wipe-to-baseline on jkorwnwwmdeflfntxntl only: drop objects demonstrably created by failed 00001–00029 + partial 00030 floor; preserve managed schemas; leave empty schema_migrations leftover; never drop storage.buckets; never touch llbnliixczcqfftxpsmb"
+    },
+    "historyPredicates": [
+      {
+        "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+        "version": "20260913173000",
+        "name": "f3_bounded_financial_epoch_foundation"
+      },
+      {
+        "file": "00119_f3_01_core_ledger_foundation.sql",
+        "version": "20260913173001",
+        "name": "f3_01_core_ledger_foundation"
+      },
+      {
+        "file": "00120_f3_02_secure_posting_idempotency.sql",
+        "version": "20260913173002",
+        "name": "f3_02_secure_posting_idempotency"
+      },
+      {
+        "file": "00121_f3_03_projection_read_proof.sql",
+        "version": "20260913173003",
+        "name": "f3_03_projection_read_proof"
+      },
+      {
+        "file": "00122_f3_04_correction_reversal.sql",
+        "version": "20260913173004",
+        "name": "f3_04_correction_reversal"
+      },
+      {
+        "file": "00123_f3_05_opening_cash_command.sql",
+        "version": "20260913173005",
+        "name": "f3_05_opening_cash_command"
+      }
+    ],
+    "historyRowDeletionSpecified": false,
+    "cleanBaselinePlan": {
+      "action": "NONE",
+      "needed": true
+    },
+    "wipeEligiblePlan": {
+      "action": "WIPE",
+      "sqlTouchesProduction": false,
+      "sampleSqlSha256": "f568dc24fbd568da7abca6cd9d0e5ad7b54ca13cb0226c6b98fcf01c8edc9fb6"
+    },
+    "remainingHold": {
+      "id": "F12-RESET-HOLD-HISTORY-OR-F3-OBJECTS",
+      "hold": "HOLD: disposable state is ambiguous vs failed floor; refuse wipe",
+      "reason": "Pinned wipe library HOLDs when schema_migrations_rows>0 or financial_* objects are present. No authorized DELETE FROM supabase_migrations.schema_migrations WHERE version/name IN (preassigned 20260913173000–005 / PREASSIGNED_NAMES) exists in pinned source. Do not invent that SQL. Do not use --wipe-to-baseline.",
+      "predicatesThatWouldHold": [
+        {
+          "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+          "version": "20260913173000",
+          "name": "f3_bounded_financial_epoch_foundation"
+        },
+        {
+          "file": "00119_f3_01_core_ledger_foundation.sql",
+          "version": "20260913173001",
+          "name": "f3_01_core_ledger_foundation"
+        },
+        {
+          "file": "00120_f3_02_secure_posting_idempotency.sql",
+          "version": "20260913173002",
+          "name": "f3_02_secure_posting_idempotency"
+        },
+        {
+          "file": "00121_f3_03_projection_read_proof.sql",
+          "version": "20260913173003",
+          "name": "f3_03_projection_read_proof"
+        },
+        {
+          "file": "00122_f3_04_correction_reversal.sql",
+          "version": "20260913173004",
+          "name": "f3_04_correction_reversal"
+        },
+        {
+          "file": "00123_f3_05_opening_cash_command.sql",
+          "version": "20260913173005",
+          "name": "f3_05_opening_cash_command"
+        }
+      ]
+    },
+    "commandsProposedOnly": [
+      "git rev-parse HEAD  # must equal bound functional tip",
+      "# DO NOT: node scripts/qualify-f3-db-push-disposable.mjs --wipe-to-baseline  → HOLD F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
+      "# 1) Read-only inventory via existing INVENTORY_CAPTURE_SQL + db query transport (placeholders only)",
+      "# 2) Offline classifyInventory / planWipe. CLEAN_BASELINE → no mutation. WIPE_ELIGIBLE → gated psql -f of buildWipeSql. HOLD → STOP.",
+      "# 3) proveCleanBaseline / evaluatePreStubFloorCleanCheck",
+      "node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence-f3 --evidence-out docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F12_LOCAL_SYNTHETIC_STAGING_20260917/local-synthetic/qualify-evidence/qualify-result.json"
+    ],
+    "budget": {
+      "constrainedResets": 1,
+      "completeQualsFrom00118": 1,
+      "secondReset": false,
+      "silentPatch": false,
+      "productionForbidden": true
+    }
+  },
+  "offline": {
+    "ok": true,
+    "noResetOccurred": true,
+    "noServiceConnection": true,
+    "transportsDisabled": true,
+    "wipeToBaselineStillRejected": true,
+    "procedureStatus": "PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE",
+    "remainingHold": "F12-RESET-HOLD-HISTORY-OR-F3-OBJECTS"
+  }
+}

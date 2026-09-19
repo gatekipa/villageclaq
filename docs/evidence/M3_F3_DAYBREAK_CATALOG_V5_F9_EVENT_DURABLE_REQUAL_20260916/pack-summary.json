@@ -1,0 +1,8 @@
+{
+  "nested_ok": true,
+  "synth_ok": true,
+  "outer_ok": true,
+  "absolute_path_leaks": 0,
+  "secret_scan": "clean",
+  "artifact_count": 158
+}

@@ -1,0 +1,18 @@
+{
+  "status": "COMPLETE",
+  "accepted": true,
+  "verdict": "F18 ACCEPT",
+  "localStatus": "LOCAL CANDIDATE READY",
+  "excludedFromF18ReadyClaim": false,
+  "slot": "qa-package/",
+  "reviewer": "independent Grok-family QA",
+  "reviewerBcId": "bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
+  "bcId": "bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
+  "reviewedPin": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "F18_FUNCTIONAL_TIP": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "qaPackageCommit": "e85a7a537275596d54c5ccb6bd632bb6f12c0e4e",
+  "postgresServerVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+  "classification": "LOCAL_PG_EXECUTED",
+  "builderGatesNotAcceptedAsProof": true,
+  "note": "Independent Grok QA ACCEPTed on frozen functional ca2c0d5. Complete qa-package landed at e85a7a53. Outer evidence-index refreshed to cover the full qa-package tree. Builder artifacts were not reused as raw proof."
+}

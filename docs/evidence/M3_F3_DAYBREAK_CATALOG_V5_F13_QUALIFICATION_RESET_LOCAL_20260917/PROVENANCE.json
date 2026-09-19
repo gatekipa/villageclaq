@@ -1,0 +1,39 @@
+{
+  "package": "M3_F3_DAYBREAK_CATALOG_V5_F13_QUALIFICATION_RESET_LOCAL_20260917",
+  "mode": "LOCAL_ONLY_SYNTHETIC",
+  "label": "LOCAL_QUALIFICATION_RESET",
+  "not_hosted_execution": true,
+  "functional_tip": "51cc864d1efbefc1398ad3fd1895360c95474a57",
+  "functional_parent": "c85a64c9a3c4dbe89b6b3bde2211e213d3307ef1",
+  "design_tip": "a117d06fb202696944ae423d77336db0a48a8a13",
+  "docs_head_ancestor": "020bb9ef23d5e6a9f4b75e0fbb800acc24786300",
+  "f12_functional_preserved": "1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+  "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "unused_draft_prs": [
+    "#108",
+    "#109"
+  ],
+  "qa_accept": true,
+  "qa_verdict": "IMPLEMENTATION ACCEPT",
+  "hosted_forbidden": true,
+  "disposable_forbidden": true,
+  "production_forbidden": true,
+  "wipe_bypass_forbidden": true,
+  "proposed_plan_status": "PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE",
+  "verbatim_floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "local_status": "LOCAL CANDIDATE READY",
+  "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "closure_digest": "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d",
+  "suite_log_pipeline": [
+    "capture",
+    "sanitize",
+    "durable_write",
+    "reread",
+    "hash",
+    "suite_metadata",
+    "indexes"
+  ],
+  "producer": "f3-f13-overnight-20260917/package-f13-local-evidence.mjs + packageF10LocalSuiteLog",
+  "captured_at_et": "9/17/2026, 1:37:20 AM ET"
+}

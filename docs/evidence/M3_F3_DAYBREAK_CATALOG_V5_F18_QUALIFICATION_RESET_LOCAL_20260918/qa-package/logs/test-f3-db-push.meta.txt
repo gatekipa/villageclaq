@@ -1,0 +1,46 @@
+command: npm run test:f3-db-push
+cwd: [REDACTED_PATH]/f18-ca2c0d5
+pin: ca2c0d536037da8c7f55627ac1694cacb932d1d7
+started: 2026-09-18T15:31:45Z
+exit=0
+finished: 2026-09-18T15:32:12Z
+  ...
+# Subtest: public rowsFromQuery treats top-level JSON array rows like envelope.rows
+ok 239 - public rowsFromQuery treats top-level JSON array rows like envelope.rows
+  ---
+  duration_ms: 2.730067
+  ...
+# Subtest: STUB_CORE_SQL creates auth.uid/auth.jwt only when missing and soft-fails auth GRANTs
+ok 240 - STUB_CORE_SQL creates auth.uid/auth.jwt only when missing and soft-fails auth GRANTs
+  ---
+  duration_ms: 0.296518
+  ...
+# Subtest: floorApplyOk uses ERROR lines only; NOTICE already-exists cannot mask a real ERROR
+ok 241 - floorApplyOk uses ERROR lines only; NOTICE already-exists cannot mask a real ERROR
+  ---
+  duration_ms: 0.457948
+  ...
+# Subtest: NOTICE already-exists plus auth ERROR fails stub floor and records stderrTail
+ok 242 - NOTICE already-exists plus auth ERROR fails stub floor and records stderrTail
+  ---
+  duration_ms: 5.030072
+  ...
+# Subtest: success verdict is qualification-pass with superseded mechanics-pass and frozen F3 digests stay pinned
+ok 243 - success verdict is qualification-pass with superseded mechanics-pass and frozen F3 digests stay pinned
+  ---
+  duration_ms: 1.417432
+  ...
+1..243
+# tests 243
+# suites 0
+# pass 243
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 26189.969616
+npm notice
+npm notice New major version of npm available! 10.9.7 -> 12.0.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
+npm notice To update run: npm install -g npm@12.0.2
+npm notice

@@ -1,0 +1,25 @@
+{
+  "verdict": "HOLD",
+  "must_local_psql_proof_on_17_6": true,
+  "repairCalls": 0,
+  "reason": "HOLD: undefined/missing parser export",
+  "hold_reason": "missing parser exports: parseDuplicateKeySafeJson",
+  "missingParse": [],
+  "gate": {
+    "repairCalls": 0,
+    "repairAuthorized": false,
+    "callbackOrder": []
+  },
+  "exact_command": {
+    "argv": [
+      "psql",
+      "-X",
+      "-q",
+      "-t",
+      "-A",
+      "-w",
+      "-v",
+      "ON_ERROR_STOP=1"
+    ]
+  }
+}

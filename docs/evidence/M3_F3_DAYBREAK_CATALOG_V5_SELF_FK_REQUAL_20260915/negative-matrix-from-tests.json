@@ -1,0 +1,6 @@
+{
+  "schema": "f3-full-catalog-v5",
+  "harness_dbPushCalls_0_sites": 33,
+  "harness_dbPushCalls_6_sites": 0,
+  "local_suite_pass": true
+}

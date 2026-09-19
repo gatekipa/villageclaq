@@ -1,0 +1,39 @@
+{
+  "sha256": "f1575135880b1189cb8cf050f55de4d81d440882de1353d330d125aa796e30c4",
+  "bytes": 12930,
+  "encoding": "utf8",
+  "sanitized_before_hash": true,
+  "tests": [
+    {
+      "name": "test-s0-cut2",
+      "ok": true,
+      "exact_error": "CUT2 disposable PostgreSQL is required and was not found."
+    }
+  ],
+  "transformation_provenance": {
+    "producer": "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile",
+    "builder": "scripts/lib/f3-db-push-repair-safety-gate.mjs#buildSuiteMetaFromSanitizedOut",
+    "transform": "scripts/lib/f3-db-push-repair-safety-gate.mjs#sanitizeEvidenceOutBytes",
+    "source_sha256": "ffd92d3de34127739fb091ca05665c52625fb101904d5da36d5bfa3b1d6bed1d",
+    "source_bytes": 15198,
+    "final_sha256": "f1575135880b1189cb8cf050f55de4d81d440882de1353d330d125aa796e30c4",
+    "final_bytes": 12930,
+    "transformations": [
+      "sanitizeEvidenceOutBytes",
+      "nonsemantic_absolute_path_sanitization"
+    ],
+    "pipeline": [
+      "capture",
+      "sanitize",
+      "durable_write",
+      "reread",
+      "hash",
+      "suite_metadata",
+      "indexes"
+    ],
+    "durable_write": {
+      "temp_fsync_close_atomic_rename_reread": true,
+      "verified": true
+    }
+  }
+}

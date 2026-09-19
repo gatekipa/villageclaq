@@ -1,0 +1,205 @@
+{
+  "tip": "104a5b514c35b5a3bee6526578f7bccc3575dfb3",
+  "parent": "934b94d9d5f7ead83e888087df63468f31f5b807",
+  "verifiedAt": "2026-09-14T15:51:54.659Z",
+  "verifiedAtET": "9/14/2026, 11:51:54 AM ET",
+  "successCriteria": {
+    "test_f3_db_push_zero_fail": true,
+    "verdict": "CONTINUE"
+  },
+  "compare": {
+    "range": "934b94d9...104a5b51",
+    "status": "ahead",
+    "ahead_by": 2,
+    "total_commits": 2,
+    "filesOnlyAuthorizedThree": true,
+    "files": [
+      "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+      "scripts/qualify-f3-db-push-disposable.mjs",
+      "scripts/test-f3-db-push-harness.mjs"
+    ]
+  },
+  "digests": {
+    "allMatch": true,
+    "files": {
+      "00118_f3_bounded_financial_epoch_foundation.sql": {
+        "expected": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+        "actual": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+        "match": true,
+        "bytes": 12935
+      },
+      "00119_f3_01_core_ledger_foundation.sql": {
+        "expected": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+        "actual": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+        "match": true,
+        "bytes": 35663
+      },
+      "00120_f3_02_secure_posting_idempotency.sql": {
+        "expected": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+        "actual": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+        "match": true,
+        "bytes": 33103
+      },
+      "00121_f3_03_projection_read_proof.sql": {
+        "expected": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+        "actual": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+        "match": true,
+        "bytes": 36076
+      },
+      "00122_f3_04_correction_reversal.sql": {
+        "expected": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+        "actual": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+        "match": true,
+        "bytes": 49221
+      },
+      "00123_f3_05_opening_cash_command.sql": {
+        "expected": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
+        "actual": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
+        "match": true,
+        "bytes": 19813
+      }
+    }
+  },
+  "recognition": {
+    "exact": [
+      "manual_income"
+    ],
+    "ok": true
+  },
+  "suites": {
+    "test:f3-db-push": {
+      "tests": 86,
+      "pass": 85,
+      "fail": 0,
+      "skipped": 1,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-104a5b51/test-f3-db-push.out"
+    },
+    "test:f3-db-push-harness": {
+      "tests": 50,
+      "pass": 50,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-104a5b51/test-f3-db-push-harness.out"
+    },
+    "test:f3-recognition": {
+      "tests": 40,
+      "pass": 40,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-104a5b51/test-f3-recognition.out"
+    },
+    "test:f3-oracles": {
+      "tests": 577,
+      "pass": 577,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-104a5b51/test-f3-oracles.out"
+    },
+    "test:f3-local-safety": {
+      "tests": 45,
+      "pass": 45,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-104a5b51/test-f3-local-safety.out"
+    },
+    "test:f3-acl-portability": {
+      "tests": 4,
+      "pass": 3,
+      "fail": 0,
+      "skipped": 1,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-104a5b51/test-f3-acl-portability.out"
+    },
+    "test:m2": {
+      "tests": 111,
+      "pass": 111,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-104a5b51/test-m2.out"
+    },
+    "test:m2-static-security": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-104a5b51/test-m2-static-security.out"
+    },
+    "test:s0-cut1-active-authorization": {
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-104a5b51/test-s0-cut1-active-authorization.out"
+    },
+    "test:s0-cut2": {
+      "tests": 21,
+      "pass": 14,
+      "fail": 7,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-104a5b51/test-s0-cut2.out",
+      "classification": "peer-auth/local-postgres-env; not tip regression"
+    },
+    "test:storage-buckets": {
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-104a5b51/test-storage-buckets.out"
+    },
+    "test:f3": {
+      "tests": 1048,
+      "pass": 734,
+      "fail": 313,
+      "skipped": 1,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-104a5b51/test-f3.out",
+      "classification": "peer-auth; not tip regression"
+    },
+    "test:f3-regression": {
+      "tests": 14,
+      "pass": 0,
+      "fail": 14,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs-104a5b51/test-f3-regression.out",
+      "classification": "peer-auth; not tip regression"
+    },
+    "tsc": {
+      "exit": 0,
+      "fail": 0,
+      "log": "suite-logs-104a5b51/tsc.out"
+    },
+    "build": {
+      "exit": 0,
+      "fail": 0,
+      "log": "suite-logs-104a5b51/build.out",
+      "env": {
+        "NEXT_PUBLIC_SUPABASE_URL": "http://127.0.0.1",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY": "dummy"
+      }
+    }
+  }
+}

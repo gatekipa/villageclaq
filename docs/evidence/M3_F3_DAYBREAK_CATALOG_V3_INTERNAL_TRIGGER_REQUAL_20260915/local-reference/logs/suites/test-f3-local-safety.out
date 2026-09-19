@@ -1,0 +1,285 @@
+
+> villageclaq@0.1.0 test:f3-local-safety
+> node --test scripts/test-f3-local-disposable-safety.mjs
+
+TAP version 13
+# Subtest: allowlist accepts work postgresql://ubuntu@127.0.0.1:5432/f3_ok
+ok 1 - allowlist accepts work postgresql://ubuntu@127.0.0.1:5432/f3_ok
+  ---
+  duration_ms: 2.116533
+  type: 'test'
+  ...
+# Subtest: allowlist accepts work postgresql://ubuntu@localhost:5432/f3_ok
+ok 2 - allowlist accepts work postgresql://ubuntu@localhost:5432/f3_ok
+  ---
+  duration_ms: 0.519192
+  type: 'test'
+  ...
+# Subtest: allowlist accepts work postgresql://ubuntu@[::1]:5432/f3_ok
+ok 3 - allowlist accepts work postgresql://ubuntu@[::1]:5432/f3_ok
+  ---
+  duration_ms: 0.393989
+  type: 'test'
+  ...
+# Subtest: allowlist accepts work postgresql://ubuntu@/f3_ok?host=/var/run/postgresql
+ok 4 - allowlist accepts work postgresql://ubuntu@/f3_ok?host=/var/run/postgresql
+  ---
+  duration_ms: 0.440628
+  type: 'test'
+  ...
+# Subtest: allowlist accepts admin postgresql://ubuntu@/postgres?host=/var/run/postgresql
+ok 5 - allowlist accepts admin postgresql://ubuntu@/postgres?host=/var/run/postgresql
+  ---
+  duration_ms: 0.196359
+  type: 'test'
+  ...
+# Subtest: reject remote host before spawn: postgresql://ubuntu@db.llbnliixczcqfftxpsmb.supabase.co:5432/f3_ok
+ok 6 - reject remote host before spawn: postgresql://ubuntu@db.llbnliixczcqfftxpsmb.supabase.co:5432/f3_ok
+  ---
+  duration_ms: 0.567718
+  type: 'test'
+  ...
+# Subtest: reject supabase pooler hostname before spawn: postgresql://ubuntu@aws-0-us-east-1.pooler.supabase.com:5432/f3_ok
+ok 7 - reject supabase pooler hostname before spawn: postgresql://ubuntu@aws-0-us-east-1.pooler.supabase.com:5432/f3_ok
+  ---
+  duration_ms: 0.224445
+  type: 'test'
+  ...
+# Subtest: reject pooler port before spawn: postgresql://ubuntu@127.0.0.1:6543/f3_ok
+ok 8 - reject pooler port before spawn: postgresql://ubuntu@127.0.0.1:6543/f3_ok
+  ---
+  duration_ms: 0.210042
+  type: 'test'
+  ...
+# Subtest: reject public IPv4 before spawn: postgresql://ubuntu@8.8.8.8:5432/f3_ok
+ok 9 - reject public IPv4 before spawn: postgresql://ubuntu@8.8.8.8:5432/f3_ok
+  ---
+  duration_ms: 1.309491
+  type: 'test'
+  ...
+# Subtest: reject RFC1918 IP before spawn: postgresql://ubuntu@10.1.2.3:5432/f3_ok
+ok 10 - reject RFC1918 IP before spawn: postgresql://ubuntu@10.1.2.3:5432/f3_ok
+  ---
+  duration_ms: 0.449986
+  type: 'test'
+  ...
+# Subtest: reject DNS alias docker before spawn: postgresql://ubuntu@host.docker.internal:5432/f3_ok
+ok 11 - reject DNS alias docker before spawn: postgresql://ubuntu@host.docker.internal:5432/f3_ok
+  ---
+  duration_ms: 0.204728
+  type: 'test'
+  ...
+# Subtest: reject DNS alias nip.io before spawn: postgresql://ubuntu@127.0.0.1.nip.io:5432/f3_ok
+ok 12 - reject DNS alias nip.io before spawn: postgresql://ubuntu@127.0.0.1.nip.io:5432/f3_ok
+  ---
+  duration_ms: 0.112834
+  type: 'test'
+  ...
+# Subtest: reject localhost subdomain alias before spawn: postgresql://ubuntu@localhost.example.com:5432/f3_ok
+ok 13 - reject localhost subdomain alias before spawn: postgresql://ubuntu@localhost.example.com:5432/f3_ok
+  ---
+  duration_ms: 0.107417
+  type: 'test'
+  ...
+# Subtest: reject missing database before spawn: postgresql://ubuntu@127.0.0.1:5432/
+ok 14 - reject missing database before spawn: postgresql://ubuntu@127.0.0.1:5432/
+  ---
+  duration_ms: 0.103856
+  type: 'test'
+  ...
+# Subtest: reject empty database path before spawn: postgresql://ubuntu@127.0.0.1:5432
+ok 15 - reject empty database path before spawn: postgresql://ubuntu@127.0.0.1:5432
+  ---
+  duration_ms: 0.106011
+  type: 'test'
+  ...
+# Subtest: reject unsafe db postgres as work before spawn: postgresql://ubuntu@127.0.0.1:5432/postgres
+ok 16 - reject unsafe db postgres as work before spawn: postgresql://ubuntu@127.0.0.1:5432/postgres
+  ---
+  duration_ms: 0.13666
+  type: 'test'
+  ...
+# Subtest: reject unsafe db template1 before spawn: postgresql://ubuntu@127.0.0.1:5432/template1
+ok 17 - reject unsafe db template1 before spawn: postgresql://ubuntu@127.0.0.1:5432/template1
+  ---
+  duration_ms: 0.127589
+  type: 'test'
+  ...
+# Subtest: reject unsafe db m2 prefix before spawn: postgresql://ubuntu@127.0.0.1:5432/m2_notification_policy_disposable
+ok 18 - reject unsafe db m2 prefix before spawn: postgresql://ubuntu@127.0.0.1:5432/m2_notification_policy_disposable
+  ---
+  duration_ms: 0.103396
+  type: 'test'
+  ...
+# Subtest: reject hyphenated db before spawn: postgresql://ubuntu@127.0.0.1:5432/f3-dash
+ok 19 - reject hyphenated db before spawn: postgresql://ubuntu@127.0.0.1:5432/f3-dash
+  ---
+  duration_ms: 0.097604
+  type: 'test'
+  ...
+# Subtest: reject prefix only before spawn: postgresql://ubuntu@127.0.0.1:5432/f3_
+ok 20 - reject prefix only before spawn: postgresql://ubuntu@127.0.0.1:5432/f3_
+  ---
+  duration_ms: 0.124038
+  type: 'test'
+  ...
+# Subtest: reject malformed scheme before spawn: http://127.0.0.1:5432/f3_ok
+ok 21 - reject malformed scheme before spawn: http://127.0.0.1:5432/f3_ok
+  ---
+  duration_ms: 0.125789
+  type: 'test'
+  ...
+# Subtest: reject not a url before spawn: not-a-connection-string
+ok 22 - reject not a url before spawn: not-a-connection-string
+  ---
+  duration_ms: 0.113318
+  type: 'test'
+  ...
+# Subtest: reject empty string before spawn: (empty)
+ok 23 - reject empty string before spawn: (empty)
+  ---
+  duration_ms: 0.094347
+  type: 'test'
+  ...
+# Subtest: reject query host remote before spawn: postgresql://ubuntu@/f3_ok?host=db.example.supabase.co
+ok 24 - reject query host remote before spawn: postgresql://ubuntu@/f3_ok?host=db.example.supabase.co
+  ---
+  duration_ms: 0.225714
+  type: 'test'
+  ...
+# Subtest: reject ambiguous host before spawn: postgresql://ubuntu@127.0.0.1:5432/f3_ok?host=/var/run/postgresql
+ok 25 - reject ambiguous host before spawn: postgresql://ubuntu@127.0.0.1:5432/f3_ok?host=/var/run/postgresql
+  ---
+  duration_ms: 0.280553
+  type: 'test'
+  ...
+# Subtest: reject unsafe options override before spawn: postgresql://ubuntu@127.0.0.1:5432/f3_ok?options=-csearch_path%3Dpg_catalog
+ok 26 - reject unsafe options override before spawn: postgresql://ubuntu@127.0.0.1:5432/f3_ok?options=-csearch_path%3Dpg_catalog
+  ---
+  duration_ms: 0.309937
+  type: 'test'
+  ...
+# Subtest: reject sslrootcert override before spawn: postgresql://ubuntu@127.0.0.1:5432/f3_ok?sslrootcert=/etc/passwd
+ok 27 - reject sslrootcert override before spawn: postgresql://ubuntu@127.0.0.1:5432/f3_ok?sslrootcert=/etc/passwd
+  ---
+  duration_ms: 0.20557
+  type: 'test'
+  ...
+# Subtest: reject service override before spawn: postgresql://ubuntu@127.0.0.1:5432/f3_ok?service=prod
+ok 28 - reject service override before spawn: postgresql://ubuntu@127.0.0.1:5432/f3_ok?service=prod
+  ---
+  duration_ms: 0.188966
+  type: 'test'
+  ...
+# Subtest: reject unapproved socket before spawn: postgresql://ubuntu@/f3_ok?host=/tmp/postgres
+ok 29 - reject unapproved socket before spawn: postgresql://ubuntu@/f3_ok?host=/tmp/postgres
+  ---
+  duration_ms: 0.215819
+  type: 'test'
+  ...
+# Subtest: reject production ref in url before spawn: postgresql://ubuntu@127.0.0.1:5432/f3_ok?application_name=llbnliixczcqfftxpsmb
+ok 30 - reject production ref in url before spawn: postgresql://ubuntu@127.0.0.1:5432/f3_ok?application_name=llbnliixczcqfftxpsmb
+  ---
+  duration_ms: 0.162732
+  type: 'test'
+  ...
+# Subtest: reject admin url as work before spawn: postgresql://ubuntu@/postgres?host=/var/run/postgresql
+ok 31 - reject admin url as work before spawn: postgresql://ubuntu@/postgres?host=/var/run/postgresql
+  ---
+  duration_ms: 0.215515
+  type: 'test'
+  ...
+# Subtest: admin role rejects f3_ work database
+ok 32 - admin role rejects f3_ work database
+  ---
+  duration_ms: 0.365706
+  type: 'test'
+  ...
+# Subtest: work role rejects maintenance postgres database
+ok 33 - work role rejects maintenance postgres database
+  ---
+  duration_ms: 0.2465
+  type: 'test'
+  ...
+# Subtest: F3_DISPOSABLE_ADMIN_URL remote override rejected before spawn
+ok 34 - F3_DISPOSABLE_ADMIN_URL remote override rejected before spawn
+  ---
+  duration_ms: 0.446571
+  type: 'test'
+  ...
+# Subtest: F3_DISPOSABLE_ADMIN_URL pooler override rejected before spawn
+ok 35 - F3_DISPOSABLE_ADMIN_URL pooler override rejected before spawn
+  ---
+  duration_ms: 0.30509
+  type: 'test'
+  ...
+# Subtest: F3_DISPOSABLE_ADMIN_URL missing db rejected before spawn
+ok 36 - F3_DISPOSABLE_ADMIN_URL missing db rejected before spawn
+  ---
+  duration_ms: 0.324874
+  type: 'test'
+  ...
+# Subtest: environment sanitization strips secrets and uses isolated HOME
+ok 37 - environment sanitization strips secrets and uses isolated HOME
+  ---
+  duration_ms: 1.96255
+  type: 'test'
+  ...
+# Subtest: buildLocalSubprocessEnv never copies inherited PG* or tokens
+ok 38 - buildLocalSubprocessEnv never copies inherited PG* or tokens
+  ---
+  duration_ms: 0.320317
+  type: 'test'
+  ...
+# Subtest: psqlFile remote target spawns zero processes
+ok 39 - psqlFile remote target spawns zero processes
+  ---
+  duration_ms: 0.32188
+  type: 'test'
+  ...
+# Subtest: local two-phase simulation rejects remote url before spawn
+ok 40 - local two-phase simulation rejects remote url before spawn
+  ---
+  duration_ms: 0.375925
+  type: 'test'
+  ...
+# Subtest: CLI repair rejects remote db-url before supabase spawn
+ok 41 - CLI repair rejects remote db-url before supabase spawn
+  ---
+  duration_ms: 0.321338
+  type: 'test'
+  ...
+# Subtest: CLI help/version uses isolated HOME and stripped env
+ok 42 - CLI help/version uses isolated HOME and stripped env
+  ---
+  duration_ms: 1.413225
+  type: 'test'
+  ...
+# Subtest: remote Management API harness is fail-closed and fetches nothing when unauthorized
+ok 43 - remote Management API harness is fail-closed and fetches nothing when unauthorized
+  ---
+  duration_ms: 2.133015
+  type: 'test'
+  ...
+# Subtest: remote harness refuses production ref without posting
+ok 44 - remote harness refuses production ref without posting
+  ---
+  duration_ms: 0.216637
+  type: 'test'
+  ...
+# Subtest: rejected cases across parser, psql, and admin override spawn zero processes
+ok 45 - rejected cases across parser, psql, and admin override spawn zero processes
+  ---
+  duration_ms: 0.82653
+  type: 'test'
+  ...
+1..45
+# tests 45
+# suites 0
+# pass 45
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 162.532076
+EXIT:0

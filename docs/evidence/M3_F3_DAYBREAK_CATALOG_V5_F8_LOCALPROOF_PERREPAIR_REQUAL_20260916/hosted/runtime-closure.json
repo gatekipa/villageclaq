@@ -1,0 +1,29 @@
+{
+  "sha256": "75037db675b829aaed2f07965b38f5b4d566840b6e2400191cb4b5702daced0f",
+  "missing": 0,
+  "unresolved": 0,
+  "runtime_read_missing": 0,
+  "unexplained_exclusions": 0,
+  "uncommitted_functional_diffs": 0,
+  "hosted_tree_mismatches": 0,
+  "closure_complete": true,
+  "independent_reference_source_sha256": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+  "required_runtime_read_inputs": [
+    {
+      "path": "supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql",
+      "why": "extractEnqueueCreateSql reads the Cut-2 queue migration at floor install"
+    },
+    {
+      "path": "supabase/migrations/00117_m2_notification_policy_foundation.sql",
+      "why": "stub/live-pin floor copies unmodified 00117 bytes onto the disposable"
+    },
+    {
+      "path": "scripts/_cut3_live_functiondef_hex.json",
+      "why": "extractHasGroupPermissionCreateSql decodes the Cut-3 live functiondef hex"
+    },
+    {
+      "path": "src/lib/financial-f3-recognition.ts",
+      "why": "recognitionFromSource / recognitionFromSourcePin read the SOA allowlist"
+    }
+  ]
+}

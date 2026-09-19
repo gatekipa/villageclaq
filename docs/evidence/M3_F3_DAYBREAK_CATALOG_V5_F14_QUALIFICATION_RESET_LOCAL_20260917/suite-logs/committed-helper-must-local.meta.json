@@ -1,0 +1,8 @@
+{
+  "suite": "committed-helper-must-local",
+  "classification": "MUST_LOCAL_THEN_EXPANDED",
+  "expect": null,
+  "observed": null,
+  "outSha256": "3a9f1248ac5083a973b8d55df4da9d99a157078dc6f52748b91229cf3a04e355",
+  "outBytes": 5528
+}

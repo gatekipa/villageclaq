@@ -1,0 +1,10 @@
+{
+  "status": "synthetic-prehosted",
+  "tip": "83c48192ef0309ae2ebdd1f087994319b19fc024",
+  "parent": "41b913ecf5885a2f2f012d58ed200b3f429ce72e",
+  "recognition": [
+    "manual_income"
+  ],
+  "schema_version": "f3-full-catalog-v5",
+  "note": "synthetic evidence package for nested+outer integrity verification only"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "00118 may equal hosted 72af6699 ONLY if independently recomputed on 17.6 with platform ACL defaults (not copied by assignment).",
+  "forbidden_as_assignment_copy": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+  "independent_17_6_00118": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+  "tip_embedded_00118": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+  "independent_equals_72af6699": true,
+  "tip_equals_independent": true,
+  "independently_reproduced_after_platform_defaults": true,
+  "envelope_not_from_hosted_flag": true,
+  "provenance_not_from_hosted_flag": true,
+  "seal_helper_ok": true,
+  "method": "independent_local_pg17.6_CATALOG_FINGERPRINT_SQL_with_platform_acl_envelope",
+  "container": "f3-reference-pg176",
+  "listen": "127.0.0.1:55432",
+  "not_copied_from_hosted_observed": true,
+  "not_copied_from_assignment": true
+}

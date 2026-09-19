@@ -1,0 +1,12 @@
+reviewedPin=ca2c0d536037da8c7f55627ac1694cacb932d1d7
+worktree=ca2c0d536037da8c7f55627ac1694cacb932d1d7
+qaBranchHead=ba8fc0015337fd6aa854ccd0cc94a066e5c87166
+hostname=cursor
+uname=Linux cursor 6.12.94+ #1 SMP PREEMPT_DYNAMIC Thu Sep 17 16:20:42 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+os=Ubuntu 24.04.4 LTS
+node=v22.14.0
+psqlClient=psql (PostgreSQL) 17.11 (Ubuntu 17.11-1.pgdg24.04+2)
+pgServer=17.11 (Ubuntu 17.11-1.pgdg24.04+2)
+pgSocket=srwxrwxrwx 1 postgres postgres 0 Sep 18 15:30 /var/run/postgresql/.s.PGSQL.5432
+whoami=ubuntu
+dateUtc=2026-09-18T15:31:06Z

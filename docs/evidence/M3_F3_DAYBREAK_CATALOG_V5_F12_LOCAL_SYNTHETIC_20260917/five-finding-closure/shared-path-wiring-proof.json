@@ -1,0 +1,13 @@
+{
+  "schema": "f3-f11-shared-path-wiring-proof-v1",
+  "not_hosted_execution": true,
+  "same_function_object": true,
+  "lines": {
+    "definition": "scripts/qualify-f3-db-push-disposable.mjs:1746",
+    "alias": "scripts/qualify-f3-db-push-disposable.mjs:2219",
+    "hosted_main_call": "scripts/qualify-f3-db-push-disposable.mjs:3291",
+    "shared_id": "scripts/qualify-f3-db-push-disposable.mjs:755"
+  },
+  "alias_expression": "export const runHostedF10RepairRetryContinuation = runF10RepairRetryContinuation",
+  "note": "Static source proof only; no invented runtime traces"
+}

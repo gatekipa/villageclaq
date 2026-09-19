@@ -1,0 +1,69 @@
+{
+  "artifact": "final-inventory",
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "inventoryCapture": {
+    "status": 0,
+    "body": {
+      "schemas": [
+        "auth",
+        "extensions",
+        "graphql",
+        "graphql_public",
+        "information_schema",
+        "pg_catalog",
+        "pg_toast",
+        "pgbouncer",
+        "public",
+        "realtime",
+        "storage",
+        "supabase_migrations",
+        "vault"
+      ],
+      "public_types": [],
+      "public_views": [],
+      "public_tables": [],
+      "exchange_rates": false,
+      "financial_core": false,
+      "recognition_pin": "manual_income",
+      "storage_buckets": [],
+      "public_functions": [],
+      "storage_policies": [],
+      "unnest_uuid_shim": false,
+      "financial_private": false,
+      "groups_group_level": false,
+      "schema_migrations_rows": 0,
+      "financial_ledger_epochs": false,
+      "schema_migrations_present": true,
+      "organizations_base_country": false,
+      "auth_handle_new_user_trigger": false,
+      "committees_budget_allocation": false
+    }
+  },
+  "inventoryBefore": {
+    "status": 0,
+    "body": {
+      "history_rows": 0,
+      "throwaway_seq": false,
+      "inject_function": false,
+      "throwaway_table": false,
+      "schema_migrations": true,
+      "mapi_inject_function": false
+    }
+  },
+  "migrationListAfter": {
+    "command": "supabase migration list --db-url [REDACTED] --workdir [ISOLATED]",
+    "status": 0,
+    "stdout": "\n  \n   Local            | Remote           | Time (UTC)            \n  ------------------|------------------|-----------------------\n   `20260913173000` | `20260913173000` | `2026-09-13 17:30:00` \n   `20260913173001` | `20260913173001` | `2026-09-13 17:30:01` \n   `20260913173002` | `20260913173002` | `2026-09-13 17:30:02` \n   `20260913173003` | `20260913173003` | `2026-09-13 17:30:03` \n   `20260913173004` | `20260913173004` | `2026-09-13 17:30:04` \n   `20260913173005` | `20260913173005` | `2026-09-13 17:30:05` \n\n",
+    "stderr": "Connecting to remote database...\n",
+    "signal": null
+  },
+  "cleanup": {
+    "command": "supabase db query --db-url [REDACTED] --workdir [ISOLATED] --output-format json",
+    "status": 0,
+    "stdout": "DROP TABLE\n",
+    "stderr": "Connecting to remote database...\n",
+    "signal": null,
+    "dropped": "public.f3_mapi_throwaway_probe"
+  },
+  "note": "Captured from qualify evidence; secrets already sanitized by qualify sanitizeForLog"
+}

@@ -1,0 +1,118 @@
+{
+  "ok": true,
+  "envelope_ok": true,
+  "recognition_ok": true,
+  "recognition": [
+    "manual_income"
+  ],
+  "stages": [
+    {
+      "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+      "schema_version": "f3-full-catalog-v2",
+      "coverage_ok": true,
+      "coverage_reason": null,
+      "acl_ok": true,
+      "acl_reason": null,
+      "sha256": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+      "matches_tip_embedded": true,
+      "matches_cloud_agent_v2": true,
+      "recognition": [
+        "manual_income"
+      ],
+      "migration_digest_ok": true,
+      "has_tgenabled_field": true,
+      "has_column_acl": true,
+      "tgenabled_negatives_ok": true
+    },
+    {
+      "file": "00119_f3_01_core_ledger_foundation.sql",
+      "schema_version": "f3-full-catalog-v2",
+      "coverage_ok": true,
+      "coverage_reason": null,
+      "acl_ok": true,
+      "acl_reason": null,
+      "sha256": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+      "matches_tip_embedded": true,
+      "matches_cloud_agent_v2": true,
+      "recognition": [
+        "manual_income"
+      ],
+      "migration_digest_ok": true,
+      "has_tgenabled_field": true,
+      "has_column_acl": true,
+      "tgenabled_negatives_ok": true
+    },
+    {
+      "file": "00120_f3_02_secure_posting_idempotency.sql",
+      "schema_version": "f3-full-catalog-v2",
+      "coverage_ok": true,
+      "coverage_reason": null,
+      "acl_ok": true,
+      "acl_reason": null,
+      "sha256": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+      "matches_tip_embedded": true,
+      "matches_cloud_agent_v2": true,
+      "recognition": [
+        "manual_income"
+      ],
+      "migration_digest_ok": true,
+      "has_tgenabled_field": true,
+      "has_column_acl": true,
+      "tgenabled_negatives_ok": true
+    },
+    {
+      "file": "00121_f3_03_projection_read_proof.sql",
+      "schema_version": "f3-full-catalog-v2",
+      "coverage_ok": true,
+      "coverage_reason": null,
+      "acl_ok": true,
+      "acl_reason": null,
+      "sha256": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+      "matches_tip_embedded": true,
+      "matches_cloud_agent_v2": true,
+      "recognition": [
+        "manual_income"
+      ],
+      "migration_digest_ok": true,
+      "has_tgenabled_field": true,
+      "has_column_acl": true,
+      "tgenabled_negatives_ok": true
+    },
+    {
+      "file": "00122_f3_04_correction_reversal.sql",
+      "schema_version": "f3-full-catalog-v2",
+      "coverage_ok": true,
+      "coverage_reason": null,
+      "acl_ok": true,
+      "acl_reason": null,
+      "sha256": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+      "matches_tip_embedded": true,
+      "matches_cloud_agent_v2": true,
+      "recognition": [
+        "manual_income"
+      ],
+      "migration_digest_ok": true,
+      "has_tgenabled_field": true,
+      "has_column_acl": true,
+      "tgenabled_negatives_ok": true
+    },
+    {
+      "file": "00123_f3_05_opening_cash_command.sql",
+      "schema_version": "f3-full-catalog-v2",
+      "coverage_ok": true,
+      "coverage_reason": null,
+      "acl_ok": true,
+      "acl_reason": null,
+      "sha256": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa",
+      "matches_tip_embedded": true,
+      "matches_cloud_agent_v2": true,
+      "recognition": [
+        "manual_income"
+      ],
+      "migration_digest_ok": true,
+      "has_tgenabled_field": true,
+      "has_column_acl": true,
+      "tgenabled_negatives_ok": true
+    }
+  ]
+}

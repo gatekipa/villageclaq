@@ -1,0 +1,15 @@
+{
+  "packagedAt": "2026-09-18T01:16:41.774Z",
+  "functionalTip": "b74c6854869acf0e826446ea0488c42469621a3b",
+  "startingRef": "1fe866ff93af77dfba55437888d3315804507222",
+  "f15FunctionalContentPin": "49a91169fbb53dba149f4e7bbcf3016f988f4922",
+  "f15PlanContentPin": "206dce13d424f5303520d2b63a43768a078dda35",
+  "helper": "scripts/prove-f3-qualification-reset-local.mjs",
+  "hostedContact": false,
+  "disposableContact": false,
+  "productionContact": false,
+  "daybreakAstraContact": false,
+  "wipeEnabled": false,
+  "invocationSecretsRemoved": true,
+  "observationMarkersAreNotSeparateTransactions": true
+}

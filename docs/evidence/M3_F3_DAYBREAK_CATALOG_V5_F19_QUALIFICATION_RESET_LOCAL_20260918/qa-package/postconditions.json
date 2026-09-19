@@ -1,0 +1,15 @@
+{
+  "wipe": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
+  "bucketHoldsPreserved": true,
+  "c4R01R04": "PASS (ok 42-45 in this QA test:f3-reset)",
+  "readCommittedLockOrder": "PASS (helper offline check READ_COMMITTED_LOCK_ORDER_DOCUMENTED)",
+  "migrationsVsStart": 0,
+  "scriptsVsFunctionalPin": 0,
+  "functionalScriptsModifiedByThisQa": false,
+  "f18ConcurrencyReRun": false,
+  "hostedRequalification": false,
+  "villageclaq242Pass1SkipNotClaimed": true,
+  "thrownTrueCannotAuthorizeSuccess": true,
+  "processRecordIdentitiesMatchRecovered": true,
+  "rolledBackUnprovenWhereUnproven": true
+}

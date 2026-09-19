@@ -1,0 +1,17 @@
+{
+  "package": "M3_F3_DAYBREAK_CATALOG_V5_F21_PRESERVE_BASELINE_LOCAL_20260919",
+  "functionalTip": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+  "proveHead": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+  "classification": "LOCAL_PG_EXECUTED",
+  "localStatus": "LOCAL CANDIDATE READY",
+  "qaVerdict": "IMPLEMENTATION ACCEPT",
+  "fileCount": 30,
+  "indexSha256OfJsonBytes": "5e709c37f89c17b06abbb6f7a1f3f5594124a05accc6a3b827bb93271b7129a9",
+  "checksumFileByteSha256": "6249469b6ef2aa52cbc105dc1e0fc8a7f90d8f8f5a189b219da4cfddfd96c1b8",
+  "checksumDistinctionPolicy": "indexSha256OfJsonBytes is the interior digest written to evidence-index.sha256; checksumFileByteSha256 is a different identity",
+  "leakScan": {
+    "ok": true,
+    "secret_scan": "clean",
+    "absolute_path_leaks": 0
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "artifact": "cleanup-verification",
+  "functional_sha": "c59afad411a07838688aeb5583ab179683f25a7f",
+  "poison_absent": true,
+  "note": "per-migration poison cleanup gates ok; final inventory poison_absent true",
+  "per_migration_poison_eval_ok": true
+}

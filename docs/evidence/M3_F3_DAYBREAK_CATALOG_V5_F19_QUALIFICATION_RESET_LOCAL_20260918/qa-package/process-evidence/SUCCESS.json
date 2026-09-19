@@ -1,0 +1,126 @@
+{
+  "reset": {
+    "ok": true,
+    "verdict": "CLEAN_BASELINE",
+    "committed": true,
+    "rolledBack": null,
+    "code": "F13_RESET_COMMITTED"
+  },
+  "stored": {
+    "thrown": false,
+    "status": 0,
+    "processStatus": 0,
+    "structuredError": null,
+    "streams": {
+      "capturedBeforeEncode": true,
+      "originalStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+      "originalStdoutByteLength": 794,
+      "originalStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalStderrByteLength": 0,
+      "packagedStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+      "packagedStdoutByteLength": 794,
+      "packagedStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "packagedStderrByteLength": 0,
+      "originalByteEqual": false,
+      "reconstructedFromSummary": false,
+      "transformApplied": false
+    },
+    "stdout": "{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T1_BEGIN\",\"event\":\"began\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T2_LOCK\",\"event\":\"locked\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T3_REVALIDATE\",\"event\":\"revalidated\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T4_MUTATE\",\"event\":\"mutate_attempted\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T5_AFFECTED\",\"event\":\"affected_checked\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T6_FINAL\",\"event\":\"final_ok\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"commit_attempted\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"committed\",\"committed\":true}\n",
+    "stderr": ""
+  },
+  "reread": {
+    "thrown": false,
+    "status": 0,
+    "processStatus": 0,
+    "structuredError": null,
+    "streams": {
+      "capturedBeforeEncode": true,
+      "originalStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+      "originalStdoutByteLength": 794,
+      "originalStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalStderrByteLength": 0,
+      "packagedStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+      "packagedStdoutByteLength": 794,
+      "packagedStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "packagedStderrByteLength": 0,
+      "originalByteEqual": false,
+      "reconstructedFromSummary": false,
+      "transformApplied": false
+    },
+    "stdout": "{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T1_BEGIN\",\"event\":\"began\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T2_LOCK\",\"event\":\"locked\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T3_REVALIDATE\",\"event\":\"revalidated\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T4_MUTATE\",\"event\":\"mutate_attempted\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T5_AFFECTED\",\"event\":\"affected_checked\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T6_FINAL\",\"event\":\"final_ok\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"commit_attempted\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"committed\",\"committed\":true}\n",
+    "stderr": "",
+    "verdict": "CLEAN_BASELINE"
+  },
+  "interpreted": {
+    "committed": true,
+    "rolledBack": null,
+    "processErrorPresent": false,
+    "thrown": false
+  },
+  "attestation": {
+    "ok": true,
+    "processFailed": false,
+    "interpretedCommitted": true,
+    "genuineSuccess": true,
+    "t7CommittedTrue": true
+  },
+  "successClaim": {
+    "ok": true,
+    "processFailed": false,
+    "interpretedCommitted": true,
+    "genuineSuccess": true
+  },
+  "finalization": {
+    "ok": true,
+    "count": 1
+  },
+  "successFinalization": {
+    "ok": true,
+    "count": 1
+  },
+  "identities": {
+    "recoveredStdout": "{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T1_BEGIN\",\"event\":\"began\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T2_LOCK\",\"event\":\"locked\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T3_REVALIDATE\",\"event\":\"revalidated\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T4_MUTATE\",\"event\":\"mutate_attempted\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T5_AFFECTED\",\"event\":\"affected_checked\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T6_FINAL\",\"event\":\"final_ok\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"commit_attempted\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"committed\",\"committed\":true}\n",
+    "recoveredStderr": "",
+    "recoveredStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+    "recoveredStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "recoveredStdoutByteLength": 794,
+    "recoveredStderrByteLength": 0,
+    "originalStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+    "originalStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "originalStdoutByteLength": 794,
+    "originalStderrByteLength": 0,
+    "packagedStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+    "packagedStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "packagedStdoutByteLength": 794,
+    "packagedStderrByteLength": 0,
+    "storedOriginalStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+    "storedOriginalStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "storedOriginalStdoutByteLength": 794,
+    "storedOriginalStderrByteLength": 0,
+    "packagedStdoutMatchesRecovered": true,
+    "packagedStderrMatchesRecovered": true,
+    "packagedStdoutLengthMatchesRecovered": true,
+    "packagedStderrLengthMatchesRecovered": true,
+    "storedOriginalStdoutMatchesRaw": true,
+    "storedOriginalStderrMatchesRaw": true,
+    "originalStderrDiffersFromPackaged": false,
+    "originalStdoutDiffersFromPackaged": false
+  },
+  "leaks": {
+    "pathLeaks": 0,
+    "secrets": 0,
+    "pathLeakHits": [],
+    "secretHits": []
+  },
+  "closed": {
+    "verdictCleanBaseline": true,
+    "interpretedCommitted": true,
+    "thrownFalse": true,
+    "processFailedFalse": true,
+    "attestationOk": true,
+    "genuineSuccess": true,
+    "t7CommittedTrue": true,
+    "finalizationOk": true,
+    "identitiesMatch": true
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "exact": true,
+  "files": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": {
+      "on_disk": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+      "frozen": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+      "match": true
+    },
+    "00119_f3_01_core_ledger_foundation.sql": {
+      "on_disk": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+      "frozen": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+      "match": true
+    },
+    "00120_f3_02_secure_posting_idempotency.sql": {
+      "on_disk": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+      "frozen": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+      "match": true
+    },
+    "00121_f3_03_projection_read_proof.sql": {
+      "on_disk": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+      "frozen": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+      "match": true
+    },
+    "00122_f3_04_correction_reversal.sql": {
+      "on_disk": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+      "frozen": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+      "match": true
+    },
+    "00123_f3_05_opening_cash_command.sql": {
+      "on_disk": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
+      "frozen": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
+      "match": true
+    }
+  }
+}

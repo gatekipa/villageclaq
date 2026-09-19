@@ -1,0 +1,20 @@
+{
+  "sha256": "83767ed74eb9b2716189b9c65c8e9d5d72dd9158d201ac60a491d878c8e9acc3",
+  "bytes": 40590232,
+  "encoding": "utf8",
+  "sanitized_before_hash": true,
+  "tests": [
+    {
+      "name": "qualify-f3-db-push-disposable",
+      "ok": true,
+      "exact_error": null
+    }
+  ],
+  "secret_scan": {
+    "password": false,
+    "token": false,
+    "ghp": false,
+    "jwt": false,
+    "production_ref": false
+  }
+}

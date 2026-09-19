@@ -1,0 +1,90 @@
+{
+  "artifact": "cleanup-verification",
+  "functional_sha": "104a5b514c35b5a3bee6526578f7bccc3575dfb3",
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "reason": "Phase D STOP after 00119 fingerprint_exact HOLD; remove poison + F3 objects (00118 applied + 00119 objects present); preserve stub+live-pin floor tables",
+  "before": {
+    "poison": {
+      "ok": true,
+      "absent": true,
+      "row": {
+        "function_present": false,
+        "trigger_present": false
+      }
+    },
+    "public_tables_count": 37,
+    "f3_schemas": [
+      "financial_core",
+      "financial_private"
+    ],
+    "f3_tables": [
+      "financial_accounts",
+      "financial_categories",
+      "financial_events",
+      "financial_funds",
+      "financial_ledger_epochs",
+      "financial_postings"
+    ],
+    "history_get": [
+      {
+        "version": "20260913173000",
+        "name": "f3_bounded_financial_epoch_foundation"
+      }
+    ]
+  },
+  "teardown": {
+    "status": 0,
+    "stdout": "             status             \n--------------------------------\n phase_d_stop_teardown_complete\n(1 row)\n\n",
+    "stderr": "psql:[ISOLATED_HOME] NOTICE:  trigger \"trg_f3_dbpush_fail_target_history\" for relation \"supabase_migrations.schema_migrations\" does not exist, skipping\npsql:[ISOLATED_HOME] NOTICE:  function supabase_migrations.f3_dbpush_fail_target_history() does not exist, skipping\npsql:[ISOLATED_HOME] NOTICE:  drop cascades to 36 other objects\nDETAIL:  drop cascades to function financial_core.curr"
+  },
+  "after": {
+    "poison": {
+      "ok": true,
+      "absent": true,
+      "row": {
+        "function_present": false,
+        "trigger_present": false
+      }
+    },
+    "public_tables_count": 31,
+    "public_tables": [
+      "announcements",
+      "contribution_obligations",
+      "elections",
+      "events",
+      "fines",
+      "group_positions",
+      "group_subscriptions",
+      "groups",
+      "hosting_assignments",
+      "hosting_rosters",
+      "hosting_swap_requests",
+      "invitations",
+      "loans",
+      "meeting_minutes",
+      "member_transfers",
+      "memberships",
+      "notification_policies",
+      "notification_policy_occurrences",
+      "notification_policy_triggers",
+      "notifications_queue",
+      "organizations",
+      "payment_obligation_applications",
+      "payments",
+      "position_assignments",
+      "position_permissions",
+      "profiles",
+      "projects",
+      "relief_claims",
+      "relief_enrollments",
+      "relief_plans",
+      "relief_remittances"
+    ],
+    "history_get": []
+  },
+  "poison_absent": true,
+  "f3_absent": true,
+  "floor_tables_preserved": true,
+  "production_contacted": false,
+  "project_deleted_or_paused": false
+}

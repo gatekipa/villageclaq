@@ -1,0 +1,37 @@
+{
+  "artifact": "provenance",
+  "supersedes_evidence_dirs": [
+    "docs/evidence/M3_F3_DAYBREAK_PLATFORM_ACL_CALIBRATION_REQUAL_20260915"
+  ],
+  "supersession_note": "NEW superseding evidence for catalog-v2 + independent reference remediation; prior ACL-cal evidence directories left untouched.",
+  "pins": {
+    "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+    "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+    "old_evidence_E": "84938103d86258b9193186f271f4f1fb05cb45ad",
+    "old_functional_F": "11c9e3f763bba6dda999ec5554237b0ca39fdaba",
+    "functional_F2": "a4104b452c29e9bb103cb7b232004368875dc53f",
+    "pr97_tip": "019321b4ce3f50aea0ecffd553df8d04f6753171",
+    "pr96_untouched": "d526b407992fc2a806f2b7ba7170af335a118630"
+  },
+  "schema_version": "f3-full-catalog-v2",
+  "envelope_digest": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "independent_module_sha": "de4ed3fd1f79103cb85591209246e0dbd2194d0f5adbc2a6c82497fe83449c3f",
+  "cloud_agent_v2_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+    "00119_f3_01_core_ledger_foundation.sql": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+    "00120_f3_02_secure_posting_idempotency.sql": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+    "00121_f3_03_projection_read_proof.sql": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+    "00122_f3_04_correction_reversal.sql": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+    "00123_f3_05_opening_cash_command.sql": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa"
+  },
+  "recognition": [
+    "manual_income"
+  ],
+  "disposable": {
+    "ref": "jkorwnwwmdeflfntxntl",
+    "name": "villageclaq-f3-management-api-disposable-20260913",
+    "org": "eyztkzkprpmlmcabrfef"
+  },
+  "cli": "2.117.0",
+  "captured_at_et": "9/15/2026, 9:01:25 PM ET"
+}

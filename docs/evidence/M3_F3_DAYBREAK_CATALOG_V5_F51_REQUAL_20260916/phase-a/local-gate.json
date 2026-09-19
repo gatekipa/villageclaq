@@ -1,0 +1,87 @@
+{
+  "head": "55995cf0ab5f89dd0b59775eb99a7f63a5e0d5b1",
+  "head_is_F51": true,
+  "clean_worktree_functional": true,
+  "porcelain": "",
+  "functional_dirty_lines": [],
+  "cli_version": "2.117.0",
+  "cli_ok": true,
+  "no_pr96_100_as_authority": true,
+  "suites": {
+    "test-f3-recognition": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 40,
+        "pass": 40,
+        "fail": 0,
+        "skipped": 0
+      },
+      "sha256": "aac4ffacbab0dc4d41d6c271b23ab73bb8fd2b07da0f6c7d3534a26b0d296cd2",
+      "bytes": 7539
+    },
+    "test-f3-db-push": {
+      "exit": 0,
+      "classification": "PASS_WITH_SKIPS",
+      "counts": {
+        "tests": 125,
+        "pass": 124,
+        "fail": 0,
+        "skipped": 1
+      },
+      "sha256": "e38eaba095064eed104bf649a4fcf046b40f4b8e032efc4119ef322bfe7ccf03",
+      "bytes": 130833
+    },
+    "test-f3-local-safety": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "skipped": 0
+      },
+      "sha256": "7a9aed989679e1efffa5e6dbb43357cb0f85f0cc9c25f5486871151f89c43859",
+      "bytes": 10220
+    },
+    "test-f3-mapi-harness": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "skipped": 0
+      },
+      "sha256": "0a96e61cc29d8fc95b5433d2377feb36e92d2be6bef468331417a0b0e4f516a6",
+      "bytes": 4560
+    },
+    "tsc-noEmit": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": null,
+        "pass": 1,
+        "fail": 0,
+        "skipped": 0
+      },
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "next-build": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": null,
+        "pass": 1,
+        "fail": 0,
+        "skipped": 0
+      },
+      "sha256": "34b04320e80c712a18c98822b6bdf2567b0a70381f577f328d5c9693208ed7a7",
+      "bytes": 6884,
+      "note": "re-run after replacing node_modules symlink with bind/hardlink for Turbopack"
+    }
+  },
+  "required_suites_ok": true,
+  "verdict": "CONTINUE"
+}

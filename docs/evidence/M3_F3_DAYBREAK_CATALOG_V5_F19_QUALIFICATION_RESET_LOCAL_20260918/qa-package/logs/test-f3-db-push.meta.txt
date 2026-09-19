@@ -1,0 +1,10 @@
+suite=test:f3-db-push
+executableCommit=dfbeb11b49f7e9b061a4c700e0335d125ac669e2
+worktree=[REDACTED_PATH]/f19-dfbeb11
+tests=247
+pass=246
+fail=0
+skipped=1
+skip=identity GET is skipped without token and fetch ledger stays empty
+exit=0
+villageclaq242Pass1SkipNotClaimed=true

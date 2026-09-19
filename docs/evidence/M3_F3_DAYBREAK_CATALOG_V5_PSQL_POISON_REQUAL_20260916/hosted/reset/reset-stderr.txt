@@ -1,0 +1,40 @@
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:6: NOTICE:  schema "financial_core" does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:7: NOTICE:  drop cascades to 4 other objects
+DETAIL:  drop cascades to table financial_private.epoch_transitions
+drop cascades to table financial_private.internal_financial_tenants
+drop cascades to function financial_private.guard_ledger_epoch()
+drop cascades to trigger financial_ledger_epoch_guard on table financial_ledger_epochs
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:12: NOTICE:  table "financial_accounts" does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:13: NOTICE:  table "financial_categories" does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:14: NOTICE:  table "financial_events" does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:15: NOTICE:  table "financial_funds" does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:17: NOTICE:  table "financial_postings" does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:19: NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to constraint position_assignments_position_id_fkey on table position_assignments
+drop cascades to constraint position_permissions_position_id_fkey on table position_permissions
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:21: NOTICE:  drop cascades to 4 other objects
+DETAIL:  drop cascades to constraint memberships_group_id_fkey on table memberships
+drop cascades to constraint projects_group_id_fkey on table projects
+drop cascades to constraint notification_policies_group_id_fkey on table notification_policies
+drop cascades to constraint notification_policy_occurrences_group_id_fkey on table notification_policy_occurrences
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:29: NOTICE:  drop cascades to constraint position_assignments_membership_id_fkey on table position_assignments
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:30: NOTICE:  drop cascades to 5 other objects
+DETAIL:  drop cascades to constraint notification_policy_triggers_policy_id_fkey on table notification_policy_triggers
+drop cascades to policy m2_npt_select on table notification_policy_triggers
+drop cascades to policy m2_npt_insert on table notification_policy_triggers
+drop cascades to policy m2_npt_update on table notification_policy_triggers
+drop cascades to policy m2_npt_delete on table notification_policy_triggers
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:45: NOTICE:  function post_financial_opening_cash(jsonb) does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:46: NOTICE:  function get_financial_cashbook(uuid,pg_catalog.timestamptz,pg_catalog.timestamptz,uuid,text,pg_catalog.int4,pg_catalog.int4) does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:47: NOTICE:  function get_financial_projection_bundle(uuid,pg_catalog.timestamptz,pg_catalog.timestamptz,pg_catalog.timestamptz) does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:48: NOTICE:  function post_financial_command(jsonb) does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:57: NOTICE:  function correct_financial_event(jsonb) does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:58: NOTICE:  type "public.financial_account_kind" does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:59: NOTICE:  type "public.financial_account_status" does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:60: NOTICE:  type "public.financial_category_class" does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:61: NOTICE:  type "public.financial_config_status" does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:62: NOTICE:  type "public.financial_control_class" does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:63: NOTICE:  type "public.financial_event_class" does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:64: NOTICE:  type "public.financial_event_status" does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:75: NOTICE:  table "__f3_acl_platform_canary_20260915" does not exist, skipping
+psql:/workspace/f3-psql-poison-requal-20260916/phase-b/reset/qualification-reset.sql:76: NOTICE:  sequence "__f3_acl_platform_canary_20260915_id_seq" does not exist, skipping

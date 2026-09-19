@@ -1,0 +1,80 @@
+
+> villageclaq@0.1.0 test:storage-buckets
+> node --test scripts/test-storage-buckets.mjs
+
+TAP version 13
+# Subtest: storage audit doc exists and covers all three buckets
+ok 1 - storage audit doc exists and covers all three buckets
+  ---
+  duration_ms: 0.975422
+  type: 'test'
+  ...
+# Subtest: receipt upload paths use the receipts bucket
+ok 2 - receipt upload paths use the receipts bucket
+  ---
+  duration_ms: 0.843395
+  type: 'test'
+  ...
+# Subtest: avatar upload paths use the avatars bucket
+ok 3 - avatar upload paths use the avatars bucket
+  ---
+  duration_ms: 0.541011
+  type: 'test'
+  ...
+# Subtest: group document upload paths use the group-documents bucket
+ok 4 - group document upload paths use the group-documents bucket
+  ---
+  duration_ms: 0.867512
+  type: 'test'
+  ...
+# Subtest: no src file calls getPublicUrl on receipts or group-documents
+ok 5 - no src file calls getPublicUrl on receipts or group-documents
+  ---
+  duration_ms: 19.125603
+  type: 'test'
+  ...
+# Subtest: private-bucket display paths go through signed URLs
+ok 6 - private-bucket display paths go through signed URLs
+  ---
+  duration_ms: 0.173559
+  type: 'test'
+  ...
+# Subtest: no migration marks receipts or group-documents public
+ok 7 - no migration marks receipts or group-documents public
+  ---
+  duration_ms: 12.429132
+  type: 'test'
+  ...
+# Subtest: 00112 SELECT-policy hardening drops the open read policies and scopes reads to authenticated group members
+ok 8 - 00112 SELECT-policy hardening drops the open read policies and scopes reads to authenticated group members
+  ---
+  duration_ms: 0.397445
+  type: 'test'
+  ...
+# Subtest: 00112 is re-runnable: each CREATE POLICY is preceded by its own DROP POLICY IF EXISTS
+ok 9 - 00112 is re-runnable: each CREATE POLICY is preceded by its own DROP POLICY IF EXISTS
+  ---
+  duration_ms: 0.439676
+  type: 'test'
+  ...
+# Subtest: storage_path_group_id_v2 guards each uuid cast inside its own WHEN branch
+ok 10 - storage_path_group_id_v2 guards each uuid cast inside its own WHEN branch
+  ---
+  duration_ms: 1.855131
+  type: 'test'
+  ...
+# Subtest: storage helper logs bucket + object key only — no signed URLs, tokens, or phone numbers
+ok 11 - storage helper logs bucket + object key only — no signed URLs, tokens, or phone numbers
+  ---
+  duration_ms: 0.576845
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 117.62505

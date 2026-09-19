@@ -1,0 +1,10 @@
+{
+  "artifact": "canary-absent-post-reset",
+  "status": 0,
+  "body": {
+    "canary_like": [],
+    "canary_table": false
+  },
+  "canary_absent": true,
+  "any_canary_like": 0
+}

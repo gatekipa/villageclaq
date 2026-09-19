@@ -1,0 +1,423 @@
+{
+  "v4_cases": [
+    {
+      "caseId": "V4-ACTION-ROLE",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "fingerprint_exact",
+      "classification": "fingerprint expected and observed are not canonically equal",
+      "exactMutation": "action role mismatch",
+      "poisonVerification": "none"
+    },
+    {
+      "caseId": "V4-CONDEFER-SUBST",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "fingerprint_exact",
+      "classification": "observed triggers unexpected nested key deferrable",
+      "exactMutation": "constraint-level substituted for per-trigger",
+      "poisonVerification": "none"
+    },
+    {
+      "caseId": "V4-DUPLICATE",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "fingerprint_exact",
+      "classification": "observed canonicalization rejected: triggers duplicate records",
+      "exactMutation": "duplicate record",
+      "poisonVerification": "none"
+    },
+    {
+      "caseId": "V4-EXTRA-REF-ACTION",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "fingerprint_exact",
+      "classification": "fingerprint expected and observed are not canonically equal",
+      "exactMutation": "extra referenced-side action trigger",
+      "poisonVerification": "none"
+    },
+    {
+      "caseId": "V4-FN-IDENTITY",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "fingerprint_exact",
+      "classification": "fingerprint expected and observed are not canonically equal",
+      "exactMutation": "function identity mismatch",
+      "poisonVerification": "none"
+    },
+    {
+      "caseId": "V4-INCOMPLETE-CLOSURE",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "recursive_runtime_closure",
+      "classification": "HOLD: recursive runtime closure incomplete; db push not spawned; repair not spawned",
+      "exactMutation": "hand list missing runtime-read inputs and migrations",
+      "poisonVerification": null
+    },
+    {
+      "caseId": "V4-INDEX-NE-COMMITTED",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "evidence_index",
+      "classification": "evidence-index.sha256 does not match evidence-index.json",
+      "exactMutation": "index suite.out sha256 rewritten after commit",
+      "poisonVerification": null
+    },
+    {
+      "caseId": "V4-MALFORMED",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "fingerprint_exact",
+      "classification": "observed per-trigger tgdeferrable/tginitdeferred must be boolean",
+      "exactMutation": "malformed/partial trigger record",
+      "poisonVerification": "none"
+    },
+    {
+      "caseId": "V4-MANIFEST-MUTATED",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "evidence_index",
+      "classification": "evidence-index independent verify failed",
+      "exactMutation": "rewrite executable-manifest.json after detached index write",
+      "poisonVerification": null
+    },
+    {
+      "caseId": "V4-MISSING-REF-ACTION",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "fingerprint_exact",
+      "classification": "fingerprint expected and observed are not canonically equal",
+      "exactMutation": "missing referenced-side action trigger",
+      "poisonVerification": "none"
+    },
+    {
+      "caseId": "V4-OWNING-REASSOC",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "fingerprint_exact",
+      "classification": "fingerprint expected and observed are not canonically equal",
+      "exactMutation": "trigger-owning reassociation",
+      "poisonVerification": "none"
+    },
+    {
+      "caseId": "V4-POISON-MISSING-BOOL",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "final_poison_absence",
+      "classification": "final poison probe missing required boolean keys",
+      "exactMutation": "missing boolean",
+      "poisonVerification": null
+    },
+    {
+      "caseId": "V4-POISON-NONJSON",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "final_poison_absence",
+      "classification": "final poison probe non-JSON",
+      "exactMutation": "non-JSON",
+      "poisonVerification": null
+    },
+    {
+      "caseId": "V4-POISON-NONZERO",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "final_poison_absence",
+      "classification": "final poison probe status 1",
+      "exactMutation": "nonzero",
+      "poisonVerification": null
+    },
+    {
+      "caseId": "V4-POISON-PRESENT-TRUE",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "final_poison_absence",
+      "classification": "poisonPresent true or poison objects remain",
+      "exactMutation": "poisonPresent true",
+      "poisonVerification": null
+    },
+    {
+      "caseId": "V4-POISON-SQL",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "final_poison_absence",
+      "classification": "final poison probe SQL error",
+      "exactMutation": "SQL error",
+      "poisonVerification": null
+    },
+    {
+      "caseId": "V4-PRIMARY-REF-DISAGREE",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "fingerprint_exact",
+      "classification": "independent_reference_disagreement",
+      "exactMutation": "independent triggers emptied",
+      "poisonVerification": null
+    },
+    {
+      "caseId": "V4-REF-SWAP",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "fingerprint_exact",
+      "classification": "fingerprint expected and observed are not canonically equal",
+      "exactMutation": "referencing/referenced swap",
+      "poisonVerification": "none"
+    },
+    {
+      "caseId": "V4-RUNTIME-READ-MISSING",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "recursive_runtime_closure",
+      "classification": "HOLD: recursive runtime closure incomplete; db push not spawned; repair not spawned",
+      "exactMutation": "drop src/lib/financial-f3-recognition.ts from submitted closure",
+      "poisonVerification": null
+    },
+    {
+      "caseId": "V4-SANITIZE-SEMANTIC",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "evidence_sanitize",
+      "classification": "F3_SEMANTIC_SANITIZE",
+      "exactMutation": "REDACT privilege-adjacent secret inside default_acl_canonical",
+      "poisonVerification": null
+    },
+    {
+      "caseId": "V4-TGDEFERRABLE",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "fingerprint_exact",
+      "classification": "fingerprint expected and observed are not canonically equal",
+      "exactMutation": "tgdeferrable mismatch",
+      "poisonVerification": "none"
+    },
+    {
+      "caseId": "V4-TGENABLED-O-A",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "fingerprint_exact",
+      "classification": "fingerprint expected and observed are not canonically equal",
+      "exactMutation": "tgenabled O\u2192A",
+      "poisonVerification": "none"
+    },
+    {
+      "caseId": "V4-TGENABLED-O-D",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "fingerprint_exact",
+      "classification": "fingerprint expected and observed are not canonically equal",
+      "exactMutation": "tgenabled O\u2192D",
+      "poisonVerification": "none"
+    },
+    {
+      "caseId": "V4-TGENABLED-O-R",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "fingerprint_exact",
+      "classification": "fingerprint expected and observed are not canonically equal",
+      "exactMutation": "tgenabled O\u2192R",
+      "poisonVerification": "none"
+    },
+    {
+      "caseId": "V4-TGINITDEFERRED",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "migrationRepairCalls": null,
+      "failedGate": "fingerprint_exact",
+      "classification": "fingerprint expected and observed are not canonically equal",
+      "exactMutation": "tginitdeferred mismatch",
+      "poisonVerification": "none"
+    }
+  ],
+  "c_cases": [
+    {
+      "caseId": "C1",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "failedGate": "fingerprint_exact",
+      "classification": "fingerprint expected and observed are not canonically equal",
+      "exactMutation": "internal FK trigger tgenabled O\u2192D"
+    },
+    {
+      "caseId": "C2",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "failedGate": "fingerprint_exact",
+      "classification": "fingerprint expected and observed are not canonically equal",
+      "exactMutation": "internal/user trigger missing"
+    },
+    {
+      "caseId": "C3",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "failedGate": "fingerprint_exact",
+      "classification": "fingerprint expected and observed are not canonically equal",
+      "exactMutation": "extra internal constraint trigger"
+    },
+    {
+      "caseId": "C4",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "failedGate": "fingerprint_exact",
+      "classification": "fingerprint expected and observed are not canonically equal",
+      "exactMutation": "constraint-trigger reassociation"
+    },
+    {
+      "caseId": "C5",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "failedGate": "fingerprint_exact",
+      "classification": "fingerprint expected and observed are not canonically equal",
+      "exactMutation": "trigger-function identity mismatch"
+    },
+    {
+      "caseId": "C6",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "failedGate": "fingerprint_exact",
+      "classification": "fingerprint expected and observed are not canonically equal",
+      "exactMutation": "trigger event/timing/level mismatch"
+    },
+    {
+      "caseId": "C7",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "failedGate": "suite_evidence_integrity",
+      "classification": "F3_SUITE_OUTPUT_MISSING",
+      "exactMutation": "missing suite output referenced by committed evidence"
+    },
+    {
+      "caseId": "C8",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "failedGate": "suite_evidence_integrity",
+      "classification": "F3_SUITE_META_MISMATCH",
+      "exactMutation": "suite output vs metadata SHA/byte-length disagreement"
+    },
+    {
+      "caseId": "C9",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "failedGate": "fingerprint_exact",
+      "classification": "independent_reference_disagreement",
+      "exactMutation": "actual independent-reference disagreement (empty triggers)"
+    },
+    {
+      "caseId": "C10",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "failedGate": "evidence_sanitize",
+      "classification": "F3_SEMANTIC_SANITIZE",
+      "exactMutation": "semantic fingerprint mutation during sanitization"
+    },
+    {
+      "caseId": "C11",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "failedGate": "recursive_runtime_closure",
+      "classification": "rejected-incomplete-closure",
+      "exactMutation": "incomplete recursive local dependency closure submitted to real enforcement gate"
+    },
+    {
+      "caseId": "C12",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "failedGate": "inventory_chronology",
+      "classification": "F3_INVENTORY_PREMATURE_FINAL",
+      "exactMutation": "purported final inventory captured before final DB state"
+    },
+    {
+      "caseId": "C13",
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "failedGate": "evidence_out_contract",
+      "classification": "EISDIR",
+      "exactMutation": "invalid --evidence-out directory rejected BEFORE database access"
+    },
+    {
+      "caseId": "C14",
+      "dbPushCalls": 6,
+      "repairCalls": 0,
+      "failedGate": "evidence_write",
+      "classification": "EISDIR",
+      "exactMutation": "post-database evidence-write EISDIR must prevent PASS"
+    }
+  ],
+  "v4_ids_expected_25": [
+    "V4-ACTION-ROLE",
+    "V4-CONDEFER-SUBST",
+    "V4-DUPLICATE",
+    "V4-EXTRA-REF-ACTION",
+    "V4-FN-IDENTITY",
+    "V4-INCOMPLETE-CLOSURE",
+    "V4-INDEX-NE-COMMITTED",
+    "V4-MALFORMED",
+    "V4-MANIFEST-MUTATED",
+    "V4-MISSING-REF-ACTION",
+    "V4-OWNING-REASSOC",
+    "V4-POISON-MISSING-BOOL",
+    "V4-POISON-NONJSON",
+    "V4-POISON-NONZERO",
+    "V4-POISON-PRESENT-TRUE",
+    "V4-POISON-SQL",
+    "V4-PRIMARY-REF-DISAGREE",
+    "V4-REF-SWAP",
+    "V4-RUNTIME-READ-MISSING",
+    "V4-SANITIZE-SEMANTIC",
+    "V4-TGDEFERRABLE",
+    "V4-TGENABLED-O-A",
+    "V4-TGENABLED-O-D",
+    "V4-TGENABLED-O-R",
+    "V4-TGINITDEFERRED"
+  ],
+  "v4_ids_observed": [
+    "V4-ACTION-ROLE",
+    "V4-CONDEFER-SUBST",
+    "V4-DUPLICATE",
+    "V4-EXTRA-REF-ACTION",
+    "V4-FN-IDENTITY",
+    "V4-INCOMPLETE-CLOSURE",
+    "V4-INDEX-NE-COMMITTED",
+    "V4-MALFORMED",
+    "V4-MANIFEST-MUTATED",
+    "V4-MISSING-REF-ACTION",
+    "V4-OWNING-REASSOC",
+    "V4-POISON-MISSING-BOOL",
+    "V4-POISON-NONJSON",
+    "V4-POISON-NONZERO",
+    "V4-POISON-PRESENT-TRUE",
+    "V4-POISON-SQL",
+    "V4-PRIMARY-REF-DISAGREE",
+    "V4-REF-SWAP",
+    "V4-RUNTIME-READ-MISSING",
+    "V4-SANITIZE-SEMANTIC",
+    "V4-TGDEFERRABLE",
+    "V4-TGENABLED-O-A",
+    "V4-TGENABLED-O-D",
+    "V4-TGENABLED-O-R",
+    "V4-TGINITDEFERRED"
+  ],
+  "c14_actual_dbPushCalls": 6
+}

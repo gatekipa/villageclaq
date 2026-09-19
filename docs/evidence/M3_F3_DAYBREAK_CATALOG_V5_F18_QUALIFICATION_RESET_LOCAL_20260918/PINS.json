@@ -1,0 +1,20 @@
+{
+  "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "f12Functional": "1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+  "f17Functional": "83b9f79483f3ba53f4f8cd60016450ff38a723b4",
+  "f17Evidence": "3fcbcbc438ccc90faf7e87d06ba0d270e3d17598",
+  "startingRef": "3fcbcbc438ccc90faf7e87d06ba0d270e3d17598",
+  "f18Functional": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "F18_FUNCTIONAL_TIP": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "qaPackageCommit": "e85a7a537275596d54c5ccb6bd632bb6f12c0e4e",
+  "f18IndependentQa": "F18 ACCEPT",
+  "reviewerBcId": "bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
+  "classification": "LOCAL_PG_EXECUTED",
+  "postgresServerVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+  "runtimeClosure": "c6ecf620e41dbbce340e2207b2b9b793c8df750c703d245363139b497526a392",
+  "verificationUnion": "b9a9e6b7ad95f6e5935d05bb6c41bdabe543f0f88a086bc6b28fcb07dd03be78",
+  "forbiddenSummary": "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d",
+  "independentReference": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+  "note": "New commits descend normally from starting_ref 3fcbcbc4. Functional tip unchanged. Historical F17 evidence unchanged. No force-push. No merge."
+}

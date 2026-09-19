@@ -1,0 +1,28 @@
+{
+  "artifact": "multi-arg-overload-identity-proof",
+  "functional_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315",
+  "hosted_00119_lock_financial_occurrence": {
+    "migration": "00119_f3_01_core_ledger_foundation.sql",
+    "fingerprint_exact": true,
+    "lock_financial_occurrence_acl": [
+      {
+        "schema": "financial_core",
+        "grantee": "postgres",
+        "grantor": "postgres",
+        "prokind": "f",
+        "grantable": false,
+        "privilege": "EXECUTE",
+        "object_name": "lock_financial_occurrence",
+        "object_type": "routine",
+        "identity_arguments": "p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid"
+      }
+    ],
+    "identity_arguments_complete": true,
+    "no_truncation_at_first_comma": true
+  },
+  "phase_c_N1_complete_identity": true,
+  "phase_c_N2_overloads_distinct": true,
+  "phase_c_N3_order_only_accepted": true,
+  "phase_c_N4_truncation_rejected": true,
+  "proof": "Hosted observed ACL for lock_financial_occurrence retains full multi-arg identity_arguments; fingerprint_exact true for 00118-00121"
+}

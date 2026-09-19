@@ -1,0 +1,40 @@
+{
+  "extensionBefore": [
+    {
+      "extname": "btree_gist",
+      "extversion": "1.7",
+      "extrelocatable": true,
+      "nspname": "public"
+    }
+  ],
+  "extensionAfter": [
+    {
+      "extname": "btree_gist",
+      "extversion": "1.7",
+      "extrelocatable": true,
+      "nspname": "public"
+    }
+  ],
+  "memberCountBefore": 264,
+  "memberCountAfter": 264,
+  "typedMemberCountBefore": 188,
+  "typedMemberCountAfter": 188,
+  "leftoverTablesBefore": [
+    "public.financial_accounts"
+  ],
+  "leftoverTablesAfter": [],
+  "leftoverFnsBefore": [
+    "public.post_financial_opening_cash"
+  ],
+  "leftoverFnsAfter": [],
+  "historyBefore": 6,
+  "historyAfter": 0,
+  "preserved": {
+    "extensionUnchanged": true,
+    "memberCountUnchanged": true,
+    "typedMembersUnchanged": true,
+    "leftoverAccountsRemoved": true,
+    "leftoverFnRemoved": true,
+    "historyRemoved": true
+  }
+}

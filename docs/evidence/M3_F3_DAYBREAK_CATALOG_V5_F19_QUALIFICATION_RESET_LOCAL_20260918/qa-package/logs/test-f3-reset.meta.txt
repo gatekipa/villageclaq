@@ -1,0 +1,13 @@
+suite=test:f3-reset
+executableCommit=dfbeb11b49f7e9b061a4c700e0335d125ac669e2
+worktree=[REDACTED_PATH]/f19-dfbeb11
+tests=66
+pass=66
+fail=0
+skipped=0
+f19A01=ok 63
+f19A02=ok 64
+f19B01=ok 65
+f19B02=ok 66
+exit=0
+note=62 inherited F18 cases plus 4 new F19 boundary tests

@@ -1,0 +1,12 @@
+{
+  "f17ParallelCloudQa": "UNAVAILABLE",
+  "excludedFromF17PassEvidence": true,
+  "recoveredF16Identity": {
+    "pr": "https://github.com/gatekipa/villageclaq/pull/113",
+    "branch": "cursor/f16-qa-ab-holds-ff2c",
+    "sha": "076676abfa6b604429ef43c91c9a2c8dc29814b0",
+    "title": "F16 independent QA ACCEPT — A/B HOLD closures",
+    "note": "F16 ACCEPT is superseded by Daybreak A HOLD / B HOLD. Not F17 PASS evidence."
+  },
+  "f17Artifacts": null
+}

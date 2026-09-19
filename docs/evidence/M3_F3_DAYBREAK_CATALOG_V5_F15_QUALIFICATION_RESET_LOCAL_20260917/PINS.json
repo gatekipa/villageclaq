@@ -1,0 +1,20 @@
+{
+  "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "designAccept": "a117d06fb202696944ae423d77336db0a48a8a13",
+  "f12Functional": "1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+  "f14Functional": "2d502a028b0d01808a871fb1d48d051813591ed2",
+  "f14EvidenceParent": "437f27c2721bf7710746468a2cef9a52e1c4651a",
+  "f15ParentAccept": "a4fa0832420d46f6cdd73b8f5e2ab381029dd2e1",
+  "f15Functional": "49a91169fbb53dba149f4e7bbcf3016f988f4922",
+  "f15PlanCommit": "206dce13d424f5303520d2b63a43768a078dda35",
+  "f15PlanBlob": "e8f2e894c9446793ae806eab2e58f46aa1026f58",
+  "priorF15HoldEvidence": "d9e37d1f3bbfe35c47145b7ca886d2b4af486475",
+  "runtimeClosure": "949e68359e55870050e53ef3f93ec8179fc7a5e1587a908044e0ab26cfdbbb92",
+  "verificationUnion": "30dd8ad9972db6ef6dc7d4c35d49ae420ce2c445103c6180d469d901f88c5752",
+  "forbiddenSummary": "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d",
+  "pr111": "unused as authority (head may be 206dce13 plan rebind; not authority)",
+  "ffCherryPickFunctional": "6b9ac57d7b181358be961ed4667541f52eb2839f",
+  "note": "Functional tip/content pin remains 49a91169; plan content pin 206dce13. FF line onto #84/#85/#86 uses cherry-picks of those commits atop prior HOLD evidence d9e37d1 (no force-push). #111 left unused.",
+  "ffCherryPickPlan": "6888d2caabd5d2605ce4f9cd2db1dd86293b2873"
+}

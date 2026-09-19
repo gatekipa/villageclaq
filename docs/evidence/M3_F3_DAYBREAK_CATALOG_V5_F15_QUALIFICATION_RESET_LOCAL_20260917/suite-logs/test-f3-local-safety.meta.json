@@ -1,0 +1,18 @@
+{
+  "suite": "test-f3-local-safety",
+  "classification": "PASS",
+  "expect": {
+    "tests": 45,
+    "pass": 45,
+    "fail": 0,
+    "skipped": 0
+  },
+  "observed": {
+    "tests": 45,
+    "pass": 45,
+    "fail": 0,
+    "skipped": 0
+  },
+  "outSha256": "5c40578fe3093a0dabb692f2e90537cf98e2247e80629da61eea897dee7fb610",
+  "outBytes": 8183
+}

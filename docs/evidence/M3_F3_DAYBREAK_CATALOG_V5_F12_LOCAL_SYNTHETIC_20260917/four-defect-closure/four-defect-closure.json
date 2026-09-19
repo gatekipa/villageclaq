@@ -1,0 +1,123 @@
+{
+  "schema": "f3-f12-four-defect-closure-v1",
+  "label": "LOCAL_SYNTHETIC",
+  "not_hosted_execution": true,
+  "functional_tip": "1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+  "three_file_manifest_sha256": "76a8383a75616118642d0f39b7c83bd1ddebe2839a25ff1a5d092ceced1fe6c2",
+  "closure_file_count": 43,
+  "closure_sha256": "08c2d46d7ff0d7e80d4df30342ca804cd7f1ddc408951491f77d5bb92ce1157b",
+  "not_f11_closure_digest": "ecfd265dfbab3b3c275d01e621fc47d220234cfe0e48b0d1577d9308f42dbfb3",
+  "defects": [
+    {
+      "id": 1,
+      "title": "Live gate+repair through shared orchestration",
+      "closed_locally": true,
+      "source_refs": [
+        "scripts/qualify-f3-db-push-disposable.mjs:1746 export async function runF10RepairRetryContinuation",
+        "scripts/qualify-f3-db-push-disposable.mjs:2219 export const runHostedF10RepairRetryContinuation = runF10RepairRetryContinuation",
+        "scripts/qualify-f3-db-push-disposable.mjs:3209 hostedRepairSafetyGate (deferRepair: true)",
+        "scripts/qualify-f3-db-push-disposable.mjs:3227 hostedActualRepair",
+        "scripts/qualify-f3-db-push-disposable.mjs:1838 spies.actualRepairCallbackEntered += 1",
+        "scripts/qualify-f3-db-push-disposable.mjs:1989 post_retry_fingerprint_collected after successful collection"
+      ],
+      "evidence_ids": [
+        "F12-R01",
+        "F12-R02",
+        "F12-R03",
+        "F12-R04",
+        "F12-R05",
+        "F12-R06",
+        "F12-R07",
+        "F12-R08"
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Immutable original Checkpoint A receipt",
+      "closed_locally": true,
+      "source_refs": [
+        "scripts/qualify-f3-db-push-disposable.mjs:1335 captureOriginalCheckpointAReceipt",
+        "scripts/qualify-f3-db-push-disposable.mjs:1879 capturedReceipt = captureOriginalCheckpointAReceipt(persistedA, ...)"
+      ],
+      "evidence_ids": [
+        "F12-A01",
+        "F12-A02",
+        "F12-A03",
+        "F12-A04",
+        "F12-A05"
+      ],
+      "a_replacement_rejection_ids": [
+        "F12-A02-REPLACE-A-BEFORE-RETRY-BLOCKS-RETRY",
+        "F12-A03-REPLACE-A-AFTER-RETRY-BLOCKS-B-AND-CONTINUATION",
+        "F12-A04-WELL-FORMED-RESEAL-FAILS-VS-ORIGINAL-RECEIPT"
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Structured Error through catch",
+      "closed_locally": true,
+      "source_refs": [
+        "scripts/qualify-f3-db-push-disposable.mjs:774 encodeSanitizedProcessError",
+        "scripts/qualify-f3-db-push-disposable.mjs:1665 errorForEncode = result?.error ?? thrown"
+      ],
+      "evidence_ids": [
+        "F12-E01",
+        "F12-E02",
+        "F12-E03"
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Replace incompatible reset plan (proposed-only)",
+      "closed_locally_as_proposed_only": true,
+      "source_refs": [
+        "scripts/qualify-f3-db-push-disposable.mjs:305 WIPE_TO_BASELINE_REJECTION_CODE",
+        "scripts/qualify-f3-db-push-disposable.mjs:342 buildProposedConstrainedResetProcedure",
+        "scripts/qualify-f3-db-push-disposable.mjs:485 validateProposedResetProcedureOffline",
+        "scripts/qualify-f3-db-push-disposable.mjs:461 F12-RESET-HOLD-HISTORY-OR-F3-OBJECTS",
+        "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F12_LOCAL_SYNTHETIC_20260917/PROPOSED_HOSTED_REQUAL_PLAN.md"
+      ],
+      "evidence_ids": [
+        "F12-Z01",
+        "F12-Z02",
+        "F12-Z03",
+        "F12-Z04"
+      ],
+      "remaining_hold": "F12-RESET-HOLD-HISTORY-OR-F3-OBJECTS",
+      "status": "PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE",
+      "plan_sha256": "344b1072e204803e82bb7f994481dd8a3cd6307566d058443b40b90d329deea7",
+      "executed": false
+    }
+  ],
+  "finding2_persistence_regression": {
+    "preserved": true,
+    "evidence_ids": [
+      "F12-P01",
+      "F12-P02",
+      "F12-P03",
+      "F12-P04",
+      "F12-P05",
+      "F12-P06",
+      "F12-P07",
+      "F12-P08",
+      "F12-P09",
+      "F12-P10",
+      "F12-P11",
+      "F12-P12",
+      "F12-P13",
+      "F12-P14",
+      "F12-P15",
+      "F12-P16",
+      "F12-P17",
+      "F12-P18",
+      "F12-P19",
+      "F12-P20",
+      "F12-P21"
+    ],
+    "note": "Finding 2 counters preserved via F12-P01–P21 (attempts vs verified; happy path 3=A+B+pre)"
+  },
+  "finding4_package_integrity": {
+    "preserved": true,
+    "note": "Authoritative outer index; unindexed=0; path leaks=0; secret_scan=clean; fresh F12 closure not F11 digest"
+  }
+}

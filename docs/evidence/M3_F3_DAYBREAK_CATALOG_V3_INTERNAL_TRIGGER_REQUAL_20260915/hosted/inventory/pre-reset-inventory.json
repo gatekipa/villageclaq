@@ -1,0 +1,54 @@
+{
+  "artifact": "pre-reset-inventory",
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "production_contacted": false,
+  "inventory": {
+    "server_version": "17.6",
+    "current_database": "postgres",
+    "f3_history": [
+      {
+        "version": "20260913173000",
+        "name": "f3_bounded_financial_epoch_foundation"
+      },
+      {
+        "version": "20260913173001",
+        "name": "f3_01_core_ledger_foundation"
+      },
+      {
+        "version": "20260913173002",
+        "name": "f3_02_secure_posting_idempotency"
+      },
+      {
+        "version": "20260913173003",
+        "name": "f3_03_projection_read_proof"
+      },
+      {
+        "version": "20260913173004",
+        "name": "f3_04_correction_reversal"
+      },
+      {
+        "version": "20260913173005",
+        "name": "f3_05_opening_cash_command"
+      }
+    ],
+    "all_history_count": 6,
+    "financial_schemas": [
+      "financial_core",
+      "financial_private"
+    ],
+    "financial_public_tables": [
+      "financial_accounts",
+      "financial_categories",
+      "financial_events",
+      "financial_funds",
+      "financial_ledger_epochs",
+      "financial_postings"
+    ],
+    "public_table_count": 37,
+    "canary_present": false,
+    "poison_markers": [],
+    "ambiguous_objects": "none"
+  },
+  "ambiguous_objects": "none",
+  "note": "Pre-reset inventory for restart-from-00118; wipe candidates only prior qual floor/F3."
+}

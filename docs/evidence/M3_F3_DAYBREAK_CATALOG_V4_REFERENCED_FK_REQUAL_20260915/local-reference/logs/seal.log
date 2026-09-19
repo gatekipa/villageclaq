@@ -1,0 +1,102 @@
+{"phase":"start_seal","target":"127.0.0.1:55432","pg":"17.6","seal_db":"f3_reference_catalog_v4_20260915","envelope_ok":true,"module_ok":true,"closure_complete":true,"schemas":["f3-full-catalog-v4","f3-full-catalog-v4"]}
+{
+  "phase": "seal_complete",
+  "ok": true,
+  "status": "SEALED",
+  "reason": null,
+  "hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "92140cbe453f5edc47d7d85c022adfeb69212fff18ebfbff09dd588918756c94",
+    "00119_f3_01_core_ledger_foundation.sql": "647e0174fcd0ed47a5281aad66dd2e056b1ae69c603b670c2fe6aea66e685109",
+    "00120_f3_02_secure_posting_idempotency.sql": "8ab365c03f6340d42676f5f7c06bca9e0386e7bcdd5d9d18d34d2726123b050a",
+    "00121_f3_03_projection_read_proof.sql": "9c02198e6e277590cf5c514704314a719d5323ae547623edd630f6c5591b1dc6",
+    "00122_f3_04_correction_reversal.sql": "41fd34c976ed48f7a9d1ce6a154a2dba16d37487cffb364693bbae2046cbc31c",
+    "00123_f3_05_opening_cash_command.sql": "a1eb6ba2741c8337bea35553f3d8b128e0ca83d1db014bd67342187b59cb78b6"
+  },
+  "independentAgrees": true,
+  "schema_version": "f3-full-catalog-v4",
+  "serverVersion": "17.6 (Debian 17.6-2.pgdg13+1)",
+  "stageComparisons": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": {
+      "ok": true,
+      "primarySha256": "92140cbe453f5edc47d7d85c022adfeb69212fff18ebfbff09dd588918756c94",
+      "independentSha256": "92140cbe453f5edc47d7d85c022adfeb69212fff18ebfbff09dd588918756c94",
+      "missingKeys": [],
+      "extraKeys": [],
+      "unequalKeys": []
+    },
+    "00119_f3_01_core_ledger_foundation.sql": {
+      "ok": true,
+      "primarySha256": "647e0174fcd0ed47a5281aad66dd2e056b1ae69c603b670c2fe6aea66e685109",
+      "independentSha256": "647e0174fcd0ed47a5281aad66dd2e056b1ae69c603b670c2fe6aea66e685109",
+      "missingKeys": [],
+      "extraKeys": [],
+      "unequalKeys": []
+    },
+    "00120_f3_02_secure_posting_idempotency.sql": {
+      "ok": true,
+      "primarySha256": "8ab365c03f6340d42676f5f7c06bca9e0386e7bcdd5d9d18d34d2726123b050a",
+      "independentSha256": "8ab365c03f6340d42676f5f7c06bca9e0386e7bcdd5d9d18d34d2726123b050a",
+      "missingKeys": [],
+      "extraKeys": [],
+      "unequalKeys": []
+    },
+    "00121_f3_03_projection_read_proof.sql": {
+      "ok": true,
+      "primarySha256": "9c02198e6e277590cf5c514704314a719d5323ae547623edd630f6c5591b1dc6",
+      "independentSha256": "9c02198e6e277590cf5c514704314a719d5323ae547623edd630f6c5591b1dc6",
+      "missingKeys": [],
+      "extraKeys": [],
+      "unequalKeys": []
+    },
+    "00122_f3_04_correction_reversal.sql": {
+      "ok": true,
+      "primarySha256": "41fd34c976ed48f7a9d1ce6a154a2dba16d37487cffb364693bbae2046cbc31c",
+      "independentSha256": "41fd34c976ed48f7a9d1ce6a154a2dba16d37487cffb364693bbae2046cbc31c",
+      "missingKeys": [],
+      "extraKeys": [],
+      "unequalKeys": []
+    },
+    "00123_f3_05_opening_cash_command.sql": {
+      "ok": true,
+      "primarySha256": "a1eb6ba2741c8337bea35553f3d8b128e0ca83d1db014bd67342187b59cb78b6",
+      "independentSha256": "a1eb6ba2741c8337bea35553f3d8b128e0ca83d1db014bd67342187b59cb78b6",
+      "missingKeys": [],
+      "extraKeys": [],
+      "unequalKeys": []
+    }
+  }
+}
+{
+  "phase": "verify_complete",
+  "all_builder_eq_reference": true,
+  "all_tip_eq_independent": true,
+  "all_cloud_eq_independent": true,
+  "independent_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "92140cbe453f5edc47d7d85c022adfeb69212fff18ebfbff09dd588918756c94",
+    "00119_f3_01_core_ledger_foundation.sql": "647e0174fcd0ed47a5281aad66dd2e056b1ae69c603b670c2fe6aea66e685109",
+    "00120_f3_02_secure_posting_idempotency.sql": "8ab365c03f6340d42676f5f7c06bca9e0386e7bcdd5d9d18d34d2726123b050a",
+    "00121_f3_03_projection_read_proof.sql": "9c02198e6e277590cf5c514704314a719d5323ae547623edd630f6c5591b1dc6",
+    "00122_f3_04_correction_reversal.sql": "41fd34c976ed48f7a9d1ce6a154a2dba16d37487cffb364693bbae2046cbc31c",
+    "00123_f3_05_opening_cash_command.sql": "a1eb6ba2741c8337bea35553f3d8b128e0ca83d1db014bd67342187b59cb78b6"
+  },
+  "tip_embedded": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "92140cbe453f5edc47d7d85c022adfeb69212fff18ebfbff09dd588918756c94",
+    "00119_f3_01_core_ledger_foundation.sql": "647e0174fcd0ed47a5281aad66dd2e056b1ae69c603b670c2fe6aea66e685109",
+    "00120_f3_02_secure_posting_idempotency.sql": "8ab365c03f6340d42676f5f7c06bca9e0386e7bcdd5d9d18d34d2726123b050a",
+    "00121_f3_03_projection_read_proof.sql": "9c02198e6e277590cf5c514704314a719d5323ae547623edd630f6c5591b1dc6",
+    "00122_f3_04_correction_reversal.sql": "41fd34c976ed48f7a9d1ce6a154a2dba16d37487cffb364693bbae2046cbc31c",
+    "00123_f3_05_opening_cash_command.sql": "a1eb6ba2741c8337bea35553f3d8b128e0ca83d1db014bd67342187b59cb78b6"
+  },
+  "cloud_agent_v4": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "92140cbe453f5edc47d7d85c022adfeb69212fff18ebfbff09dd588918756c94",
+    "00119_f3_01_core_ledger_foundation.sql": "647e0174fcd0ed47a5281aad66dd2e056b1ae69c603b670c2fe6aea66e685109",
+    "00120_f3_02_secure_posting_idempotency.sql": "8ab365c03f6340d42676f5f7c06bca9e0386e7bcdd5d9d18d34d2726123b050a",
+    "00121_f3_03_projection_read_proof.sql": "9c02198e6e277590cf5c514704314a719d5323ae547623edd630f6c5591b1dc6",
+    "00122_f3_04_correction_reversal.sql": "41fd34c976ed48f7a9d1ce6a154a2dba16d37487cffb364693bbae2046cbc31c",
+    "00123_f3_05_opening_cash_command.sql": "a1eb6ba2741c8337bea35553f3d8b128e0ca83d1db014bd67342187b59cb78b6"
+  },
+  "envelope_ok": true,
+  "module_ok": true,
+  "ready_candidate": true,
+  "hold_reasons": []
+}

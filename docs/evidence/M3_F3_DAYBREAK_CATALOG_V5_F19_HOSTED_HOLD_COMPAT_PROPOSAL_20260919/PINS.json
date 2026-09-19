@@ -1,0 +1,13 @@
+{
+  "status": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "functionalTip": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
+  "evidenceBeforeHosted": "20b4b340b49bccfc96f23333c731bac54056ea9c",
+  "hostedHoldEvidenceTip": "35b5be82acf01d11dd9f6578e8da7f384d8f925d",
+  "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "authoritativePrs": [84, 85, 86],
+  "hostedHoldCode": "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY",
+  "qualifyResultSha256": "914ce37eaafa0d08366d783298e3f02cb1152dceb105253a58c6994864d7f605",
+  "noFunctionalChangesInThisPackage": true,
+  "noHostedContactAuthorized": true
+}

@@ -1,0 +1,13 @@
+{
+  "name": "next-build",
+  "command": "npm run build",
+  "startedAt": "2026-09-14T21:33:38Z",
+  "endedAt": "2026-09-14T21:34:26Z",
+  "exit": 0,
+  "pass": 0,
+  "fail": 0,
+  "skip": 0,
+  "log": "<redacted-path>",
+  "sha256": "9923fefc981ce41c8d1beb5263ff601b4c4356ad845cff187c516f82ae0f10c5",
+  "bytes": 7332
+}

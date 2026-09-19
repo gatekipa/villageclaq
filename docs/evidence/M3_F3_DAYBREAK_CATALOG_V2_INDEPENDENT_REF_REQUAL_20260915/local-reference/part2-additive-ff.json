@@ -1,0 +1,26 @@
+{
+  "F2": "a4104b452c29e9bb103cb7b232004368875dc53f",
+  "parent_E": "84938103d86258b9193186f271f4f1fb05cb45ad",
+  "old_functional_F": "11c9e3f763bba6dda999ec5554237b0ca39fdaba",
+  "diff_vs_E_files": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/lib/f3-full-catalog-independent-reference.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "branches_ff": [
+    "feat/m3-f3-01-05-forward-foundation-9b17",
+    "cursor/f3-dbpush-qualification-1c3f",
+    "cursor/f3-wipe-00030-replay-6945"
+  ],
+  "title": "DAYBREAK HOLD \u2014 catalog-v2 + independent reference remediation",
+  "prs_kept_open_draft_unmerged": [
+    84,
+    85,
+    86
+  ],
+  "pr96_left_open_draft_unmerged_unchanged": "d526b407992fc2a806f2b7ba7170af335a118630",
+  "pr97_left_open_draft_unmerged": "019321b4ce3f50aea0ecffd553df8d04f6753171",
+  "force_push": false,
+  "captured_at_et": "9/15/2026, 8:53:40 PM ET"
+}

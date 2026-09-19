@@ -1,0 +1,71 @@
+{
+  "verdict": "FILE-BASED RUNNER QUALIFICATION PASS \u2014 STUB/LIVE-PIN FLOOR LIMITATION",
+  "status": "FILE-BASED RUNNER QUALIFICATION PASS \u2014 STUB/LIVE-PIN FLOOR LIMITATION",
+  "schema": "f3-full-catalog-v4",
+  "sha256BeforeDb": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "92140cbe453f5edc47d7d85c022adfeb69212fff18ebfbff09dd588918756c94",
+    "00119_f3_01_core_ledger_foundation.sql": "647e0174fcd0ed47a5281aad66dd2e056b1ae69c603b670c2fe6aea66e685109",
+    "00120_f3_02_secure_posting_idempotency.sql": "8ab365c03f6340d42676f5f7c06bca9e0386e7bcdd5d9d18d34d2726123b050a",
+    "00121_f3_03_projection_read_proof.sql": "9c02198e6e277590cf5c514704314a719d5323ae547623edd630f6c5591b1dc6",
+    "00122_f3_04_correction_reversal.sql": "41fd34c976ed48f7a9d1ce6a154a2dba16d37487cffb364693bbae2046cbc31c",
+    "00123_f3_05_opening_cash_command.sql": "a1eb6ba2741c8337bea35553f3d8b128e0ca83d1db014bd67342187b59cb78b6"
+  },
+  "rows": [
+    {
+      "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+      "destName": "20260913173000_f3_bounded_financial_epoch_foundation.sql",
+      "version": "20260913173000",
+      "digest": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+      "objectsPresent": true,
+      "repairAttempted": true,
+      "continuation": true
+    },
+    {
+      "file": "00119_f3_01_core_ledger_foundation.sql",
+      "destName": "20260913173001_f3_01_core_ledger_foundation.sql",
+      "version": "20260913173001",
+      "digest": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+      "objectsPresent": true,
+      "repairAttempted": true,
+      "continuation": true
+    },
+    {
+      "file": "00120_f3_02_secure_posting_idempotency.sql",
+      "destName": "20260913173002_f3_02_secure_posting_idempotency.sql",
+      "version": "20260913173002",
+      "digest": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+      "objectsPresent": true,
+      "repairAttempted": true,
+      "continuation": true
+    },
+    {
+      "file": "00121_f3_03_projection_read_proof.sql",
+      "destName": "20260913173003_f3_03_projection_read_proof.sql",
+      "version": "20260913173003",
+      "digest": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+      "objectsPresent": true,
+      "repairAttempted": true,
+      "continuation": true
+    },
+    {
+      "file": "00122_f3_04_correction_reversal.sql",
+      "destName": "20260913173004_f3_04_correction_reversal.sql",
+      "version": "20260913173004",
+      "digest": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+      "objectsPresent": true,
+      "repairAttempted": true,
+      "continuation": true
+    },
+    {
+      "file": "00123_f3_05_opening_cash_command.sql",
+      "destName": "20260913173005_f3_05_opening_cash_command.sql",
+      "version": "20260913173005",
+      "digest": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
+      "objectsPresent": true,
+      "repairAttempted": true,
+      "continuation": true,
+      "fingerprintAfterCleanContinuation": null,
+      "postContinuationFingerprintEval": null
+    }
+  ]
+}

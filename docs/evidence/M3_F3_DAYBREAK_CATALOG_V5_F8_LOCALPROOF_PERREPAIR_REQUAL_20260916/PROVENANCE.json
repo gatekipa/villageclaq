@@ -1,0 +1,17 @@
+{
+  "functional_tip": "83c48192ef0309ae2ebdd1f087994319b19fc024",
+  "parent_f7_evidence": "41b913ecf5885a2f2f012d58ed200b3f429ce72e",
+  "catalog_schema": "f3-full-catalog-v5",
+  "cli": "2.117.0",
+  "disposable_ref": "jkorwnwwmdeflfntxntl",
+  "disposable_name": "villageclaq-f3-management-api-disposable-20260913",
+  "org": "eyztkzkprpmlmcabrfef",
+  "not_production": "llbnliixczcqfftxpsmb",
+  "recognition": [
+    "manual_income"
+  ],
+  "independent_ref_sha256": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+  "captured_at_et": "9/16/2026, 2:32:30 PM EDT",
+  "reset_count": 1,
+  "second_reset": false
+}

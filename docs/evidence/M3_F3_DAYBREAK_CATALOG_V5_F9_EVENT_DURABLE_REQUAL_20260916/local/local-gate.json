@@ -1,0 +1,207 @@
+{
+  "phase": "local",
+  "verdict": "CONTINUE",
+  "captured_at_et": "9/16/2026, 4:29:40 PM EDT",
+  "tip_sha": "268f974a1adec7d3525beb850f7768137262c135",
+  "parent_f9_functional": "facec73a21ec62025d7a33d0ae142dcf05bc1183",
+  "parent_f8_evidence": "080dd6adc79931bbcff25893d407aecf91bc7c14",
+  "only_allowlisted_3": true,
+  "diff_files": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "query_parse_frozen": true,
+  "independent_ref_sha256": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+  "independent_ref_ok": true,
+  "digests_ok": true,
+  "catalog_v5_ok": true,
+  "schema_version": "f3-full-catalog-v5",
+  "recognition": [
+    "manual_income"
+  ],
+  "cli": "2.117.0",
+  "closure_file_count": 27,
+  "local_proof": {
+    "verdict": "CONTINUE",
+    "client": "psql (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+    "server_17_6": true,
+    "positive_repairCalls": 1,
+    "negatives_all_zero": true,
+    "proof_helper": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F8_LOCALPROOF_PERREPAIR_REQUAL_20260916/local-proof/run-local-psql-poison-proof.mjs"
+  },
+  "synthetic": {
+    "nestedInOuter": true,
+    "unindexed_count": 0,
+    "absolute_path_leaks": 0,
+    "secret_scan": "clean",
+    "indexed_count": 11,
+    "index_sha256": "41d7b00f81f4c5e48ca1d283c65a43371fe045d4f85fba0e9e0afb15e7cadbf6"
+  },
+  "secret_scan": "clean",
+  "absolute_path_leaks": 0,
+  "f9_case_ids": {
+    "F9-E01": true,
+    "F9-E02": true,
+    "F9-E03": true,
+    "F9-E04": true,
+    "F9-C01": true,
+    "F9-C02": true,
+    "F9-D01": true,
+    "F9-D02": true,
+    "F9-D03": true,
+    "F9-I01": true,
+    "F9-I02": true,
+    "F9-I03": true,
+    "F9-I04": true
+  },
+  "suites": {
+    "test-f3-db-push": {
+      "exit": 0,
+      "classification": "PASS_WITH_SKIPS",
+      "counts": {
+        "tests": 134,
+        "pass": 133,
+        "fail": 0,
+        "skipped": 1
+      },
+      "out_sha256": "c3e975c12471b7977b3c5ab80e0aa85e822bf36dff026920f5ebf1d677106e15",
+      "out_bytes": 166896
+    },
+    "test-f3-recognition": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 40,
+        "pass": 40,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "1edce31045fd7a86020fef6532edc90f1b52be02d291b27801cb2ea4f6c749be",
+      "out_bytes": 7539
+    },
+    "test-f3-oracles": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 577,
+        "pass": 577,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "3ef3b5614049c39f0feac5ca13bd85ec75f586280500dd3555bc1e3bc74f991d",
+      "out_bytes": 87442
+    },
+    "test-f3-local-safety": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "66a619ab91ddf47ff21340d9bdbae91bd107c909fb79981c3879e91f8049754a",
+      "out_bytes": 10220
+    },
+    "test-f3-mapi-harness": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "dc00af83bc3cd448d76633b571f10e46f628234255c79ae33e6c344f91182f30",
+      "out_bytes": 4560
+    },
+    "test-m2": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 111,
+        "pass": 111,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "5159126bece84839382241459893ba257a4c84324fb8003ffa829f4aa79e6287",
+      "out_bytes": 22433
+    },
+    "test-m2-static-security": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "2799ec09cb6c2220e4c05a60753a1a7b2f3ad361472e8d2000c6d20e6d19915d",
+      "out_bytes": 1916
+    },
+    "test-s0-cut1": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "aea151ace1682e535464a3a0c146e026ff8345af6520a024179cd53eb3ea8b5c",
+      "out_bytes": 2404
+    },
+    "test-s0-cut2": {
+      "exit": 1,
+      "classification": "ENV_DEPENDENT_FAIL",
+      "counts": {
+        "tests": 21,
+        "pass": 14,
+        "fail": 7,
+        "skipped": 0
+      },
+      "out_sha256": "4de4e2288957d4d7d03f4e23465f99611b585d2c6298c068ad35b9b9c61a4ede",
+      "out_bytes": 15197
+    },
+    "test-storage-buckets": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "2ebcb1c22eefecff95c0bcbfb6d8dab60379a6d72520622537a29772e88c965b",
+      "out_bytes": 2427
+    },
+    "tsc-noEmit": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "out_bytes": 0
+    },
+    "next-build": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "skipped": 0
+      },
+      "out_sha256": "d68465f80aa34da057964b4787a576d48e297ef1ac10e68a80efc215dce51b15",
+      "out_bytes": 7335,
+      "note": "PASS after real node_modules copy into f9-build (symlink rejected by turbopack)"
+    }
+  },
+  "hardFailSuites": [],
+  "note_s0_cut2": "ENV_DEPENDENT_FAIL preserved honestly (same class as F8)"
+}

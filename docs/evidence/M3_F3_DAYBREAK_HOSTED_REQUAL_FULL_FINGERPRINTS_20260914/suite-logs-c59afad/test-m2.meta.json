@@ -1,0 +1,13 @@
+{
+  "name": "test-m2",
+  "command": "npm run test:m2",
+  "startedAt": "2026-09-14T21:33:08Z",
+  "endedAt": "2026-09-14T21:33:08Z",
+  "exit": 0,
+  "pass": 111,
+  "fail": 0,
+  "skip": 0,
+  "log": "<redacted-path>",
+  "sha256": "3d469daf51787147354531b54b53510d850e0c0a2c0a16f5e3bbeec4bceed0f7",
+  "bytes": 22410
+}

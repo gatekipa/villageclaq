@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "exclusions": [
+    "evidence-index.json",
+    "evidence-index.sha256"
+  ],
+  "self_hash": false,
+  "detached_checksum": "evidence-index.sha256",
+  "artifacts": [
+    {
+      "path": "CHIEF_HANDOFF.md",
+      "sha256": "481dfa17ad9953d11bfb422445852d0e79c8e884d577e1611ef99f40f39cfd0f",
+      "bytes": 5218
+    },
+    {
+      "path": "CORRECTED_DESIGN.md",
+      "sha256": "a74bbed44b0c1e89bd5e70faedbebc9ed8eb30d6bb82fa90842601d66b8ed7b5",
+      "bytes": 29806
+    },
+    {
+      "path": "DESIGN_REQUIREMENTS_TRACE.json",
+      "sha256": "67c048cff93f4cc022ce5315f208fa704ba06aed5ae3a310edb23fc37fe31931",
+      "bytes": 9577
+    },
+    {
+      "path": "PINS.json",
+      "sha256": "11dbdd2f5cbc958c4485181bb04efd6ad0518003e773946bc1ec5637ffd9719a",
+      "bytes": 1491
+    }
+  ]
+}

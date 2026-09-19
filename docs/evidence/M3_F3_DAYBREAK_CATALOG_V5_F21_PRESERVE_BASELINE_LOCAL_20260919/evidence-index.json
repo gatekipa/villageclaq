@@ -9,8 +9,8 @@
   "artifacts": [
     {
       "path": "CHIEF_HANDOFF.md",
-      "sha256": "18d49ebc0f2a5e79905a2fdba8c13a6ecf23bf6c7fd0de23a18477e0f92ab225",
-      "bytes": 1779
+      "sha256": "d2eeb6ab7e184b6e137b0fe4f5208fff3bcff6e4f133e9f6ee459d6f8acb5ccb",
+      "bytes": 3587
     },
     {
       "path": "closure/CLOSURES.json",
@@ -34,13 +34,13 @@
     },
     {
       "path": "FINDING_CLOSURE.md",
-      "sha256": "5b60fd786ccbe0c299e4a24af4e53f32e360d39db148ed18fd3ea1a722755f21",
-      "bytes": 1955
+      "sha256": "c895274d61a92542c3da0b9b743184797d0efbcee62f487249cea27ee33e955b",
+      "bytes": 2000
     },
     {
       "path": "LABEL.json",
-      "sha256": "4291024eb54b99a02c8b551ac8a29642ba4d159f13ec8919df8a2bcc06dc65a9",
-      "bytes": 648
+      "sha256": "d77c48ac887ad5bcca1ee3e09fe8bd3e9131b58b22aed41729562128cc864eda",
+      "bytes": 676
     },
     {
       "path": "LOCAL_PG_EXECUTED",
@@ -94,13 +94,13 @@
     },
     {
       "path": "pack-summary.json",
-      "sha256": "88acf499641c0c57d5a114eded5ac2e7d0e751b81985070bce91612f58521ff5",
-      "bytes": 2447
+      "sha256": "f3c90c8b547c4b672c5b30aae33e541c853009f3103dd47accb14d7b3ddcaf41",
+      "bytes": 2703
     },
     {
       "path": "PINS.json",
-      "sha256": "7804ab250b87c057c44f57bb23be19c78c0a7ba15fe779763b57fc3718fb81e1",
-      "bytes": 1986
+      "sha256": "e177ade5d2ea8657396663ce6b2f62546e76f0e7524e7fc094b81127438f0eee",
+      "bytes": 2311
     },
     {
       "path": "PROVE_HEAD",
@@ -114,8 +114,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "9fdb0265e9f9dd38fbc9a3a58443281f051cd5a50a738af4ed39039e552f5346",
-      "bytes": 474
+      "sha256": "0e363c2c8e19b11c115dbdb2db5d72d059b6da78126d69c342b6188713d2a32b",
+      "bytes": 713
     },
     {
       "path": "suite-logs/committed-helper-local-pg.out",

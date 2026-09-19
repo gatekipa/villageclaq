@@ -1,0 +1,11 @@
+{
+  "schema": "f3-authoritative-outer-evidence-pointer-v1",
+  "label": "LOCAL_SYNTHETIC",
+  "not_hosted_execution": true,
+  "authoritative": true,
+  "authoritative_index": "evidence-index.json",
+  "detached_checksum": "evidence-index.sha256",
+  "staging_counts_not_authoritative": true,
+  "embeds_index_digest": false,
+  "note": "Final artifact identity is the committed outer evidence-index.json. Do not treat pack-summary/STATUS counts as final."
+}

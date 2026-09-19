@@ -1,0 +1,20 @@
+{
+  "status": "HOLD",
+  "verdict": "HOLD",
+  "ok": false,
+  "reason": "Founder authorization artifact is stale against the bound candidate/closure",
+  "code": "F13_FOUNDER_AUTH_STALE",
+  "flagAloneIsNotAuthorization": true,
+  "wipeToBaselineRejected": true,
+  "wipeRejectionCode": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
+  "productionContacted": false,
+  "hostedDisposableContacted": false,
+  "dbAccess": false,
+  "dbPushCalls": 0,
+  "repairCalls": 0,
+  "continuationCalls": 0,
+  "qualificationResetCalls": 0,
+  "fingerprint_exact": false,
+  "failedGate": "qualification_reset_authorization",
+  "label": "F19 LOCAL CORRECTION CANDIDATE — AWAITING QA / LOCAL TX PROOF"
+}

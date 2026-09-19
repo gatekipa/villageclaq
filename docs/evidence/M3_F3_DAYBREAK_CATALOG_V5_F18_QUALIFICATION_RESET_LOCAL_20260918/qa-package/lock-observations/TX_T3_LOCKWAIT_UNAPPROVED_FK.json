@@ -1,0 +1,156 @@
+{
+  "id": "TX_T3_LOCKWAIT_UNAPPROVED_FK_ROLLBACK",
+  "ok": true,
+  "executedTransaction": true,
+  "code": "F13_RESET_SQL_FAILED",
+  "verdict": "HOLD",
+  "commit": false,
+  "rollback": null,
+  "mutationPhaseReached": false,
+  "holderCommitted": true,
+  "holderResult": {
+    "ok": true
+  },
+  "lockWaitObserved": true,
+  "observedPhase": "T2_LOCK",
+  "processStatus": 3,
+  "status": 3,
+  "appliedSqlIdentity": "a3605e146714f435f7df791af8f5762404094b910973fb1a0f0ced67965c2ad5",
+  "interleaving": {
+    "t1ReachedThenWaited": true,
+    "resetProcessId": 13830,
+    "resetBackendPid": 14754,
+    "resetExecutionId": "f18_reset_5057_1789745511712_dec6438a21964",
+    "holderBackendPid": 13827,
+    "datname": "f3_f15_qual_reset_5057_mu749l0q",
+    "relation": "public.financial_accounts",
+    "holderLock": {
+      "pid": 13827,
+      "mode": "AccessExclusiveLock",
+      "granted": true,
+      "locktype": "relation",
+      "relation": "public.financial_accounts"
+    },
+    "waiterLock": {
+      "pid": 14754,
+      "mode": "AccessExclusiveLock",
+      "granted": false,
+      "locktype": "relation",
+      "relation": "public.financial_accounts",
+      "blockedByHolder": true
+    },
+    "isolation": "READ COMMITTED",
+    "inferredFromAnyWaiter": false,
+    "inferredFromApplicationNameAlone": false,
+    "inferredFromEventTypeAlone": false
+  },
+  "backendBoundLock": {
+    "observation": {
+      "resetProcessId": 13830,
+      "resetBackendPid": 14754,
+      "resetExecutionId": "f18_reset_5057_1789745511712_dec6438a21964",
+      "holderBackendPid": 13827,
+      "datname": "f3_f15_qual_reset_5057_mu749l0q",
+      "relation": "public.financial_accounts",
+      "holderLock": {
+        "pid": 13827,
+        "mode": "AccessExclusiveLock",
+        "granted": true,
+        "locktype": "relation",
+        "relation": "public.financial_accounts"
+      },
+      "waiterLock": {
+        "pid": 14754,
+        "mode": "AccessExclusiveLock",
+        "granted": false,
+        "locktype": "relation",
+        "relation": "public.financial_accounts",
+        "blockedByHolder": true
+      },
+      "resetWaitOnHolder": {
+        "waiterPid": 14754,
+        "holderPid": 13827,
+        "blockedByHolder": true
+      },
+      "holderCommitted": true,
+      "holderResult": {
+        "ok": true
+      },
+      "committedCatalogChange": true,
+      "lockAcquisitionByResetBackend": {
+        "resetBackendPid": 14754,
+        "relation": "public.financial_accounts",
+        "granted": false,
+        "t2LockedSameBackend": true,
+        "afterHolderCommit": true
+      },
+      "t3RejectionFromSameReset": {
+        "sameResetExecution": true,
+        "rejected": true,
+        "mutationPhaseReached": false,
+        "code": "F13_RESET_SQL_FAILED"
+      },
+      "appliedSqlIdentity": "a3605e146714f435f7df791af8f5762404094b910973fb1a0f0ced67965c2ad5",
+      "postconditionsComplete": true,
+      "inferredFromAnyWaiter": false,
+      "inferredFromApplicationNameAlone": false,
+      "inferredFromEventTypeAlone": false
+    },
+    "proof": {
+      "schema": "f18-qualification-reset-backend-bound-lock-v1",
+      "ok": true,
+      "pass": true,
+      "failures": [],
+      "code": null
+    }
+  },
+  "preResetCommittedDrift": {
+    "retained": "unapproved_accounts_groups_fkey",
+    "observedAfterHolderCommit": "unapproved_accounts_groups_fkey"
+  },
+  "reparseAttestation": {
+    "ok": true,
+    "consistent": true,
+    "schema": "f18-qualification-reset-stored-process-adapter-v1",
+    "parsedOk": true,
+    "observationCount": 2,
+    "lastEvent": {
+      "schema": "f15-qualification-reset-tx-observation-v1",
+      "phase": "T2_LOCK",
+      "event": "locked",
+      "backendPid": 14754,
+      "datname": "f3_f15_qual_reset_5057_mu749l0q",
+      "applicationName": "f13_qualification_reset",
+      "usename": "ubuntu"
+    },
+    "interpretedCommitted": false,
+    "interpretedVerdictPath": "HOLD",
+    "phaseReached": "T2_LOCK",
+    "t7CommitAttempted": false,
+    "t7CommittedTrue": false,
+    "processStatus": 3,
+    "processFailed": true,
+    "genuineSuccess": false,
+    "genuineFailure": true,
+    "successClaimedUncommitted": false,
+    "failureBecameCommitted": false,
+    "mappedProcessStatusToStatus": false
+  },
+  "stdout": "{\"schema\" : \"f15-qualification-reset-tx-observation-v1\", \"phase\" : \"T1_BEGIN\", \"event\" : \"began\", \"backendPid\" : 14754, \"datname\" : \"f3_f15_qual_reset_5057_mu749l0q\", \"applicationName\" : \"f13_qualification_reset\", \"usename\" : \"ubuntu\"}\n{\"schema\" : \"f15-qualification-reset-tx-observation-v1\", \"phase\" : \"T2_LOCK\", \"event\" : \"locked\", \"backendPid\" : 14754, \"datname\" : \"f3_f15_qual_reset_5057_mu749l0q\", \"applicationName\" : \"f13_qualification_reset\", \"usename\" : \"ubuntu\"}\n",
+  "stderr": "psql:[REDACTED_PATH]/f15-qual-reset-1wNwhf/f15-qualification-reset.sql:27: NOTICE:  F18_RESET_BACKEND pid=14754 datname=f3_f15_qual_reset_5057_mu749l0q app=f13_qualification_reset\npsql:[REDACTED_PATH]/f15-qual-reset-1wNwhf/f15-qualification-reset.sql:178: NOTICE:  F18_RESET_LOCK_ACQUIRED pid=14754\npsql:[REDACTED_PATH]/f15-qual-reset-1wNwhf/f15-qualification-reset.sql:364: ERROR:  F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: live tuple not in FINITE_DEPENDENCY_ALLOWLIST foreign_key|unapproved_accounts_groups_fkey|public.financial_accounts|public.groups\nCONTEXT:  PL/pgSQL function inline_code_block line 82 at RAISE\n",
+  "streams": {
+    "capturedBeforeEncode": true,
+    "originalStdoutSha256": "0d4811d79a1e03a5429c0eb852d06a40391ebe99fd4e775ff9fc1842bdcbfbc6",
+    "originalStdoutByteLength": 472,
+    "originalStderrSha256": "a9cf10e9f3e2a296749e9715e270d17d1550c5e9c7c6b667f141c0dc9a936419",
+    "originalStderrByteLength": 580,
+    "packagedStdoutSha256": "0d4811d79a1e03a5429c0eb852d06a40391ebe99fd4e775ff9fc1842bdcbfbc6",
+    "packagedStdoutByteLength": 472,
+    "packagedStderrSha256": "a6e1bff77ab38a06edf93ba31c06c6fadf5553bbfecb682778590eaeab6f2e00",
+    "packagedStderrByteLength": 613,
+    "originalByteEqual": false,
+    "reconstructedFromSummary": false,
+    "transformApplied": true
+  },
+  "note": "holder kept required lock; reset reached T1 and waited; drift committed; T3 rejected before mutation"
+}

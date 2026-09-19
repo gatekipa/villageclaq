@@ -1,0 +1,421 @@
+{
+  "id": "TX_T3_LOCKWAIT_RETARGETED_FK_ROLLBACK",
+  "kind": "scenario",
+  "ok": true,
+  "capture": "approved-set-then-lock-wait-then-externally-committed-drift",
+  "resetApply": 1,
+  "sql": true,
+  "observedPhase": "T2_LOCK",
+  "commit": false,
+  "rollback": null,
+  "replay": false,
+  "code": "F13_RESET_SQL_FAILED",
+  "verdict": "HOLD",
+  "executedTransaction": true,
+  "note": "holder kept memberships lock; reset waited; approved identity retargeted; T3 rejected before mutation",
+  "captureCalls": 1,
+  "transportCalls": 1,
+  "applyCalls": 1,
+  "sqlCalls": 1,
+  "mutationPhaseReached": false,
+  "processStatus": 3,
+  "signal": null,
+  "timeout": false,
+  "structuredError": null,
+  "streams": {
+    "capturedBeforeEncode": true,
+    "originalStdoutSha256": "c676cf6f64c8a262052d9a0bd1f08c93a7f33d439f24799b08dfe774037eb522",
+    "originalStdoutByteLength": 474,
+    "originalStderrSha256": "25838817ce0199f8a190438865e2fa58e2b7d930ac6d515c37a0c4f32384eaf0",
+    "originalStderrByteLength": 570,
+    "packagedStdoutSha256": "c676cf6f64c8a262052d9a0bd1f08c93a7f33d439f24799b08dfe774037eb522",
+    "packagedStdoutByteLength": 474,
+    "packagedStderrSha256": "cb1457bff6babf7bac4f744b5aba371769fd471d0f088f11b2205406978b653b",
+    "packagedStderrByteLength": 603,
+    "originalByteEqual": false,
+    "reconstructedFromSummary": false,
+    "transformApplied": true
+  },
+  "stdout": "{\"schema\" : \"f15-qualification-reset-tx-observation-v1\", \"phase\" : \"T1_BEGIN\", \"event\" : \"began\", \"backendPid\" : 29933, \"datname\" : \"f3_f15_qual_reset_27118_mu73v750\", \"applicationName\" : \"f13_qualification_reset\", \"usename\" : \"ubuntu\"}\n{\"schema\" : \"f15-qualification-reset-tx-observation-v1\", \"phase\" : \"T2_LOCK\", \"event\" : \"locked\", \"backendPid\" : 29933, \"datname\" : \"f3_f15_qual_reset_27118_mu73v750\", \"applicationName\" : \"f13_qualification_reset\", \"usename\" : \"ubuntu\"}\n",
+  "stderr": "psql:[REDACTED_PATH]/f15-qual-reset-HwJn9h/f15-qualification-reset.sql:27: NOTICE:  F18_RESET_BACKEND pid=29933 datname=f3_f15_qual_reset_27118_mu73v750 app=f13_qualification_reset\npsql:[REDACTED_PATH]/f15-qual-reset-HwJn9h/f15-qualification-reset.sql:178: NOTICE:  F18_RESET_LOCK_ACQUIRED pid=29933\npsql:[REDACTED_PATH]/f15-qual-reset-HwJn9h/f15-qualification-reset.sql:364: ERROR:  F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: live tuple not in FINITE_DEPENDENCY_ALLOWLIST foreign_key|memberships_group_id_fkey|public.memberships|public.profiles\nCONTEXT:  PL/pgSQL function inline_code_block line 82 at RAISE\n",
+  "lockWaitObserved": true,
+  "lockSamples": [
+    {
+      "atMs": 0,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 20,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 40,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 60,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 80,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 100,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 120,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 141,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 161,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 181,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 201,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 221,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 241,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 261,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 282,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 302,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 322,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 342,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 362,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 381,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 401,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 422,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 442,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 462,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 482,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 502,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 522,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 542,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 562,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 583,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 603,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 623,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 643,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 663,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 683,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 704,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 724,
+      "matched": false,
+      "identity": null
+    },
+    {
+      "atMs": 744,
+      "matched": true,
+      "identity": {
+        "schema": "f15-qualification-reset-tx-observation-v1",
+        "phase": "T1_BEGIN",
+        "event": "began",
+        "backendPid": 29933,
+        "datname": "f3_f15_qual_reset_27118_mu73v750",
+        "applicationName": "f13_qualification_reset",
+        "usename": "ubuntu",
+        "source": "observation",
+        "executionId": "f18_reset_27118_1789744841650_be58657c77dbb",
+        "workerPid": 29560,
+        "writtenAt": "2026-09-18T15:20:42.383Z"
+      }
+    },
+    {
+      "atMs": 23,
+      "matched": true,
+      "datname": "f3_f15_qual_reset_27118_mu73v750",
+      "relation": "public.memberships",
+      "holder": {
+        "pid": 29559,
+        "mode": "AccessExclusiveLock",
+        "granted": true,
+        "locktype": "relation",
+        "relation": "public.memberships"
+      },
+      "resetWaiter": {
+        "pid": 29933,
+        "mode": "AccessExclusiveLock",
+        "granted": false,
+        "locktype": "relation",
+        "relation": "public.memberships",
+        "blockedByHolder": true
+      },
+      "resetGranted": null
+    },
+    {
+      "atMs": 21,
+      "matched": true,
+      "acquired": {
+        "schema": "f15-qualification-reset-tx-observation-v1",
+        "phase": "T2_LOCK",
+        "event": "locked",
+        "backendPid": 29933,
+        "datname": "f3_f15_qual_reset_27118_mu73v750",
+        "applicationName": "f13_qualification_reset",
+        "usename": "ubuntu",
+        "source": "observation",
+        "executionId": "f18_reset_27118_1789744841650_be58657c77dbb",
+        "workerPid": 29560,
+        "writtenAt": "2026-09-18T15:20:42.425Z"
+      },
+      "live": {
+        "datname": "f3_f15_qual_reset_27118_mu73v750",
+        "relation": "public.memberships",
+        "holder": null,
+        "resetWaiter": null,
+        "resetGranted": null
+      },
+      "t2Same": true,
+      "granted": false
+    }
+  ],
+  "preResetCommittedDrift": {
+    "retained": "public.profiles",
+    "observedAfterHolderCommit": "public.profiles"
+  },
+  "interleaving": {
+    "t1ReachedThenWaited": true,
+    "resetProcessId": 29560,
+    "resetBackendPid": 29933,
+    "resetExecutionId": "f18_reset_27118_1789744841650_be58657c77dbb",
+    "holderBackendPid": 29559,
+    "datname": "f3_f15_qual_reset_27118_mu73v750",
+    "relation": "public.memberships",
+    "holderLock": {
+      "pid": 29559,
+      "mode": "AccessExclusiveLock",
+      "granted": true,
+      "locktype": "relation",
+      "relation": "public.memberships"
+    },
+    "waiterLock": {
+      "pid": 29933,
+      "mode": "AccessExclusiveLock",
+      "granted": false,
+      "locktype": "relation",
+      "relation": "public.memberships",
+      "blockedByHolder": true
+    },
+    "isolation": "READ COMMITTED",
+    "inferredFromAnyWaiter": false,
+    "inferredFromApplicationNameAlone": false,
+    "inferredFromEventTypeAlone": false
+  },
+  "backendBoundLock": {
+    "observation": {
+      "resetProcessId": 29560,
+      "resetBackendPid": 29933,
+      "resetExecutionId": "f18_reset_27118_1789744841650_be58657c77dbb",
+      "holderBackendPid": 29559,
+      "datname": "f3_f15_qual_reset_27118_mu73v750",
+      "relation": "public.memberships",
+      "holderLock": {
+        "pid": 29559,
+        "mode": "AccessExclusiveLock",
+        "granted": true,
+        "locktype": "relation",
+        "relation": "public.memberships"
+      },
+      "waiterLock": {
+        "pid": 29933,
+        "mode": "AccessExclusiveLock",
+        "granted": false,
+        "locktype": "relation",
+        "relation": "public.memberships",
+        "blockedByHolder": true
+      },
+      "resetWaitOnHolder": {
+        "waiterPid": 29933,
+        "holderPid": 29559,
+        "blockedByHolder": true
+      },
+      "holderCommitted": true,
+      "holderResult": {
+        "ok": true
+      },
+      "committedCatalogChange": true,
+      "lockAcquisitionByResetBackend": {
+        "resetBackendPid": 29933,
+        "relation": "public.memberships",
+        "granted": false,
+        "t2LockedSameBackend": true,
+        "afterHolderCommit": true
+      },
+      "t3RejectionFromSameReset": {
+        "sameResetExecution": true,
+        "rejected": true,
+        "mutationPhaseReached": false,
+        "code": "F13_RESET_SQL_FAILED"
+      },
+      "appliedSqlIdentity": "a3605e146714f435f7df791af8f5762404094b910973fb1a0f0ced67965c2ad5",
+      "postconditionsComplete": true,
+      "inferredFromAnyWaiter": false,
+      "inferredFromApplicationNameAlone": false,
+      "inferredFromEventTypeAlone": false
+    },
+    "proof": {
+      "schema": "f18-qualification-reset-backend-bound-lock-v1",
+      "ok": true,
+      "pass": true,
+      "failures": [],
+      "code": null
+    }
+  },
+  "holderCommitted": true,
+  "holderResult": {
+    "ok": true
+  },
+  "timedOut": false,
+  "status": 3,
+  "appliedSqlIdentity": "a3605e146714f435f7df791af8f5762404094b910973fb1a0f0ced67965c2ad5",
+  "reparseAttestation": {
+    "ok": true,
+    "consistent": true,
+    "schema": "f18-qualification-reset-stored-process-adapter-v1",
+    "parsedOk": true,
+    "observationCount": 2,
+    "lastEvent": {
+      "schema": "f15-qualification-reset-tx-observation-v1",
+      "phase": "T2_LOCK",
+      "event": "locked",
+      "backendPid": 29933,
+      "datname": "f3_f15_qual_reset_27118_mu73v750",
+      "applicationName": "f13_qualification_reset",
+      "usename": "ubuntu"
+    },
+    "interpretedCommitted": false,
+    "interpretedVerdictPath": "HOLD",
+    "phaseReached": "T2_LOCK",
+    "t7CommitAttempted": false,
+    "t7CommittedTrue": false,
+    "processStatus": 3,
+    "processFailed": true,
+    "genuineSuccess": false,
+    "genuineFailure": true,
+    "successClaimedUncommitted": false,
+    "failureBecameCommitted": false,
+    "mappedProcessStatusToStatus": false
+  }
+}

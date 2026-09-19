@@ -1,0 +1,20 @@
+{
+  "label": "oracle_verify",
+  "database": "f3_reference_catalog_v5_oracle_verify_22790",
+  "container": "f3-reference-pg176",
+  "listen": "127.0.0.1:55432",
+  "reference_env_user": "f3_ref_oracle",
+  "reference_env_host": "127.0.0.1",
+  "reference_env_port": "55432",
+  "proof": {
+    "server_version": "17.6 (Debian 17.6-2.pgdg13+1)",
+    "server_version_num": "170006",
+    "current_database": "f3_reference_catalog_v5_oracle_verify_22790",
+    "host": "127.0.0.1",
+    "port": 55432
+  },
+  "note": "Fresh f3_reference_* DB on SAME 17.6 container; platform ACL envelope + stub+live-pin floor + 00117 + 00118-23",
+  "host_17_11_on_5432_avoided": true,
+  "production_contacted": false,
+  "disposable_reset": false
+}

@@ -1,0 +1,91 @@
+{
+  "case": "success",
+  "chain": "runner→helper→serialized→reread→parser",
+  "packaged": {
+    "schema": "f18-qualification-reset-process-evidence-v1",
+    "boundary": "f18-process-evidence-boundary-v1",
+    "sanitization": {
+      "schema": "f18-qualification-reset-process-evidence-v1",
+      "replacesAbsoluteTempAndHomePaths": true,
+      "preservesCompleteSanitizedStreams": true,
+      "originalStreamsRetainedAsHashesOnly": true,
+      "neverClaimsOriginalByteEqualityAfterTransform": true,
+      "neverReconstructsFromSummaries": true,
+      "neverRecomputeOriginalFromTransformed": true,
+      "neverReplaceExplicitTrueFlagsOrErrorFieldsWithDefaults": true,
+      "validateAlreadyEncodedRecords": true,
+      "rejectAmbiguousShapes": true,
+      "preserves": [
+        "status",
+        "signal",
+        "timeout",
+        "timedOut",
+        "thrown",
+        "termination",
+        "structuredError.message",
+        "structuredError.code",
+        "structuredError.syscall",
+        "structuredError.name"
+      ],
+      "pathRedactionToken": "[REDACTED_PATH]"
+    },
+    "commandIdentity": "psql -X -q -v ON_ERROR_STOP=1 -f [FILE] (session-mode pooler via child env; never -p)",
+    "argv": [
+      "-X",
+      "-q",
+      "-t",
+      "-A",
+      "-w",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-f",
+      "[FILE]"
+    ],
+    "status": 0,
+    "signal": null,
+    "timeout": false,
+    "timedOut": false,
+    "thrown": false,
+    "error": null,
+    "structuredError": null,
+    "stdout": "{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T1_BEGIN\",\"event\":\"began\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T2_LOCK\",\"event\":\"locked\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T3_REVALIDATE\",\"event\":\"revalidated\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T4_MUTATE\",\"event\":\"mutate_attempted\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T5_AFFECTED\",\"event\":\"affected_checked\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T6_FINAL\",\"event\":\"final_ok\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"commit_attempted\"}\n{\"schema\":\"f15-qualification-reset-tx-observation-v1\",\"phase\":\"T7_COMMIT\",\"event\":\"committed\",\"committed\":true}\n",
+    "stderr": "",
+    "streams": {
+      "capturedBeforeEncode": true,
+      "originalStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+      "originalStdoutByteLength": 794,
+      "originalStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalStderrByteLength": 0,
+      "packagedStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+      "packagedStdoutByteLength": 794,
+      "packagedStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "packagedStderrByteLength": 0,
+      "originalByteEqual": false,
+      "reconstructedFromSummary": false,
+      "transformApplied": false
+    },
+    "validatedAlreadyEncoded": true
+  },
+  "originalCapturedBeforeEncode": {
+    "originalStdoutSha256": "5e7654284c63718f55745d72700ccaa6051ac82e9efcc0ccfb20ffba61a4fadf",
+    "originalStderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "originalStdoutByteLength": 794,
+    "originalStderrByteLength": 0
+  },
+  "hashesMatchOriginal": {
+    "stdout": true,
+    "stderr": true
+  },
+  "interpreted": {
+    "committed": true,
+    "phaseReached": "T7_COMMIT",
+    "uncertainCommit": false,
+    "rolledBack": null
+  },
+  "result": {
+    "ok": true,
+    "committed": true,
+    "verdict": "CLEAN_BASELINE",
+    "code": "F13_RESET_COMMITTED"
+  }
+}

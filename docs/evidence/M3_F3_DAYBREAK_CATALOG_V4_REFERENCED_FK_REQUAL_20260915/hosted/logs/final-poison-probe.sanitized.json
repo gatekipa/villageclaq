@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "absent": true,
+  "poisonPresent": false,
+  "parser_verdict": "valid_json_exact_schema",
+  "poison_absence_verdict": "proven_absent",
+  "row": {
+    "function_present": false,
+    "poisonPresent": false,
+    "trigger_present": false
+  },
+  "raw": {
+    "command_classification": "supabase db query --db-url [REDACTED] --workdir [ISOLATED] --output-format json",
+    "status": 0,
+    "signal": null,
+    "timeout": false,
+    "timestamp": "2026-09-16T05:01:15.884Z",
+    "target_identity": null
+  }
+}

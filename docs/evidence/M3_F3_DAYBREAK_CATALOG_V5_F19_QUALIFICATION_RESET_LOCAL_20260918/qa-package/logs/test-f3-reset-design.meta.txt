@@ -1,0 +1,8 @@
+suite=test:f3-reset-design
+executableCommit=dfbeb11b49f7e9b061a4c700e0335d125ac669e2
+worktree=[REDACTED_PATH]/f19-dfbeb11
+tests=30
+pass=30
+fail=0
+skipped=0
+exit=0

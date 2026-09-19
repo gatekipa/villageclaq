@@ -1,0 +1,195 @@
+
+> villageclaq@0.1.0 build
+> next build
+
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+▲ Next.js 16.2.1 (Turbopack)
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 13.1s
+  Running TypeScript ...
+  Finished TypeScript in 27.6s ...
+  Collecting page data using 7 workers ...
+⚠ Using edge runtime on a page currently disables static generation for that page
+  Generating static pages using 7 workers (0/45) ...
+  Generating static pages using 7 workers (11/45) 
+  Generating static pages using 7 workers (22/45) 
+⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+  Generating static pages using 7 workers (33/45) 
+✓ Generating static pages using 7 workers (45/45) in 174ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /_not-found
+├ ƒ /[locale]
+├ ƒ /[locale]/about
+├ ƒ /[locale]/admin
+├ ƒ /[locale]/admin/analytics
+├ ƒ /[locale]/admin/anomalies
+├ ƒ /[locale]/admin/audit
+├ ƒ /[locale]/admin/content
+├ ƒ /[locale]/admin/enquiries
+├ ƒ /[locale]/admin/group-actions
+├ ƒ /[locale]/admin/group-admins
+├ ƒ /[locale]/admin/group-types
+├ ƒ /[locale]/admin/groups
+├ ƒ /[locale]/admin/integrations
+├ ƒ /[locale]/admin/multi-group
+├ ƒ /[locale]/admin/notifications
+├ ƒ /[locale]/admin/offline-payments
+├ ƒ /[locale]/admin/offline-status
+├ ƒ /[locale]/admin/overview
+├ ƒ /[locale]/admin/permissions
+├ ƒ /[locale]/admin/plans
+├ ƒ /[locale]/admin/reports
+├ ƒ /[locale]/admin/reports/attendance
+├ ƒ /[locale]/admin/reports/engagement
+├ ƒ /[locale]/admin/reports/financial
+├ ƒ /[locale]/admin/reports/membership
+├ ƒ /[locale]/admin/reports/relief
+├ ƒ /[locale]/admin/revenue
+├ ƒ /[locale]/admin/security
+├ ƒ /[locale]/admin/settings
+├ ƒ /[locale]/admin/staff
+├ ƒ /[locale]/admin/subscriptions
+├ ƒ /[locale]/admin/transactions
+├ ƒ /[locale]/admin/users
+├ ƒ /[locale]/admin/vouchers
+├ ƒ /[locale]/callback
+├ ƒ /[locale]/changelog
+├ ƒ /[locale]/checkin/[eventId]
+├ ƒ /[locale]/claim/[token]
+├ ƒ /[locale]/contact
+├ ƒ /[locale]/dashboard
+├ ƒ /[locale]/dashboard/activity-log
+├ ƒ /[locale]/dashboard/announcements
+├ ƒ /[locale]/dashboard/attendance
+├ ƒ /[locale]/dashboard/badges
+├ ƒ /[locale]/dashboard/change-password
+├ ƒ /[locale]/dashboard/constitution
+├ ƒ /[locale]/dashboard/contributions
+├ ƒ /[locale]/dashboard/contributions/[typeId]/report
+├ ƒ /[locale]/dashboard/contributions/history
+├ ƒ /[locale]/dashboard/contributions/matrix
+├ ƒ /[locale]/dashboard/contributions/record
+├ ƒ /[locale]/dashboard/contributions/unpaid
+├ ƒ /[locale]/dashboard/directory
+├ ƒ /[locale]/dashboard/documents
+├ ƒ /[locale]/dashboard/elections
+├ ƒ /[locale]/dashboard/enterprise
+├ ƒ /[locale]/dashboard/enterprise/branches
+├ ƒ /[locale]/dashboard/enterprise/exchange-rates
+├ ƒ /[locale]/dashboard/enterprise/relief-rollup
+├ ƒ /[locale]/dashboard/enterprise/transfers
+├ ƒ /[locale]/dashboard/events
+├ ƒ /[locale]/dashboard/execution-inbox
+├ ƒ /[locale]/dashboard/feed
+├ ƒ /[locale]/dashboard/feedback
+├ ƒ /[locale]/dashboard/finances
+├ ƒ /[locale]/dashboard/fines
+├ ƒ /[locale]/dashboard/help
+├ ƒ /[locale]/dashboard/hosting
+├ ƒ /[locale]/dashboard/invitations
+├ ƒ /[locale]/dashboard/launch
+├ ƒ /[locale]/dashboard/loans
+├ ƒ /[locale]/dashboard/members
+├ ƒ /[locale]/dashboard/members/[id]
+├ ƒ /[locale]/dashboard/membership-card
+├ ƒ /[locale]/dashboard/minutes
+├ ƒ /[locale]/dashboard/my-attendance
+├ ƒ /[locale]/dashboard/my-dashboard
+├ ƒ /[locale]/dashboard/my-events
+├ ƒ /[locale]/dashboard/my-family
+├ ƒ /[locale]/dashboard/my-fines
+├ ƒ /[locale]/dashboard/my-groups
+├ ƒ /[locale]/dashboard/my-hosting
+├ ƒ /[locale]/dashboard/my-invitations
+├ ƒ /[locale]/dashboard/my-loans
+├ ƒ /[locale]/dashboard/my-payments
+├ ƒ /[locale]/dashboard/my-profile
+├ ƒ /[locale]/dashboard/my-profile/card
+├ ƒ /[locale]/dashboard/notifications
+├ ƒ /[locale]/dashboard/onboarding/group
+├ ƒ /[locale]/dashboard/onboarding/member
+├ ƒ /[locale]/dashboard/projects
+├ ƒ /[locale]/dashboard/relief
+├ ƒ /[locale]/dashboard/relief/claims
+├ ƒ /[locale]/dashboard/relief/enrollment
+├ ƒ /[locale]/dashboard/relief/my
+├ ƒ /[locale]/dashboard/relief/plans
+├ ƒ /[locale]/dashboard/relief/remittances
+├ ƒ /[locale]/dashboard/reports
+├ ƒ /[locale]/dashboard/reports/[reportId]
+├ ƒ /[locale]/dashboard/roles
+├ ƒ /[locale]/dashboard/savings-circle
+├ ƒ /[locale]/dashboard/settings
+├ ƒ /[locale]/dashboard/settings/billing
+├ ƒ /[locale]/dashboard/settings/notifications
+├ ƒ /[locale]/dashboard/sub-groups
+├ ƒ /[locale]/forgot-password
+├ ƒ /[locale]/join/[code]
+├ ƒ /[locale]/login
+├ ƒ /[locale]/offline
+├ ƒ /[locale]/pricing
+├ ƒ /[locale]/privacy
+├ ƒ /[locale]/reset-password
+├ ƒ /[locale]/settings
+├ ƒ /[locale]/signup
+├ ƒ /[locale]/status
+├ ƒ /[locale]/terms
+├ ƒ /[locale]/verify/[code]
+├ ƒ /api/admin/export
+├ ƒ /api/admin/group-action
+├ ƒ /api/admin/impersonate/active
+├ ƒ /api/admin/impersonate/end
+├ ƒ /api/admin/impersonate/start
+├ ƒ /api/admin/mutate
+├ ƒ /api/admin/query
+├ ƒ /api/admin/users/archive
+├ ƒ /api/admin/users/suspend
+├ ƒ /api/admin/users/unsuspend
+├ ƒ /api/ai-insights
+├ ƒ /api/announcements/enqueue
+├ ƒ /api/cron/drain-notification-queue
+├ ƒ /api/cron/event-reminders
+├ ƒ /api/cron/expire-impersonation-sessions
+├ ƒ /api/cron/hosting-reminders
+├ ƒ /api/cron/loan-overdue-reminders
+├ ƒ /api/cron/payment-reminders
+├ ƒ /api/cron/relief-sync
+├ ƒ /api/cron/send-scheduled-announcements
+├ ƒ /api/cron/subscription-reminders
+├ ƒ /api/elections/opened-notifications
+├ ƒ /api/email/send
+├ ƒ /api/fines/issued-notifications
+├ ƒ /api/hosting/assignment-notifications
+├ ƒ /api/hosting/swap-notifications
+├ ƒ /api/invitations/whatsapp-notifications
+├ ƒ /api/loans/approval-notifications
+├ ƒ /api/members/standing-notifications
+├ ƒ /api/members/welcome-notifications
+├ ƒ /api/minutes/published-notifications
+├ ƒ /api/payments/receipt-notifications
+├ ƒ /api/proxy-claim/send
+├ ƒ /api/relief/claim-notifications
+├ ƒ /api/relief/enrollment-notifications
+├ ƒ /api/relief/remittance-notifications
+├ ƒ /api/sms/send
+├ ƒ /api/verify
+├ ƒ /api/webhooks/whatsapp
+├ ƒ /api/whatsapp/send
+├ ƒ /auth/callback
+├ ƒ /opengraph-image
+└ ○ /sitemap.xml
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

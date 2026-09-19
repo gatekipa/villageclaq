@@ -1,0 +1,69 @@
+{
+  "evidenceRel": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F17_QUALIFICATION_RESET_LOCAL_20260918",
+  "functionalTip": "83b9f79483f3ba53f4f8cd60016450ff38a723b4",
+  "startingRef": "10d2d578c18e372e633a033b31c2e515cd535a8b",
+  "f16Functional": "b74c6854869acf0e826446ea0488c42469621a3b",
+  "localStatus": "LOCAL CANDIDATE READY",
+  "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "gates": {
+    "resetDesign": {
+      "tests": 30,
+      "pass": 30,
+      "fail": 0,
+      "skipped": 0,
+      "executableCommit": "83b9f79483f3ba53f4f8cd60016450ff38a723b4",
+      "platform": "linux"
+    },
+    "reset": {
+      "tests": 59,
+      "pass": 59,
+      "fail": 0,
+      "skipped": 0,
+      "executableCommit": "83b9f79483f3ba53f4f8cd60016450ff38a723b4",
+      "platform": "linux"
+    },
+    "dbPush": {
+      "tests": 240,
+      "pass": 240,
+      "fail": 0,
+      "skipped": 0,
+      "executableCommit": "83b9f79483f3ba53f4f8cd60016450ff38a723b4",
+      "platform": "linux"
+    },
+    "helper": {
+      "pass": 29,
+      "fail": 0,
+      "checks": 20,
+      "scenarios": 9,
+      "executedTransactions": 8,
+      "classification": "LOCAL_PG_EXECUTED"
+    }
+  },
+  "closures": {
+    "runtime": "0db1c600c620c0e406038fa3ebc5c4d7df6104bce64545ef9e16a63a6237c741",
+    "union": "d3fd2eb52a2adc2a1f963a54955b888b2d3e8eadea0283894c4a51f5effc41cb",
+    "runtimeCount": 45,
+    "unionCount": 48,
+    "independentReference": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+    "f16RuntimeCitedNotExpected": "1ca2a1ceddca278889c7ea92fc10e6a59150e06c5b4f13d4426b293fda29ee78",
+    "f16UnionCitedNotExpected": "989c6c99ead2b84190486b856d7e04a1e76824f870f3bbf9438935808c8fb7ff"
+  },
+  "reparse": {
+    "parsedOk": true,
+    "t7CommittedTrue": true,
+    "interpretedCommitted": false,
+    "verdictPath": "CLEAN_BASELINE"
+  },
+  "allowlistScopeOk": true,
+  "packaging": {
+    "originalByteEqualClaimed": false,
+    "reconstructedFromSummary": false,
+    "captureBeforeTransform": true
+  },
+  "nativeWindowsExecuted": false,
+  "f17ParallelCloudQa": "UNAVAILABLE",
+  "pathLeaks": 0,
+  "secrets": 0,
+  "checksumDistinctionPolicy": "digest inside evidence-index.sha256 is sha256 of evidence-index.json bytes; digest of that checksum file's bytes is a different identity"
+}

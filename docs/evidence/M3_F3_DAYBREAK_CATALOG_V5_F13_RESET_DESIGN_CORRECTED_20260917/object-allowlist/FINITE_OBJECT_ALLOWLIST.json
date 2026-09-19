@@ -1,0 +1,1466 @@
+{
+  "schema": "f13-finite-object-allowlist-v1",
+  "financial_prefix_is_allowlist": false,
+  "cascade": false,
+  "objects": [
+    {
+      "id": "fn.public.post_financial_opening_cash",
+      "kind": "function",
+      "schema": "public",
+      "identity": "public.post_financial_opening_cash(jsonb)",
+      "signature": "public.post_financial_opening_cash(jsonb)",
+      "provenance": "supabase/migrations/00123_f3_05_opening_cash_command.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 10
+    },
+    {
+      "id": "fn.public.get_financial_cashbook",
+      "kind": "function",
+      "schema": "public",
+      "identity": "public.get_financial_cashbook(uuid,timestamp with time zone,timestamp with time zone,uuid,text,integer,integer)",
+      "signature": "public.get_financial_cashbook(uuid,timestamp with time zone,timestamp with time zone,uuid,text,integer,integer)",
+      "provenance": "supabase/migrations/00121_f3_03_projection_read_proof.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 20
+    },
+    {
+      "id": "fn.public.get_financial_projection_bundle",
+      "kind": "function",
+      "schema": "public",
+      "identity": "public.get_financial_projection_bundle(uuid,timestamp with time zone,timestamp with time zone,timestamp with time zone)",
+      "signature": "public.get_financial_projection_bundle(uuid,timestamp with time zone,timestamp with time zone,timestamp with time zone)",
+      "provenance": "supabase/migrations/00121_f3_03_projection_read_proof.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 30
+    },
+    {
+      "id": "fn.public.post_financial_command",
+      "kind": "function",
+      "schema": "public",
+      "identity": "public.post_financial_command(jsonb)",
+      "signature": "public.post_financial_command(jsonb)",
+      "provenance": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 40
+    },
+    {
+      "id": "fn.public.correct_financial_event",
+      "kind": "function",
+      "schema": "public",
+      "identity": "public.correct_financial_event(jsonb)",
+      "signature": "public.correct_financial_event(jsonb)",
+      "provenance": "supabase/migrations/00122_f3_04_correction_reversal.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 50
+    },
+    {
+      "id": "fn.public.enqueue_outbound_notification",
+      "kind": "function",
+      "schema": "public",
+      "identity": "public.enqueue_outbound_notification(text,uuid,notification_channel,uuid,text)",
+      "signature": "public.enqueue_outbound_notification(text,uuid,notification_channel,uuid,text)",
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 60
+    },
+    {
+      "id": "fn.public.execute_member_transfer",
+      "kind": "function",
+      "schema": "public",
+      "identity": "public.execute_member_transfer(jsonb)",
+      "signature": "public.execute_member_transfer(jsonb)",
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 70
+    },
+    {
+      "id": "fn.public.request_member_transfer",
+      "kind": "function",
+      "schema": "public",
+      "identity": "public.request_member_transfer(jsonb)",
+      "signature": "public.request_member_transfer(jsonb)",
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 80
+    },
+    {
+      "id": "fn.public.has_group_permission",
+      "kind": "function",
+      "schema": "public",
+      "identity": "public.has_group_permission(uuid,text,uuid)",
+      "signature": "public.has_group_permission(uuid,text,uuid)",
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 90
+    },
+    {
+      "id": "fn.public.compute_member_standing",
+      "kind": "function",
+      "schema": "public",
+      "identity": "public.compute_member_standing(uuid)",
+      "signature": "public.compute_member_standing(uuid)",
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 100
+    },
+    {
+      "id": "fn.public.m2_is_valid_iana_timezone",
+      "kind": "function",
+      "schema": "public",
+      "identity": "public.m2_is_valid_iana_timezone(text)",
+      "signature": "public.m2_is_valid_iana_timezone(text)",
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 110
+    },
+    {
+      "id": "fn.public.notification_policy_set_updated_at",
+      "kind": "function",
+      "schema": "public",
+      "identity": "public.notification_policy_set_updated_at()",
+      "signature": "public.notification_policy_set_updated_at()",
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 120
+    },
+    {
+      "id": "fn.public.uuid_generate_v5",
+      "kind": "function",
+      "schema": "public",
+      "identity": "public.uuid_generate_v5(uuid,text)",
+      "signature": "public.uuid_generate_v5(uuid,text)",
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure); also referenced by supabase/migrations/00122_f3_04_correction_reversal.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 130
+    },
+    {
+      "id": "fn.financial_core.post_f3_opening_cash",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.post_f3_opening_cash(jsonb)",
+      "signature": "financial_core.post_f3_opening_cash(jsonb)",
+      "provenance": "supabase/migrations/00123_f3_05_opening_cash_command.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 200
+    },
+    {
+      "id": "fn.financial_core.f3_opening_safe_text",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.f3_opening_safe_text(text,integer,boolean)",
+      "signature": "financial_core.f3_opening_safe_text(text,integer,boolean)",
+      "provenance": "supabase/migrations/00123_f3_05_opening_cash_command.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 210
+    },
+    {
+      "id": "fn.financial_core.guard_f3_opening_provenance",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.guard_f3_opening_provenance()",
+      "signature": "financial_core.guard_f3_opening_provenance()",
+      "provenance": "supabase/migrations/00123_f3_05_opening_cash_command.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 220
+    },
+    {
+      "id": "fn.financial_core.correct_f3_command",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.correct_f3_command(jsonb)",
+      "signature": "financial_core.correct_f3_command(jsonb)",
+      "provenance": "supabase/migrations/00122_f3_04_correction_reversal.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 230
+    },
+    {
+      "id": "fn.financial_core.check_f3_correction_closure",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.check_f3_correction_closure()",
+      "signature": "financial_core.check_f3_correction_closure()",
+      "provenance": "supabase/migrations/00122_f3_04_correction_reversal.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 240
+    },
+    {
+      "id": "fn.financial_core.guard_f3_correction_lineage",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.guard_f3_correction_lineage()",
+      "signature": "financial_core.guard_f3_correction_lineage()",
+      "provenance": "supabase/migrations/00122_f3_04_correction_reversal.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 250
+    },
+    {
+      "id": "fn.financial_core.assert_f3_correction_postings",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.assert_f3_correction_postings(uuid,jsonb)",
+      "signature": "financial_core.assert_f3_correction_postings(uuid,jsonb)",
+      "provenance": "supabase/migrations/00122_f3_04_correction_reversal.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 260
+    },
+    {
+      "id": "fn.financial_core.resolve_f3_correction_replacement",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.resolve_f3_correction_replacement(jsonb,jsonb,boolean)",
+      "signature": "financial_core.resolve_f3_correction_replacement(jsonb,jsonb,boolean)",
+      "provenance": "supabase/migrations/00122_f3_04_correction_reversal.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 270
+    },
+    {
+      "id": "fn.financial_core.f3_correction_posting_json",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.f3_correction_posting_json(uuid,uuid,uuid,uuid,text,timestamp with time zone,numeric,financial_control_class,uuid,uuid,uuid,financial_category_class,uuid,uuid)",
+      "signature": "financial_core.f3_correction_posting_json(uuid,uuid,uuid,uuid,text,timestamp with time zone,numeric,financial_control_class,uuid,uuid,uuid,financial_category_class,uuid,uuid)",
+      "provenance": "supabase/migrations/00122_f3_04_correction_reversal.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 280
+    },
+    {
+      "id": "fn.financial_core.f3_correction_child_id",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.f3_correction_child_id(uuid,uuid,text)",
+      "signature": "financial_core.f3_correction_child_id(uuid,uuid,text)",
+      "provenance": "supabase/migrations/00122_f3_04_correction_reversal.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 290
+    },
+    {
+      "id": "fn.financial_core.f3_correction_reason",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.f3_correction_reason(jsonb)",
+      "signature": "financial_core.f3_correction_reason(jsonb)",
+      "provenance": "supabase/migrations/00122_f3_04_correction_reversal.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 300
+    },
+    {
+      "id": "fn.financial_core.f3_correction_signed_amount",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.f3_correction_signed_amount(numeric,text)",
+      "signature": "financial_core.f3_correction_signed_amount(numeric,text)",
+      "provenance": "supabase/migrations/00122_f3_04_correction_reversal.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 310
+    },
+    {
+      "id": "fn.financial_core.f3_correction_timestamp",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.f3_correction_timestamp(timestamp with time zone)",
+      "signature": "financial_core.f3_correction_timestamp(timestamp with time zone)",
+      "provenance": "supabase/migrations/00122_f3_04_correction_reversal.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 320
+    },
+    {
+      "id": "fn.financial_core.f3_correction_fingerprint",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.f3_correction_fingerprint(jsonb)",
+      "signature": "financial_core.f3_correction_fingerprint(jsonb)",
+      "provenance": "supabase/migrations/00122_f3_04_correction_reversal.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 330
+    },
+    {
+      "id": "fn.financial_core.f3_correction_canonical",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.f3_correction_canonical(jsonb)",
+      "signature": "financial_core.f3_correction_canonical(jsonb)",
+      "provenance": "supabase/migrations/00122_f3_04_correction_reversal.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 340
+    },
+    {
+      "id": "fn.financial_core.guard_f3_correction_payload",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.guard_f3_correction_payload()",
+      "signature": "financial_core.guard_f3_correction_payload()",
+      "provenance": "supabase/migrations/00122_f3_04_correction_reversal.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 350
+    },
+    {
+      "id": "fn.financial_core.projection_cashbook_rows",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.projection_cashbook_rows(uuid,boolean)",
+      "signature": "financial_core.projection_cashbook_rows(uuid,boolean)",
+      "provenance": "supabase/migrations/00121_f3_03_projection_read_proof.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 360
+    },
+    {
+      "id": "fn.financial_core.format_projection_amount",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.format_projection_amount(numeric,text)",
+      "signature": "financial_core.format_projection_amount(numeric,text)",
+      "provenance": "supabase/migrations/00121_f3_03_projection_read_proof.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 370
+    },
+    {
+      "id": "fn.financial_core.post_f3_command",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.post_f3_command(jsonb,jsonb)",
+      "signature": "financial_core.post_f3_command(jsonb,jsonb)",
+      "provenance": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 380
+    },
+    {
+      "id": "fn.financial_core.lock_f3_identity",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.lock_f3_identity(uuid,uuid,text,text,text)",
+      "signature": "financial_core.lock_f3_identity(uuid,uuid,text,text,text)",
+      "provenance": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 390
+    },
+    {
+      "id": "fn.financial_core.check_f3_posting_closure",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.check_f3_posting_closure()",
+      "signature": "financial_core.check_f3_posting_closure()",
+      "provenance": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 400
+    },
+    {
+      "id": "fn.financial_core.guard_f3_posting_closure",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.guard_f3_posting_closure()",
+      "signature": "financial_core.guard_f3_posting_closure()",
+      "provenance": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 410
+    },
+    {
+      "id": "fn.financial_core.guard_f3_payload",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.guard_f3_payload()",
+      "signature": "financial_core.guard_f3_payload()",
+      "provenance": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 420
+    },
+    {
+      "id": "fn.financial_core.f3_fingerprint",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.f3_fingerprint(jsonb)",
+      "signature": "financial_core.f3_fingerprint(jsonb)",
+      "provenance": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 430
+    },
+    {
+      "id": "fn.financial_core.f3_canonical",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.f3_canonical(jsonb)",
+      "signature": "financial_core.f3_canonical(jsonb)",
+      "provenance": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 440
+    },
+    {
+      "id": "fn.financial_core.f3_trim",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.f3_trim(text)",
+      "signature": "financial_core.f3_trim(text)",
+      "provenance": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 450
+    },
+    {
+      "id": "fn.financial_core.f3_timestamp",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.f3_timestamp(jsonb)",
+      "signature": "financial_core.f3_timestamp(jsonb)",
+      "provenance": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 460
+    },
+    {
+      "id": "fn.financial_core.f3_amount",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.f3_amount(jsonb,text)",
+      "signature": "financial_core.f3_amount(jsonb,text)",
+      "provenance": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 470
+    },
+    {
+      "id": "fn.financial_core.f3_currency",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.f3_currency(jsonb)",
+      "signature": "financial_core.f3_currency(jsonb)",
+      "provenance": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 480
+    },
+    {
+      "id": "fn.financial_core.f3_uuid",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.f3_uuid(jsonb,boolean)",
+      "signature": "financial_core.f3_uuid(jsonb,boolean)",
+      "provenance": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 490
+    },
+    {
+      "id": "fn.financial_core.lock_financial_occurrence",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.lock_financial_occurrence(uuid,text,text,text,uuid)",
+      "signature": "financial_core.lock_financial_occurrence(uuid,text,text,text,uuid)",
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 500
+    },
+    {
+      "id": "fn.financial_core.assert_finances_manage",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.assert_finances_manage(uuid)",
+      "signature": "financial_core.assert_finances_manage(uuid)",
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 510
+    },
+    {
+      "id": "fn.financial_core.can_view_finances",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.can_view_finances(uuid)",
+      "signature": "financial_core.can_view_finances(uuid)",
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 520
+    },
+    {
+      "id": "fn.financial_core.can_manage_finances",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.can_manage_finances(uuid)",
+      "signature": "financial_core.can_manage_finances(uuid)",
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 530
+    },
+    {
+      "id": "fn.financial_core.check_event_balance_from_posting",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.check_event_balance_from_posting()",
+      "signature": "financial_core.check_event_balance_from_posting()",
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 540
+    },
+    {
+      "id": "fn.financial_core.check_event_balance_from_event",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.check_event_balance_from_event()",
+      "signature": "financial_core.check_event_balance_from_event()",
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 550
+    },
+    {
+      "id": "fn.financial_core.assert_financial_event_balanced",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.assert_financial_event_balanced(uuid)",
+      "signature": "financial_core.assert_financial_event_balanced(uuid)",
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 560
+    },
+    {
+      "id": "fn.financial_core.guard_financial_posting_history",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.guard_financial_posting_history()",
+      "signature": "financial_core.guard_financial_posting_history()",
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 570
+    },
+    {
+      "id": "fn.financial_core.guard_financial_event_history",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.guard_financial_event_history()",
+      "signature": "financial_core.guard_financial_event_history()",
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 580
+    },
+    {
+      "id": "fn.financial_core.guard_financial_event_epoch",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.guard_financial_event_epoch()",
+      "signature": "financial_core.guard_financial_event_epoch()",
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 590
+    },
+    {
+      "id": "fn.financial_core.guard_financial_category",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.guard_financial_category()",
+      "signature": "financial_core.guard_financial_category()",
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 600
+    },
+    {
+      "id": "fn.financial_core.guard_financial_fund",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.guard_financial_fund()",
+      "signature": "financial_core.guard_financial_fund()",
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 610
+    },
+    {
+      "id": "fn.financial_core.guard_financial_account",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.guard_financial_account()",
+      "signature": "financial_core.guard_financial_account()",
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 620
+    },
+    {
+      "id": "fn.financial_core.currency_scale",
+      "kind": "function",
+      "schema": "financial_core",
+      "identity": "financial_core.currency_scale(text)",
+      "signature": "financial_core.currency_scale(text)",
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 630
+    },
+    {
+      "id": "fn.financial_private.guard_ledger_epoch",
+      "kind": "function",
+      "schema": "financial_private",
+      "identity": "financial_private.guard_ledger_epoch()",
+      "signature": "financial_private.guard_ledger_epoch()",
+      "provenance": "supabase/migrations/00118_f3_bounded_financial_epoch_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP FUNCTION <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 640
+    },
+    {
+      "id": "tbl.financial_core.opening_provenances",
+      "kind": "table",
+      "schema": "financial_core",
+      "identity": "financial_core.opening_provenances",
+      "signature": null,
+      "provenance": "supabase/migrations/00123_f3_05_opening_cash_command.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)",
+        "trigger opening_provenances_immutable"
+      ],
+      "dropOrder": 700
+    },
+    {
+      "id": "tbl.financial_core.correction_command_payloads",
+      "kind": "table",
+      "schema": "financial_core",
+      "identity": "financial_core.correction_command_payloads",
+      "signature": null,
+      "provenance": "supabase/migrations/00122_f3_04_correction_reversal.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)",
+        "trigger correction_command_payloads_immutable",
+        "constraint trigger correction_command_payloads_complete"
+      ],
+      "dropOrder": 710
+    },
+    {
+      "id": "tbl.financial_core.posting_command_payloads",
+      "kind": "table",
+      "schema": "financial_core",
+      "identity": "financial_core.posting_command_payloads",
+      "signature": null,
+      "provenance": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)",
+        "trigger posting_command_payloads_immutable",
+        "constraint trigger posting_command_payloads_complete"
+      ],
+      "dropOrder": 720
+    },
+    {
+      "id": "tbl.public.financial_postings",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.financial_postings",
+      "signature": null,
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)",
+        "triggers financial_postings_history_guard, financial_postings_balance_guard, financial_postings_f3_closure"
+      ],
+      "dropOrder": 730
+    },
+    {
+      "id": "tbl.public.financial_events",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.financial_events",
+      "signature": null,
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)",
+        "triggers financial_events_epoch_guard, financial_events_history_guard, financial_events_balance_guard, financial_events_f3_correction_lineage",
+        "index financial_events_occurrence_across_epochs"
+      ],
+      "dropOrder": 740
+    },
+    {
+      "id": "tbl.public.financial_categories",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.financial_categories",
+      "signature": null,
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)",
+        "trigger financial_categories_guard"
+      ],
+      "dropOrder": 750
+    },
+    {
+      "id": "tbl.public.financial_funds",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.financial_funds",
+      "signature": null,
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)",
+        "trigger financial_funds_guard"
+      ],
+      "dropOrder": 760
+    },
+    {
+      "id": "tbl.public.financial_accounts",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.financial_accounts",
+      "signature": null,
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)",
+        "trigger financial_accounts_guard"
+      ],
+      "dropOrder": 770
+    },
+    {
+      "id": "tbl.public.financial_ledger_epochs",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.financial_ledger_epochs",
+      "signature": null,
+      "provenance": "supabase/migrations/00118_f3_bounded_financial_epoch_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)",
+        "trigger financial_ledger_epoch_guard",
+        "policy financial_ledger_epoch_active_reader",
+        "gist exclusion financial_ledger_epoch_no_overlap"
+      ],
+      "dropOrder": 780
+    },
+    {
+      "id": "tbl.financial_private.internal_financial_tenants",
+      "kind": "table",
+      "schema": "financial_private",
+      "identity": "financial_private.internal_financial_tenants",
+      "signature": null,
+      "provenance": "supabase/migrations/00118_f3_bounded_financial_epoch_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 790
+    },
+    {
+      "id": "tbl.financial_private.epoch_transitions",
+      "kind": "table",
+      "schema": "financial_private",
+      "identity": "financial_private.epoch_transitions",
+      "signature": null,
+      "provenance": "supabase/migrations/00118_f3_bounded_financial_epoch_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 800
+    },
+    {
+      "id": "tbl.public.notification_policy_triggers",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.notification_policy_triggers",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)",
+        "policies m2_npt_select, m2_npt_insert, m2_npt_update, m2_npt_delete"
+      ],
+      "dropOrder": 900
+    },
+    {
+      "id": "tbl.public.notification_policy_occurrences",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.notification_policy_occurrences",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 910
+    },
+    {
+      "id": "tbl.public.notification_policies",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.notification_policies",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 920
+    },
+    {
+      "id": "tbl.public.position_assignments",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.position_assignments",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 930
+    },
+    {
+      "id": "tbl.public.position_permissions",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.position_permissions",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 940
+    },
+    {
+      "id": "tbl.public.group_positions",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.group_positions",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 950
+    },
+    {
+      "id": "tbl.public.hosting_swap_requests",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.hosting_swap_requests",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 960
+    },
+    {
+      "id": "tbl.public.hosting_assignments",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.hosting_assignments",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 970
+    },
+    {
+      "id": "tbl.public.hosting_rosters",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.hosting_rosters",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 980
+    },
+    {
+      "id": "tbl.public.payment_obligation_applications",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.payment_obligation_applications",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 990
+    },
+    {
+      "id": "tbl.public.payments",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.payments",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1000
+    },
+    {
+      "id": "tbl.public.contribution_obligations",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.contribution_obligations",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1010
+    },
+    {
+      "id": "tbl.public.relief_remittances",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.relief_remittances",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1020
+    },
+    {
+      "id": "tbl.public.relief_claims",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.relief_claims",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1030
+    },
+    {
+      "id": "tbl.public.relief_enrollments",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.relief_enrollments",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1040
+    },
+    {
+      "id": "tbl.public.relief_plans",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.relief_plans",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1050
+    },
+    {
+      "id": "tbl.public.fines",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.fines",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1060
+    },
+    {
+      "id": "tbl.public.member_transfers",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.member_transfers",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1070
+    },
+    {
+      "id": "tbl.public.invitations",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.invitations",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1080
+    },
+    {
+      "id": "tbl.public.elections",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.elections",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1090
+    },
+    {
+      "id": "tbl.public.events",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.events",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1100
+    },
+    {
+      "id": "tbl.public.meeting_minutes",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.meeting_minutes",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1110
+    },
+    {
+      "id": "tbl.public.announcements",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.announcements",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1120
+    },
+    {
+      "id": "tbl.public.notifications_queue",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.notifications_queue",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1130
+    },
+    {
+      "id": "tbl.public.loans",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.loans",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1140
+    },
+    {
+      "id": "tbl.public.projects",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.projects",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)",
+        "constraint projects_id_group_financial_scope from 00119"
+      ],
+      "dropOrder": 1150
+    },
+    {
+      "id": "tbl.public.group_subscriptions",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.group_subscriptions",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1160
+    },
+    {
+      "id": "tbl.public.memberships",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.memberships",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)",
+        "constraint memberships_id_group_financial_scope from 00119"
+      ],
+      "dropOrder": 1170
+    },
+    {
+      "id": "tbl.public.groups",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.groups",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1180
+    },
+    {
+      "id": "tbl.public.profiles",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.profiles",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1190
+    },
+    {
+      "id": "tbl.public.organizations",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.organizations",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1200
+    },
+    {
+      "id": "tbl.public.__f3_acl_platform_canary_20260915",
+      "kind": "table",
+      "schema": "public",
+      "identity": "public.__f3_acl_platform_canary_20260915",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "absent is success (F9 recorded skipping); present matching identity may be dropped",
+      "intendedAction": "DROP TABLE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [
+        "owned indexes/triggers/policies/constraints on this relation (not other-object CASCADE)"
+      ],
+      "dropOrder": 1210
+    },
+    {
+      "id": "seq.public.__f3_acl_platform_canary_20260915_id_seq",
+      "kind": "sequence",
+      "schema": "public",
+      "identity": "public.__f3_acl_platform_canary_20260915_id_seq",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "absent is success (F9 recorded skipping); orphaned sequence matching identity may be dropped",
+      "intendedAction": "DROP SEQUENCE public.__f3_acl_platform_canary_20260915_id_seq RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 1220
+    },
+    {
+      "id": "type.public.financial_account_kind",
+      "kind": "type",
+      "schema": "public",
+      "identity": "public.financial_account_kind",
+      "signature": null,
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TYPE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 1300
+    },
+    {
+      "id": "type.public.financial_account_status",
+      "kind": "type",
+      "schema": "public",
+      "identity": "public.financial_account_status",
+      "signature": null,
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TYPE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 1310
+    },
+    {
+      "id": "type.public.financial_category_class",
+      "kind": "type",
+      "schema": "public",
+      "identity": "public.financial_category_class",
+      "signature": null,
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TYPE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 1320
+    },
+    {
+      "id": "type.public.financial_config_status",
+      "kind": "type",
+      "schema": "public",
+      "identity": "public.financial_config_status",
+      "signature": null,
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TYPE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 1330
+    },
+    {
+      "id": "type.public.financial_control_class",
+      "kind": "type",
+      "schema": "public",
+      "identity": "public.financial_control_class",
+      "signature": null,
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TYPE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 1340
+    },
+    {
+      "id": "type.public.financial_event_class",
+      "kind": "type",
+      "schema": "public",
+      "identity": "public.financial_event_class",
+      "signature": null,
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TYPE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 1350
+    },
+    {
+      "id": "type.public.financial_event_status",
+      "kind": "type",
+      "schema": "public",
+      "identity": "public.financial_event_status",
+      "signature": null,
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TYPE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 1360
+    },
+    {
+      "id": "type.public.notification_channel",
+      "kind": "type",
+      "schema": "public",
+      "identity": "public.notification_channel",
+      "signature": null,
+      "provenance": "F8/F9 historical qualification-reset.sql sha256 0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011 (object identity only; SQL rejected as current procedure)",
+      "requiredStartingState": "present matching this identity, or documented absent (IF EXISTS / 0-row is success only after identity probe)",
+      "intendedAction": "DROP TYPE <schema-qualified identity> RESTRICT",
+      "permittedDependentEffects": [],
+      "dropOrder": 1370
+    },
+    {
+      "id": "schema.financial_core",
+      "kind": "schema",
+      "schema": "financial_core",
+      "identity": "financial_core",
+      "signature": null,
+      "provenance": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "exists and is empty of non-allowlisted objects after prior drops; unexpected contents BLOCK",
+      "intendedAction": "DROP SCHEMA <schema-qualified identity> RESTRICT after emptiness proof",
+      "permittedDependentEffects": [],
+      "dropOrder": 1400
+    },
+    {
+      "id": "schema.financial_private",
+      "kind": "schema",
+      "schema": "financial_private",
+      "identity": "financial_private",
+      "signature": null,
+      "provenance": "supabase/migrations/00118_f3_bounded_financial_epoch_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "exists and is empty of non-allowlisted objects after prior drops; unexpected contents BLOCK",
+      "intendedAction": "DROP SCHEMA <schema-qualified identity> RESTRICT after emptiness proof",
+      "permittedDependentEffects": [],
+      "dropOrder": 1410
+    },
+    {
+      "id": "ext.btree_gist",
+      "kind": "extension",
+      "schema": "pg_catalog",
+      "identity": "btree_gist",
+      "signature": null,
+      "provenance": "supabase/migrations/00118_f3_bounded_financial_epoch_foundation.sql @ F12 tip 1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+      "requiredStartingState": "present only if remaining dependents are empty after allowlisted drops; any leftover dependent BLOCKS",
+      "intendedAction": "DROP EXTENSION btree_gist RESTRICT. Skip only if identity probe shows already absent. BLOCK if dependents remain.",
+      "permittedDependentEffects": [],
+      "dropOrder": 1500
+    }
+  ]
+}

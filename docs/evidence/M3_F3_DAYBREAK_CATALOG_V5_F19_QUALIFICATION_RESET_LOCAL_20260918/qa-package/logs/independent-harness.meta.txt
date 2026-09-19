@@ -1,0 +1,6 @@
+harness=[REDACTED_PATH]/f19-qa-independent.mjs
+imports=committed modules from [REDACTED_PATH]/f18-ca2c0d5 and [REDACTED_PATH]/f19-dfbeb11 only
+functionalScriptsModified=false
+f18DefectsReproduced=true
+f19TipClosesThem=true
+cases=THROWN_EACCES,PATH_REDACT,THROWN_ONLY,SUCCESS

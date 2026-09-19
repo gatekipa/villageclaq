@@ -1,0 +1,36 @@
+{
+  "artifact": "prefix-staging-manifest",
+  "functional_sha": "8e67138929d5c0925a89adb0d34eeff9a2d3cab4",
+  "migrations": [
+    {
+      "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+      "version": "20260913173000",
+      "staging_ok": true,
+      "pending": [
+        "20260913173000"
+      ],
+      "staged": [
+        "20260913173000_f3_bounded_financial_epoch_foundation.sql"
+      ],
+      "expectedPending": [
+        "00118_f3_bounded_financial_epoch_foundation.sql"
+      ],
+      "retry_pending": []
+    },
+    {
+      "file": "00119_f3_01_core_ledger_foundation.sql",
+      "version": "20260913173001",
+      "staging_ok": true,
+      "pending": [
+        "20260913173001"
+      ],
+      "staged": [
+        "20260913173000_f3_bounded_financial_epoch_foundation.sql",
+        "20260913173001_f3_01_core_ledger_foundation.sql"
+      ],
+      "expectedPending": [
+        "00119_f3_01_core_ledger_foundation.sql"
+      ]
+    }
+  ]
+}

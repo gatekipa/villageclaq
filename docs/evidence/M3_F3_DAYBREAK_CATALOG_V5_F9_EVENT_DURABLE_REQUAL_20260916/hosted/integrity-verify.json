@@ -1,0 +1,15 @@
+{
+  "nested_ok": true,
+  "outer_ok": true,
+  "reason": null,
+  "absolute_path_leaks": 0,
+  "secret_scan": "clean",
+  "index_sha256": "4a9daf4dbea9bc391727d74f861f79ba007c757226e4659cf77463ca794834cc",
+  "artifact_count": 17,
+  "nested_paths_in_outer": {
+    "hosted_index": true,
+    "hosted_sha": true,
+    "synth_index": true,
+    "synth_sha": true
+  }
+}

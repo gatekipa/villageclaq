@@ -1,0 +1,25 @@
+{
+  "captured_at_utc": "2026-09-15T02:13:04.675257Z",
+  "container": "f3-reference-pg176",
+  "image": "postgres:17.6",
+  "listen": "127.0.0.1:55432",
+  "database": "f3_reference_oracle_20260915",
+  "version()": "PostgreSQL 17.6 (Debian 17.6-2.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+  "current_database": "f3_reference_oracle_20260915",
+  "server_version": "17.6 (Debian 17.6-2.pgdg13+1)",
+  "server_version_num": "170006",
+  "pg_engine": "17.6",
+  "isolation": {
+    "docker_publish": "127.0.0.1:55432->5432/tcp",
+    "connection_host_intended": "127.0.0.1",
+    "no_hosted_contact": true,
+    "database_prefix": "f3_reference_",
+    "ss_listen": "127.0.0.1:55432 only",
+    "host_17_11_on_5432_avoided": true,
+    "seal_admin_url_host_port": "127.0.0.1:55432",
+    "seal_database": "f3_reference_seal_20260915",
+    "preexisting_oracle_preserved": "f3_reference_oracle_20260915"
+  },
+  "status": "floor+00117 applied; ready_for_00118_seq",
+  "reseal_captured_at_utc": "2026-09-15T02:17:52.122174+00:00"
+}

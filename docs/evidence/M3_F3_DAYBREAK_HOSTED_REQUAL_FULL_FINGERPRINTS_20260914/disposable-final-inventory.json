@@ -1,0 +1,105 @@
+{
+  "artifact": "disposable-final-inventory",
+  "functional_sha": "c59afad411a07838688aeb5583ab179683f25a7f",
+  "identity": {
+    "ref": "jkorwnwwmdeflfntxntl",
+    "name": "villageclaq-f3-management-api-disposable-20260913",
+    "organizationId": "eyztkzkprpmlmcabrfef",
+    "ok": true
+  },
+  "inventory_summary": {
+    "public_tables": [
+      "announcements",
+      "contribution_obligations",
+      "elections",
+      "events",
+      "financial_accounts",
+      "financial_categories",
+      "financial_events",
+      "financial_funds",
+      "financial_ledger_epochs",
+      "financial_postings",
+      "fines",
+      "group_positions",
+      "group_subscriptions",
+      "groups",
+      "hosting_assignments",
+      "hosting_rosters",
+      "hosting_swap_requests",
+      "invitations",
+      "loans",
+      "meeting_minutes",
+      "member_transfers",
+      "memberships",
+      "notification_policies",
+      "notification_policy_occurrences",
+      "notification_policy_triggers",
+      "notifications_queue",
+      "organizations",
+      "payment_obligation_applications",
+      "payments",
+      "position_assignments",
+      "position_permissions",
+      "profiles",
+      "projects",
+      "relief_claims",
+      "relief_enrollments",
+      "relief_plans",
+      "relief_remittances"
+    ],
+    "f3_schemas": [
+      "financial_core",
+      "financial_private"
+    ],
+    "schema_migrations": [],
+    "public_enums_count": 0,
+    "app_functions_count": 0,
+    "f3_present": true,
+    "history_versions": [
+      "20260913173000",
+      "20260913173001",
+      "20260913173002",
+      "20260913173003",
+      "20260913173004",
+      "20260913173005"
+    ]
+  },
+  "classification": {
+    "verdict": "HOLD",
+    "reason": "HOLD: disposable inventory contains objects not demonstrably from the failed floor"
+  },
+  "history_get_rows": [
+    {
+      "version": "20260913173000",
+      "name": "f3_bounded_financial_epoch_foundation"
+    },
+    {
+      "version": "20260913173001",
+      "name": "f3_01_core_ledger_foundation"
+    },
+    {
+      "version": "20260913173002",
+      "name": "f3_02_secure_posting_idempotency"
+    },
+    {
+      "version": "20260913173003",
+      "name": "f3_03_projection_read_proof"
+    },
+    {
+      "version": "20260913173004",
+      "name": "f3_04_correction_reversal"
+    },
+    {
+      "version": "20260913173005",
+      "name": "f3_05_opening_cash_command"
+    }
+  ],
+  "poison_absent": {
+    "ok": true,
+    "absent": true,
+    "row": {
+      "function_present": false,
+      "trigger_present": false
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "role": "Builder",
+  "executableCommit": "83b9f79483f3ba53f4f8cd60016450ff38a723b4",
+  "platform": "linux",
+  "nativeWindowsExecuted": false,
+  "simulatedWindowsPathCasesExecuted": true,
+  "pgAvailable": true,
+  "pgVersion": "17.11",
+  "resetDesign": {
+    "tests": 30,
+    "pass": 30,
+    "fail": 0,
+    "skipped": 0
+  },
+  "reset": {
+    "tests": 59,
+    "pass": 59,
+    "fail": 0,
+    "skipped": 0
+  },
+  "dbPush": {
+    "tests": 240,
+    "pass": 240,
+    "fail": 0,
+    "skipped": 0
+  },
+  "helper": {
+    "pass": 29,
+    "fail": 0,
+    "checks": 20,
+    "scenarios": 9,
+    "executedTransactions": 8,
+    "classification": "LOCAL_PG_EXECUTED"
+  },
+  "peerAuthSkipPreservedInCode": true,
+  "peerAuthSkipOccurredThisRun": false,
+  "authenticatedSeparatelyFromHistoricalWindowsQa": true
+}

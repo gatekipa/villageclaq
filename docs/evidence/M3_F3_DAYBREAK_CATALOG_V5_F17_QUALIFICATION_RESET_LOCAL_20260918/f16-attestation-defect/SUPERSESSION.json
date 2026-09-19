@@ -1,0 +1,19 @@
+{
+  "historicalF16Unchanged": true,
+  "historicalPackage": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F16_QUALIFICATION_RESET_LOCAL_20260917",
+  "f16LocalCandidateReadySuperseded": true,
+  "f16PackSummaryClaimedPathLeaks": 0,
+  "f16TxSuccessRawIndependentScan": {
+    "pathLeaks": 1,
+    "secrets": 0,
+    "note": "Independent scan of historical F16 RAW JSON. Absolute temp workdir paths are present in stderr. F16 pack-summary claimed pathLeaks:0. This is the attestation defect. Historical bytes are not rewritten."
+  },
+  "sanitizerDroppedFieldsInF16Helper": [
+    "signal",
+    "timeout",
+    "structuredError",
+    "original stream hashes/lengths"
+  ],
+  "f17CaptureBeforeTransform": true,
+  "f17NeverClaimsOriginalByteEqualityAfterTransform": true
+}

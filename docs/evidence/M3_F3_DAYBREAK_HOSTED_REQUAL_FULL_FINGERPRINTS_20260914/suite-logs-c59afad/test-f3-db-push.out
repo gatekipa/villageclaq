@@ -1,0 +1,552 @@
+=== BEGIN test-f3-db-push at 2026-09-14T21:32:09Z ===
+COMMAND: npm run test:f3-db-push
+
+> villageclaq@0.1.0 test:f3-db-push
+> node --test scripts/test-f3-db-push-harness.mjs scripts/test-f3-stub-live-pin-floor.mjs scripts/test-f3-acl-portability.mjs scripts/test-f3-00030-transform-wipe.mjs scripts/test-f3-00057-transform.mjs
+
+TAP version 13
+# Subtest: repo 00030 is pinned and has exactly 14 unnest calls
+ok 1 - repo 00030 is pinned and has exactly 14 unnest calls
+  ---
+  duration_ms: 2.379426
+  ...
+# Subtest: transform replaces those 14 calls only and pins the transformed digest
+ok 2 - transform replaces those 14 calls only and pins the transformed digest
+  ---
+  duration_ms: 0.798155
+  ...
+# Subtest: wrong unnest count HOLDs
+ok 3 - wrong unnest count HOLDs
+  ---
+  duration_ms: 0.764375
+  ...
+# Subtest: ephemeral workdir copy is deleted and repo file is untouched
+ok 4 - ephemeral workdir copy is deleted and repo file is untouched
+  ---
+  duration_ms: 3.040263
+  ...
+# Subtest: hosted bootstrap has no unnest shim; local bootstrap still may
+ok 5 - hosted bootstrap has no unnest shim; local bootstrap still may
+  ---
+  duration_ms: 0.187165
+  ...
+# Subtest: wipe HOLDs on extra public tables and production ref never appears
+ok 6 - wipe HOLDs on extra public tables and production ref never appears
+  ---
+  duration_ms: 0.896614
+  ...
+# Subtest: empty leftover schema_migrations is clean baseline
+ok 7 - empty leftover schema_migrations is clean baseline
+  ---
+  duration_ms: 0.239534
+  ...
+# Subtest: 00118-00123 bytes and repo 00030 stay frozen after these modules load
+ok 8 - 00118-00123 bytes and repo 00030 stay frozen after these modules load
+  ---
+  duration_ms: 0.495059
+  ...
+# Subtest: deterministic scan: executable unnest is only 00030=14 and 00057=1
+ok 9 - deterministic scan: executable unnest is only 00030=14 and 00057=1
+  ---
+  duration_ms: 20.229978
+  ...
+# Subtest: repo 00057 is pinned and has exactly 1 unnest call
+ok 10 - repo 00057 is pinned and has exactly 1 unnest call
+  ---
+  duration_ms: 1.081603
+  ...
+# Subtest: 00057 transform is exactly one replacement and pins the digest
+ok 11 - 00057 transform is exactly one replacement and pins the digest
+  ---
+  duration_ms: 0.469386
+  ...
+# Subtest: wrong 00057 unnest count HOLDs
+ok 12 - wrong 00057 unnest count HOLDs
+  ---
+  duration_ms: 0.56156
+  ...
+# Subtest: ephemeral 00057 workdir copy is deleted and repo file is untouched
+ok 13 - ephemeral 00057 workdir copy is deleted and repo file is untouched
+  ---
+  duration_ms: 4.197828
+  ...
+# Subtest: 00030 exact-14 transform remains pinned alongside 00057
+ok 14 - 00030 exact-14 transform remains pinned alongside 00057
+  ---
+  duration_ms: 0.446675
+  ...
+# Subtest: 00118-00123 and repo 00057 stay frozen after these modules load
+ok 15 - 00118-00123 and repo 00057 stay frozen after these modules load
+  ---
+  duration_ms: 0.325241
+  ...
+# Subtest: founder-authorized digests supersede the pre-portability pins
+ok 16 - founder-authorized digests supersede the pre-portability pins
+  ---
+  duration_ms: 2.776664
+  ...
+# Subtest: exactly 24 ubuntu REVOKEs are optional; no ubuntu role is created
+ok 17 - exactly 24 ubuntu REVOKEs are optional; no ubuntu role is created
+  ---
+  duration_ms: 2.017245
+  ...
+# Subtest: semantic diff is only optional-ubuntu handling inside $f3_owner_acl$
+ok 18 - semantic diff is only optional-ubuntu handling inside $f3_owner_acl$
+  ---
+  duration_ms: 2.751344
+  ...
+# Subtest: optional-role REVOKE is a no-op when absent and revokes when present
+ok 19 - optional-role REVOKE is a no-op when absent and revokes when present # SKIP local PostgreSQL 17 unavailable: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "ubuntu"\\n
+  ---
+  duration_ms: 41.210966
+  ...
+# Subtest: approved disposable pins are exact and production is excluded
+ok 20 - approved disposable pins are exact and production is excluded
+  ---
+  duration_ms: 2.542887
+  ...
+# Subtest: preassigned versions are known before execution and map 00118-00123 exactly
+ok 21 - preassigned versions are known before execution and map 00118-00123 exactly
+  ---
+  duration_ms: 0.554885
+  ...
+# Subtest: collision check PASSes vs prod ceiling, empty disposable history, and no repo timestamp filenames
+ok 22 - collision check PASSes vs prod ceiling, empty disposable history, and no repo timestamp filenames
+  ---
+  duration_ms: 1.277014
+  ...
+# Subtest: collision check fails when a preassigned timestamp filename already exists in repo migrations
+ok 23 - collision check fails when a preassigned timestamp filename already exists in repo migrations
+  ---
+  duration_ms: 0.98669
+  ...
+# Subtest: collision check fails when disposable history already has a preassigned version
+ok 24 - collision check fails when disposable history already has a preassigned version
+  ---
+  duration_ms: 0.738366
+  ...
+# Subtest: frozen 00118-00123 digests stay byte-identical
+ok 25 - frozen 00118-00123 digests stay byte-identical
+  ---
+  duration_ms: 1.964787
+  ...
+# Subtest: isolated workdir copies are byte-identical and do not rewrite repo files
+ok 26 - isolated workdir copies are byte-identical and do not rewrite repo files
+  ---
+  duration_ms: 9.022685
+  ...
+# Subtest: gates refuse production ref before any spawn
+ok 27 - gates refuse production ref before any spawn
+  ---
+  duration_ms: 0.735633
+  ...
+# Subtest: gates refuse unapproved ref, wrong sentinel, missing destructive, missing password
+ok 28 - gates refuse unapproved ref, wrong sentinel, missing destructive, missing password
+  ---
+  duration_ms: 0.662513
+  ...
+# Subtest: db push / repair / query throw synchronously and spawn nothing when unauthorized
+ok 29 - db push / repair / query throw synchronously and spawn nothing when unauthorized
+  ---
+  duration_ms: 0.388676
+  ...
+# Subtest: password is never accepted as -p and never appears in sanitized logs
+ok 30 - password is never accepted as -p and never appears in sanitized logs
+  ---
+  duration_ms: 1.561201
+  ...
+# Subtest: constructed --db-url is session-mode pooler only; direct host and :6543 are refused
+ok 31 - constructed --db-url is session-mode pooler only; direct host and :6543 are refused
+  ---
+  duration_ms: 0.690379
+  ...
+# Subtest: constructed URL and child env strip ambient DATABASE_URL / PG* / tokens
+ok 32 - constructed URL and child env strip ambient DATABASE_URL / PG* / tokens
+  ---
+  duration_ms: 1.417504
+  ...
+# Subtest: candidate command uses --db-url --workdir --yes --skip-vault and never -p/--linked
+ok 33 - candidate command uses --db-url --workdir --yes --skip-vault and never -p/--linked
+  ---
+  duration_ms: 4.47975
+  ...
+# Subtest: db query appends --output-format json before SQL/--file when help shows the flag
+ok 34 - db query appends --output-format json before SQL/--file when help shows the flag
+  ---
+  duration_ms: 5.399599
+  ...
+# Subtest: repair command uses the filename version and --status applied from help
+ok 35 - repair command uses the filename version and --status applied from help
+  ---
+  duration_ms: 5.620468
+  ...
+# Subtest: refuseClockOrGuessedVersion rejects apply-time clock and source labels
+ok 36 - refuseClockOrGuessedVersion rejects apply-time clock and source labels
+  ---
+  duration_ms: 0.458441
+  ...
+# Subtest: history inject SQL is restricted to the exact preassigned target version
+ok 37 - history inject SQL is restricted to the exact preassigned target version
+  ---
+  duration_ms: 0.554689
+  ...
+# Subtest: classifyDbPushHistoryFailure records post-COMMIT split without inventing history rows
+ok 38 - classifyDbPushHistoryFailure records post-COMMIT split without inventing history rows
+  ---
+  duration_ms: 0.560689
+  ...
+# Subtest: cleanup SQL may drop only the throwaway probe
+ok 39 - cleanup SQL may drop only the throwaway probe
+  ---
+  duration_ms: 0.197908
+  ...
+# Subtest: bootstrap and 00001 require psql -f; db query --file is refused
+ok 40 - bootstrap and 00001 require psql -f; db query --file is refused
+  ---
+  duration_ms: 3.375252
+  ...
+# Subtest: gated remote psql -f uses pooler child env and never -p; unauthorized is zero-spawn
+ok 41 - gated remote psql -f uses pooler child env and never -p; unauthorized is zero-spawn
+  ---
+  duration_ms: 29.456795
+  ...
+# Subtest: live HGP remote SQL preserves the live create body
+ok 42 - live HGP remote SQL preserves the live create body
+  ---
+  duration_ms: 0.353026
+  ...
+# Subtest: repository floor lists through 00117 and excludes 00118-00123
+ok 43 - repository floor lists through 00117 and excludes 00118-00123
+  ---
+  duration_ms: 24.257977
+  ...
+# Subtest: recognition allowlist is exactly manual_income
+ok 44 - recognition allowlist is exactly manual_income
+  ---
+  duration_ms: 0.292215
+  ...
+# Subtest: identity GET is skipped without token and fetch ledger stays empty
+ok 45 - identity GET is skipped without token and fetch ledger stays empty
+  ---
+  duration_ms: 0.433416
+  ...
+# Subtest: Management API apply remains permanently refused
+ok 46 - Management API apply remains permanently refused
+  ---
+  duration_ms: 0.232019
+  ...
+# Subtest: CLI discovery uses --help and does not invent repair flags
+ok 47 - CLI discovery uses --help and does not invent repair flags
+  ---
+  duration_ms: 5.840018
+  ...
+# Subtest: qualify runner refuses to run without env (NOT_RUN) and never applies via Management API
+ok 48 - qualify runner refuses to run without env (NOT_RUN) and never applies via Management API
+  ---
+  duration_ms: 0.787138
+  ...
+# Subtest: runbook permanently disqualifies Management API apply and keeps db push as candidate only
+ok 49 - runbook permanently disqualifies Management API apply and keeps db push as candidate only
+  ---
+  duration_ms: 0.667487
+  ...
+# Subtest: repair-safety gate authorizes repair only after all proofs
+ok 50 - repair-safety gate authorizes repair only after all proofs
+  ---
+  duration_ms: 5.493135
+  ...
+# Subtest: authorized repair proves poison absent before spawning migration repair
+ok 51 - authorized repair proves poison absent before spawning migration repair
+  ---
+  duration_ms: 3.568274
+  ...
+# Subtest: repair-safety negatives spawn zero repair processes and still clean poison
+ok 52 - repair-safety negatives spawn zero repair processes and still clean poison
+  ---
+  duration_ms: 8.484362
+  ...
+# Subtest: strict object probe rejects ERROR relation financial_private and all unstructured fallbacks
+ok 53 - strict object probe rejects ERROR relation financial_private and all unstructured fallbacks
+  ---
+  duration_ms: 2.01305
+  ...
+# Subtest: timestamptz lookup resolves to frozen canonical timestamp with time zone identity
+ok 54 - timestamptz lookup resolves to frozen canonical timestamp with time zone identity
+  ---
+  duration_ms: 6.217323
+  ...
+# Subtest: catalog-boundary object-probe identity matrix: exact pairing; semantic misses fail with zero repair
+ok 55 - catalog-boundary object-probe identity matrix: exact pairing; semantic misses fail with zero repair
+  ---
+  duration_ms: 55.572788
+  ...
+# Subtest: live-observed data cannot populate or mutate expected object-probe descriptors
+ok 56 - live-observed data cannot populate or mutate expected object-probe descriptors
+  ---
+  duration_ms: 0.495397
+  ...
+# Subtest: OID changes do not affect cross-database fingerprint or probe-identity equality
+ok 57 - OID changes do not affect cross-database fingerprint or probe-identity equality
+  ---
+  duration_ms: 6.665846
+  ...
+# Subtest: fingerprint mismatch of any catalog value forbids repair
+ok 58 - fingerprint mismatch of any catalog value forbids repair
+  ---
+  duration_ms: 2.360591
+  ...
+# Subtest: fingerprint gate forbids null sides, missing keys, extra keys, and security mismatches
+ok 59 - fingerprint gate forbids null sides, missing keys, extra keys, and security mismatches
+  ---
+  duration_ms: 17.95485
+  ...
+# Subtest: reordered set-like values normalize; security-relevant changes never normalize away
+ok 60 - reordered set-like values normalize; security-relevant changes never normalize away
+  ---
+  duration_ms: 2.820165
+  ...
+# Subtest: expected object is unchanged after observed processing
+ok 61 - expected object is unchanged after observed processing
+  ---
+  duration_ms: 1.23078
+  ...
+# Subtest: module-load frozen expected hashes are independent of observed and match the offline seal
+ok 62 - module-load frozen expected hashes are independent of observed and match the offline seal
+  ---
+  duration_ms: 15.62221
+  ...
+# Subtest: semantic set canonicalization matrix: order-only pass; association/expression mismatches fail with zero repair
+ok 63 - semantic set canonicalization matrix: order-only pass; association/expression mismatches fail with zero repair
+  ---
+  duration_ms: 12.144048
+  ...
+# Subtest: structured ACL object identity matrix: complete pairing; comma truncation fails; repairCalls=0
+ok 64 - structured ACL object identity matrix: complete pairing; comma truncation fails; repairCalls=0
+  ---
+  duration_ms: 9.091895
+  ...
+# Subtest: source contract forbids comma-split ACL object identity parsing
+ok 65 - source contract forbids comma-split ACL object identity parsing
+  ---
+  duration_ms: 2.411432
+  ...
+# Subtest: source contract and unit test prove there is no generic array-sorting fallback
+ok 66 - source contract and unit test prove there is no generic array-sorting fallback
+  ---
+  duration_ms: 1.976102
+  ...
+# Subtest: source contract forbids comma-split, fuzzy matching, and textual type-alias replacement for probe identity
+ok 67 - source contract forbids comma-split, fuzzy matching, and textual type-alias replacement for probe identity
+  ---
+  duration_ms: 1.442605
+  ...
+# Subtest: source contract forbids assigning expected from observed in qualify and repair-safety-gate
+ok 68 - source contract forbids assigning expected from observed in qualify and repair-safety-gate
+  ---
+  duration_ms: 2.822942
+  ...
+# Subtest: cleanup and poison-verify negatives never invoke repair
+ok 69 - cleanup and poison-verify negatives never invoke repair
+  ---
+  duration_ms: 9.141722
+  ...
+# Subtest: teardown poison removal is recorded separately and is not cleanup success
+ok 70 - teardown poison removal is recorded separately and is not cleanup success
+  ---
+  duration_ms: 1.519141
+  ...
+# Subtest: qualify runner classifies before repair and uses the new success label
+ok 71 - qualify runner classifies before repair and uses the new success label
+  ---
+  duration_ms: 0.69109
+  ...
+# Subtest: real isolated staging stages prefix-complete through current and blocks unexpected files
+ok 72 - real isolated staging stages prefix-complete through current and blocks unexpected files
+  ---
+  duration_ms: 5.54699
+  ...
+# Subtest: unexpected staged files and identity/cli misses forbid repair
+ok 73 - unexpected staged files and identity/cli misses forbid repair
+  ---
+  duration_ms: 5.817914
+  ...
+# Subtest: prefix-complete single-pending positives through 00123 and empty pending after repair
+ok 74 - prefix-complete single-pending positives through 00123 and empty pending after repair
+  ---
+  duration_ms: 27.641908
+  ...
+# Subtest: staging-negative matrix forbids db push and repair
+ok 75 - staging-negative matrix forbids db push and repair
+  ---
+  duration_ms: 53.008891
+  ...
+# Subtest: malformed history envelopes and extra CLI drift still stop before push
+ok 76 - malformed history envelopes and extra CLI drift still stop before push
+  ---
+  duration_ms: 12.765485
+  ...
+# Subtest: repair-safety staging gate accepts prefix-complete for 00119 and rejects one-file-only
+ok 77 - repair-safety staging gate accepts prefix-complete for 00119 and rejects one-file-only
+  ---
+  duration_ms: 8.996465
+  ...
+# Subtest: harness uses exported staging preflight rather than a test-local copy
+ok 78 - harness uses exported staging preflight rather than a test-local copy
+  ---
+  duration_ms: 1.052957
+  ...
+# Subtest: canonical full-fingerprint collector is the only post-repair/post-retry assembler
+ok 79 - canonical full-fingerprint collector is the only post-repair/post-retry assembler
+  ---
+  duration_ms: 1.242124
+  ...
+# Subtest: 1-4 full pre/post-repair/post-retry/continuation captures are required on the qualify path
+ok 80 - 1-4 full pre/post-repair/post-retry/continuation captures are required on the qualify path
+  ---
+  duration_ms: 38.227963
+  ...
+# Subtest: 5-6 missing or extra fingerprint keys HOLD on the qualify path
+ok 81 - 5-6 missing or extra fingerprint keys HOLD on the qualify path
+  ---
+  duration_ms: 26.367077
+  ...
+# Subtest: 7-8 partial inventory cannot substitute for post-repair or post-retry fingerprints
+ok 82 - 7-8 partial inventory cannot substitute for post-repair or post-retry fingerprints
+  ---
+  duration_ms: 1.567685
+  ...
+# Subtest: 9-10 copying pre-repair metadata onto post-repair inventory is prohibited
+ok 83 - 9-10 copying pre-repair metadata onto post-repair inventory is prohibited
+  ---
+  duration_ms: 1.431889
+  ...
+# Subtest: 11-13 malformed post-repair captures HOLD and block retry
+ok 84 - 11-13 malformed post-repair captures HOLD and block retry
+  ---
+  duration_ms: 1.200529
+  ...
+# Subtest: 14-17 catalog drift after repair HOLDs and blocks retry
+ok 85 - 14-17 catalog drift after repair HOLDs and blocks retry
+  ---
+  duration_ms: 30.31133
+  ...
+# Subtest: 18-19 post-repair mismatch blocks retry and continuation; 20 post-retry mismatch blocks continuation
+ok 86 - 18-19 post-repair mismatch blocks retry and continuation; 20 post-retry mismatch blocks continuation
+  ---
+  duration_ms: 26.681382
+  ...
+# Subtest: 21 source contract: qualify persists phase captures and never uses inventoryFromQuery as the fingerprint
+ok 87 - 21 source contract: qualify persists phase captures and never uses inventoryFromQuery as the fingerprint
+  ---
+  duration_ms: 0.749181
+  ...
+# Subtest: 22 successful full captures equal sealed expected hashes; frozen expected is not populated from observed
+ok 88 - 22 successful full captures equal sealed expected hashes; frozen expected is not populated from observed
+  ---
+  duration_ms: 74.49606
+  ...
+# Subtest: pre-repair collector rejects still spawn zero repair via the actual gate path
+ok 89 - pre-repair collector rejects still spawn zero repair via the actual gate path
+  ---
+  duration_ms: 1.162798
+  ...
+# Subtest: poison / post-repair / post-retry evaluators expose distinct HOLD strings
+ok 90 - poison / post-repair / post-retry evaluators expose distinct HOLD strings
+  ---
+  duration_ms: 3.68179
+  ...
+# Subtest: required qualification floor label is exact
+ok 91 - required qualification floor label is exact
+  ---
+  duration_ms: 2.67935
+  ...
+# Subtest: hosted default floor mode is stub-live-pin and greenfield is refused
+ok 92 - hosted default floor mode is stub-live-pin and greenfield is refused
+  ---
+  duration_ms: 0.874248
+  ...
+# Subtest: floor SQL steps are the disclosed components and reuse repo fixtures
+ok 93 - floor SQL steps are the disclosed components and reuse repo fixtures
+  ---
+  duration_ms: 7.898854
+  ...
+# Subtest: live pins come from Cut 3 hex and 00115 extract; 00117 bytes stay unmodified
+ok 94 - live pins come from Cut 3 hex and 00115 extract; 00117 bytes stay unmodified
+  ---
+  duration_ms: 3.30247
+  ...
+# Subtest: isolated db-push workdir stays 00118-00123 only
+ok 95 - isolated db-push workdir stays 00118-00123 only
+  ---
+  duration_ms: 7.409554
+  ...
+# Subtest: pre-db-push gates pass the fixture and HOLD on any miss
+ok 96 - pre-db-push gates pass the fixture and HOLD on any miss
+  ---
+  duration_ms: 7.964579
+  ...
+# Subtest: gated stub+live-pin install uses psql -f for all floor SQL and never writes 00117 into migrations
+ok 97 - gated stub+live-pin install uses psql -f for all floor SQL and never writes 00117 into migrations
+  ---
+  duration_ms: 11.414145
+  ...
+# Subtest: parseJsonish extracts JSON from supabase db query table/text stdout
+ok 98 - parseJsonish extracts JSON from supabase db query table/text stdout
+  ---
+  duration_ms: 2.79279
+  ...
+# Subtest: coerceJsonValue peels double-encoded jsonb_build_object strings up to 3 times
+ok 99 - coerceJsonValue peels double-encoded jsonb_build_object strings up to 3 times
+  ---
+  duration_ms: 0.679678
+  ...
+# Subtest: parseEvidenceOutArg accepts equals and space forms
+ok 100 - parseEvidenceOutArg accepts equals and space forms
+  ---
+  duration_ms: 0.450606
+  ...
+# Subtest: Chief 06 pre-stub-floor clean-check PASSes empty post-wipe inventory and HOLDs residuals without wipe
+ok 101 - Chief 06 pre-stub-floor clean-check PASSes empty post-wipe inventory and HOLDs residuals without wipe
+  ---
+  duration_ms: 0.629465
+  ...
+# Subtest: pre-stub clean-check accepts leftover floor storage policies/buckets or zero of them
+ok 102 - pre-stub clean-check accepts leftover floor storage policies/buckets or zero of them
+  ---
+  duration_ms: 0.84462
+  ...
+# Subtest: public rowsFromQuery treats top-level JSON array rows like envelope.rows
+ok 103 - public rowsFromQuery treats top-level JSON array rows like envelope.rows
+  ---
+  duration_ms: 0.774464
+  ...
+# Subtest: STUB_CORE_SQL creates auth.uid/auth.jwt only when missing and soft-fails auth GRANTs
+ok 104 - STUB_CORE_SQL creates auth.uid/auth.jwt only when missing and soft-fails auth GRANTs
+  ---
+  duration_ms: 0.549102
+  ...
+# Subtest: floorApplyOk uses ERROR lines only; NOTICE already-exists cannot mask a real ERROR
+ok 105 - floorApplyOk uses ERROR lines only; NOTICE already-exists cannot mask a real ERROR
+  ---
+  duration_ms: 0.750076
+  ...
+# Subtest: NOTICE already-exists plus auth ERROR fails stub floor and records stderrTail
+ok 106 - NOTICE already-exists plus auth ERROR fails stub floor and records stderrTail
+  ---
+  duration_ms: 6.575951
+  ...
+# Subtest: success verdict is qualification-pass with superseded mechanics-pass and frozen F3 digests stay pinned
+ok 107 - success verdict is qualification-pass with superseded mechanics-pass and frozen F3 digests stay pinned
+  ---
+  duration_ms: 2.052578
+  ...
+1..107
+# tests 107
+# suites 0
+# pass 106
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 837.908792
+=== END test-f3-db-push exit=0 at 2026-09-14T21:32:11Z ===

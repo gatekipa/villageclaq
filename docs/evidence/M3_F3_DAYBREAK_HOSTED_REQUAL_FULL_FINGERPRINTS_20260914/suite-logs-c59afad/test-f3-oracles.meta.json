@@ -1,0 +1,13 @@
+{
+  "name": "test-f3-oracles",
+  "command": "npm run test:f3-oracles",
+  "startedAt": "2026-09-14T21:33:07Z",
+  "endedAt": "2026-09-14T21:33:08Z",
+  "exit": 0,
+  "pass": 577,
+  "fail": 0,
+  "skip": 0,
+  "log": "<redacted-path>",
+  "sha256": "fd7d539ffef08337d19dd53d89277cfa9e0f0fb7a770ce7175a8f50160a3b083",
+  "bytes": 87444
+}

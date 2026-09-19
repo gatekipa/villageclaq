@@ -1,0 +1,39 @@
+{
+  "runtime": {
+    "label": "F16_QUALIFICATION_RESET_RUNTIME_CLOSURE",
+    "sha256": "1ca2a1ceddca278889c7ea92fc10e6a59150e06c5b4f13d4426b293fda29ee78",
+    "count": 45
+  },
+  "union": {
+    "label": "F16_QUALIFICATION_RESET_VERIFICATION_UNION",
+    "sha256": "989c6c99ead2b84190486b856d7e04a1e76824f870f3bbf9438935808c8fb7ff",
+    "count": 48
+  },
+  "f15BaselineCitedNotExpected": {
+    "runtime": {
+      "count": 45,
+      "sha256": "949e68359e55870050e53ef3f93ec8179fc7a5e1587a908044e0ab26cfdbbb92",
+      "notExpectedF16": true
+    },
+    "union": {
+      "count": 48,
+      "sha256": "30dd8ad9972db6ef6dc7d4c35d49ae420ce2c445103c6180d469d901f88c5752",
+      "notExpectedF16": true
+    }
+  },
+  "f14BaselineCitedNotExpected": {
+    "runtime": {
+      "count": 45,
+      "sha256": "f6205869b233eaccf375b299112f7b9c352d58c6f2659471e06d2ca7a241e31d",
+      "notExpectedF15": true
+    },
+    "union": {
+      "count": 48,
+      "sha256": "f6ff6e42b4b5ec14b1a67fe88377d7deafe5f12f2c2c35c834e7c763711e7caa",
+      "notExpectedF15": true,
+      "notExpectedF16": true
+    }
+  },
+  "forbiddenSummary": "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d",
+  "independentReference": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91"
+}

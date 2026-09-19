@@ -1,0 +1,9 @@
+{
+  "redactions": [
+    "db_password",
+    "mgmt_token",
+    "constructed_db_url_password"
+  ],
+  "never_printed_secrets": true,
+  "suite_log_sanitized": true
+}

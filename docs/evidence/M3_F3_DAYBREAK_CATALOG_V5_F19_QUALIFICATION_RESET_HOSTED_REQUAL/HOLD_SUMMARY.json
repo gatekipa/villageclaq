@@ -1,0 +1,17 @@
+{
+  "verdict": "HOLD",
+  "code": "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY",
+  "headUsed": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
+  "priorEvidenceTip": "20b4b340b49bccfc96f23333c731bac54056ea9c",
+  "mutation": false,
+  "unexpectedFunctionLikeCount": 188,
+  "unexpectedDependencyIdentities": [
+    "group_positions_group_id_fkey",
+    "groups_organization_id_fkey",
+    "memberships_user_id_fkey",
+    "notification_policy_occurrences_superseded_by_fkey",
+    "position_assignments_position_id_fkey",
+    "position_permissions_position_id_fkey"
+  ],
+  "note": "Almost all unexpected objects are btree_gist support functions in public; extension btree_gist is on allowlist but member functions are not. Six FKs observed outside finite dep allowlist."
+}

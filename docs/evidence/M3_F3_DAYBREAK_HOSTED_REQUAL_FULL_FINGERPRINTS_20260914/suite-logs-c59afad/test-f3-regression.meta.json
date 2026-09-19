@@ -1,0 +1,13 @@
+{
+  "name": "test-f3-regression",
+  "command": "npm run test:f3-regression",
+  "startedAt": "2026-09-14T21:34:29Z",
+  "endedAt": "2026-09-14T21:34:30Z",
+  "exit": 1,
+  "pass": 0,
+  "fail": 14,
+  "skip": 0,
+  "log": "<redacted-path>",
+  "sha256": "e7b64fc6d94c66d049d6bf80eb3026db1151946d3d8b6d74388ec2ca4529be28",
+  "bytes": 18114
+}

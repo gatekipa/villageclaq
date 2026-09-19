@@ -1,0 +1,18 @@
+{
+  "suite": "test-m2",
+  "classification": "PASS",
+  "expect": {
+    "tests": 111,
+    "pass": 111,
+    "fail": 0,
+    "skipped": 0
+  },
+  "observed": {
+    "tests": 111,
+    "pass": 111,
+    "fail": 0,
+    "skipped": 0
+  },
+  "outSha256": "5506719aaf5b3c1cc93a045ba1c5d45a2e53e1eee22629e3d361ab3d4f711d77",
+  "outBytes": 22327
+}

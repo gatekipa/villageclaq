@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "exclusions": [
+    "evidence-index.json",
+    "evidence-index.sha256"
+  ],
+  "self_hash": false,
+  "detached_checksum": "evidence-index.sha256",
+  "artifacts": [
+    {
+      "path": "CHIEF_HANDOFF.md",
+      "sha256": "19e7a6b5513bd2be74e1bd60946fc2e59cdf6b99473d72a52d95d2bddf435c10",
+      "bytes": 4973
+    },
+    {
+      "path": "EXECUTION_REPORT.json",
+      "sha256": "d06231698e39ed8704d6e0f93d442bb2ab0ec9265f78a46caed9005eb25d7227",
+      "bytes": 4430
+    },
+    {
+      "path": "HOLD_SUMMARY.json",
+      "sha256": "3f9f3bd0171f732164db8cd0eb449ad65d2301ae15f2e617f5bdefffe94955ad",
+      "bytes": 751
+    },
+    {
+      "path": "hosted/qualification-reset/evidence-index.json",
+      "sha256": "f180a5a932cf75d078e2498079b7d3cc815b7fc4a578b2f1a65f6f4eb29da356",
+      "bytes": 1165
+    },
+    {
+      "path": "hosted/qualification-reset/evidence-index.sha256",
+      "sha256": "0d74eefeb0b26c4018d4a3c3896cc2d34e483a858a628a2a358b45fd7962ec52",
+      "bytes": 65
+    },
+    {
+      "path": "hosted/qualification-reset/executable-manifest.json",
+      "sha256": "54b7a0f5e3d5a03d6fe71b9cb492c306d2f8051bc1c8ce34fd51745032764678",
+      "bytes": 443
+    },
+    {
+      "path": "hosted/qualification-reset/FOUNDER_AUTH.json",
+      "sha256": "eeba290bb0bdc6d997b79836841dd3ba20c6d9be77c0b069b882bf98d0f71370",
+      "bytes": 411
+    },
+    {
+      "path": "hosted/qualification-reset/qualify-result.json",
+      "sha256": "914ce37eaafa0d08366d783298e3f02cb1152dceb105253a58c6994864d7f605",
+      "bytes": 26012
+    },
+    {
+      "path": "hosted/qualification-reset/qualify-result.json.meta.json",
+      "sha256": "4498935683ee1cc9445a54f2d45fe1d5f0fd9d3d7ef64164ea73a37d6a4dd636",
+      "bytes": 1146
+    },
+    {
+      "path": "hosted/qualification-reset/qualify-result.STALE_AUTH_HOLD.json",
+      "sha256": "9aee455a182b5fb05876a43ae8deada6e416c5e5f788414c502e3f68b6a043f0",
+      "bytes": 675
+    },
+    {
+      "path": "hosted/qualification-reset/qualify-result.STALE_AUTH_HOLD.json.meta.json",
+      "sha256": "de94dabdedffcde3a7c899fab5be06a1cacdd6e28b5e69d99601f5ab763a3536",
+      "bytes": 1140
+    }
+  ]
+}

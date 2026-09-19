@@ -1,0 +1,34 @@
+{
+  "status": "FILE-BASED RUNNER QUALIFICATION PASS \u2014 STUB/LIVE-PIN FLOOR LIMITATION",
+  "verdict": "FILE-BASED RUNNER QUALIFICATION PASS \u2014 STUB/LIVE-PIN FLOOR LIMITATION",
+  "projectRef": "jkorwnwwmdeflfntxntl",
+  "cli": {
+    "available": true,
+    "bin": "supabase",
+    "status": 0,
+    "text": "2.117.0",
+    "version": "2.117.0",
+    "pinned": "2.117.0",
+    "matchesPin": true
+  },
+  "floorLabel": "DOCUMENTED QUALIFICATION FIXTURE \u2014 NOT A CLEAN 00001\u201300117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "sealedPlatformAclEnvelopeDigest": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "platformAclCalibration_ok": true,
+  "sequence_files": [
+    "00118_f3_bounded_financial_epoch_foundation.sql",
+    "00119_f3_01_core_ledger_foundation.sql",
+    "00120_f3_02_secure_posting_idempotency.sql",
+    "00121_f3_03_projection_read_proof.sql",
+    "00122_f3_04_correction_reversal.sql",
+    "00123_f3_05_opening_cash_command.sql"
+  ],
+  "all_six_fingerprint_equality": true,
+  "claims": {
+    "productionApproval": "NOT CLAIMED",
+    "managementApiApply": "PERMANENTLY DISQUALIFIED",
+    "dbPush": "FILE-BASED RUNNER QUALIFICATION PASS \u2014 STUB/LIVE-PIN FLOOR LIMITATION; prior MECHANICS PASS SUPERSEDED; not production PASS; not clean replay PASS; not merge/deploy auth",
+    "applyTimeClock": "FORBIDDEN / NOT USED",
+    "automaticRepair": "FORBIDDEN",
+    "mechanicsPass": "SUPERSEDED"
+  }
+}

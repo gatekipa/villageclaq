@@ -1,0 +1,286 @@
+{
+  "artifact": "evidence-index",
+  "evidence_dir": "docs/evidence/M3_F3_DAYBREAK_PLATFORM_ACL_CALIBRATION_REQUAL_20260915",
+  "functional_sha": "11c9e3f763bba6dda999ec5554237b0ca39fdaba",
+  "parent_sha": "25bb48a2931735f9ad80cd5e140bdfdeb7870856",
+  "sealed_at_et": "9/15/2026, 7:58:16 PM ET",
+  "file_count": 55,
+  "files": [
+    {
+      "path": "hosted/builder-vs-reference.json",
+      "bytes": 5680,
+      "sha256": "f2bd4d51f3dfa5f7b1b7c2133b650245a97296df1babf25955e7a2aed5535653"
+    },
+    {
+      "path": "hosted/canary-absent-post-reset.json",
+      "bytes": 175,
+      "sha256": "7a421ab25304477728b69bc1af556058f49f6b6fea8982b8ae937543cdfe7dbb"
+    },
+    {
+      "path": "hosted/closure-run.log",
+      "bytes": 1130,
+      "sha256": "03310d72e752f1f11fff6e3a41131284f72b83f3f454f4b8d8f986ce2c1db802"
+    },
+    {
+      "path": "hosted/dependency-closure-manifest.json",
+      "bytes": 20350,
+      "sha256": "bcdd2fa20d3c0af5523f9a6ee5eb26d263814aaa3e55121a3a0f1f8f15b0622c"
+    },
+    {
+      "path": "hosted/dependency-exclusion-manifest.json",
+      "bytes": 2875,
+      "sha256": "b7d430943061c03aae9e3f0621197d215ce731c6f8b9578f66ea674c79bbe3f6"
+    },
+    {
+      "path": "hosted/digests-check.json",
+      "bytes": 1508,
+      "sha256": "5844844f2f86f658be6a7d7b202a60d5d1ad91fd87ee81af39b27e5c5e7fcb2f"
+    },
+    {
+      "path": "hosted/envelope-proof.json",
+      "bytes": 619,
+      "sha256": "3632a410dc12a0b0b2881365557cebe736e411c583289889f95e453621d74e4f"
+    },
+    {
+      "path": "hosted/executable-byte-manifest.json",
+      "bytes": 13143,
+      "sha256": "8247af5b48ef9de8b43f9dd075cda20dfbc74dd0d586a8afe4da733d9cc06f5a"
+    },
+    {
+      "path": "hosted/independent-hashes.json",
+      "bytes": 682,
+      "sha256": "fd1b6b031efdf7a4d52a9b155ebdda78b3da7a0958688af7226af7daed646cca"
+    },
+    {
+      "path": "hosted/local-suites.json",
+      "bytes": 202,
+      "sha256": "8711c3dd2cdb506203e8cb88fcbd8ed733d799e751073fc41029947f7be13a64"
+    },
+    {
+      "path": "hosted/module-load-seal.json",
+      "bytes": 1513,
+      "sha256": "b63df413d7ff8337d55ec93b96d18c9bf3a5f99cb3a2cfc1985a496e4dd96bc5"
+    },
+    {
+      "path": "hosted/negative-hosted-matrix.json",
+      "bytes": 21499,
+      "sha256": "595ac3a3b8bf047c64220c22bc9c7df219369ef4d98cba68965e09807d814708"
+    },
+    {
+      "path": "hosted/not-hosted-proof.json",
+      "bytes": 917,
+      "sha256": "3323e8a575a84ef4b893f89493bf6366e1c8755f5c2ddc9c2abb0e20a99d9934"
+    },
+    {
+      "path": "hosted/phase-a-canary-cleanup-proof.json",
+      "bytes": 323,
+      "sha256": "8632cbb20aad1e4462801919cb988151fd5acc143af3276f44ace9f83a647a58"
+    },
+    {
+      "path": "hosted/phase-a-identity.json",
+      "bytes": 1146,
+      "sha256": "0c0340a8ffa181f771e4cb9d4177a002abaad23b84fe2825aa17c023d50af69d"
+    },
+    {
+      "path": "hosted/phase-a-pre-reset-inventory.json",
+      "bytes": 45924,
+      "sha256": "e285601d01cc28000eef0f457233f37a93724346a135d1592f97aaac07149381"
+    },
+    {
+      "path": "hosted/phase-ab-run.log",
+      "bytes": 710,
+      "sha256": "6ece158442a835ea43ef50c23e3397ce91d3cf29d4d8538efc0fcb6ce36e3b87"
+    },
+    {
+      "path": "hosted/phase-b-reset.json",
+      "bytes": 7959,
+      "sha256": "5bd695b95887c2fe37e576b57c9f1e9618e583be1a927a5b0919927226414c43"
+    },
+    {
+      "path": "hosted/phase-b-reset.sql",
+      "bytes": 4953,
+      "sha256": "0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011"
+    },
+    {
+      "path": "hosted/phase-b-run.log",
+      "bytes": 5065,
+      "sha256": "017c8fef4c9dd98dc4f911fc6b14272b40babd6d9af3f1885eab8442656986f6"
+    },
+    {
+      "path": "hosted/phase-c-run.log",
+      "bytes": 4326,
+      "sha256": "b780ec24c8712697c05308eb8e41f9f2ce07e9819fb3bf1a313a69cc31ff2568"
+    },
+    {
+      "path": "hosted/phase-d-exit.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "hosted/phase-d-qualify.status.json",
+      "bytes": 1438,
+      "sha256": "c1e62aa40c42b193fdcc8515b105a3acf1ec685080494d602c000bcb7f496c3a"
+    },
+    {
+      "path": "hosted/phase-d-run.log",
+      "bytes": 1127,
+      "sha256": "3130b36597e45cbcfea62031dd4b17ef15833f502cdf7e5f83d2cb253cbf4de6"
+    },
+    {
+      "path": "hosted/platform-acl-envelope.json",
+      "bytes": 14443,
+      "sha256": "458d97f330bfc513924a6341c483c0c59bc1aca20d79a1c4b7cbfaa228fd6ae7"
+    },
+    {
+      "path": "hosted/prehosted-gate.json",
+      "bytes": 2573,
+      "sha256": "7e23132545cacda31d68a87524a88d9670dec6ca23dc3b4c62cc6595a890fc8b"
+    },
+    {
+      "path": "hosted/seal-db-bootstrap.json",
+      "bytes": 593,
+      "sha256": "785779def1d28fbc4f813549331db85ee7d9940ed1995bca176271398a00b63f"
+    },
+    {
+      "path": "hosted/six-positive-scenarios.sanitized-summary.json",
+      "bytes": 30944,
+      "sha256": "19401479c20f42720b84faf0a53835e51fec1d3e14d3bdc4db17a20ffe70d814"
+    },
+    {
+      "path": "hosted/working-tree-drift.json",
+      "bytes": 62,
+      "sha256": "6fd85d94da65f1912e7616717d9e46ff09986759b88abf2abe57b8ab03740dd0"
+    },
+    {
+      "path": "phase-a/PHASE_A_SUMMARY.md",
+      "bytes": 1861,
+      "sha256": "849b236e68237be7bc35bedf52f9c6246546636c98c070e17c9759601dc33fbc"
+    },
+    {
+      "path": "phase-a/STATUS.json",
+      "bytes": 537,
+      "sha256": "dc1329e14aba1bb930c480463da618665d192a30d1d0955699f049bb894bca1d"
+    },
+    {
+      "path": "phase-a/canary-acl.json",
+      "bytes": 21473,
+      "sha256": "c980c26e329ba98258e3c07cd3ffb14ff06f7cd5765269ba06259dde2f506ed6"
+    },
+    {
+      "path": "phase-a/canary-precheck-absent.json",
+      "bytes": 221,
+      "sha256": "0198caeb744067baf3f0f12c8f2be1cbd99115c451670f05479f8a3f98f5550d"
+    },
+    {
+      "path": "phase-a/canary-vs-default-acl-proof.json",
+      "bytes": 14657,
+      "sha256": "fe224f56a5a0219782a97306d3eb57adc49e846eb87208e3b957f976823bc823"
+    },
+    {
+      "path": "phase-a/cleanup-proof.json",
+      "bytes": 323,
+      "sha256": "8632cbb20aad1e4462801919cb988151fd5acc143af3276f44ace9f83a647a58"
+    },
+    {
+      "path": "phase-a/pg-default-acl.json",
+      "bytes": 13657,
+      "sha256": "ecdecdec8898f8db68e1128d1fb0cc06c1bfb98ad292adb288cf8d3fe6516faa"
+    },
+    {
+      "path": "phase-a/phase-a-identity.json",
+      "bytes": 2789,
+      "sha256": "89acfec797f444d1eb7cab284ec4e692364002c5e95d0435da7880af7681c3b6"
+    },
+    {
+      "path": "phase-a/platform-acl-envelope.json",
+      "bytes": 14443,
+      "sha256": "458d97f330bfc513924a6341c483c0c59bc1aca20d79a1c4b7cbfaa228fd6ae7"
+    },
+    {
+      "path": "phase-a/session-context.json",
+      "bytes": 4212,
+      "sha256": "a65b35379be2133a77f6bc645da601bf7408c3d89359941030c1b79fa7ce9734"
+    },
+    {
+      "path": "phase-b-17.6/STATUS.json",
+      "bytes": 3370,
+      "sha256": "0b0c41b055c609b5ef167c665ccd353d1feca8b23686a1e1fb62b4722b079acd"
+    },
+    {
+      "path": "phase-b-17.6/SUMMARY.md",
+      "bytes": 1419,
+      "sha256": "8512aaaa77d376a833d0a15ee72397bb0415797deda4abfce80594bcf8ec8601"
+    },
+    {
+      "path": "phase-b-17.6/builder-vs-reference.json",
+      "bytes": 5680,
+      "sha256": "f2bd4d51f3dfa5f7b1b7c2133b650245a97296df1babf25955e7a2aed5535653"
+    },
+    {
+      "path": "phase-b-17.6/envelope-proof.json",
+      "bytes": 619,
+      "sha256": "3632a410dc12a0b0b2881365557cebe736e411c583289889f95e453621d74e4f"
+    },
+    {
+      "path": "phase-b-17.6/independent-hashes.json",
+      "bytes": 682,
+      "sha256": "fd1b6b031efdf7a4d52a9b155ebdda78b3da7a0958688af7226af7daed646cca"
+    },
+    {
+      "path": "phase-b-17.6/local-suites.json",
+      "bytes": 202,
+      "sha256": "8711c3dd2cdb506203e8cb88fcbd8ed733d799e751073fc41029947f7be13a64"
+    },
+    {
+      "path": "phase-b-17.6/not-hosted-proof.json",
+      "bytes": 917,
+      "sha256": "3323e8a575a84ef4b893f89493bf6366e1c8755f5c2ddc9c2abb0e20a99d9934"
+    },
+    {
+      "path": "phase-b-17.6/part2-additive-ff.json",
+      "bytes": 744,
+      "sha256": "d6fae50d5d8be6b61af840324eaab1408c971ad6dbe4dedb4d2534e4c07a82f7"
+    },
+    {
+      "path": "phase-b-17.6/seal-db-bootstrap.json",
+      "bytes": 593,
+      "sha256": "785779def1d28fbc4f813549331db85ee7d9940ed1995bca176271398a00b63f"
+    },
+    {
+      "path": "phase-b-17.6/seal-result.json",
+      "bytes": 19642,
+      "sha256": "f9f311266fd55dd091f85c16649891437b2f91be8e2f769d9bdfbf75c43c1de3"
+    },
+    {
+      "path": "phase-b-17.6/seal.log",
+      "bytes": 2704,
+      "sha256": "ecfa80ec5416fad19fc3afddcd28efeff2012c85cdcce0f743c47a56ee1d5d69"
+    },
+    {
+      "path": "phase-b-17.6/test-f3-db-push.summary.log",
+      "bytes": 1320,
+      "sha256": "51239c7867ed0383fde60fda5cea70c29016ec0c40777b23dc06f0e038631a8a"
+    },
+    {
+      "path": "phase-b-17.6/tip-embedded-hashes.json",
+      "bytes": 682,
+      "sha256": "fd1b6b031efdf7a4d52a9b155ebdda78b3da7a0958688af7226af7daed646cca"
+    },
+    {
+      "path": "phase-b-17.6/tip-three-files.json",
+      "bytes": 193,
+      "sha256": "416c95f0ec7fb01bf3334ec0b3fbee75b850a61583c0c18a0d229a942a3ad875"
+    },
+    {
+      "path": "phase-b-17.6/verify-complete.json",
+      "bytes": 139,
+      "sha256": "2cc42d365e7dadec60d8fd5957716070a5bcc3f1ff92b2409f66fd4baf1640a7"
+    },
+    {
+      "path": "phase-b-17.6/verify-platform-acl-applied.json",
+      "bytes": 298,
+      "sha256": "4f1a4084a33f22d962874784e8a4f68033eed0afb996ee6f9a6878ac7f07ff41"
+    }
+  ],
+  "note": "evidence-index does NOT include its own hash; see detached evidence-index.sha256"
+}

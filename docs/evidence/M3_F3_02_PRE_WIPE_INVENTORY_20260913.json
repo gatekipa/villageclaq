@@ -1,0 +1,26 @@
+{
+  "artifact": "M3_F3_02_PRE_WIPE_INVENTORY_20260913",
+  "status": "PRESERVED",
+  "do_not_convert_to_pass": true,
+  "current_disposable_state": "see M3_F3_03_WIPE_SUCCESS_BASELINE_20260913 — CLEAN, not this inventory",
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "production_ref_contacted": false,
+  "created_by_hosted_tip": "164f57949df774586155b007bf8a6c067ded4874",
+  "prior_partial_evidence": "79bdf1dd55fef7ddd0dcaa2162795a801ed4e741",
+  "recognition": ["manual_income"],
+  "inventory": {
+    "state": "PARTIAL_FAILED_FLOOR",
+    "floor_runner": "gated_psql_file",
+    "applied_through": "00029",
+    "failedAt": "00030_enterprise_branches_committees.sql",
+    "psql_status": 3,
+    "00031_through_00117": "not applied",
+    "sequence_00118_00123": "NOT_RUN",
+    "public_tables_approx": 71,
+    "schema_migrations_rows": 0,
+    "mapi_get_migrations": [],
+    "exchange_rates": "present",
+    "org_group_columns": "present",
+    "committees_budget_allocation": "absent"
+  }
+}

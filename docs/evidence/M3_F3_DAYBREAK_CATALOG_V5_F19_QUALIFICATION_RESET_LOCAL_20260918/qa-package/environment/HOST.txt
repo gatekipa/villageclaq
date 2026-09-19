@@ -1,0 +1,13 @@
+reviewedPin=dfbeb11b49f7e9b061a4c700e0335d125ac669e2
+worktree=[REDACTED_PATH]/f19-dfbeb11
+f18Worktree=[REDACTED_PATH]/f18-ca2c0d5
+qaBranchParent=8e468ba5e82b0e717f28c4142dc7abca4b1641d9
+hostname=cursor
+uname=Linux cursor 6.12.94+ #1 SMP PREEMPT_DYNAMIC Thu Sep 17 16:20:42 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+os=Ubuntu 24.04.4 LTS
+node=v22.14.0
+psqlClient=missing
+pgServer=null
+classification=MUST_LOCAL
+whoami=ubuntu
+dateUtc=2026-09-18T16:45:56Z

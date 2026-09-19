@@ -1,0 +1,9 @@
+{
+  "schema": "f3-non-authoritative-staging-summary-v1",
+  "label": "LOCAL_SYNTHETIC",
+  "not_hosted_execution": true,
+  "authoritative": false,
+  "historical_staging": true,
+  "reason": "Non-authoritative staging snapshot for humans; final identity is committed evidence-index.json",
+  "see": "evidence-index.json"
+}

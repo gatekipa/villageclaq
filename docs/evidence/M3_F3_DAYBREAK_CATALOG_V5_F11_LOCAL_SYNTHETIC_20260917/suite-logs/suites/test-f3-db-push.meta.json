@@ -1,0 +1,39 @@
+{
+  "sha256": "1b3c244171ae13e2cc16f9f3b4d3f7c99a0143f2d843eb6162c7365954263ae5",
+  "bytes": 185592,
+  "encoding": "utf8",
+  "sanitized_before_hash": true,
+  "tests": [
+    {
+      "name": "test-f3-db-push",
+      "ok": true,
+      "exact_error": "ok 19 - optional-role REVOKE is a no-op when absent and revokes when present # SKIP local PostgreSQL 17 unavailable: psql: error: connection to server on socket \"[SANITIZED_ABS_PATH]\" failed: FATAL:  Peer authentication failed for user \"ubuntu\"\\\\n"
+    }
+  ],
+  "transformation_provenance": {
+    "producer": "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile",
+    "builder": "scripts/lib/f3-db-push-repair-safety-gate.mjs#buildSuiteMetaFromSanitizedOut",
+    "transform": "scripts/lib/f3-db-push-repair-safety-gate.mjs#sanitizeEvidenceOutBytes",
+    "source_sha256": "880d457d12bdc474f4ba5389578c241e7f9be2f447803118d51f85293060e983",
+    "source_bytes": 185605,
+    "final_sha256": "1b3c244171ae13e2cc16f9f3b4d3f7c99a0143f2d843eb6162c7365954263ae5",
+    "final_bytes": 185592,
+    "transformations": [
+      "sanitizeEvidenceOutBytes",
+      "nonsemantic_absolute_path_sanitization"
+    ],
+    "pipeline": [
+      "capture",
+      "sanitize",
+      "durable_write",
+      "reread",
+      "hash",
+      "suite_metadata",
+      "indexes"
+    ],
+    "durable_write": {
+      "temp_fsync_close_atomic_rename_reread": true,
+      "verified": true
+    }
+  }
+}

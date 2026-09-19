@@ -1,0 +1,13 @@
+{
+  "exit": 0,
+  "classification": "PASS",
+  "counts": {
+    "tests": null,
+    "pass": 1,
+    "fail": 0,
+    "skipped": 0
+  },
+  "sha256": "34b04320e80c712a18c98822b6bdf2567b0a70381f577f328d5c9693208ed7a7",
+  "bytes": 6884,
+  "note": "re-run after replacing node_modules symlink with bind/hardlink for Turbopack"
+}

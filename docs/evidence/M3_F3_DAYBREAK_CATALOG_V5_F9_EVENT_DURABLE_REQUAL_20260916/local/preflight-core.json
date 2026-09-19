@@ -1,0 +1,119 @@
+{
+  "tip": "268f974a1adec7d3525beb850f7768137262c135",
+  "parent": "facec73a21ec62025d7a33d0ae142dcf05bc1183",
+  "f8_evidence": "080dd6adc79931bbcff25893d407aecf91bc7c14",
+  "ancestry": {
+    "ancestorOk": true,
+    "parentOk": true,
+    "chain": "268f974 fix(f3): index nested evidence-index files by relative path\nfacec73 feat(f3): F9 runner event recorder, durable pre-continuation, outer evidence index"
+  },
+  "scope": {
+    "diffFiles": [
+      "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+      "scripts/qualify-f3-db-push-disposable.mjs",
+      "scripts/test-f3-db-push-harness.mjs"
+    ],
+    "scopeOk": true,
+    "allowed": [
+      "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+      "scripts/qualify-f3-db-push-disposable.mjs",
+      "scripts/test-f3-db-push-harness.mjs"
+    ],
+    "queryParseFrozen": true
+  },
+  "digests": {
+    "digestsOk": true,
+    "digests": {
+      "00118": {
+        "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+        "sha256": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+        "ok": true
+      },
+      "00119": {
+        "file": "00119_f3_01_core_ledger_foundation.sql",
+        "sha256": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+        "ok": true
+      },
+      "00120": {
+        "file": "00120_f3_02_secure_posting_idempotency.sql",
+        "sha256": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+        "ok": true
+      },
+      "00121": {
+        "file": "00121_f3_03_projection_read_proof.sql",
+        "sha256": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+        "ok": true
+      },
+      "00122": {
+        "file": "00122_f3_04_correction_reversal.sql",
+        "sha256": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+        "ok": true
+      },
+      "00123": {
+        "file": "00123_f3_05_opening_cash_command.sql",
+        "sha256": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
+        "ok": true
+      }
+    }
+  },
+  "catalog_v5": {
+    "v5Ok": true,
+    "v5Results": {
+      "00118_f3_bounded_financial_epoch_foundation.sql": {
+        "frozen": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d",
+        "gate": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d",
+        "ok": true
+      },
+      "00119_f3_01_core_ledger_foundation.sql": {
+        "frozen": "5e03111ffb34be3ed76a714370c93e70210a9741a25ac7b9158a9a9ad22f12f4",
+        "gate": "5e03111ffb34be3ed76a714370c93e70210a9741a25ac7b9158a9a9ad22f12f4",
+        "ok": true
+      },
+      "00120_f3_02_secure_posting_idempotency.sql": {
+        "frozen": "35eba6966d2c077a9467f09adc6c85306b951c9d8388ee758a60d924c05ae51a",
+        "gate": "35eba6966d2c077a9467f09adc6c85306b951c9d8388ee758a60d924c05ae51a",
+        "ok": true
+      },
+      "00121_f3_03_projection_read_proof.sql": {
+        "frozen": "8f65797949d8c5afb7dfa99b8020da52385347099b2a5b9be5148b253e76bde6",
+        "gate": "8f65797949d8c5afb7dfa99b8020da52385347099b2a5b9be5148b253e76bde6",
+        "ok": true
+      },
+      "00122_f3_04_correction_reversal.sql": {
+        "frozen": "6e3240759aec64d4692422aac006b4fb865e3039832be84efea86b39c0253175",
+        "gate": "6e3240759aec64d4692422aac006b4fb865e3039832be84efea86b39c0253175",
+        "ok": true
+      },
+      "00123_f3_05_opening_cash_command.sql": {
+        "frozen": "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34",
+        "gate": "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34",
+        "ok": true
+      }
+    }
+  },
+  "independent_ref": {
+    "indOk": true,
+    "sha256": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+    "expected": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91"
+  },
+  "schema_version": "f3-full-catalog-v5",
+  "recognition": [
+    "manual_income"
+  ],
+  "cli": "2.117.0",
+  "closure_file_count": 27,
+  "synthetic": {
+    "nestedInOuter": true,
+    "unindexed_count": 0,
+    "outer_ok": true,
+    "verify_ok": true,
+    "absolute_path_leaks": 0,
+    "secret_scan": "clean",
+    "indexed_count": 11,
+    "index_sha256": "41d7b00f81f4c5e48ca1d283c65a43371fe045d4f85fba0e9e0afb15e7cadbf6"
+  },
+  "secret_scan": "clean",
+  "absolute_path_leaks": 0,
+  "captured_at_et": "9/16/2026, 4:25:09 PM EDT",
+  "verdict": "CORE_PASS"
+}

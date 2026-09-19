@@ -1,0 +1,18 @@
+PHASE_D_EXIT=0
+27775198 /workspace/f3-platform-acl-cal/phase-c-hosted/six-positive-scenarios.raw.json
+27775199 /workspace/f3-platform-acl-cal/phase-c-hosted/phase-d-qualify.stdout.txt
+       0 /workspace/f3-platform-acl-cal/phase-c-hosted/phase-d-qualify.stderr.txt
+55550397 total
+stdout_status FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION
+floorLabel DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT
+verdict FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION
+dbPushCalls None
+repairCalls None
+mig 00118_f3_bounded_financial_epoch_foundation.sql status None failedGates None
+mig 00119_f3_01_core_ledger_foundation.sql status None failedGates None
+mig 00120_f3_02_secure_posting_idempotency.sql status None failedGates None
+mig 00121_f3_03_projection_read_proof.sql status None failedGates None
+mig 00122_f3_04_correction_reversal.sql status None failedGates None
+mig 00123_f3_05_opening_cash_command.sql status None failedGates None
+raw_status FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION
+stderr_snip 

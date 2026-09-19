@@ -1,0 +1,10 @@
+{
+  "superseded_package": "M3_F3_DAYBREAK_CATALOG_V5_SELF_FK_REQUAL_20260915",
+  "superseded_hosted_verdict": "HOLD",
+  "superseded_reason": "HOLD: poison target_identity.database_name is null or empty (F5/tip probe omitted current_database/current_user)",
+  "superseding_package": "M3_F3_DAYBREAK_CATALOG_V5_F51_REQUAL_20260916",
+  "superseding_verdict": "PASS",
+  "superseding_functional_sha": "55995cf0ab5f89dd0b59775eb99a7f63a5e0d5b1",
+  "prior_package_preserved": true,
+  "prior_package_path": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_SELF_FK_REQUAL_20260915/"
+}

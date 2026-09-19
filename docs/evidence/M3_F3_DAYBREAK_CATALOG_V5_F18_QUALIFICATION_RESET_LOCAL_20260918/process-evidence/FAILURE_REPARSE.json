@@ -1,0 +1,6 @@
+{
+  "reparsedStatus": 1,
+  "reparsedStructuredErrorCode": "EACCES",
+  "failureDidNotBecomeSuccess": true,
+  "timeoutDidNotBecomeSuccess": true
+}

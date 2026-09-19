@@ -1,0 +1,310 @@
+{
+  "schema": "f21-preserve-baseline-contract-requirements-trace-v1",
+  "status": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "contractVerdict": "CONTRACT_READY_FOR_QA",
+  "ticketLabel": "catalog-compatibility foundation qualification",
+  "notF306": true,
+  "primary": "REVISED_CONTRACT.md",
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "constants": {
+    "successVerdict": "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+    "alreadyCleanVerdict": "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+    "liveSuccessVerdictUnchanged": "CLEAN_BASELINE",
+    "inventorySchemaName": "f21-qualification-reset-inventory-v1",
+    "inventorySchemaVersion": 1,
+    "liveInventorySchemaName": "f13-qualification-reset-inventory-v1",
+    "liveInventorySchemaVersion": 1,
+    "historicalF20InventorySchemaName": "f20-qualification-reset-inventory-v2",
+    "historicalF20InventorySchemaVersion": 2,
+    "membershipSchemaName": "f21-qualification-reset-membership-v1",
+    "membershipSchemaVersion": 1,
+    "membershipPolicyId": "f21-btree-gist-extension-preserve-scoped-v1",
+    "historicalF20MembershipPolicyId": "f20-btree-gist-extension-removal-scoped-v1",
+    "classification": "EXTENSION_PRESERVE_SCOPED",
+    "authorizedExtensionIdentity": "btree_gist",
+    "deptype": "e"
+  },
+  "requirements": [
+    {
+      "id": "F21-C0",
+      "title": "New baseline identity; do not reuse CLEAN_BASELINE",
+      "sections": [
+        "REVISED_CONTRACT.md#f21-c0--baseline-identity-do-not-reuse-clean_baseline",
+        "PINS.json"
+      ],
+      "founderRequirement": "Propose exact constant names: verdict/success identity, capture envelope schema+version distinct from current f13 inventory schema, membership record schema retaining F20 typed fields, policy id bound into scopeSqlIdentity / founder-auth / runtime closure",
+      "qa": "ACCEPT if constants are exact and CLEAN_BASELINE is not reused; HOLD if preserve state is labeled CLEAN_BASELINE or F13/F20 envelopes can authorize"
+    },
+    {
+      "id": "F21-C1",
+      "title": "Approved application objects + constrained history reset as today",
+      "sections": [
+        "REVISED_CONTRACT.md#f21-c1--application-objects--constrained-history-reset-as-today"
+      ],
+      "founderRequirement": "Approved application objects + constrained history (00118–00123 keys) reset as today",
+      "historyKeys": [
+        { "version": "20260913173000", "name": "f3_bounded_financial_epoch_foundation" },
+        { "version": "20260913173001", "name": "f3_01_core_ledger_foundation" },
+        { "version": "20260913173002", "name": "f3_02_secure_posting_idempotency" },
+        { "version": "20260913173003", "name": "f3_03_projection_read_proof" },
+        { "version": "20260913173004", "name": "f3_04_correction_reversal" },
+        { "version": "20260913173005", "name": "f3_05_opening_cash_command" }
+      ],
+      "qa": "ACCEPT if destructive application resets and six history keys are unchanged; HOLD if history or wipe is relaxed"
+    },
+    {
+      "id": "F21-C2",
+      "title": "btree_gist and authenticated deptype=e members remain installed",
+      "sections": [
+        "REVISED_CONTRACT.md#f21-c2--btree_gist-and-authenticated-deptypee-members-remain-installed"
+      ],
+      "founderRequirement": "btree_gist and authenticated deptype='e' members remain installed — no DROP/ALTER EXTENSION; no individual DROP of members",
+      "qa": "ACCEPT if design forbids DROP/ALTER EXTENSION and member DROP; HOLD if removal language remains"
+    },
+    {
+      "id": "F21-C3",
+      "title": "Remove ext.btree_gist from destructive FINITE_OBJECT_ALLOWLIST",
+      "sections": [
+        "REVISED_CONTRACT.md#f21-c3--reclassify-extbtree_gist-remove-from-destructive-allowlist"
+      ],
+      "founderRequirement": "Remove ext.btree_gist from destructive FINITE_OBJECT_ALLOWLIST under this policy (or reclassify as preserve-only)",
+      "liveDestructiveRow": {
+        "id": "ext.btree_gist",
+        "intendedAction": "DROP EXTENSION btree_gist RESTRICT. Skip only if identity probe shows already absent. BLOCK if dependents remain.",
+        "dropOrder": 1500,
+        "source": "scripts/lib/f3-db-push-qualification-reset-design.mjs @ dfbeb11b49f7e9b061a4c700e0335d125ac669e2"
+      },
+      "qa": "ACCEPT if T4/T6 no longer treat ext.btree_gist as a drop/absence target; HOLD if it remains destructive under this policy"
+    },
+    {
+      "id": "F21-C4",
+      "title": "Unrelated leftovers still HOLD",
+      "sections": [
+        "REVISED_CONTRACT.md#f21-c4--unrelated-objects-unsupported-leftovers-unapproved-deps-still-hold"
+      ],
+      "founderRequirement": "Unrelated objects, unsupported leftovers, unapproved deps still HOLD",
+      "qa": "ACCEPT if existing HOLD codes are retained; HOLD if a blanket or prefix allowlist appears"
+    },
+    {
+      "id": "F21-C5",
+      "title": "Forged membership cannot escape application reset",
+      "sections": [
+        "REVISED_CONTRACT.md#f21-c5--forged-membership-cannot-escape-application-reset"
+      ],
+      "founderRequirement": "Application reset targets never escape reset checks by forging extension membership; unexpected overlap HOLD",
+      "qa": "ACCEPT if overlap is HOLD and destructive identities remain reset-checked; HOLD if membership is a skip bit"
+    },
+    {
+      "id": "F21-C6",
+      "title": "Non-members and unexpected deptype=x still unexpected-object",
+      "sections": [
+        "REVISED_CONTRACT.md#f21-c6--non-members-and-unexpected-deptypex-stay-on-unexpected-object-checks"
+      ],
+      "founderRequirement": "Non-member and unexpected deptype='x' still subject to unexpected-object checks",
+      "rules": [
+        "C6.1 missing fields",
+        "C6.2 conflicting OID/name",
+        "C6.3 wrong-kind",
+        "C6.4 wrong-OID",
+        "C6.5 wrong refclassid",
+        "C6.6 deptype≠e presented as membership",
+        "C6.7 forged/partial records",
+        "C6.8 stale schema version",
+        "C6.9 incompatible scope/authorization identity"
+      ],
+      "qa": "ACCEPT if C6.1–C6.9 BLOCK and 'x' is not EXTENSION_PRESERVE_SCOPED; HOLD if name-only or 'x' can pass"
+    },
+    {
+      "id": "F21-C7",
+      "title": "Existing target/auth/process-evidence/TX checks remain effective",
+      "sections": [
+        "REVISED_CONTRACT.md#f21-c7--existing-target--auth--process-evidence--tx-checks-remain-effective"
+      ],
+      "founderRequirement": "Existing target/auth/process-evidence/TX checks remain effective",
+      "failClosedCodes": [
+        "F13_FOUNDER_AUTH_MISMATCH",
+        "F13_FOUNDER_AUTH_STALE",
+        "F13_FOUNDER_AUTH_TARGET",
+        "F13_INVENTORY_CAPTURE_INCOMPLETE",
+        "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH"
+      ],
+      "qa": "ACCEPT if T0–T7, thrown, budget, and production refuse are retained; HOLD if any are weakened"
+    },
+    {
+      "id": "F21-C8",
+      "title": "Qualification-reset path only; do not relax classifyInventory CLEAN_BASELINE",
+      "sections": [
+        "REVISED_CONTRACT.md#f21-c8--disposable-qualification-reset-path-only-do-not-relax-classifyinventory"
+      ],
+      "founderRequirement": "Scope: disposable qualification-reset path only — do not globally relax classifyInventory CLEAN_BASELINE for wipe or other consumers",
+      "qa": "ACCEPT if wipe/pre-stub-floor/repair-safety-gate stay on CLEAN_BASELINE; HOLD if classifyInventory extraFunctions is relaxed"
+    },
+    {
+      "id": "F21-C9",
+      "title": "Part B exact six historicalNoticeOnly FK tuples; 43 = 31 + 12",
+      "sections": [
+        "REVISED_CONTRACT.md#f21-c9--part-b-exact-six-historicalnoticeonly-fk-tuples-43--31--12"
+      ],
+      "founderRequirement": "Part B: exact six historicalNoticeOnly FK tuples; dependency set 43 = 31 + 12. No CASCADE; no new table deletion authority",
+      "intendedCounts": {
+        "total": 43,
+        "migrationCreated": 31,
+        "historicalNoticeOnly": 12,
+        "addedByThisContract": 6,
+        "liveAtFunctionalTip": 37
+      },
+      "exactTuples": [
+        {
+          "kind": "foreign_key",
+          "identity": "group_positions_group_id_fkey",
+          "from": "public.group_positions",
+          "to": "public.groups",
+          "historicalNoticeOnly": true
+        },
+        {
+          "kind": "foreign_key",
+          "identity": "groups_organization_id_fkey",
+          "from": "public.groups",
+          "to": "public.organizations",
+          "historicalNoticeOnly": true
+        },
+        {
+          "kind": "foreign_key",
+          "identity": "memberships_user_id_fkey",
+          "from": "public.memberships",
+          "to": "public.profiles",
+          "historicalNoticeOnly": true
+        },
+        {
+          "kind": "foreign_key",
+          "identity": "notification_policy_occurrences_superseded_by_fkey",
+          "from": "public.notification_policy_occurrences",
+          "to": "public.notification_policy_occurrences",
+          "historicalNoticeOnly": true,
+          "selfReference": true
+        },
+        {
+          "kind": "foreign_key",
+          "identity": "position_assignments_position_id_fkey",
+          "from": "public.position_assignments",
+          "to": "public.group_positions",
+          "historicalNoticeOnly": true
+        },
+        {
+          "kind": "foreign_key",
+          "identity": "position_permissions_position_id_fkey",
+          "from": "public.position_permissions",
+          "to": "public.group_positions",
+          "historicalNoticeOnly": true
+        }
+      ],
+      "ddlProvenance": {
+        "files": [
+          "supabase/migrations/00001_core_tables.sql",
+          "supabase/migrations/00117_m2_notification_policy_foundation.sql"
+        ],
+        "functionalTip": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2"
+      },
+      "qa": "ACCEPT if tuples match exactly and destructive table scope is unchanged; HOLD if CASCADE or new DROP TABLE authority appears"
+    },
+    {
+      "id": "F21-C10",
+      "title": "Honest concurrency; no Part A catalog lock",
+      "sections": [
+        "REVISED_CONTRACT.md#f21-c10--concurrency-guarantee-honest-no-part-a-catalog-lock",
+        "CHIEF_HANDOFF.md"
+      ],
+      "founderRequirement": "Concurrency guarantee (document honestly): this path does not remove the extension/members; does not claim global extension DDL is frozen; retain protection for remaining destructive ops (table/function drops + history deletes). No Part A catalog lock / privilege work",
+      "claims": [
+        "does not remove btree_gist or authenticated deptype=e members",
+        "destructive table/function/type/schema drops and history deletes retain T2/T3/T5/T6",
+        "advisory lock remains helper-only"
+      ],
+      "doesNotClaim": [
+        "global extension DDL freeze",
+        "privilege-safe catalog lock on pg_depend/pg_extension",
+        "F20-R5 satisfaction",
+        "cooperative advisory lock as membership freeze"
+      ],
+      "qa": "ACCEPT if residual race is stated and no lock is invented; HOLD if the contract claims catalog freeze or Part A privilege work"
+    },
+    {
+      "id": "F21-C11",
+      "title": "Hosted 188 ownership CANNOT CONFIRM",
+      "sections": [
+        "REVISED_CONTRACT.md#f21-c11--hosted-188-ownership-remains-cannot-confirm"
+      ],
+      "founderRequirement": "Hosted 188 ownership remains CANNOT CONFIRM",
+      "qa": "ACCEPT if CANNOT CONFIRM is explicit and names are insufficient; HOLD if hosted gbt_* are treated as proven members"
+    },
+    {
+      "id": "F21-C12",
+      "title": "Preserve F20 DESIGN_HOLD; do not implement extension-removal",
+      "sections": [
+        "REVISED_CONTRACT.md#f21-c12--f20-design_hold-package-remains-historical-no-extension-removal-implementation"
+      ],
+      "founderRequirement": "Preserve F20 DESIGN_HOLD package as historical; do not implement extension-removal",
+      "preservedPackages": [
+        "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F20_CATALOG_COMPAT_DESIGN_20260919/",
+        "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F20_EXTENSION_PRESERVE_FEASIBILITY_20260919/"
+      ],
+      "f20HoldCode": "F20_EXTENSION_MEMBERSHIP_SERIALIZATION_UNSUPPORTED",
+      "qa": "ACCEPT if F20 packages are unrewritten and this commit is docs-only; HOLD if removal or Part A is implemented"
+    },
+    {
+      "id": "F21-C13",
+      "title": "Capture survival chain and T3/T6 membership re-read",
+      "sections": [
+        "REVISED_CONTRACT.md#f21-c13--capture-survival-chain"
+      ],
+      "founderRequirement": "Traceability support: typed membership must survive capture→validateObjectAllowlist→T3; T6 must not require extension absence",
+      "survivalChain": [
+        "capture SQL",
+        "parse",
+        "snapshot",
+        "serialize/reread",
+        "evidence",
+        "validateObjectAllowlist",
+        "SQL emitter / T3"
+      ],
+      "qa": "ACCEPT if lossy identity reduction is called out and T3/T6 rules are testable; HOLD if JS capture can substitute for live pg_depend"
+    },
+    {
+      "id": "F21-C14",
+      "title": "Implementation scope preview (identify extra paths before editing)",
+      "sections": [
+        "REVISED_CONTRACT.md#f21-c14--implementation-scope-preview-do-not-implement-now"
+      ],
+      "founderRequirement": "List intended file edits (preview only) limited to authorized files; identify any extra path needed before editing",
+      "intendedFiles": [
+        "scripts/lib/f3-db-push-inventory.mjs",
+        "scripts/lib/f3-db-push-qualification-reset-design.mjs",
+        "scripts/lib/f3-db-push-qualification-reset.mjs",
+        "scripts/test-f3-qualification-reset-design.mjs",
+        "scripts/test-f3-qualification-reset.mjs",
+        "scripts/prove-f3-qualification-reset-local.mjs"
+      ],
+      "additionalPathsIdentifyOnly": [
+        "scripts/qualify-f3-db-push-disposable.mjs",
+        "scripts/lib/f3-db-push-wipe.mjs",
+        "scripts/lib/f3-db-push-pre-stub-floor-clean-check.mjs",
+        "scripts/test-f3-db-push-harness.mjs",
+        "scripts/lib/f3-db-push-repair-safety-gate.mjs"
+      ],
+      "extraPathRequiredBeforeImplementation": {
+        "path": "scripts/qualify-f3-db-push-disposable.mjs",
+        "reason": "qualificationResetQualifyEmitPayload falls back to F13_RESET_SUCCESS_VERDICT/F13_RESET_ALREADY_CLEAN_VERDICT (CLEAN_BASELINE) when resetResult.verdict is missing; comments still say success is CLEAN_BASELINE. Authorize this extra edit before implementation if fallback/comments would reintroduce CLEAN_BASELINE as a qualification-reset success identity."
+      },
+      "qa": "ACCEPT if no implementation is in this commit and extra paths are identified; HOLD if a required extra path is omitted or scripts are edited now"
+    },
+    {
+      "id": "F21-C15",
+      "title": "QA acceptance checklist",
+      "sections": [
+        "REVISED_CONTRACT.md#f21-c15--qa-acceptance-checklist"
+      ],
+      "founderRequirement": "Checklist VillageClaq QA must pass/fail",
+      "qa": "This file plus REVISED_CONTRACT.md F21-C15 table are the mapping. Independent QA ACCEPT or HOLD each Q1–Q18."
+    }
+  ]
+}

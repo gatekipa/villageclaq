@@ -19,6 +19,16 @@ import {
   APPROVED_HISTORICAL_DEPENDENCY_COUNT,
   APPROVED_MIGRATION_CREATED_DEPENDENCY_COUNT,
   AUTHENTICATED_HISTORY_KEYS,
+  F21_AUTHORIZED_EXTENSION_IDENTITY,
+  F21_MEMBERSHIP_CLASSIFICATION,
+  F21_MEMBERSHIP_POLICY_ID,
+  F21_MEMBERSHIP_SCHEMA_STALE,
+  F21_QUALIFICATION_RESET_INVENTORY_SCHEMA,
+  F21_QUALIFICATION_RESET_MEMBERSHIP_SCHEMA,
+  F21_UNAPPROVED_EXTENSION_AUTODROP,
+  F21_UNEXPECTED_MEMBERSHIP_OVERLAP,
+  FINITE_PRESERVE_EXTENSION_ALLOWLIST,
+  authenticateExtensionMembership,
   CANONICAL_FUNCTION_IDENTITY_SQL,
   F13_DESIGN_LABEL,
   F13_MUTATION_ENTRYPOINT_OPEN,
@@ -502,14 +512,139 @@ test("F17-B01 T1 isolation is READ COMMITTED after snapshot-before-lock proof", 
   assert.ok(t3.checks.some((check) => /captured approved starting set/.test(check)));
 });
 
-test("F16-B01 finite dependency contract remains 37 complete tuples", () => {
-  assert.equal(FINITE_DEPENDENCY_ALLOWLIST.length, 37);
-  assert.equal(APPROVED_DEPENDENCY_TUPLE_COUNT, 37);
+test("F16-B01 finite dependency contract remains 43 complete tuples after F21 Part B", () => {
+  assert.equal(FINITE_DEPENDENCY_ALLOWLIST.length, 43);
+  assert.equal(APPROVED_DEPENDENCY_TUPLE_COUNT, 43);
   assert.equal(APPROVED_MIGRATION_CREATED_DEPENDENCY_COUNT, 31);
-  assert.equal(APPROVED_HISTORICAL_DEPENDENCY_COUNT, 6);
+  assert.equal(APPROVED_HISTORICAL_DEPENDENCY_COUNT, 12);
   const t3 = TRANSACTION_PHASES.find((phase) => phase.id === "T3_REVALIDATE");
   assert.ok(t3.checks.some((check) => /freshly query the transaction catalog/.test(check)));
   assert.ok(t3.checks.some((check) => /captured approved starting set/.test(check)));
   assert.ok(t3.checks.some((check) => /cross-boundary FK protection retained/.test(check)));
+});
+
+function validF21Membership(overrides = {}) {
+  return {
+    schema: F21_QUALIFICATION_RESET_MEMBERSHIP_SCHEMA,
+    schemaVersion: 1,
+    kind: "function",
+    identity: "public.gbt_text_consistent(internal,text,smallint,oid,internal)",
+    classid: 1255,
+    objid: 424242,
+    objsubid: 0,
+    refclassid: 3079,
+    refobjid: 989898,
+    extname: F21_AUTHORIZED_EXTENSION_IDENTITY,
+    deptype: "e",
+    ...overrides,
+  };
+}
+
+test("F21-C3 ext.btree_gist is preserve-only and not a destructive drop target", () => {
+  const ext = FINITE_OBJECT_ALLOWLIST.find((row) => row.id === "ext.btree_gist");
+  assert.ok(ext);
+  assert.equal(ext.destructive, false);
+  assert.match(ext.intendedAction, /PRESERVE EXTENSION btree_gist/);
+  assert.match(ext.intendedAction, /No DROP EXTENSION/);
+  assert.doesNotMatch(ext.intendedAction, /DROP EXTENSION btree_gist RESTRICT/);
+  assert.equal(FINITE_PRESERVE_EXTENSION_ALLOWLIST.length, 1);
+  assert.equal(FINITE_PRESERVE_EXTENSION_ALLOWLIST[0].identity, "btree_gist");
+  const t6 = TRANSACTION_PHASES.find((phase) => phase.id === "T6_FINAL");
+  assert.ok(t6.checks.some((check) => /must not require the extension absent/.test(check)));
+  const t2 = TRANSACTION_PHASES.find((phase) => phase.id === "T2_LOCK");
+  assert.ok(t2.checks.some((check) => /does not claim global extension DDL is frozen/.test(check)));
+});
+
+test("F21-C9 six historicalNoticeOnly FK tuples are exact", () => {
+  const expected = [
+    ["group_positions_group_id_fkey", "public.group_positions", "public.groups"],
+    ["groups_organization_id_fkey", "public.groups", "public.organizations"],
+    ["memberships_user_id_fkey", "public.memberships", "public.profiles"],
+    ["notification_policy_occurrences_superseded_by_fkey", "public.notification_policy_occurrences", "public.notification_policy_occurrences"],
+    ["position_assignments_position_id_fkey", "public.position_assignments", "public.group_positions"],
+    ["position_permissions_position_id_fkey", "public.position_permissions", "public.group_positions"],
+  ];
+  for (const [identity, from, to] of expected) {
+    const row = FINITE_DEPENDENCY_ALLOWLIST.find((dep) => dep.identity === identity);
+    assert.ok(row, identity);
+    assert.equal(row.kind, "foreign_key");
+    assert.equal(row.from, from);
+    assert.equal(row.to, to);
+    assert.equal(row.historicalNoticeOnly, true);
+    assert.match(row.handling, /no CASCADE/);
+    assert.doesNotMatch(row.handling, /DROP\s+\S+\s+CASCADE/i);
+  }
+  const altered = validateObjectAllowlist(["public.financial_accounts"], [{
+    kind: "foreign_key",
+    identity: "group_positions_group_id_fkey",
+    from: "public.group_positions",
+    to: "public.profiles",
+  }]);
+  assert.equal(altered.ok, false);
+});
+
+test("F21-C0/C6 typed membership authenticates; forged/name-only/x/stale reject", () => {
+  const valid = {
+    kind: "function",
+    identity: "public.gbt_text_consistent(internal,text,smallint,oid,internal)",
+    membership: validF21Membership(),
+  };
+  const ok = validateObjectAllowlist([valid], []);
+  assert.equal(ok.ok, true);
+  const auth = authenticateExtensionMembership(valid, {
+    objectKind: "function",
+    objectIdentity: valid.identity,
+  });
+  assert.equal(auth.ok, true);
+  assert.equal(auth.classification, F21_MEMBERSHIP_CLASSIFICATION);
+
+  const nameOnly = validateObjectAllowlist(["public.gbt_text_consistent(internal,text,smallint,oid,internal)"], []);
+  assert.equal(nameOnly.ok, false);
+  assert.equal(nameOnly.code, "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY");
+
+  const forged = validateObjectAllowlist([{
+    kind: "function",
+    identity: "public.gbt_text_consistent(internal,text,smallint,oid,internal)",
+    extensionMemberOf: "btree_gist",
+  }], []);
+  assert.equal(forged.ok, false);
+
+  const wrongOid = validateObjectAllowlist([{
+    kind: "function",
+    identity: "public.gbt_text_consistent(internal,text,smallint,oid,internal)",
+    membership: validF21Membership({ objid: 0 }),
+  }], []);
+  assert.equal(wrongOid.ok, false);
+
+  const deptypeX = validateObjectAllowlist([{
+    kind: "function",
+    identity: "public.gbt_text_consistent(internal,text,smallint,oid,internal)",
+    membership: validF21Membership({ deptype: "x" }),
+  }], []);
+  assert.equal(deptypeX.ok, false);
+  assert.equal(deptypeX.code, F21_UNAPPROVED_EXTENSION_AUTODROP);
+
+  const stale = validateObjectAllowlist([{
+    kind: "function",
+    identity: "public.gbt_text_consistent(internal,text,smallint,oid,internal)",
+    membership: validF21Membership({ schema: "f20-qualification-reset-membership-v1" }),
+  }], []);
+  assert.equal(stale.ok, false);
+  assert.equal(stale.code, F21_MEMBERSHIP_SCHEMA_STALE);
+
+  const overlap = validateObjectAllowlist([{
+    kind: "function",
+    identity: "public.financial_accounts",
+    membership: validF21Membership({
+      kind: "table",
+      identity: "public.financial_accounts",
+    }),
+  }], []);
+  assert.equal(overlap.ok, false);
+  assert.equal(overlap.code, F21_UNEXPECTED_MEMBERSHIP_OVERLAP);
+
+  assert.equal(scopeSqlIdentityDigest().length, 64);
+  assert.match(F21_MEMBERSHIP_POLICY_ID, /f21-btree-gist-extension-preserve-scoped-v1/);
+  assert.equal(F21_QUALIFICATION_RESET_INVENTORY_SCHEMA, "f21-qualification-reset-inventory-v1");
 });
 

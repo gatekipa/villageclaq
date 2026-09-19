@@ -125,6 +125,8 @@ import {
   F13_F15_VERIFICATION_UNION_LABEL,
   F13_RESET_ALREADY_CLEAN_VERDICT,
   F13_RESET_SUCCESS_VERDICT,
+  F21_RESET_ALREADY_CLEAN_VERDICT,
+  F21_RESET_SUCCESS_VERDICT,
   F13_RUNTIME_LABEL,
   F13_SHARED_ORCHESTRATION_ID,
   F13_SUMMARY_FILE_HASH_FORBIDDEN,
@@ -390,15 +392,40 @@ export const runHostedQualificationReset = runQualificationResetQualifyPath;
 
 /**
  * Qualify-main emit for --qualification-reset. Successful authorized
- * synthetic/complete reset is CLEAN_BASELINE — never labeled HOLD.
+ * synthetic/complete reset is QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1.
+ * Missing verdict fails closed — never falls back to CLEAN_BASELINE.
  */
 export function qualificationResetQualifyEmitPayload(resetResult = {}) {
   const ok = resetResult.ok === true;
-  const successVerdict = resetResult.verdict && resetResult.verdict !== FILE_BASED_RUNNER_VERDICTS.HOLD
+  const explicitPreserve = resetResult.verdict === F21_RESET_SUCCESS_VERDICT
+    || resetResult.verdict === F21_RESET_ALREADY_CLEAN_VERDICT;
+  if (ok && !explicitPreserve) {
+    return {
+      status: "HOLD",
+      verdict: FILE_BASED_RUNNER_VERDICTS.HOLD,
+      ok: false,
+      reason: "qualification-reset success requires explicit QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+      code: "F21_PRESERVE_BASELINE_VERDICT_REQUIRED",
+      label: F13_RUNTIME_LABEL,
+      sharedOrchestration: F13_SHARED_ORCHESTRATION_ID,
+      wipeToBaselineRejected: true,
+      wipeRejectionCode: F13_WIPE_STILL_REJECTED,
+      productionContacted: false,
+      spies: resetResult.spies,
+      executed: resetResult.executed === true,
+      committed: resetResult.committed === true,
+      mutation: resetResult.mutation === true,
+      alreadyClean: resetResult.alreadyClean === true,
+      inventoryCaptured: resetResult.inventoryCaptured === true,
+      captureSqlWired: resetResult.captureSqlWired === true,
+      observedFromCapture: resetResult.observedFromCapture || null,
+      automaticReplay: false,
+      fingerprint_exact: false,
+    };
+  }
+  const successVerdict = explicitPreserve
     ? resetResult.verdict
-    : (resetResult.alreadyClean === true
-      ? F13_RESET_ALREADY_CLEAN_VERDICT
-      : F13_RESET_SUCCESS_VERDICT);
+    : FILE_BASED_RUNNER_VERDICTS.HOLD;
   return {
     status: ok ? "OK" : "HOLD",
     verdict: ok ? successVerdict : FILE_BASED_RUNNER_VERDICTS.HOLD,
@@ -796,7 +823,7 @@ export function buildProposedQualificationResetHostedPlan({
       "HEAD equals bound functionalTip",
       "founder authorization artifact binds target+functionalTip+runtimeClosure+scopeSqlIdentity+budget",
       "inventory capture uses QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL with machine-readable psql argv",
-      "CLEAN_BASELINE alreadyClean is a no-op and does not consume the reset budget",
+      "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1 alreadyClean is a no-op and does not consume the reset budget",
       "RESET_ELIGIBLE leftovers require eligible===true before one gated apply",
     ],
     commands: {
@@ -910,7 +937,7 @@ export function renderProposedQualificationResetHostedPlanMarkdown(
     "## Wipe / budget / CLEAN_BASELINE",
     "",
     `- Wipe remains \`${plan.wipeRejectionCode}\``,
-    `- alreadyClean CLEAN_BASELINE is a no-op and does not consume the reset budget`,
+    `- alreadyClean QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1 is a no-op and does not consume the reset budget`,
     `- Consumed reset only after a confirmed committed mutation`,
     `- Budget: constrainedResets=${plan.budget?.constrainedResets}, completeQualsFrom00118=${plan.budget?.completeQualsFrom00118}, secondReset=${plan.budget?.secondReset}`,
     "",

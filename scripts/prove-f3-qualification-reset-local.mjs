@@ -20,8 +20,11 @@ import {
   AUTHENTICATED_HISTORY_KEYS,
   CANONICAL_FUNCTION_IDENTITY_SQL,
   F13_WIPE_REJECTION_CODE,
+  F21_UNEXPECTED_MEMBERSHIP_OVERLAP,
+  F21_MEMBERSHIP_SCHEMA_STALE,
   canonicalizeFunctionIdentity,
   scopeSqlIdentityDigest,
+  validateObjectAllowlist,
 } from "./lib/f3-db-push-qualification-reset-design.mjs";
 import {
   FAILED_FLOOR_STORAGE_BUCKETS,
@@ -47,6 +50,7 @@ import {
   TX_OBSERVATION_SUCCESS_SEQUENCE,
   adaptStoredProcessRecordToParserInput,
   attestQualificationResetReparse,
+  bindFounderAuthorizationArtifact,
   buildQualificationResetSql,
   createLocalFixtureQualificationResetTransportAdapter,
   evaluateBackendBoundLockProof,
@@ -308,8 +312,136 @@ function runOfflineChecks() {
     captureComplete: true,
   });
   checks.push(record("GENUINE_CLEAN_STILL_CLEAN", "check", {
-    ok: genuineClean.ok === true && genuineClean.alreadyClean === true && genuineClean.verdict === "CLEAN_BASELINE",
+    ok: genuineClean.ok === true && genuineClean.alreadyClean === true && genuineClean.verdict === "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
     verdict: genuineClean.verdict,
+  }));
+  const nameOnlyGbt = evaluateQualificationResetEligibility({
+    observedObjectIdentities: ["public.gbt_text_consistent(internal,text,smallint,oid,internal)"],
+    observedDependencies: [],
+    observedHistoryRows: [],
+    inventoryCaptured: true,
+    captureComplete: true,
+  });
+  checks.push(record("F21_NAME_ONLY_GBT_HOLD", "check", {
+    ok: nameOnlyGbt.ok === false && nameOnlyGbt.code === "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY",
+    code: nameOnlyGbt.code,
+  }));
+  const sixFkOk = evaluateQualificationResetEligibility({
+    observedObjectIdentities: [
+      "public.group_positions",
+      "public.groups",
+      "public.organizations",
+      "public.memberships",
+      "public.profiles",
+      "public.notification_policy_occurrences",
+      "public.position_assignments",
+      "public.position_permissions",
+    ],
+    observedDependencies: [
+      { kind: "foreign_key", identity: "group_positions_group_id_fkey", from: "public.group_positions", to: "public.groups" },
+      { kind: "foreign_key", identity: "groups_organization_id_fkey", from: "public.groups", to: "public.organizations" },
+      { kind: "foreign_key", identity: "memberships_user_id_fkey", from: "public.memberships", to: "public.profiles" },
+      { kind: "foreign_key", identity: "notification_policy_occurrences_superseded_by_fkey", from: "public.notification_policy_occurrences", to: "public.notification_policy_occurrences" },
+      { kind: "foreign_key", identity: "position_assignments_position_id_fkey", from: "public.position_assignments", to: "public.group_positions" },
+      { kind: "foreign_key", identity: "position_permissions_position_id_fkey", from: "public.position_permissions", to: "public.group_positions" },
+    ],
+    observedHistoryRows: AUTHENTICATED_HISTORY_KEYS.map((key) => ({ version: key.version, name: key.name })),
+    inventory: emptyQualificationResetInventoryObject({
+      public_tables: [
+        "group_positions",
+        "groups",
+        "organizations",
+        "memberships",
+        "profiles",
+        "notification_policy_occurrences",
+        "position_assignments",
+        "position_permissions",
+      ],
+      schema_migrations_rows: AUTHENTICATED_HISTORY_KEYS.length,
+    }),
+    inventoryCaptured: true,
+    captureComplete: true,
+  });
+  checks.push(record("F21_SIX_HISTORICAL_FKS_OK", "check", {
+    ok: sixFkOk.ok === true && sixFkOk.eligible === true,
+    verdict: sixFkOk.verdict,
+  }));
+  const alteredFk = evaluateQualificationResetEligibility({
+    observedObjectIdentities: ["public.group_positions", "public.groups"],
+    observedDependencies: [{
+      kind: "foreign_key",
+      identity: "group_positions_group_id_fkey",
+      from: "public.group_positions",
+      to: "public.profiles",
+    }],
+    observedHistoryRows: [],
+    inventoryCaptured: true,
+    captureComplete: true,
+  });
+  checks.push(record("F21_ALTERED_FK_HOLD", "check", {
+    ok: alteredFk.ok === false && alteredFk.code === "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY",
+    code: alteredFk.code,
+  }));
+  const overlap = validateObjectAllowlist([{
+    kind: "table",
+    identity: "public.financial_accounts",
+    membership: {
+      schema: "f21-qualification-reset-membership-v1",
+      schemaVersion: 1,
+      kind: "table",
+      identity: "public.financial_accounts",
+      classid: 1259,
+      objid: 999001,
+      objsubid: 0,
+      refclassid: 3079,
+      refobjid: 999002,
+      extname: "btree_gist",
+      deptype: "e",
+    },
+  }], []);
+  checks.push(record("F21_UNEXPECTED_MEMBERSHIP_OVERLAP_HOLD", "check", {
+    ok: overlap.ok === false && overlap.code === F21_UNEXPECTED_MEMBERSHIP_OVERLAP,
+    code: overlap.code,
+  }));
+  const staleEnvelope = parseQualificationResetInventoryProcessResult({
+    status: 0,
+    stdout: `${JSON.stringify({
+      schema: "f13-qualification-reset-inventory-v1",
+      schema_version: 1,
+      inventory_capture_sql: "scripts/lib/f3-db-push-inventory.mjs INVENTORY_CAPTURE_SQL",
+      capture_complete: true,
+      inventory: emptyQualificationResetInventoryObject(),
+      discovered_objects: [],
+      discovered_dependencies: [],
+      observed_objects: [],
+      observed_dependencies: [],
+      observed_history_rows: [],
+    })}\n`,
+    stderr: "",
+    signal: null,
+    timeout: false,
+  });
+  checks.push(record("F21_STALE_INVENTORY_SCHEMA_HOLD", "check", {
+    ok: staleEnvelope.ok === false && staleEnvelope.code === F21_MEMBERSHIP_SCHEMA_STALE,
+    code: staleEnvelope.code,
+  }));
+  const staleAuth = bindFounderAuthorizationArtifact({
+    targetRef: APPROVED_DISPOSABLE_PROJECT_REF,
+    functionalCandidateSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    closureDigest: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    scopeSqlIdentitySha256: "0".repeat(64),
+    executionBudget: { constrainedResets: 1, completeQualsFrom00118: 1, secondReset: false },
+  }, {
+    targetRef: APPROVED_DISPOSABLE_PROJECT_REF,
+    functionalCandidateSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    closureDigest: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    scopeSqlIdentitySha256: scopeSqlIdentityDigest(),
+    syntheticBinding: true,
+    bindingRole: "negative-test-input",
+  });
+  checks.push(record("F21_STALE_SCOPE_DIGEST_HOLD", "check", {
+    ok: staleAuth.ok === false && staleAuth.code === "F13_FOUNDER_AUTH_MISMATCH",
+    code: staleAuth.code,
   }));
   const leftoverNamedStorage = evaluateQualificationResetEligibility({
     observedObjectIdentities: ["public.financial_accounts"],
@@ -572,6 +704,9 @@ function seedHistory(psql, url) {
 }
 
 function seedEligibleLeftover(psql, url) {
+  psql(url, "DROP TABLE IF EXISTS public.financial_accounts RESTRICT;");
+  psql(url, "DROP FUNCTION IF EXISTS public.post_financial_opening_cash(jsonb) RESTRICT;");
+  psql(url, "DELETE FROM supabase_migrations.schema_migrations;");
   psql(url, "CREATE TABLE public.financial_accounts (id uuid PRIMARY KEY);");
   psql(url, `CREATE FUNCTION public.post_financial_opening_cash(p_command jsonb)
     RETURNS void LANGUAGE sql AS $$ SELECT 1; $$;`);
@@ -1059,6 +1194,9 @@ async function runLocalPgScenarios() {
         mustLocalRecord("TX_T3_UNAPPROVED_FK_ROLLBACK"),
         mustLocalRecord("TX_T3_RETARGETED_FK_ROLLBACK"),
         mustLocalRecord("TX_T3_APPROVED_SET_SUCCESS"),
+        mustLocalRecord("F21_TX_PRESERVE_EXTENSION_AND_MEMBERS"),
+        mustLocalRecord("F21_NAME_ONLY_OR_UNRELATED_LEFTOVER_HOLD"),
+        mustLocalRecord("F21_LOCAL_QUAL_FROM_00118_PREINSTALLED_INDUCED_HOLD"),
         mustLocalRecord("TX_T3_LOCKWAIT_UNAPPROVED_FK_ROLLBACK"),
         mustLocalRecord("TX_T3_LOCKWAIT_RETARGETED_FK_ROLLBACK"),
       ],
@@ -1128,7 +1266,7 @@ async function runLocalPgScenarios() {
     scenarios.push(record("TX_SUCCESSFUL_RESET", "scenario", {
       ok: success.ok === true
         && success.committed === true
-        && success.verdict === "CLEAN_BASELINE"
+        && success.verdict === "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1"
         && successAttestation.interpretedCommitted === true
         && String(accountsGone).includes("t")
         && String(historyGone) === "0",
@@ -1315,7 +1453,7 @@ async function runLocalPgScenarios() {
     scenarios.push(record("TX_T3_APPROVED_SET_SUCCESS", "scenario", {
       ok: t3Success.ok === true
         && t3Success.committed === true
-        && t3Success.verdict === "CLEAN_BASELINE"
+        && t3Success.verdict === "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1"
         && t3SuccessAttestation.interpretedCommitted === true
         && String(t3AccountsGone).includes("t")
         && String(t3MembershipsGone).includes("t")
@@ -1329,9 +1467,99 @@ async function runLocalPgScenarios() {
       observedPhase: t3Success.transportInterpretation?.phaseReached ?? null,
       verdict: t3Success.verdict,
       executedTransaction: true,
-      note: "unchanged approved dependency set commits CLEAN_BASELINE",
+      note: "unchanged approved dependency set commits QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
       reparseAttestation: t3SuccessAttestation,
       ...t3SuccessEvidence,
+    }));
+
+    dropApprovedDependencyState(psql, db.url);
+    psql(db.url, "CREATE EXTENSION IF NOT EXISTS btree_gist;");
+    const extBefore = psql(db.url, "SELECT extname FROM pg_extension WHERE extname = 'btree_gist';");
+    const membersBefore = psql(db.url, `SELECT count(*)::text FROM pg_depend d
+      JOIN pg_extension e ON e.oid = d.refobjid
+      WHERE e.extname = 'btree_gist' AND d.deptype = 'e';`);
+    seedEligibleLeftover(psql, db.url);
+    const preserveCapture = captureViaLocalPsql(psql, db.url);
+    const preserveObserved = preserveCapture.ok
+      ? (await import("./lib/f3-db-push-inventory.mjs")).observedFromQualificationResetCapture(preserveCapture.body)
+      : preserveCapture;
+    const typedMembers = Array.isArray(preserveObserved.observedObjects)
+      ? preserveObserved.observedObjects.filter((row) => row?.membership?.deptype === "e")
+      : [];
+    const preserveReset = preserveObserved.ok ? await executeSharedReset(db, preserveObserved) : preserveObserved;
+    const extAfter = psql(db.url, "SELECT extname FROM pg_extension WHERE extname = 'btree_gist';");
+    const membersAfter = psql(db.url, `SELECT count(*)::text FROM pg_depend d
+      JOIN pg_extension e ON e.oid = d.refobjid
+      WHERE e.extname = 'btree_gist' AND d.deptype = 'e';`);
+    const accountsGonePreserve = psql(db.url, "SELECT to_regclass('public.financial_accounts') IS NULL;");
+    const historyGonePreserve = psql(db.url, "SELECT count(*)::text FROM supabase_migrations.schema_migrations;");
+    const preserveEvidence = processEvidence(preserveReset);
+    scenarios.push(record("F21_TX_PRESERVE_EXTENSION_AND_MEMBERS", "scenario", {
+      ok: preserveReset.ok === true
+        && preserveReset.committed === true
+        && preserveReset.verdict === "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1"
+        && String(extBefore).includes("btree_gist")
+        && String(extAfter).includes("btree_gist")
+        && String(membersBefore) === String(membersAfter)
+        && Number(membersAfter) > 0
+        && typedMembers.length > 0
+        && String(accountsGonePreserve).includes("t")
+        && String(historyGonePreserve) === "0",
+      capture: "preinstalled-btree_gist-plus-eligible-leftover",
+      resetApply: preserveReset.spies?.applyCalls ?? 0,
+      sql: preserveReset.plan?.sql != null,
+      commit: preserveReset.committed === true,
+      verdict: preserveReset.verdict,
+      executedTransaction: true,
+      note: "reset preserves btree_gist and authenticated members; only approved leftovers/history change",
+      catalogBefore: { extension: extBefore, memberCount: membersBefore, typedMembers: typedMembers.length },
+      catalogAfter: { extension: extAfter, memberCount: membersAfter },
+      ...preserveEvidence,
+    }));
+
+    psql(db.url, `CREATE FUNCTION public.gbt_forged_nameonly() RETURNS void LANGUAGE sql AS $$ SELECT 1; $$;`);
+    const forgedCapture = captureViaLocalPsql(psql, db.url);
+    const forgedObserved = forgedCapture.ok
+      ? (await import("./lib/f3-db-push-inventory.mjs")).observedFromQualificationResetCapture(forgedCapture.body)
+      : forgedCapture;
+    const forgedElig = forgedObserved.ok
+      ? evaluateQualificationResetEligibility({
+        observedObjectIdentities: forgedObserved.observedObjects,
+        observedDependencies: forgedObserved.observedDependencies,
+        observedHistoryRows: forgedObserved.observedHistoryRows,
+        inventory: forgedObserved.inventory,
+        inventoryCaptured: true,
+        captureComplete: true,
+      })
+      : forgedObserved;
+    scenarios.push(record("F21_NAME_ONLY_OR_UNRELATED_LEFTOVER_HOLD", "scenario", {
+      ok: forgedElig.ok === false && forgedElig.code === "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY",
+      capture: "unrelated-gbt-name-without-membership",
+      code: forgedElig.code,
+      verdict: "HOLD",
+      executedTransaction: false,
+      note: "name-only/unrelated leftover is unexpected; extension members are not a prefix allowlist",
+    }));
+    psql(db.url, "DROP FUNCTION IF EXISTS public.gbt_forged_nameonly() RESTRICT;");
+
+    let induced00118 = "";
+    try {
+      const sql00118 = fs.readFileSync(path.join(ROOT, "supabase/migrations/00118_f3_bounded_financial_epoch_foundation.sql"), "utf8");
+      psql(db.url, sql00118);
+      induced00118 = "UNEXPECTED_APPLY";
+    } catch (err) {
+      induced00118 = String(err?.message || err);
+    }
+    const extAfter00118 = psql(db.url, "SELECT extname FROM pg_extension WHERE extname = 'btree_gist';");
+    scenarios.push(record("F21_LOCAL_QUAL_FROM_00118_PREINSTALLED_INDUCED_HOLD", "scenario", {
+      ok: /F3_ABORT/.test(induced00118) && String(extAfter00118).includes("btree_gist"),
+      capture: "preinstalled-extension-then-00118",
+      code: "F3_ABORT",
+      verdict: "HOLD",
+      executedTransaction: false,
+      note: "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+      inducedFailure: induced00118.slice(0, 400),
+      catalogAfter: { extension: extAfter00118 },
     }));
 
     scenarios.push(await runLockWaitDriftScenario({
@@ -1397,6 +1625,9 @@ export async function proveQualificationResetLocal() {
         mustLocalRecord("TX_T3_UNAPPROVED_FK_ROLLBACK"),
         mustLocalRecord("TX_T3_RETARGETED_FK_ROLLBACK"),
         mustLocalRecord("TX_T3_APPROVED_SET_SUCCESS"),
+        mustLocalRecord("F21_TX_PRESERVE_EXTENSION_AND_MEMBERS"),
+        mustLocalRecord("F21_NAME_ONLY_OR_UNRELATED_LEFTOVER_HOLD"),
+        mustLocalRecord("F21_LOCAL_QUAL_FROM_00118_PREINSTALLED_INDUCED_HOLD"),
         mustLocalRecord("TX_T3_LOCKWAIT_UNAPPROVED_FK_ROLLBACK"),
         mustLocalRecord("TX_T3_LOCKWAIT_RETARGETED_FK_ROLLBACK"),
       ],

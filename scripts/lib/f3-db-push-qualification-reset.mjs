@@ -33,6 +33,8 @@ import {
 import {
   AUTHENTICATED_HISTORY_KEYS,
   CANONICAL_FUNCTION_IDENTITY_SQL,
+  F21_AUTHORIZED_EXTENSION_IDENTITY,
+  F21_UNAPPROVED_EXTENSION_AUTODROP,
   FINITE_DEPENDENCY_ALLOWLIST,
   FINITE_OBJECT_ALLOWLIST,
   F13_WIPE_REJECTION_CODE,
@@ -40,10 +42,12 @@ import {
   UNCERTAIN_COMMIT_POLICY,
   canonicalizeFunctionIdentity,
   dependencyTupleKey,
+  destructiveObjectAllowlist,
   isFinancialPrefixSelector,
   scopeSqlIdentityDigest,
   sha256Utf8,
   snapshotDependencyTuple,
+  snapshotDiscoveredObject,
   validateFounderAuthorizationBinding,
   validateHistoryKeys,
   validateHistorySqlPredicate,
@@ -185,16 +189,18 @@ export const QUALIFICATION_RESET_LOCK_ORDER = Object.freeze({
     "SET LOCAL timeouts",
     "T1 advisory xact lock (cooperative helper; may precede relation locks)",
     "T1 observation SELECT (does not freeze a SERIALIZABLE snapshot)",
-    "T2 LOCK schema_migrations SHARE ROW EXCLUSIVE + allowlisted tables ACCESS EXCLUSIVE (wait window)",
+    "T2 LOCK schema_migrations SHARE ROW EXCLUSIVE + allowlisted destructive tables ACCESS EXCLUSIVE (wait window)",
     "T3 live catalog exact-tuple revalidation sees commits that landed while waiting",
   ]),
   protectionsRetained: Object.freeze([
-    "ACCESS EXCLUSIVE on leftover allowlisted relations",
+    "ACCESS EXCLUSIVE on leftover allowlisted destructive relations",
     "SHARE ROW EXCLUSIVE on supabase_migrations.schema_migrations",
-    "T3 exact (kind,identity,from,to) vs captured approved set AND 37-tuple contract",
-    "T6 final allowlisted-absent + history-absent assertions",
+    "T3 exact (kind,identity,from,to) vs captured approved set AND 43-tuple contract",
+    "T6 final destructive-absent + history-absent assertions; preserve extension may remain",
     "unexpected object / history mismatch still abort before mutation",
     "advisory lock remains helper-only",
+    "does not remove btree_gist or authenticated deptype='e' members",
+    "does not claim global extension DDL is frozen; no Part A catalog lock",
   ]),
 });
 export const PROCESS_EVIDENCE_CONTRACT = Object.freeze({
@@ -269,6 +275,12 @@ export const QUALIFICATION_RESET_VERIFICATION_ONLY_FILES = Object.freeze([
 ]);
 export const F13_RESET_SUCCESS_VERDICT = "CLEAN_BASELINE";
 export const F13_RESET_ALREADY_CLEAN_VERDICT = "CLEAN_BASELINE";
+export const F21_RESET_SUCCESS_VERDICT = "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1";
+export const F21_RESET_ALREADY_CLEAN_VERDICT = "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1";
+
+function isF21PreserveBaselineVerdict(verdict) {
+  return verdict === F21_RESET_SUCCESS_VERDICT || verdict === F21_RESET_ALREADY_CLEAN_VERDICT;
+}
 export const F13_INVENTORY_CAPTURE_REQUIRED = "F13_INVENTORY_CAPTURE_REQUIRED";
 export const F13_INVENTORY_CAPTURE_SQL_ARTIFACT =
   "scripts/lib/f3-db-push-inventory.mjs INVENTORY_CAPTURE_SQL";
@@ -347,7 +359,7 @@ function identityOf(item) {
 
 function snapshotObserved(input = {}) {
   return {
-    objects: (input.observedObjects || []).map(identityOf),
+    objects: (input.observedObjects || []).map((item) => snapshotDiscoveredObject(item) || identityOf(item)),
     dependencies: (input.observedDependencies || []).map((dep) => {
       const tuple = snapshotDependencyTuple(dep);
       if (tuple) return tuple;
@@ -645,8 +657,8 @@ export function planQualificationReset(input = {}) {
         sqlSha256: null,
         dropOrder: [],
         historyDeletes: [],
-        verdict: F13_RESET_ALREADY_CLEAN_VERDICT,
-        code: "F13_RESET_ALREADY_CLEAN",
+        verdict: F21_RESET_ALREADY_CLEAN_VERDICT,
+        code: "F21_RESET_ALREADY_CLEAN",
         reason: eligibility.reason,
         phase: F13_RUNTIME_PHASE,
         label: F13_RUNTIME_LABEL,
@@ -757,20 +769,7 @@ function dropStatement(row) {
   if (row.kind === "sequence") return `DROP SEQUENCE IF EXISTS ${identity} RESTRICT;`;
   if (row.kind === "schema") return `DROP SCHEMA IF EXISTS ${identity} RESTRICT;`;
   if (row.kind === "extension") {
-    return [
-      `IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = ${sqlString(identity)}) THEN`,
-      `    IF EXISTS (`,
-      `      SELECT 1`,
-      `      FROM pg_depend d`,
-      `      JOIN pg_extension e ON e.oid = d.refobjid`,
-      `      WHERE e.extname = ${sqlString(identity)}`,
-      `        AND d.deptype = 'n'`,
-      `    ) THEN`,
-      `      RAISE EXCEPTION 'F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: leftover dependents of %', ${sqlString(identity)};`,
-      `    END IF;`,
-      `    EXECUTE 'DROP EXTENSION IF EXISTS ${identity} RESTRICT';`,
-      `  END IF;`,
-    ].join("\n");
+    throw new Error("F21_UNAPPROVED_EXTENSION_AUTODROP: preserve-baseline emitter cannot drop extensions");
   }
   throw new Error(`unsupported allowlist kind ${row.kind}`);
 }
@@ -854,7 +853,7 @@ export function buildQualificationResetSql({
     expectedDependencyKeys.push(key);
   }
 
-  const ordered = [...FINITE_OBJECT_ALLOWLIST].sort((a, b) => a.dropOrder - b.dropOrder);
+  const ordered = destructiveObjectAllowlist().slice().sort((a, b) => a.dropOrder - b.dropOrder);
   const tableIdentities = ordered.filter((o) => o.kind === "table" || o.kind === "sequence").map((o) => o.identity);
   const functionIdentities = ordered.filter((o) => o.kind === "function").map((o) => o.identity);
   const typeIdentities = ordered.filter((o) => o.kind === "type").map((o) => o.identity);
@@ -869,9 +868,12 @@ export function buildQualificationResetSql({
 
   const [lockK1, lockK2] = advisoryLockKeys(scopeSqlIdentitySha256);
   const lines = [];
-  lines.push("-- F13 qualification-reset generated from FINITE_OBJECT_ALLOWLIST");
+  lines.push("-- F21 qualification-reset generated from destructive FINITE_OBJECT_ALLOWLIST");
   lines.push(`-- scopeSqlIdentitySha256 ${scopeSqlIdentitySha256}`);
-  lines.push("-- RESTRICT only. Generated from the finite allowlist; unexpected leftovers block.");
+  lines.push("-- policy f21-btree-gist-extension-preserve-scoped-v1");
+  lines.push("-- PRESERVE btree_gist + authenticated deptype='e' members. Extension drop and alter statements are not emitted.");
+  lines.push("-- Does not claim global extension DDL is frozen. Advisory lock is helper-only.");
+  lines.push("-- RESTRICT only. Generated from the finite destructive allowlist; unexpected leftovers block.");
   lines.push("-- T0_BIND completed client-side (candidate SHA, disposable pins, founder artifact, production refuse).");
   lines.push("-- T1_BEGIN");
   lines.push("-- Isolation is READ COMMITTED: SERIALIZABLE snapshot is taken at the first");
@@ -948,6 +950,15 @@ export function buildQualificationResetSql({
   lines.push("  JOIN pg_namespace n ON n.oid = p.pronamespace");
   lines.push("  WHERE n.nspname IN ('financial_core', 'financial_private', 'public')");
   lines.push(`    AND ${CANONICAL_FUNCTION_IDENTITY_SQL} <> ALL (${sqlTextArray(functionIdentities)})`);
+  lines.push("    AND NOT EXISTS (");
+  lines.push("      SELECT 1 FROM pg_depend d");
+  lines.push("      JOIN pg_extension e ON e.oid = d.refobjid");
+  lines.push("      WHERE d.classid = 'pg_proc'::regclass");
+  lines.push("        AND d.objid = p.oid");
+  lines.push("        AND d.refclassid = 'pg_extension'::regclass");
+  lines.push(`        AND e.extname = ${sqlString(F21_AUTHORIZED_EXTENSION_IDENTITY)}`);
+  lines.push("        AND d.deptype = 'e'");
+  lines.push("    )");
   lines.push("  LIMIT 1;");
   lines.push("  IF extra IS NOT NULL THEN");
   lines.push("    RAISE EXCEPTION 'F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: %', extra;");
@@ -959,9 +970,41 @@ export function buildQualificationResetSql({
   lines.push("    AND t.typtype IN ('e', 'c')");
   lines.push("    AND NOT EXISTS (SELECT 1 FROM pg_class c WHERE c.reltype = t.oid AND c.relkind = 'r')");
   lines.push(`    AND (n.nspname || '.' || t.typname) <> ALL (${sqlTextArray(typeIdentities)})`);
+  lines.push("    AND NOT EXISTS (");
+  lines.push("      SELECT 1 FROM pg_depend d");
+  lines.push("      JOIN pg_extension e ON e.oid = d.refobjid");
+  lines.push("      WHERE d.classid = 'pg_type'::regclass");
+  lines.push("        AND d.objid = t.oid");
+  lines.push("        AND d.refclassid = 'pg_extension'::regclass");
+  lines.push(`        AND e.extname = ${sqlString(F21_AUTHORIZED_EXTENSION_IDENTITY)}`);
+  lines.push("        AND d.deptype = 'e'");
+  lines.push("    )");
   lines.push("  LIMIT 1;");
   lines.push("  IF extra IS NOT NULL THEN");
   lines.push("    RAISE EXCEPTION 'F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: %', extra;");
+  lines.push("  END IF;");
+  lines.push("  -- Live pg_depend re-read. JS capture is not a substitute.");
+  lines.push("  extra := NULL;");
+  lines.push("  SELECT d.deptype::text INTO extra");
+  lines.push("  FROM pg_depend d");
+  lines.push("  JOIN pg_extension e ON e.oid = d.refobjid");
+  lines.push("  WHERE e.extname = " + sqlString(F21_AUTHORIZED_EXTENSION_IDENTITY));
+  lines.push("    AND d.refclassid = 'pg_extension'::regclass");
+  lines.push("    AND d.deptype = 'x'");
+  lines.push("  LIMIT 1;");
+  lines.push("  IF extra IS NOT NULL THEN");
+  lines.push(`    RAISE EXCEPTION '${F21_UNAPPROVED_EXTENSION_AUTODROP}: deptype=x is not EXTENSION_PRESERVE_SCOPED';`);
+  lines.push("  END IF;");
+  lines.push("  extra := NULL;");
+  lines.push("  SELECT d.deptype::text INTO extra");
+  lines.push("  FROM pg_depend d");
+  lines.push("  JOIN pg_extension e ON e.oid = d.refobjid");
+  lines.push("  WHERE e.extname = " + sqlString(F21_AUTHORIZED_EXTENSION_IDENTITY));
+  lines.push("    AND d.refclassid = 'pg_extension'::regclass");
+  lines.push("    AND d.deptype = 'n'");
+  lines.push("  LIMIT 1;");
+  lines.push("  IF extra IS NOT NULL THEN");
+  lines.push("    RAISE EXCEPTION 'F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: leftover dependents of %', " + sqlString(F21_AUTHORIZED_EXTENSION_IDENTITY) + ";");
   lines.push("  END IF;");
   lines.push("  SELECT con.conname INTO extra");
   lines.push("  FROM pg_constraint con");
@@ -1043,6 +1086,9 @@ export function buildQualificationResetSql({
   lines.push("  deleted_version text;");
   lines.push("BEGIN");
   for (const row of ordered) {
+    if (row.destructive === false || row.kind === "extension") {
+      continue;
+    }
     if (row.kind === "schema") {
       const contents = ordered.filter((o) => o.schema === row.identity && o.kind !== "schema");
       lines.push(`  IF to_regnamespace(${sqlString(row.identity)}) IS NOT NULL THEN`);
@@ -1062,8 +1108,6 @@ export function buildQualificationResetSql({
       lines.push(`    EXECUTE 'DROP SCHEMA IF EXISTS ${row.identity} RESTRICT';`);
       lines.push("  END IF;");
       void contents;
-    } else if (row.kind === "extension") {
-      lines.push(`  ${dropStatement(row)}`);
     } else {
       lines.push(`  EXECUTE ${sqlString(dropStatement(row))};`);
     }
@@ -1095,6 +1139,7 @@ export function buildQualificationResetSql({
   lines.push("  leftover text;");
   lines.push("BEGIN");
   for (const row of ordered) {
+    if (row.destructive === false || row.kind === "extension") continue;
     lines.push(`  IF ${presenceProbe(row)} IS NOT NULL THEN`);
     lines.push(`    RAISE EXCEPTION 'F13_FINAL_BASELINE_FAILED: % still present', ${sqlString(row.identity)};`);
     lines.push("  END IF;");
@@ -1104,6 +1149,55 @@ export function buildQualificationResetSql({
     lines.push(`    RAISE EXCEPTION 'F13_FINAL_BASELINE_FAILED: history % still present', ${sqlString(key.version)};`);
     lines.push("  END IF;");
   }
+  lines.push("  leftover := NULL;");
+  lines.push(`  SELECT ${CANONICAL_FUNCTION_IDENTITY_SQL} INTO leftover`);
+  lines.push("  FROM pg_proc p");
+  lines.push("  JOIN pg_namespace n ON n.oid = p.pronamespace");
+  lines.push("  WHERE n.nspname IN ('financial_core', 'financial_private', 'public')");
+  lines.push("    AND NOT EXISTS (");
+  lines.push("      SELECT 1 FROM pg_depend d");
+  lines.push("      JOIN pg_extension e ON e.oid = d.refobjid");
+  lines.push("      WHERE d.classid = 'pg_proc'::regclass");
+  lines.push("        AND d.objid = p.oid");
+  lines.push("        AND d.refclassid = 'pg_extension'::regclass");
+  lines.push(`        AND e.extname = ${sqlString(F21_AUTHORIZED_EXTENSION_IDENTITY)}`);
+  lines.push("        AND d.deptype = 'e'");
+  lines.push("    )");
+  lines.push("  LIMIT 1;");
+  lines.push("  IF leftover IS NOT NULL THEN");
+  lines.push("    RAISE EXCEPTION 'F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: %', leftover;");
+  lines.push("  END IF;");
+  lines.push("  leftover := NULL;");
+  lines.push("  SELECT n.nspname || '.' || t.typname INTO leftover");
+  lines.push("  FROM pg_type t");
+  lines.push("  JOIN pg_namespace n ON n.oid = t.typnamespace");
+  lines.push("  WHERE n.nspname IN ('financial_core', 'financial_private', 'public')");
+  lines.push("    AND t.typtype IN ('e', 'c')");
+  lines.push("    AND NOT EXISTS (SELECT 1 FROM pg_class c WHERE c.reltype = t.oid AND c.relkind = 'r')");
+  lines.push("    AND NOT EXISTS (");
+  lines.push("      SELECT 1 FROM pg_depend d");
+  lines.push("      JOIN pg_extension e ON e.oid = d.refobjid");
+  lines.push("      WHERE d.classid = 'pg_type'::regclass");
+  lines.push("        AND d.objid = t.oid");
+  lines.push("        AND d.refclassid = 'pg_extension'::regclass");
+  lines.push(`        AND e.extname = ${sqlString(F21_AUTHORIZED_EXTENSION_IDENTITY)}`);
+  lines.push("        AND d.deptype = 'e'");
+  lines.push("    )");
+  lines.push("  LIMIT 1;");
+  lines.push("  IF leftover IS NOT NULL THEN");
+  lines.push("    RAISE EXCEPTION 'F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: %', leftover;");
+  lines.push("  END IF;");
+  lines.push("  leftover := NULL;");
+  lines.push("  SELECT d.deptype::text INTO leftover");
+  lines.push("  FROM pg_depend d");
+  lines.push("  JOIN pg_extension e ON e.oid = d.refobjid");
+  lines.push("  WHERE e.extname = " + sqlString(F21_AUTHORIZED_EXTENSION_IDENTITY));
+  lines.push("    AND d.refclassid = 'pg_extension'::regclass");
+  lines.push("    AND d.deptype = 'x'");
+  lines.push("  LIMIT 1;");
+  lines.push("  IF leftover IS NOT NULL THEN");
+  lines.push(`    RAISE EXCEPTION '${F21_UNAPPROVED_EXTENSION_AUTODROP}: deptype=x is not EXTENSION_PRESERVE_SCOPED';`);
+  lines.push("  END IF;");
   lines.push("  leftover := NULL;");
   lines.push("END");
   lines.push("$f13_final$;");
@@ -1120,6 +1214,9 @@ export function buildQualificationResetSql({
   if (!historyPred.ok) return historyPred;
   if (/\bCASCADE\b/i.test(sql) || /name\s+IS\s+NULL/i.test(sql) || /financial_\*/.test(sql)) {
     return fail("F13_EMITTER_REFUSED_FORBIDDEN_SQL", "Emitter refused to produce CASCADE, null-name, or prefix SQL");
+  }
+  if (/DROP\s+EXTENSION/i.test(sql) || /ALTER\s+EXTENSION/i.test(sql)) {
+    return fail("F13_EMITTER_REFUSED_FORBIDDEN_SQL", "Emitter refused DROP/ALTER EXTENSION on the preserve-baseline path");
   }
 
   return {
@@ -1652,12 +1749,12 @@ export function attestQualificationResetReparse(record, extra = {}) {
   const genuineSuccess = processFailed === false
     && t7CommittedTrue === true
     && interpreted.committed === true
-    && (verdict == null || verdict === F13_RESET_SUCCESS_VERDICT);
+    && (verdict == null || isF21PreserveBaselineVerdict(verdict));
   const genuineFailure = processFailed === true && interpreted.committed !== true;
-  const consistent = (genuineSuccess === true && scenarioOk !== false && (verdict == null || verdict === F13_RESET_SUCCESS_VERDICT))
-    || (genuineFailure === true && scenarioOk !== true && verdict !== F13_RESET_SUCCESS_VERDICT)
+  const consistent = (genuineSuccess === true && scenarioOk !== false && (verdict == null || isF21PreserveBaselineVerdict(verdict)))
+    || (genuineFailure === true && scenarioOk !== true && !isF21PreserveBaselineVerdict(verdict))
     || (extra.requireConsistent === false);
-  const successClaimedUncommitted = verdict === F13_RESET_SUCCESS_VERDICT && t7CommittedTrue === true && interpreted.committed !== true;
+  const successClaimedUncommitted = isF21PreserveBaselineVerdict(verdict) && t7CommittedTrue === true && interpreted.committed !== true;
   const failureBecameCommitted = processFailed === true && interpreted.committed === true;
   return {
     ok: consistent && !successClaimedUncommitted && !failureBecameCommitted,
@@ -2317,8 +2414,8 @@ export async function runQualificationReset({
       mutation: false,
       alreadyClean: true,
       eligible: false,
-      verdict: F13_RESET_ALREADY_CLEAN_VERDICT,
-      code: plan.code || "F13_RESET_ALREADY_CLEAN",
+      verdict: F21_RESET_ALREADY_CLEAN_VERDICT,
+      code: plan.code || "F21_RESET_ALREADY_CLEAN",
       reason: plan.reason,
       label: F13_RUNTIME_LABEL,
       phase: F13_RUNTIME_PHASE,
@@ -2488,7 +2585,7 @@ export async function runQualificationReset({
     mutation: true,
     alreadyClean: false,
     eligible: true,
-    verdict: F13_RESET_SUCCESS_VERDICT,
+    verdict: F21_RESET_SUCCESS_VERDICT,
     code: "F13_RESET_COMMITTED",
     label: F13_RUNTIME_LABEL,
     phase: F13_RUNTIME_PHASE,
@@ -2662,7 +2759,7 @@ export async function captureQualificationResetInventory({
  * plan / emit / execute. Observed objects, deps, and history come from
  * INVENTORY_CAPTURE_SQL / QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL — never
  * hardcoded []. alreadyClean is a no-mutation path. leftover requires
- * eligible===true. Successful authorized reset is CLEAN_BASELINE, not HOLD.
+ * eligible===true. Successful authorized reset is QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1, not CLEAN_BASELINE.
  */
 export async function runQualificationResetQualifyPath({
   authorization,
@@ -2725,8 +2822,10 @@ export async function runQualificationResetQualifyPath({
     onAfterStarted,
   });
 
+  const preserveOk = result.ok === true && isF21PreserveBaselineVerdict(result.verdict);
   return {
     ...result,
+    ok: preserveOk,
     inventoryCaptured: true,
     captureComplete: captured.captureComplete === true,
     captureSqlWired: true,
@@ -2740,11 +2839,18 @@ export async function runQualificationResetQualifyPath({
       ...(result.spies || emptySpies()),
       captureCalls: captureSpies.captureCalls,
     },
-    verdict: result.ok === true
-      ? (result.verdict || F13_RESET_SUCCESS_VERDICT)
-      : (result.verdict && result.verdict !== F13_RESET_SUCCESS_VERDICT
-        ? result.verdict
-        : "HOLD"),
+    verdict: preserveOk
+      ? result.verdict
+      : (result.ok === true
+        ? "HOLD"
+        : (result.verdict && result.verdict !== F13_RESET_SUCCESS_VERDICT
+          ? result.verdict
+          : "HOLD")),
+    code: preserveOk
+      ? result.code
+      : (result.ok === true
+        ? "F21_PRESERVE_BASELINE_VERDICT_REQUIRED"
+        : result.code),
   };
 }
 

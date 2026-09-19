@@ -356,6 +356,8 @@ import {
 } from "./lib/f3-db-push-inventory.mjs";
 import {
   F13_RESET_SUCCESS_VERDICT,
+  F21_RESET_ALREADY_CLEAN_VERDICT,
+  F21_RESET_SUCCESS_VERDICT,
   F13_RUNTIME_LABEL,
   F13_SHARED_ORCHESTRATION_ID,
   F14_RUNTIME_LABEL,
@@ -8968,7 +8970,7 @@ test("F13 reset wiring keeps wipe rejected, extras HOLD, CASCADE refused, name m
   assert.equal(qualifyMain.ok, true);
   assert.equal(qualifyMain.inventoryCaptured, true);
   assert.equal(qualifyMain.plan.eligible, true);
-  assert.equal(qualifyMain.verdict, F13_RESET_SUCCESS_VERDICT);
+  assert.equal(qualifyMain.verdict, F21_RESET_SUCCESS_VERDICT);
   assert.notEqual(qualificationResetQualifyEmitPayload(qualifyMain).verdict, "HOLD");
   records.push({ caseId: "F13-H09-QUALIFY-MAIN-INVENTORY-WIRED", result: "ok" });
 

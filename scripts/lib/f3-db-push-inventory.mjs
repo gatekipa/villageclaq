@@ -10,12 +10,27 @@ import { parseDuplicateKeySafeJson } from "./f3-db-push-query-parse.mjs";
 import {
   AUTHENTICATED_HISTORY_KEYS,
   CANONICAL_FUNCTION_IDENTITY_SQL,
+  F20_HISTORICAL_INVENTORY_SCHEMA,
+  F20_HISTORICAL_INVENTORY_SCHEMA_VERSION,
+  F21_AUTHORIZED_EXTENSION_IDENTITY,
+  F21_MEMBERSHIP_CLASSIFICATION,
+  F21_MEMBERSHIP_POLICY_ID,
+  F21_MEMBERSHIP_SCHEMA_STALE,
+  F21_QUALIFICATION_RESET_INVENTORY_SCHEMA,
+  F21_QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION,
+  F21_QUALIFICATION_RESET_MEMBERSHIP_SCHEMA,
+  F21_QUALIFICATION_RESET_MEMBERSHIP_SCHEMA_VERSION,
   FINITE_DEPENDENCY_ALLOWLIST,
   FINITE_OBJECT_ALLOWLIST,
+  authenticateExtensionMembership,
   canonicalDependencyTuple,
   canonicalizeFunctionIdentity,
+  isDestructiveAllowlistIdentity,
   isFinancialPrefixSelector,
+  isPreserveExtensionIdentity,
+  observedObjectIdentity,
   snapshotDependencyTuple,
+  snapshotDiscoveredObject,
   validateHistoryKeys,
   validateObjectAllowlist,
 } from "./f3-db-push-qualification-reset-design.mjs";
@@ -315,6 +330,14 @@ const NAMED_DEPENDENCY_IDENTITIES = FINITE_DEPENDENCY_ALLOWLIST
 
 export const QUALIFICATION_RESET_INVENTORY_SCHEMA = "f13-qualification-reset-inventory-v1";
 export const QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION = 1;
+export {
+  F21_QUALIFICATION_RESET_INVENTORY_SCHEMA,
+  F21_QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION,
+  F21_QUALIFICATION_RESET_MEMBERSHIP_SCHEMA,
+  F21_QUALIFICATION_RESET_MEMBERSHIP_SCHEMA_VERSION,
+  F21_MEMBERSHIP_POLICY_ID,
+  F21_MEMBERSHIP_CLASSIFICATION,
+};
 export const QUALIFICATION_RESET_INVENTORY_MANDATORY_FIELDS = Object.freeze([
   "schema",
   "schema_version",
@@ -395,40 +418,90 @@ export function buildQualificationResetInventoryPsqlCommand({
   };
 }
 
+function membershipJsonSql({ kindLiteral, classidRegclass, objidExpr, identitySql }) {
+  return `(
+        SELECT jsonb_build_object(
+          'schema', '${F21_QUALIFICATION_RESET_MEMBERSHIP_SCHEMA}',
+          'schemaVersion', ${F21_QUALIFICATION_RESET_MEMBERSHIP_SCHEMA_VERSION},
+          'kind', ${kindLiteral},
+          'identity', ${identitySql},
+          'classid', d.classid,
+          'objid', d.objid,
+          'objsubid', d.objsubid,
+          'refclassid', d.refclassid,
+          'refobjid', d.refobjid,
+          'extname', e.extname,
+          'deptype', d.deptype
+        )
+        FROM pg_depend d
+        JOIN pg_extension e ON e.oid = d.refobjid
+        WHERE d.classid = ${classidRegclass}::regclass
+          AND d.objid = ${objidExpr}
+          AND d.refclassid = 'pg_extension'::regclass
+          AND e.extname = '${F21_AUTHORIZED_EXTENSION_IDENTITY}'
+          AND d.deptype = 'e'
+        LIMIT 1
+      )`;
+}
+
 const DISCOVERED_OBJECT_SQL = `(
     SELECT coalesce(jsonb_agg(obj ORDER BY obj->>'kind', obj->>'identity'), '[]'::jsonb)
     FROM (
-      SELECT jsonb_build_object(
+      SELECT jsonb_strip_nulls(jsonb_build_object(
         'kind', 'table',
-        'identity', n.nspname || '.' || c.relname
-      ) AS obj
+        'identity', n.nspname || '.' || c.relname,
+        'membership', ${membershipJsonSql({
+          kindLiteral: "'table'",
+          classidRegclass: "'pg_class'",
+          objidExpr: "c.oid",
+          identitySql: "n.nspname || '.' || c.relname",
+        })}
+      )) AS obj
       FROM pg_class c
       JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname IN ('public', 'financial_core', 'financial_private')
         AND c.relkind = 'r'
       UNION ALL
-      SELECT jsonb_build_object(
+      SELECT jsonb_strip_nulls(jsonb_build_object(
         'kind', 'view',
-        'identity', n.nspname || '.' || c.relname
-      )
+        'identity', n.nspname || '.' || c.relname,
+        'membership', ${membershipJsonSql({
+          kindLiteral: "'view'",
+          classidRegclass: "'pg_class'",
+          objidExpr: "c.oid",
+          identitySql: "n.nspname || '.' || c.relname",
+        })}
+      ))
       FROM pg_class c
       JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname IN ('public', 'financial_core', 'financial_private')
         AND c.relkind = 'v'
       UNION ALL
-      SELECT jsonb_build_object(
+      SELECT jsonb_strip_nulls(jsonb_build_object(
         'kind', 'sequence',
-        'identity', n.nspname || '.' || c.relname
-      )
+        'identity', n.nspname || '.' || c.relname,
+        'membership', ${membershipJsonSql({
+          kindLiteral: "'sequence'",
+          classidRegclass: "'pg_class'",
+          objidExpr: "c.oid",
+          identitySql: "n.nspname || '.' || c.relname",
+        })}
+      ))
       FROM pg_class c
       JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname IN ('public', 'financial_core', 'financial_private')
         AND c.relkind = 'S'
       UNION ALL
-      SELECT jsonb_build_object(
+      SELECT jsonb_strip_nulls(jsonb_build_object(
         'kind', 'type',
-        'identity', n.nspname || '.' || t.typname
-      )
+        'identity', n.nspname || '.' || t.typname,
+        'membership', ${membershipJsonSql({
+          kindLiteral: "'type'",
+          classidRegclass: "'pg_type'",
+          objidExpr: "t.oid",
+          identitySql: "n.nspname || '.' || t.typname",
+        })}
+      ))
       FROM pg_type t
       JOIN pg_namespace n ON n.oid = t.typnamespace
       WHERE n.nspname IN ('public', 'financial_core', 'financial_private')
@@ -437,10 +510,16 @@ const DISCOVERED_OBJECT_SQL = `(
           SELECT 1 FROM pg_class c WHERE c.reltype = t.oid AND c.relkind = 'r'
         )
       UNION ALL
-      SELECT jsonb_build_object(
+      SELECT jsonb_strip_nulls(jsonb_build_object(
         'kind', 'function',
-        'identity', ${CANONICAL_FUNCTION_IDENTITY_SQL}
-      )
+        'identity', ${CANONICAL_FUNCTION_IDENTITY_SQL},
+        'membership', ${membershipJsonSql({
+          kindLiteral: "'function'",
+          classidRegclass: "'pg_proc'",
+          objidExpr: "p.oid",
+          identitySql: CANONICAL_FUNCTION_IDENTITY_SQL,
+        })}
+      ))
       FROM pg_proc p
       JOIN pg_namespace n ON n.oid = p.pronamespace
       WHERE n.nspname IN ('public', 'financial_core', 'financial_private')
@@ -457,7 +536,7 @@ const DISCOVERED_OBJECT_SQL = `(
         'identity', e.extname
       )
       FROM pg_extension e
-      WHERE e.extname = 'btree_gist'
+      WHERE e.extname = '${F21_AUTHORIZED_EXTENSION_IDENTITY}'
     ) discovered
   )`;
 
@@ -487,8 +566,8 @@ const DISCOVERED_DEPENDENCY_SQL = `(
  */
 export const QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL = `
 SELECT jsonb_build_object(
-  'schema', '${QUALIFICATION_RESET_INVENTORY_SCHEMA}',
-  'schema_version', ${QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION},
+  'schema', '${F21_QUALIFICATION_RESET_INVENTORY_SCHEMA}',
+  'schema_version', ${F21_QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION},
   'inventory_capture_sql', 'scripts/lib/f3-db-push-inventory.mjs INVENTORY_CAPTURE_SQL',
   'capture_complete', true,
   'inventory', ${INVENTORY_CAPTURE_OBJECT_SQL},
@@ -556,25 +635,7 @@ function identityFromDiscovered(item) {
 }
 
 function discoveredObjectRecord(item) {
-  if (typeof item === "string") {
-    if (item.includes("(")) {
-      return { kind: "function", identity: canonicalizeFunctionIdentity(item) };
-    }
-    if (item === "financial_core" || item === "financial_private") {
-      return { kind: "schema", identity: item };
-    }
-    if (item === "btree_gist") {
-      return { kind: "extension", identity: item };
-    }
-    return { kind: null, identity: item };
-  }
-  if (item && typeof item.identity === "string") {
-    return {
-      kind: item.kind == null ? null : String(item.kind),
-      identity: item.kind === "function" ? canonicalizeFunctionIdentity(item.identity) : item.identity,
-    };
-  }
-  return null;
+  return snapshotDiscoveredObject(item);
 }
 
 /**
@@ -781,15 +842,27 @@ export function validateQualificationResetInventoryBody(body) {
   if (body == null || typeof body !== "object" || Array.isArray(body)) {
     return captureFail("F13_INVENTORY_CAPTURE_MALFORMED", "Qualification reset inventory capture is missing or malformed");
   }
-  if (body.schema !== QUALIFICATION_RESET_INVENTORY_SCHEMA) {
+  if (
+    body.schema === QUALIFICATION_RESET_INVENTORY_SCHEMA
+    || body.schema === F20_HISTORICAL_INVENTORY_SCHEMA
+    || body.schema_version === F20_HISTORICAL_INVENTORY_SCHEMA_VERSION
+  ) {
+    return captureFail(F21_MEMBERSHIP_SCHEMA_STALE, "F13 v1 / F20 v2 inventory envelopes cannot authorize this preserve-baseline path", {
+      expectedSchema: F21_QUALIFICATION_RESET_INVENTORY_SCHEMA,
+      actualSchema: body.schema ?? null,
+      expectedVersion: F21_QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION,
+      actualVersion: body.schema_version ?? null,
+    });
+  }
+  if (body.schema !== F21_QUALIFICATION_RESET_INVENTORY_SCHEMA) {
     return captureFail("F13_INVENTORY_SCHEMA_MISMATCH", "Inventory capture schema/version is not the required exact schema", {
-      expectedSchema: QUALIFICATION_RESET_INVENTORY_SCHEMA,
+      expectedSchema: F21_QUALIFICATION_RESET_INVENTORY_SCHEMA,
       actualSchema: body.schema ?? null,
     });
   }
-  if (body.schema_version !== QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION) {
+  if (body.schema_version !== F21_QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION) {
     return captureFail("F13_INVENTORY_SCHEMA_MISMATCH", "Inventory capture schema_version is not the required exact version", {
-      expectedVersion: QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION,
+      expectedVersion: F21_QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION,
       actualVersion: body.schema_version ?? null,
     });
   }
@@ -913,15 +986,17 @@ export function observedFromQualificationResetCapture(body = {}) {
   const discoveredDeps = body.discovered_dependencies;
   const observedField = body.observed_objects;
   const observedDepField = body.observed_dependencies;
-  const discoveredIdentities = discovered.map(identityFromDiscovered);
-  const observedIdentities = observedField.map(identityFromDiscovered);
+  const discoveredRecords = discovered.map(discoveredObjectRecord);
+  const observedRecords = observedField.map(discoveredObjectRecord);
+  const discoveredIdentities = discoveredRecords.map((row) => row?.identity || null);
+  const observedIdentities = observedRecords.map((row) => row?.identity || null);
   if (discoveredIdentities.some((id) => !id) || observedIdentities.some((id) => !id)) {
     return captureFail("F13_INVENTORY_CAPTURE_MALFORMED", "Discovered object identities are incomplete");
   }
-  if (JSON.stringify(discoveredIdentities) !== JSON.stringify(observedIdentities)) {
+  if (JSON.stringify(discoveredRecords) !== JSON.stringify(observedRecords)) {
     return captureFail(
       "F13_INVENTORY_CAPTURE_INCOMPLETE",
-      "observed_objects must preserve the complete discovered object universe",
+      "observed_objects must preserve the complete discovered object universe including typed membership",
     );
   }
   const discoveredDepTuples = discoveredDeps.map((item) => {
@@ -962,7 +1037,7 @@ export function observedFromQualificationResetCapture(body = {}) {
     ok: true,
     inventoryCaptured: true,
     captureComplete: true,
-    observedObjects: discoveredIdentities,
+    observedObjects: discoveredRecords,
     observedDependencies: discoveredDepTuples.filter(Boolean),
     observedHistoryRows: history,
     discoveredObjects: discovered,
@@ -1022,8 +1097,8 @@ export function completeCaptureBody(overrides = {}) {
     "allowlist_presence",
   ]);
   return {
-    schema: QUALIFICATION_RESET_INVENTORY_SCHEMA,
-    schema_version: QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION,
+    schema: F21_QUALIFICATION_RESET_INVENTORY_SCHEMA,
+    schema_version: F21_QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION,
     inventory_capture_sql: "scripts/lib/f3-db-push-inventory.mjs INVENTORY_CAPTURE_SQL",
     capture_complete: true,
     inventory: emptyQualificationResetInventoryObject(overrides.inventory || {}),
@@ -1382,6 +1457,192 @@ export function evaluateQualificationResetCleanBaseline({
   };
 }
 
+export const F21_RESET_PRESERVE_BASELINE_VERDICT = "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1";
+
+/**
+ * Scoped already-clean evaluator for disposable --qualification-reset only.
+ * Does not retarget classifyInventory CLEAN_BASELINE. Member function names
+ * remain extraFunctions for wipe / pre-stub-floor consumers.
+ */
+export function evaluateQualificationResetPreserveBaseline({
+  observedObjects = [],
+  observedHistoryRows = [],
+  inventory = null,
+  inventoryCaptured = false,
+  captureComplete = false,
+} = {}) {
+  if (inventoryCaptured !== true || captureComplete !== true) {
+    return {
+      ok: false,
+      alreadyClean: false,
+      preserveBaseline: false,
+      cleanBaseline: false,
+      verdict: "HOLD",
+      code: "F13_INVENTORY_CAPTURE_REQUIRED",
+      reason: "preserve-baseline already-clean requires a complete capture",
+      deletionExpanded: false,
+      wipeRouted: false,
+    };
+  }
+  if (inventory == null || typeof inventory !== "object" || Array.isArray(inventory)) {
+    return {
+      ok: false,
+      alreadyClean: false,
+      preserveBaseline: false,
+      cleanBaseline: false,
+      verdict: "HOLD",
+      code: "F13_INVENTORY_CAPTURE_INCOMPLETE",
+      reason: "preserve-baseline already-clean requires inventory facts; empty object/history alone is insufficient",
+      deletionExpanded: false,
+      wipeRouted: false,
+    };
+  }
+  const missingFacts = BASELINE_AFFECTING_INVENTORY_FIELDS
+    .filter((row) => row.dirtyBlocksCleanBaseline)
+    .map((row) => row.field)
+    .filter((field) => !Object.prototype.hasOwnProperty.call(inventory, field));
+  if (missingFacts.length) {
+    return {
+      ok: false,
+      alreadyClean: false,
+      preserveBaseline: false,
+      cleanBaseline: false,
+      verdict: "HOLD",
+      code: "F13_INVENTORY_CAPTURE_INCOMPLETE",
+      reason: "preserve-baseline already-clean is missing required inventory facts",
+      missing: missingFacts,
+      deletionExpanded: false,
+      wipeRouted: false,
+    };
+  }
+  if (!Array.isArray(observedObjects) || !Array.isArray(observedHistoryRows)) {
+    return {
+      ok: false,
+      alreadyClean: false,
+      preserveBaseline: false,
+      cleanBaseline: false,
+      verdict: "HOLD",
+      code: "F13_INVENTORY_CAPTURE_INCOMPLETE",
+      reason: "preserve-baseline requires complete object/history arrays",
+      deletionExpanded: false,
+      wipeRouted: false,
+    };
+  }
+  if (observedHistoryRows.length !== 0) {
+    return {
+      ok: false,
+      alreadyClean: false,
+      preserveBaseline: false,
+      cleanBaseline: false,
+      verdict: "HOLD",
+      code: "F13_HISTORY_KEY_MISMATCH",
+      reason: "preserve-baseline already-clean requires authenticated history to be absent",
+      deletionExpanded: false,
+      wipeRouted: false,
+    };
+  }
+  if (inventory != null) {
+    const unsupported = listUnsupportedManagedLeftovers(inventory);
+    if (unsupported.length) {
+      return {
+        ok: false,
+        alreadyClean: false,
+        preserveBaseline: false,
+        cleanBaseline: false,
+        verdict: "HOLD",
+        code: "F13_UNSUPPORTED_MANAGED_LEFTOVER",
+        reason: "Unsupported Auth/Storage/managed leftovers HOLD; preserve-baseline is not CLEAN_BASELINE",
+        unsupportedLeftovers: unsupported,
+        deletionExpanded: false,
+        wipeRouted: false,
+      };
+    }
+    const reconciled = reconcileQualificationResetInventoryFacts({
+      inventory,
+      discovered_objects: observedObjects,
+      observed_history_rows: observedHistoryRows,
+    });
+    if (!reconciled.ok) {
+      return {
+        ...reconciled,
+        alreadyClean: false,
+        preserveBaseline: false,
+        cleanBaseline: false,
+        verdict: "HOLD",
+        deletionExpanded: false,
+        wipeRouted: false,
+      };
+    }
+  }
+  const allow = validateObjectAllowlist(observedObjects, []);
+  if (!allow.ok) {
+    return {
+      ok: false,
+      alreadyClean: false,
+      preserveBaseline: false,
+      cleanBaseline: false,
+      verdict: "HOLD",
+      code: allow.code,
+      reason: allow.reason,
+      unexpectedObjects: allow.unexpectedObjects,
+      deletionExpanded: false,
+      wipeRouted: false,
+    };
+  }
+  const destructive = [];
+  for (const item of observedObjects) {
+    const identity = observedObjectIdentity(item);
+    if (!identity) continue;
+    if (isDestructiveAllowlistIdentity(identity)) destructive.push(identity);
+    else if (isPreserveExtensionIdentity(identity)) continue;
+    else {
+      const auth = authenticateExtensionMembership(item, {
+        objectKind: item && typeof item === "object" ? item.kind : null,
+        objectIdentity: identity,
+      });
+      if (!(auth.ok === true && auth.classification === F21_MEMBERSHIP_CLASSIFICATION)) {
+        return {
+          ok: false,
+          alreadyClean: false,
+          preserveBaseline: false,
+          cleanBaseline: false,
+          verdict: "HOLD",
+          code: auth.code || "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY",
+          reason: auth.reason || "unauthenticated leftover is not EXTENSION_PRESERVE_SCOPED",
+          deletionExpanded: false,
+          wipeRouted: false,
+        };
+      }
+    }
+  }
+  if (destructive.length) {
+    return {
+      ok: false,
+      alreadyClean: false,
+      preserveBaseline: false,
+      cleanBaseline: false,
+      verdict: "HOLD",
+      code: "F21_PRESERVE_BASELINE_NOT_MET",
+      reason: "destructive leftovers remain; preserve-baseline already-clean is not available",
+      destructiveLeftovers: destructive,
+      deletionExpanded: false,
+      wipeRouted: false,
+    };
+  }
+  const classification = inventory != null ? classifyInventory(inventory) : null;
+  return {
+    ok: true,
+    alreadyClean: true,
+    preserveBaseline: true,
+    cleanBaseline: false,
+    verdict: F21_RESET_PRESERVE_BASELINE_VERDICT,
+    classificationVerdict: classification?.verdict ?? null,
+    unsupportedLeftovers: [],
+    deletionExpanded: false,
+    wipeRouted: false,
+  };
+}
+
 export function classifyInventory(inventory) {
   const publicTables = asList(inventory?.public_tables);
   const publicViews = asList(inventory?.public_views);
@@ -1592,7 +1853,7 @@ export function evaluateQualificationResetEligibility({
       financialPrefixUsedAsSelector: false,
     };
   }
-  const objects = validateObjectAllowlist(identities, observedDependencies);
+  const objects = validateObjectAllowlist(observedObjectIdentities, observedDependencies);
   if (!objects.ok) {
     return {
       ok: false,
@@ -1620,7 +1881,8 @@ export function evaluateQualificationResetEligibility({
     };
   }
   const leftovers = identities.filter(Boolean);
-  if (leftovers.length === 0 && observedHistoryRows.length === 0) {
+  const destructiveLeftovers = leftovers.filter((identity) => isDestructiveAllowlistIdentity(identity));
+  if (destructiveLeftovers.length === 0 && observedHistoryRows.length === 0) {
     if (inventoryCaptured !== true || captureComplete !== true) {
       return {
         ok: false,
@@ -1632,19 +1894,21 @@ export function evaluateQualificationResetEligibility({
         financialPrefixUsedAsSelector: false,
       };
     }
-    const baseline = evaluateQualificationResetCleanBaseline({
-      inventory,
-      discoveredObjects: observedObjectIdentities,
+    const baseline = evaluateQualificationResetPreserveBaseline({
+      observedObjects: observedObjectIdentities,
       observedHistoryRows,
+      inventory,
+      inventoryCaptured,
+      captureComplete,
     });
-    if (!baseline.ok || baseline.cleanBaseline !== true) {
+    if (!baseline.ok || baseline.alreadyClean !== true) {
       return {
         ok: false,
         eligible: false,
         alreadyClean: false,
         verdict: "HOLD",
-        code: baseline.code || "F13_INVENTORY_NOT_CLEAN_BASELINE",
-        reason: baseline.reason || "CLEAN_BASELINE requires consistent affirmative evidence across all required inventory facts",
+        code: baseline.code || "F21_PRESERVE_BASELINE_NOT_MET",
+        reason: baseline.reason || "preserve-baseline already-clean requires authenticated residuals only",
         contradictions: baseline.contradictions,
         unsupportedLeftovers: baseline.unsupportedLeftovers,
         classificationVerdict: baseline.classificationVerdict,
@@ -1658,13 +1922,15 @@ export function evaluateQualificationResetEligibility({
       ok: true,
       eligible: false,
       alreadyClean: true,
-      verdict: "CLEAN_BASELINE",
-      reason: "complete empty discovered universe and all baseline-affecting inventory facts affirm CLEAN_BASELINE",
+      verdict: "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+      reason: "no destructive leftovers; remaining objects are absent or authenticated EXTENSION_PRESERVE_SCOPED residuals",
       financialPrefixUsedAsSelector: false,
       allowedCount: FINITE_OBJECT_ALLOWLIST.length,
       historyKeyCount: AUTHENTICATED_HISTORY_KEYS.length,
       captureComplete: true,
       classificationVerdict: baseline.classificationVerdict,
+      preserveBaseline: true,
+      cleanBaseline: false,
       deletionExpanded: false,
       wipeRouted: false,
     };

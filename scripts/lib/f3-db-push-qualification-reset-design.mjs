@@ -31,6 +31,46 @@ export const F13_WIPE_REJECTION_CODE = "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH
 export const F13_MUTATION_ENTRYPOINT_OPEN = false;
 export const F13_PHASE = 1;
 
+export const F21_QUALIFICATION_RESET_INVENTORY_SCHEMA = "f21-qualification-reset-inventory-v1";
+export const F21_QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION = 1;
+export const F21_QUALIFICATION_RESET_MEMBERSHIP_SCHEMA = "f21-qualification-reset-membership-v1";
+export const F21_QUALIFICATION_RESET_MEMBERSHIP_SCHEMA_VERSION = 1;
+export const F21_MEMBERSHIP_POLICY_ID = "f21-btree-gist-extension-preserve-scoped-v1";
+export const F21_MEMBERSHIP_CLASSIFICATION = "EXTENSION_PRESERVE_SCOPED";
+export const F21_AUTHORIZED_EXTENSION_IDENTITY = "btree_gist";
+export const F21_MEMBERSHIP_DEPTYPE = "e";
+export const F21_UNEXPECTED_MEMBERSHIP_OVERLAP = "F21_UNEXPECTED_MEMBERSHIP_OVERLAP";
+export const F21_UNAPPROVED_EXTENSION_AUTODROP = "F21_UNAPPROVED_EXTENSION_AUTODROP";
+export const F21_MEMBERSHIP_SCHEMA_STALE = "F21_MEMBERSHIP_SCHEMA_STALE";
+export const F20_HISTORICAL_INVENTORY_SCHEMA = "f20-qualification-reset-inventory-v2";
+export const F20_HISTORICAL_INVENTORY_SCHEMA_VERSION = 2;
+export const F20_HISTORICAL_MEMBERSHIP_SCHEMA = "f20-qualification-reset-membership-v1";
+export const F20_HISTORICAL_MEMBERSHIP_POLICY_ID = "f20-btree-gist-extension-removal-scoped-v1";
+export const F21_MEMBERSHIP_REQUIRED_FIELDS = Object.freeze([
+  "schema",
+  "schemaVersion",
+  "kind",
+  "identity",
+  "classid",
+  "objid",
+  "objsubid",
+  "refclassid",
+  "refobjid",
+  "extname",
+  "deptype",
+]);
+export const F21_MEMBERSHIP_POLICY = Object.freeze({
+  classification: F21_MEMBERSHIP_CLASSIFICATION,
+  authorizedExtensionIdentity: F21_AUTHORIZED_EXTENSION_IDENTITY,
+  deptype: F21_MEMBERSHIP_DEPTYPE,
+  destructiveExtensionDrop: false,
+  individualDropFunctionAllowlist: false,
+  alterExtensionForbidden: true,
+  callerExtensionMemberOfInsufficient: true,
+  namePrefixInsufficient: true,
+  cleanBaselineNotReused: true,
+});
+
 export const F13_SUPPORTED_INTERFACE = Object.freeze({
   phase: 1,
   mutationEntrypointOpen: false,
@@ -79,6 +119,7 @@ function obj({
   intendedAction,
   permittedDependentEffects,
   dropOrder,
+  destructive = true,
 }) {
   return Object.freeze({
     id,
@@ -91,6 +132,7 @@ function obj({
     intendedAction,
     permittedDependentEffects: Object.freeze([...(permittedDependentEffects || [])]),
     dropOrder,
+    destructive,
   });
 }
 
@@ -1406,12 +1448,17 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     schema: "pg_catalog",
     identity: "btree_gist",
     provenance: P118,
-    requiredStartingState: "present only if remaining dependents are empty after allowlisted drops; any leftover dependent BLOCKS",
-    intendedAction: "DROP EXTENSION btree_gist RESTRICT. Skip only if identity probe shows already absent. BLOCK if dependents remain.",
+    requiredStartingState: "present or absent; authenticated deptype='e' members remain with the extension; not a T4 mutate target",
+    intendedAction: "PRESERVE EXTENSION btree_gist. No DROP EXTENSION. No ALTER EXTENSION. No individual DROP of members.",
     permittedDependentEffects: [],
     dropOrder: 1500,
+    destructive: false,
   }),
 ]);
+
+export const FINITE_PRESERVE_EXTENSION_ALLOWLIST = Object.freeze(
+  FINITE_OBJECT_ALLOWLIST.filter((row) => row.kind === "extension" && row.destructive === false),
+);
 
 function dep({
   id,
@@ -1438,7 +1485,10 @@ function dep({
 }
 
 const F12_TIP = "1ec0e4da782ed7715a543be23f79bc0f10a28af2";
+const F21_FUNCTIONAL_TIP = "dfbeb11b49f7e9b061a4c700e0335d125ac669e2";
 const HIST_DEP = `historical F8/F9 leftover FK retained as complete tuple @ F12 tip ${F12_TIP}`;
+const P00001_F21 = `supabase/migrations/00001_core_tables.sql @ functional tip ${F21_FUNCTIONAL_TIP}`;
+const P00117_F21 = `supabase/migrations/00117_m2_notification_policy_foundation.sql @ functional tip ${F21_FUNCTIONAL_TIP}`;
 const M118 = `supabase/migrations/00118_f3_bounded_financial_epoch_foundation.sql @ F12 tip ${F12_TIP}`;
 const M119 = `supabase/migrations/00119_f3_01_core_ledger_foundation.sql @ F12 tip ${F12_TIP}`;
 const M120 = `supabase/migrations/00120_f3_02_secure_posting_idempotency.sql @ F12 tip ${F12_TIP}`;
@@ -1810,6 +1860,66 @@ export const FINITE_DEPENDENCY_ALLOWLIST = Object.freeze([
     provenance: M123,
     naming: "PostgreSQL default {table}_{column}_fkey from REFERENCES public.profiles(id)",
   }),
+  dep({
+    id: "dep.group_positions.group_positions_group_id_fkey",
+    from: "public.group_positions",
+    to: "public.groups",
+    identity: "group_positions_group_id_fkey",
+    handling: "drop public.group_positions before public.groups when distinct; table-owned FK; RESTRICT table drop; no CASCADE; no DROP CONSTRAINT allowlist row",
+    historicalNoticeOnly: true,
+    provenance: P00001_F21,
+    naming: "historical catalog name",
+  }),
+  dep({
+    id: "dep.groups.groups_organization_id_fkey",
+    from: "public.groups",
+    to: "public.organizations",
+    identity: "groups_organization_id_fkey",
+    handling: "drop public.groups before public.organizations when distinct; table-owned FK; RESTRICT table drop; no CASCADE; no DROP CONSTRAINT allowlist row",
+    historicalNoticeOnly: true,
+    provenance: P00001_F21,
+    naming: "historical catalog name",
+  }),
+  dep({
+    id: "dep.memberships.memberships_user_id_fkey",
+    from: "public.memberships",
+    to: "public.profiles",
+    identity: "memberships_user_id_fkey",
+    handling: "drop public.memberships before public.profiles when distinct; table-owned FK; RESTRICT table drop; no CASCADE; no DROP CONSTRAINT allowlist row",
+    historicalNoticeOnly: true,
+    provenance: P00001_F21,
+    naming: "historical catalog name",
+  }),
+  dep({
+    id: "dep.notification_policy_occurrences.notification_policy_occurrences_superseded_by_fkey",
+    from: "public.notification_policy_occurrences",
+    to: "public.notification_policy_occurrences",
+    identity: "notification_policy_occurrences_superseded_by_fkey",
+    handling: "drop public.notification_policy_occurrences; self-FK is table-owned; no separate DROP CONSTRAINT; no CASCADE; T3 still requires the live self-tuple",
+    historicalNoticeOnly: true,
+    provenance: P00117_F21,
+    naming: "historical catalog name",
+  }),
+  dep({
+    id: "dep.position_assignments.position_assignments_position_id_fkey",
+    from: "public.position_assignments",
+    to: "public.group_positions",
+    identity: "position_assignments_position_id_fkey",
+    handling: "drop public.position_assignments before public.group_positions when distinct; table-owned FK; RESTRICT table drop; no CASCADE; no DROP CONSTRAINT allowlist row",
+    historicalNoticeOnly: true,
+    provenance: P00001_F21,
+    naming: "historical catalog name",
+  }),
+  dep({
+    id: "dep.position_permissions.position_permissions_position_id_fkey",
+    from: "public.position_permissions",
+    to: "public.group_positions",
+    identity: "position_permissions_position_id_fkey",
+    handling: "drop public.position_permissions before public.group_positions when distinct; table-owned FK; RESTRICT table drop; no CASCADE; no DROP CONSTRAINT allowlist row",
+    historicalNoticeOnly: true,
+    provenance: P00001_F21,
+    naming: "historical catalog name",
+  }),
 ]);
 
 export const FORBIDDEN_SELECTORS = Object.freeze([
@@ -1856,8 +1966,10 @@ export const TRANSACTION_PHASES = Object.freeze([
     mutation: false,
     checks: Object.freeze([
       "LOCK supabase_migrations.schema_migrations IN SHARE ROW EXCLUSIVE MODE",
-      "LOCK allowlisted relations IN ACCESS EXCLUSIVE MODE (only identities in FINITE_OBJECT_ALLOWLIST)",
-      "advisory xact lock key derived from bound scope digest (cooperative; assume hostile sessions ignore it)",
+      "LOCK allowlisted destructive tables/sequences IN ACCESS EXCLUSIVE MODE (preserve extension is not a lock/mutate target)",
+      "advisory xact lock key derived from bound scope digest (cooperative helper only; assume hostile sessions ignore it)",
+      "this path does not remove btree_gist or authenticated deptype='e' members and does not claim global extension DDL is frozen",
+      "no Part A catalog lock on pg_depend/pg_extension; F20-R5 remains historical for removal only",
     ]),
   }),
   Object.freeze({
@@ -1871,7 +1983,9 @@ export const TRANSACTION_PHASES = Object.freeze([
       "history names must equal AUTHENTICATED_HISTORY_KEYS exactly",
       "unexpected dependency BLOCKS",
       "after locks, freshly query the transaction catalog for complete (kind,identity,from,to) tuples; do not substitute earlier JS capture",
-      "live tuples must equal the captured approved starting set AND be in FINITE_DEPENDENCY_ALLOWLIST (37 tuples: 31 migration-created + 6 historical); unexpected/missing/changed BLOCK",
+      "live tuples must equal the captured approved starting set AND be in FINITE_DEPENDENCY_ALLOWLIST (43 tuples: 31 migration-created + 12 historical); unexpected/missing/changed BLOCK",
+      "T3 exempts only identities that re-authenticate as live deptype='e' members of btree_gist in the same TX; name-only gbt_* BLOCK",
+      "deptype='x' and leftover deptype='n' against the preserve extension remain unexpected-object HOLD",
       "schema-qualified endpoints required; cross-boundary FK protection retained; allowlist not broadened",
     ]),
   }),
@@ -1881,7 +1995,8 @@ export const TRANSACTION_PHASES = Object.freeze([
     required: true,
     mutation: true,
     checks: Object.freeze([
-      "apply FINITE_OBJECT_ALLOWLIST by dropOrder using RESTRICT only",
+      "apply destructive FINITE_OBJECT_ALLOWLIST by dropOrder using RESTRICT only; ext.btree_gist is preserve-only and is not a T4 mutate target",
+      "no DROP EXTENSION; no ALTER EXTENSION; no individual DROP of authenticated deptype='e' members",
       "DELETE history rows with version AND name equality only",
       "GET DIAGNOSTICS / RETURNING identities after each DELETE",
       "any SQL error rolls back the whole transaction",
@@ -1904,10 +2019,12 @@ export const TRANSACTION_PHASES = Object.freeze([
     required: true,
     mutation: false,
     checks: Object.freeze([
-      "allowlisted identities absent",
+      "destructive allowlisted identities absent",
       "permitted history versions absent",
       "no unexpected leftover dependents",
-      "CLEAN_BASELINE classifier predicates for this scope hold inside the same TX",
+      "btree_gist + authenticated deptype='e' members may remain; T6 must not require the extension absent",
+      "T6 re-reads live pg_depend membership; JS capture is not a substitute",
+      "success identity is QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1 — not CLEAN_BASELINE",
     ]),
   }),
   Object.freeze({
@@ -2143,11 +2260,247 @@ export function isFinancialPrefixSelector(value) {
   return s === "financial_*" || /^financial_\*$/.test(s) || s === "financial_object";
 }
 
+export function destructiveObjectAllowlist() {
+  return FINITE_OBJECT_ALLOWLIST.filter((row) => row.destructive !== false);
+}
+
+export function observedObjectIdentity(item) {
+  if (item == null) return "";
+  const raw = typeof item === "string" ? item : String(item.identity || "");
+  if (!raw) return "";
+  return raw.includes("(") ? canonicalizeFunctionIdentity(raw) : raw;
+}
+
+export function isDestructiveAllowlistIdentity(identity) {
+  const canonical = observedObjectIdentity(identity);
+  return destructiveObjectAllowlist().some((row) => allowlistIdentityMatches(canonical, row.identity));
+}
+
+export function isPreserveExtensionIdentity(identity) {
+  return observedObjectIdentity(identity) === F21_AUTHORIZED_EXTENSION_IDENTITY;
+}
+
+function isPositiveOid(value) {
+  if (typeof value === "number") return Number.isInteger(value) && value > 0;
+  if (typeof value === "string" && /^[1-9][0-9]*$/.test(value)) return Number.parseInt(value, 10) > 0;
+  return false;
+}
+
+function isIntegerLike(value) {
+  if (typeof value === "number") return Number.isInteger(value);
+  if (typeof value === "string" && /^-?\d+$/.test(value)) return true;
+  return false;
+}
+
+function hasTypedMembershipFields(value) {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) return false;
+  return F21_MEMBERSHIP_REQUIRED_FIELDS.every((field) => Object.prototype.hasOwnProperty.call(value, field));
+}
+
+export function extractMembershipClaim(item) {
+  if (item == null || typeof item === "string") {
+    return { present: false, claim: null, forged: false };
+  }
+  if (typeof item !== "object" || Array.isArray(item)) {
+    return { present: false, claim: null, forged: false };
+  }
+  if (item.membership != null && typeof item.membership === "object" && !Array.isArray(item.membership)) {
+    return { present: true, claim: item.membership, forged: false };
+  }
+  const callerOnly = item.extensionMemberOf != null && !hasTypedMembershipFields(item);
+  if (callerOnly) {
+    return {
+      present: true,
+      claim: null,
+      forged: true,
+      reason: "caller extensionMemberOf is not a contract field",
+    };
+  }
+  if (item.extname != null && (item.objid == null || item.refobjid == null || item.classid == null)) {
+    return {
+      present: true,
+      claim: null,
+      forged: true,
+      reason: "partial extname without OIDs cannot establish membership",
+    };
+  }
+  if (
+    item.schema === F21_QUALIFICATION_RESET_MEMBERSHIP_SCHEMA
+    || item.schema === F20_HISTORICAL_MEMBERSHIP_SCHEMA
+    || hasTypedMembershipFields(item)
+  ) {
+    return { present: true, claim: item, forged: false };
+  }
+  return { present: false, claim: null, forged: false };
+}
+
+export function snapshotMembershipRecord(claim) {
+  if (claim == null || typeof claim !== "object") return null;
+  return Object.freeze({
+    schema: claim.schema,
+    schemaVersion: claim.schemaVersion,
+    kind: claim.kind,
+    identity: typeof claim.identity === "string" && claim.identity.includes("(")
+      ? canonicalizeFunctionIdentity(claim.identity)
+      : claim.identity,
+    classid: claim.classid,
+    objid: claim.objid,
+    objsubid: claim.objsubid,
+    refclassid: claim.refclassid,
+    refobjid: claim.refobjid,
+    extname: claim.extname,
+    deptype: claim.deptype,
+  });
+}
+
+export function snapshotDiscoveredObject(item) {
+  if (item == null) return null;
+  if (typeof item === "string") {
+    const identity = observedObjectIdentity(item);
+    if (identity.includes("(")) return { kind: "function", identity };
+    if (identity === "financial_core" || identity === "financial_private") {
+      return { kind: "schema", identity };
+    }
+    if (identity === F21_AUTHORIZED_EXTENSION_IDENTITY) {
+      return { kind: "extension", identity };
+    }
+    return { kind: null, identity };
+  }
+  const identity = observedObjectIdentity(item);
+  if (!identity) return null;
+  const extracted = extractMembershipClaim(item);
+  const record = {
+    kind: item.kind == null ? null : String(item.kind),
+    identity,
+  };
+  if (extracted.present && extracted.claim) {
+    record.membership = snapshotMembershipRecord(extracted.claim);
+  }
+  return record;
+}
+
+export function authenticateExtensionMembership(item, {
+  objectKind = null,
+  objectIdentity = null,
+} = {}) {
+  const extracted = extractMembershipClaim(item);
+  if (extracted.forged) {
+    return fail("F13_UNEXPECTED_OBJECT_OR_DEPENDENCY", extracted.reason || "forged/partial membership record", {
+      classification: null,
+      present: true,
+    });
+  }
+  if (!extracted.present) {
+    return { ok: false, present: false, classification: null };
+  }
+  const claim = extracted.claim;
+  if (claim == null || typeof claim !== "object") {
+    return fail("F13_UNEXPECTED_OBJECT_OR_DEPENDENCY", "forged/partial membership record", {
+      classification: null,
+      present: true,
+    });
+  }
+  if (
+    claim.schema === F20_HISTORICAL_MEMBERSHIP_SCHEMA
+    || claim.membershipPolicyId === F20_HISTORICAL_MEMBERSHIP_POLICY_ID
+    || claim.schema === "f13-qualification-reset-inventory-v1"
+    || claim.schema === F20_HISTORICAL_INVENTORY_SCHEMA
+  ) {
+    return fail(F21_MEMBERSHIP_SCHEMA_STALE, "stale membership/envelope schema cannot authorize EXTENSION_PRESERVE_SCOPED", {
+      classification: null,
+      present: true,
+    });
+  }
+  if (
+    claim.schema !== F21_QUALIFICATION_RESET_MEMBERSHIP_SCHEMA
+    || claim.schemaVersion !== F21_QUALIFICATION_RESET_MEMBERSHIP_SCHEMA_VERSION
+  ) {
+    return fail(F21_MEMBERSHIP_SCHEMA_STALE, "membership schema/version is not f21-qualification-reset-membership-v1/1", {
+      classification: null,
+      present: true,
+    });
+  }
+  for (const field of F21_MEMBERSHIP_REQUIRED_FIELDS) {
+    const value = claim[field];
+    if (value == null || value === "") {
+      return fail("F13_UNEXPECTED_OBJECT_OR_DEPENDENCY", `missing membership field ${field}`, {
+        classification: null,
+        present: true,
+        field,
+      });
+    }
+  }
+  const kind = objectKind != null
+    ? objectKind
+    : (item && typeof item === "object" ? item.kind : null);
+  const identity = objectIdentity != null
+    ? observedObjectIdentity(objectIdentity)
+    : observedObjectIdentity(item);
+  const claimIdentity = observedObjectIdentity(claim.identity);
+  if (kind && String(claim.kind) !== String(kind)) {
+    return fail("F13_UNEXPECTED_OBJECT_OR_DEPENDENCY", "membership kind does not match discovered object kind", {
+      classification: null,
+      present: true,
+    });
+  }
+  if (identity && claimIdentity !== identity) {
+    return fail("F13_UNEXPECTED_OBJECT_OR_DEPENDENCY", "membership identity does not resolve to discovered object identity", {
+      classification: null,
+      present: true,
+    });
+  }
+  if (
+    !isPositiveOid(claim.classid)
+    || !isPositiveOid(claim.objid)
+    || !isPositiveOid(claim.refclassid)
+    || !isPositiveOid(claim.refobjid)
+  ) {
+    return fail("F13_UNEXPECTED_OBJECT_OR_DEPENDENCY", "membership OID is non-positive or not an installed extension", {
+      classification: null,
+      present: true,
+    });
+  }
+  if (!isIntegerLike(claim.objsubid)) {
+    return fail("F13_UNEXPECTED_OBJECT_OR_DEPENDENCY", "membership objsubid must be an integer", {
+      classification: null,
+      present: true,
+    });
+  }
+  if (claim.extname !== F21_AUTHORIZED_EXTENSION_IDENTITY) {
+    return fail("F13_UNEXPECTED_OBJECT_OR_DEPENDENCY", "membership extname is not btree_gist", {
+      classification: null,
+      present: true,
+    });
+  }
+  if (claim.deptype !== F21_MEMBERSHIP_DEPTYPE) {
+    if (claim.deptype === "x") {
+      return fail(F21_UNAPPROVED_EXTENSION_AUTODROP, "deptype=x is not EXTENSION_PRESERVE_SCOPED", {
+        classification: null,
+        present: true,
+      });
+    }
+    return fail("F13_UNEXPECTED_OBJECT_OR_DEPENDENCY", "deptype presented as membership must be e", {
+      classification: null,
+      present: true,
+    });
+  }
+  return {
+    ok: true,
+    present: true,
+    executed: false,
+    mutationEntrypointOpen: false,
+    classification: F21_MEMBERSHIP_CLASSIFICATION,
+    membership: snapshotMembershipRecord(claim),
+  };
+}
+
 export function validateObjectAllowlist(observedObjects = [], observedDependencies = []) {
-  const allowed = allowlistIdentities();
   const unexpectedObjects = [];
+  let overlap = false;
+  let stale = false;
+  let autodrop = false;
   for (const item of observedObjects) {
-    const identity = typeof item === "string" ? item : item?.identity;
+    const identity = observedObjectIdentity(item);
     if (!identity) {
       unexpectedObjects.push({ identity: String(item), reason: "missing schema-qualified identity" });
       continue;
@@ -2156,9 +2509,33 @@ export function validateObjectAllowlist(observedObjects = [], observedDependenci
       unexpectedObjects.push({ identity, reason: "financial_* prefix is not a destructive allowlist" });
       continue;
     }
-    if (!allowed.some((allowedIdentity) => allowlistIdentityMatches(identity, allowedIdentity))) {
-      unexpectedObjects.push({ identity, reason: "not in FINITE_OBJECT_ALLOWLIST" });
+    const extracted = extractMembershipClaim(item);
+    if (isDestructiveAllowlistIdentity(identity) && (extracted.present || extracted.forged)) {
+      overlap = true;
+      unexpectedObjects.push({
+        identity,
+        reason: "destructive allowlist identity cannot classify EXTENSION_PRESERVE_SCOPED",
+        code: F21_UNEXPECTED_MEMBERSHIP_OVERLAP,
+      });
+      continue;
     }
+    if (isDestructiveAllowlistIdentity(identity) || isPreserveExtensionIdentity(identity)) {
+      continue;
+    }
+    const auth = authenticateExtensionMembership(item, {
+      objectKind: item && typeof item === "object" ? item.kind : null,
+      objectIdentity: identity,
+    });
+    if (auth.ok === true && auth.classification === F21_MEMBERSHIP_CLASSIFICATION) {
+      continue;
+    }
+    if (auth.code === F21_MEMBERSHIP_SCHEMA_STALE) stale = true;
+    if (auth.code === F21_UNAPPROVED_EXTENSION_AUTODROP) autodrop = true;
+    unexpectedObjects.push({
+      identity,
+      reason: auth.reason || "not in FINITE_OBJECT_ALLOWLIST and not an authenticated EXTENSION_PRESERVE_SCOPED member",
+      code: auth.code || "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY",
+    });
   }
   const unexpectedDependencies = [];
   for (const dep of observedDependencies) {
@@ -2180,7 +2557,14 @@ export function validateObjectAllowlist(observedObjects = [], observedDependenci
     }
   }
   if (unexpectedObjects.length || unexpectedDependencies.length) {
-    return fail("F13_UNEXPECTED_OBJECT_OR_DEPENDENCY", "Unexpected object or dependency blocks reset", {
+    const code = overlap
+      ? F21_UNEXPECTED_MEMBERSHIP_OVERLAP
+      : stale
+        ? F21_MEMBERSHIP_SCHEMA_STALE
+        : autodrop
+          ? F21_UNAPPROVED_EXTENSION_AUTODROP
+          : "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY";
+    return fail(code, "Unexpected object or dependency blocks reset", {
       unexpectedObjects,
       unexpectedDependencies,
     });
@@ -2461,7 +2845,19 @@ export function exportDesignArtifact() {
 
 export function scopeSqlIdentityDigest() {
   const canonical = JSON.stringify({
-    objects: FINITE_OBJECT_ALLOWLIST.map((o) => ({ id: o.id, identity: o.identity, action: o.intendedAction, dropOrder: o.dropOrder })),
+    inventorySchema: F21_QUALIFICATION_RESET_INVENTORY_SCHEMA,
+    inventorySchemaVersion: F21_QUALIFICATION_RESET_INVENTORY_SCHEMA_VERSION,
+    membershipSchema: F21_QUALIFICATION_RESET_MEMBERSHIP_SCHEMA,
+    membershipSchemaVersion: F21_QUALIFICATION_RESET_MEMBERSHIP_SCHEMA_VERSION,
+    membershipPolicyId: F21_MEMBERSHIP_POLICY_ID,
+    membershipPolicy: F21_MEMBERSHIP_POLICY,
+    objects: FINITE_OBJECT_ALLOWLIST.map((o) => ({
+      id: o.id,
+      identity: o.identity,
+      action: o.intendedAction,
+      dropOrder: o.dropOrder,
+      destructive: o.destructive !== false,
+    })),
     dependencies: FINITE_DEPENDENCY_ALLOWLIST.map((d) => ({
       id: d.id,
       kind: d.kind,

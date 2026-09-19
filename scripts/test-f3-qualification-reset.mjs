@@ -21,7 +21,9 @@ import {
   FAILED_FLOOR_STORAGE_POLICY_NAMES,
   QUALIFICATION_RESET_INVENTORY_PSQL_ARGV,
   QUALIFICATION_RESET_INVENTORY_SCHEMA,
+  F21_QUALIFICATION_RESET_INVENTORY_SCHEMA,
   buildQualificationResetInventoryPsqlCommand,
+  classifyInventory,
   completeCaptureBody,
   emptyQualificationResetInventoryObject,
   evaluateQualificationResetEligibility,
@@ -76,6 +78,8 @@ import {
   F13_INVENTORY_CAPTURE_REQUIRED,
   F13_RESET_ALREADY_CLEAN_VERDICT,
   F13_RESET_SUCCESS_VERDICT,
+  F21_RESET_ALREADY_CLEAN_VERDICT,
+  F21_RESET_SUCCESS_VERDICT,
   F13_RUNTIME_LABEL,
   F13_SHARED_ORCHESTRATION_ID,
   F13_SUMMARY_FILE_HASH_FORBIDDEN,
@@ -546,7 +550,7 @@ test("F13-R13 successful authorized synthetic execution uses the real planner", 
   assert.equal(sawStartedBeforeInvoke, true);
   assert.equal(result.ok, true);
   assert.equal(result.committed, true);
-  assert.equal(result.verdict, F13_RESET_SUCCESS_VERDICT);
+  assert.equal(result.verdict, F21_RESET_SUCCESS_VERDICT);
   assert.notEqual(result.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
   assert.equal(result.sharedOrchestration, F13_SHARED_ORCHESTRATION_ID);
   assert.equal(result.label, F13_RUNTIME_LABEL);
@@ -639,7 +643,7 @@ test("F13-R17 hardcoded empty inventory is refused until capture is wired", () =
   assert.equal(capturedClean.eligible, false);
   assert.equal(capturedClean.sql, null);
   assert.equal(capturedClean.mutation, false);
-  assert.equal(capturedClean.verdict, F13_RESET_ALREADY_CLEAN_VERDICT);
+  assert.equal(capturedClean.verdict, F21_RESET_ALREADY_CLEAN_VERDICT);
 });
 
 test("F13-R18 leftover emit requires eligible===true; alreadyClean is no-mutation", () => {
@@ -649,6 +653,9 @@ test("F13-R18 leftover emit requires eligible===true; alreadyClean is no-mutatio
   assert.equal(leftover.alreadyClean, false);
   assert.equal(typeof leftover.sql, "string");
   assert.match(leftover.sql, /DROP TABLE IF EXISTS public\.financial_accounts RESTRICT/);
+  assert.doesNotMatch(leftover.sql, /DROP EXTENSION/i);
+  assert.doesNotMatch(leftover.sql, /ALTER EXTENSION/i);
+  assert.doesNotMatch(leftover.sql, /\bCASCADE\b/i);
 
   const extra = planQualificationReset(planInput({
     observedObjects: ["public.not_on_allowlist"],
@@ -677,16 +684,17 @@ test("F13-R19 qualify-main path wires INVENTORY_CAPTURE_SQL before plan/emit", a
   assert.equal(capturedSql, QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL);
   assert.equal(capturedInventorySql, INVENTORY_CAPTURE_SQL);
   assert.match(capturedSql, /INVENTORY_CAPTURE_SQL/);
-  assert.deepEqual(result.observedFromCapture.observedObjects, ["public.financial_accounts"]);
+  assert.equal(result.observedFromCapture.observedObjects.length, 1);
+  assert.equal(result.observedFromCapture.observedObjects[0].identity, "public.financial_accounts");
   assert.equal(result.observedFromCapture.observedHistoryRows.length, AUTHENTICATED_HISTORY_KEYS.length);
   assert.notDeepEqual(result.observedFromCapture.observedObjects, []);
   assert.equal(result.plan.eligible, true);
   assert.equal(typeof result.plan.sql, "string");
   assert.match(result.plan.sql, /DROP TABLE IF EXISTS public\.financial_accounts RESTRICT/);
   assert.equal(result.ok, true);
-  assert.equal(result.verdict, F13_RESET_SUCCESS_VERDICT);
+  assert.equal(result.verdict, F21_RESET_SUCCESS_VERDICT);
   assert.notEqual(result.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
-  assert.equal(emit.verdict, F13_RESET_SUCCESS_VERDICT);
+  assert.equal(emit.verdict, F21_RESET_SUCCESS_VERDICT);
   assert.notEqual(emit.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
   assert.equal(emit.ok, true);
   assert.equal(captureRequest.inventoryCaptureSqlArtifact.includes("INVENTORY_CAPTURE_SQL"), true);
@@ -702,9 +710,9 @@ test("F13-R20 qualify-main empty capture is alreadyClean no-mutation; missing ca
   assert.equal(clean.result.spies.transportCalls, 0);
   assert.equal(clean.result.spies.applyCalls, 0);
   assert.equal(clean.result.plan.sql, null);
-  assert.equal(clean.result.verdict, F13_RESET_ALREADY_CLEAN_VERDICT);
+  assert.equal(clean.result.verdict, F21_RESET_ALREADY_CLEAN_VERDICT);
   assert.notEqual(clean.result.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
-  assert.equal(clean.emit.verdict, F13_RESET_ALREADY_CLEAN_VERDICT);
+  assert.equal(clean.emit.verdict, F21_RESET_ALREADY_CLEAN_VERDICT);
   assert.notEqual(clean.emit.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
 
   const missing = await runQualifyMainPath({
@@ -750,9 +758,9 @@ test("F13-R21 qualify-main leftover path requires eligible===true; extras HOLD w
   assert.equal(leftover.result.plan.eligible, true);
   assert.equal(leftover.result.executed, true);
   assert.equal(leftover.result.committed, true);
-  assert.equal(leftover.result.verdict, F13_RESET_SUCCESS_VERDICT);
+  assert.equal(leftover.result.verdict, F21_RESET_SUCCESS_VERDICT);
   assert.notEqual(leftover.emit.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
-  assert.equal(leftover.emit.verdict, "CLEAN_BASELINE");
+  assert.equal(leftover.emit.verdict, F21_RESET_SUCCESS_VERDICT);
   assert.equal(leftover.result.spies.captureCalls, 1);
   assert.equal(leftover.result.spies.applyCalls, 1);
 });
@@ -794,11 +802,18 @@ test("F14-R01 inventory parser rejects aligned framing and never defaults malfor
   assert.equal(wrongSchema.code, "F13_INVENTORY_SCHEMA_MISMATCH");
 
   const missingFields = inventoryProcess(JSON.stringify({
-    schema: QUALIFICATION_RESET_INVENTORY_SCHEMA,
+    schema: F21_QUALIFICATION_RESET_INVENTORY_SCHEMA,
     schema_version: 1,
   }));
   assert.equal(missingFields.ok, false);
   assert.equal(missingFields.code, "F13_INVENTORY_CAPTURE_INCOMPLETE");
+
+  const staleF13 = inventoryProcess(JSON.stringify({
+    schema: QUALIFICATION_RESET_INVENTORY_SCHEMA,
+    schema_version: 1,
+  }));
+  assert.equal(staleF13.ok, false);
+  assert.equal(staleF13.code, "F21_MEMBERSHIP_SCHEMA_STALE");
 
   const wrongTypes = inventoryProcess(JSON.stringify(completeCaptureBody({
     discovered_objects: "not-an-array",
@@ -1191,7 +1206,8 @@ test("F15-C1-R07 genuine complete matching inventories remain usable", async () 
   const leftover = leftoverCaptureBody();
   const observed = observedFromQualificationResetCapture(leftover);
   assert.equal(observed.ok, true);
-  assert.deepEqual(observed.observedObjects, ["public.financial_accounts"]);
+  assert.equal(observed.observedObjects.length, 1);
+  assert.equal(observed.observedObjects[0].identity, "public.financial_accounts");
   assert.equal(observed.inventory.public_tables.includes("financial_accounts"), true);
 });
 
@@ -1289,7 +1305,7 @@ test("F15-C3-R01 genuine migration-created financial FKs are eligible leftovers"
   });
   assert.equal(result.ok, true);
   assert.equal(result.plan.eligible, true);
-  assert.equal(result.verdict, F13_RESET_SUCCESS_VERDICT);
+  assert.equal(result.verdict, F21_RESET_SUCCESS_VERDICT);
 });
 
 test("F15-C3-R02 same catalog name with altered kind/source/target is rejected", () => {
@@ -1471,7 +1487,7 @@ test("F15-C4-R04 advisory-lock void SELECT blank line must not break success obs
   });
   assert.equal(result.ok, true);
   assert.equal(result.committed, true);
-  assert.equal(result.verdict, F13_RESET_SUCCESS_VERDICT);
+  assert.equal(result.verdict, F21_RESET_SUCCESS_VERDICT);
   assert.equal(result.code, "F13_RESET_COMMITTED");
   assert.equal(result.spies.replayCalls, 0);
 
@@ -1698,7 +1714,7 @@ test("F16-A03 genuine already-clean and approved leftovers still reach supported
   assert.equal(clean.result.alreadyClean, true);
   assert.equal(clean.result.spies.applyCalls || 0, 0);
   assert.equal(clean.result.spies.sqlCalls || 0, 0);
-  assert.equal(clean.result.verdict, F13_RESET_ALREADY_CLEAN_VERDICT);
+  assert.equal(clean.result.verdict, F21_RESET_ALREADY_CLEAN_VERDICT);
 
   const leftover = await runQualifyMainPath({
     captureBody: leftoverCaptureBody({
@@ -1713,7 +1729,7 @@ test("F16-A03 genuine already-clean and approved leftovers still reach supported
   assert.equal(leftover.result.plan.eligible, true);
   assert.equal(leftover.result.spies.captureCalls, 1);
   assert.equal(leftover.result.spies.applyCalls, 1);
-  assert.equal(leftover.result.verdict, F13_RESET_SUCCESS_VERDICT);
+  assert.equal(leftover.result.verdict, F21_RESET_SUCCESS_VERDICT);
 
   const leftoverPlusAuth = await runQualifyMainPath({
     captureBody: leftoverCaptureBody({
@@ -1783,7 +1799,7 @@ test("F17-A03 supported clean and named residual buckets still CLEAN_BASELINE", 
   assert.equal(empty.result.ok, true);
   assert.equal(empty.result.alreadyClean, true);
   assert.equal(empty.result.spies.applyCalls || 0, 0);
-  assert.equal(empty.result.verdict, F13_RESET_ALREADY_CLEAN_VERDICT);
+  assert.equal(empty.result.verdict, F21_RESET_ALREADY_CLEAN_VERDICT);
 
   const residuals = await runQualifyMainPath({
     captureBody: emptyCaptureBody({
@@ -1793,7 +1809,7 @@ test("F17-A03 supported clean and named residual buckets still CLEAN_BASELINE", 
   assert.equal(residuals.result.ok, true);
   assert.equal(residuals.result.alreadyClean, true);
   assert.equal(residuals.result.spies.applyCalls || 0, 0);
-  assert.equal(residuals.result.verdict, F13_RESET_ALREADY_CLEAN_VERDICT);
+  assert.equal(residuals.result.verdict, F21_RESET_ALREADY_CLEAN_VERDICT);
 });
 
 test("F17-A04 leftover plus unexpected bucket HOLDs; leftover plus named buckets stays eligible", async () => {
@@ -2100,7 +2116,7 @@ test("F18-B01 runner-helper-serialize-reread-parser preserves provenance E2E", a
   assert.equal(success.reread.streams.originalStdoutByteLength, success.originalStdoutByteLength);
   assert.equal(success.adapted.ok, true);
   assert.equal(success.interpreted.committed, true);
-  assert.equal(success.result.verdict, "CLEAN_BASELINE");
+  assert.equal(success.result.verdict, F21_RESET_SUCCESS_VERDICT);
 
   const eaccesErr = new Error("open '/tmp/f18-qual-reset-xyz/file.sql'");
   eaccesErr.name = "Error";
@@ -2178,7 +2194,7 @@ test("F18-C01 success records reparse committed; failures stay rejected", async 
     timedOut: false,
   };
   const successAttest = attestQualificationResetReparse(successRaw, {
-    verdict: "CLEAN_BASELINE",
+    verdict: F21_RESET_SUCCESS_VERDICT,
     scenarioOk: true,
   });
   assert.equal(successAttest.interpretedCommitted, true);
@@ -2439,7 +2455,7 @@ test("F19-B01 thrown:true alone cannot authorize interpretation, attestation, or
   assert.equal(finalizeQualificationResetAttestations([rereadAttest]).ok, false);
 });
 
-test("F19-B02 unchanged valid success still reparses committed CLEAN_BASELINE", async () => {
+test("F19-B02 unchanged valid success still reparses committed F21 preserve baseline", async () => {
   const success = await runProcessEvidenceE2E({
     status: 0,
     signal: null,
@@ -2453,9 +2469,9 @@ test("F19-B02 unchanged valid success still reparses committed CLEAN_BASELINE", 
   const boundary = serializeAndRereadFromRunner(success.result, {
     id: "F19_SUCCESS",
     ok: true,
-    verdict: "CLEAN_BASELINE",
+    verdict: F21_RESET_SUCCESS_VERDICT,
   });
-  assert.equal(success.result.verdict, "CLEAN_BASELINE");
+  assert.equal(success.result.verdict, F21_RESET_SUCCESS_VERDICT);
   assert.equal(success.interpreted.committed, true);
   assert.equal(boundary.reread.thrown, false);
   assert.equal(boundary.interpreted.committed, true);
@@ -2469,6 +2485,58 @@ test("F19-B02 unchanged valid success still reparses committed CLEAN_BASELINE", 
     successObservationStdout(),
     "",
   );
+});
+
+test("F21-C8 classifyInventory CLEAN_BASELINE is not relaxed by preserve residuals", () => {
+  const classification = classifyInventory(emptyQualificationResetInventoryObject({
+    public_functions: [{ name: "gbt_text_consistent", identity: "public.gbt_text_consistent(internal,text,smallint,oid,internal)" }],
+  }));
+  assert.notEqual(classification.verdict, "CLEAN_BASELINE");
+  assert.ok(classification.extraFunctions.includes("gbt_text_consistent"));
+});
+
+test("F21 emit payload fails closed when verdict is missing", () => {
+  const missing = qualificationResetQualifyEmitPayload({
+    ok: true,
+    alreadyClean: true,
+    executed: false,
+  });
+  assert.equal(missing.ok, false);
+  assert.equal(missing.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
+  assert.equal(missing.code, "F21_PRESERVE_BASELINE_VERDICT_REQUIRED");
+
+  const cleanBaselineFallback = qualificationResetQualifyEmitPayload({
+    ok: true,
+    verdict: F13_RESET_SUCCESS_VERDICT,
+    alreadyClean: true,
+  });
+  assert.equal(cleanBaselineFallback.ok, false);
+  assert.equal(cleanBaselineFallback.verdict, FILE_BASED_RUNNER_VERDICTS.HOLD);
+
+  const preserve = qualificationResetQualifyEmitPayload({
+    ok: true,
+    verdict: F21_RESET_SUCCESS_VERDICT,
+    alreadyClean: true,
+  });
+  assert.equal(preserve.ok, true);
+  assert.equal(preserve.verdict, F21_RESET_SUCCESS_VERDICT);
+});
+
+test("F21 generated SQL preserves extension and rejects CASCADE", () => {
+  const planned = planQualificationReset(planInput());
+  assert.equal(planned.ok, true);
+  assert.doesNotMatch(planned.sql, /DROP EXTENSION/i);
+  assert.doesNotMatch(planned.sql, /ALTER EXTENSION/i);
+  assert.doesNotMatch(planned.sql, /\bCASCADE\b/i);
+  assert.match(planned.sql, /deptype = 'e'/);
+  assert.match(planned.sql, /f21-btree-gist-extension-preserve-scoped-v1/);
+  assert.doesNotMatch(planned.sql, /btree_gist still present/);
+});
+
+test("F21 wipe remains forbidden for stub-live-pin auth", () => {
+  const wiped = planQualificationReset(planInput({ wipeToBaseline: true }));
+  assert.equal(wiped.ok, false);
+  assert.equal(wiped.code, F13_WIPE_REJECTION_CODE);
 });
 
 

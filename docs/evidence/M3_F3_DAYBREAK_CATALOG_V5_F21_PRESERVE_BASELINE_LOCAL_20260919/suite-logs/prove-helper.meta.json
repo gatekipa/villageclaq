@@ -1,0 +1,11 @@
+{
+  "helper": "scripts/prove-f3-qualification-reset-local.mjs",
+  "proveHead": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+  "classification": "LOCAL_PG_EXECUTED",
+  "pass": 42,
+  "fail": 0,
+  "checks": 30,
+  "scenarios": 12,
+  "executedTransactions": 9,
+  "postgresServerVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)"
+}

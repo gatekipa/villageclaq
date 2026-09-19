@@ -1,0 +1,17 @@
+{
+  "builderBcId": "bc-b6324dad-d5bc-5390-b86e-eff7dde31a77",
+  "functionalTip": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+  "proveHead": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+  "proveStartedUtc": "2026-09-19T20:25:24Z",
+  "proveEndedUtc": "2026-09-19T20:25:33Z",
+  "helper": "scripts/prove-f3-qualification-reset-local.mjs",
+  "fixture": "scripts/fixtures/disposable-postgres.mjs createDisposableDatabase(f15_qual_reset|f21_preserve_cat)",
+  "endpoint": "unix:[SANITIZED_ABS_PATH]",
+  "role": "ubuntu",
+  "workDbPrefix": "f3_",
+  "classification": "LOCAL_PG_EXECUTED",
+  "postgresServerVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+  "hostedContact": false,
+  "disposableContact": false,
+  "productionContact": false
+}

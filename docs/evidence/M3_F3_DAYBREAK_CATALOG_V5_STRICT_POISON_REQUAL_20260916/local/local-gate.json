@@ -1,0 +1,171 @@
+{
+  "head": "43ebd223b66edcd5581dc03f80110c3a39975f47",
+  "head_is_tip101": true,
+  "E51": "f8f04604199cc575c2134bac7b055c901f2207f7",
+  "tip_vs_E51_files": [
+    "scripts/lib/f3-db-push-query-parse.mjs",
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "tip_vs_E51_only_allowlisted_4": true,
+  "independent_ref_blob_E51": "09b6e97ee0605d4af81b027746e49a6e43ff6ff1",
+  "independent_ref_blob_tip": "09b6e97ee0605d4af81b027746e49a6e43ff6ff1",
+  "independent_ref_unchanged": true,
+  "clean_worktree_functional": true,
+  "porcelain": "",
+  "functional_dirty_lines": [],
+  "cli_version": "2.117.0",
+  "cli_ok": true,
+  "suites": {
+    "test-f3-recognition": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 40,
+        "pass": 40,
+        "fail": 0,
+        "skipped": 0
+      },
+      "sha256": "ba39b67cfa09b2b8a87e79963ffb665a84155618e923177f6a5bdf5df165bd20",
+      "bytes": 7568
+    },
+    "test-f3-db-push": {
+      "exit": 0,
+      "classification": "PASS_WITH_SKIPS",
+      "counts": {
+        "tests": 126,
+        "pass": 125,
+        "fail": 0,
+        "skipped": 1
+      },
+      "sha256": "d53b41476c9cad3be61d75f4b25b05554e57d5ea204a3a777c3c7bf1e68be72d",
+      "bytes": 154282
+    },
+    "test-f3-oracles": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 577,
+        "pass": 577,
+        "fail": 0,
+        "skipped": 0
+      },
+      "sha256": "02fb2a4473c115875956be51b2f638afeecc553552da86fcc826b6f77561a4a8",
+      "bytes": 87522
+    },
+    "test-f3-local-safety": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "skipped": 0
+      },
+      "sha256": "89b65b1dc0e4cf144ce75941c75e21b89b7bbccdc85305038c4fb63bc5fa01d0",
+      "bytes": 10219
+    },
+    "test-f3-mapi-harness": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "skipped": 0
+      },
+      "sha256": "9e05f97dbe0a6a602fb2b31223f4f970b77d77c22698aad26c99f84b3d8639ad",
+      "bytes": 4558
+    },
+    "test-m2": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 111,
+        "pass": 111,
+        "fail": 0,
+        "skipped": 0
+      },
+      "sha256": "fdf1eefa8f6fc34a3782e37722009614a9404d23441e8f65a3292d1c4711ac99",
+      "bytes": 22511
+    },
+    "test-m2-static-security": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "skipped": 0
+      },
+      "sha256": "9d4df0682675c0cd6b8e7b205b7e81f5c11b546986c8db35cd8cff28c5c4237c",
+      "bytes": 1913
+    },
+    "test-s0-cut1": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      },
+      "sha256": "4ec6aca0c7073f1e20501adf03ed7b24af003cc4c3c0d12bca69618f033f6bd2",
+      "bytes": 2406
+    },
+    "test-s0-cut2": {
+      "exit": 1,
+      "classification": "ENV_DEPENDENT_FAIL",
+      "counts": {
+        "tests": 21,
+        "pass": 14,
+        "fail": 7,
+        "skipped": 0
+      },
+      "sha256": "06d340d454c6b3c520b74d497c0e790197d87a09a9b5f23bdfc34a906b587608",
+      "bytes": 15687,
+      "env_note": "disposablePrerequisiteError \u2014 no local disposable DB for cut2 provenance tests; not a tip functional regression"
+    },
+    "test-storage-buckets": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      },
+      "sha256": "fdc7a889edf956ec42a997540ed97536261f2b4eee5756edce2c131667082d2a",
+      "bytes": 2427
+    },
+    "tsc-noEmit": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": null,
+        "pass": 1,
+        "fail": 0,
+        "skipped": 0
+      },
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "next-build": {
+      "exit": 0,
+      "classification": "PASS",
+      "counts": {
+        "tests": null,
+        "pass": 1,
+        "fail": 0,
+        "skipped": 0
+      },
+      "sha256": "5d5c1544cc5c52988c36dd6a7898c8a1c9aa3b4e4b82ecdd2446cc2c26cf71c2",
+      "bytes": 6884,
+      "note": "re-run after replacing node_modules symlink with bind/hardlink for Turbopack"
+    }
+  },
+  "required_suites_ok": true,
+  "actual_spy_negatives_test_present_and_ok": true,
+  "verdict": "CONTINUE"
+}

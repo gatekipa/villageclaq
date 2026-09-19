@@ -1,0 +1,21 @@
+{
+  "schema": "f17-qualification-reset-lock-order-v1",
+  "isolation": "READ COMMITTED",
+  "serializableSnapshotBeforeLockInsufficient": true,
+  "order": [
+    "BEGIN ISOLATION LEVEL READ COMMITTED",
+    "SET LOCAL timeouts",
+    "T1 advisory xact lock (cooperative helper; may precede relation locks)",
+    "T1 observation SELECT (does not freeze a SERIALIZABLE snapshot)",
+    "T2 LOCK schema_migrations SHARE ROW EXCLUSIVE + allowlisted tables ACCESS EXCLUSIVE (wait window)",
+    "T3 live catalog exact-tuple revalidation sees commits that landed while waiting"
+  ],
+  "protectionsRetained": [
+    "ACCESS EXCLUSIVE on leftover allowlisted relations",
+    "SHARE ROW EXCLUSIVE on supabase_migrations.schema_migrations",
+    "T3 exact (kind,identity,from,to) vs captured approved set AND 37-tuple contract",
+    "T6 final allowlisted-absent + history-absent assertions",
+    "unexpected object / history mismatch still abort before mutation",
+    "advisory lock remains helper-only"
+  ]
+}

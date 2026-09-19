@@ -1,0 +1,33 @@
+{
+  "id": "F19_THROWN_ONLY",
+  "kind": "thrown-true-alone",
+  "interpreted": {
+    "committed": false,
+    "rolledBack": null,
+    "processErrorPresent": true,
+    "thrown": true
+  },
+  "attestation": {
+    "ok": false,
+    "processFailed": true,
+    "interpretedCommitted": false,
+    "genuineSuccess": false
+  },
+  "finalization": {
+    "ok": false,
+    "code": "F18_ATTESTATION_INCONSISTENT",
+    "reason": "inconsistent attestations fail package finalization",
+    "inconsistentCount": 1
+  },
+  "reread": {
+    "thrown": true,
+    "status": 0,
+    "verdict": "CLEAN_BASELINE"
+  },
+  "leaks": {
+    "pathLeaks": 0,
+    "secrets": 0,
+    "pathLeakHits": [],
+    "secretHits": []
+  }
+}

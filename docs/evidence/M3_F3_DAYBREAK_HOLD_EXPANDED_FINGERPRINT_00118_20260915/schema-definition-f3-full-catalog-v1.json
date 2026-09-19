@@ -1,0 +1,30 @@
+{
+  "artifact": "schema-definition",
+  "schema_version": "f3-full-catalog-v1",
+  "required_keys": [
+    "schema_version",
+    "schema",
+    "schemas",
+    "function_owner",
+    "acl",
+    "acls",
+    "policy",
+    "policies",
+    "relations",
+    "columns",
+    "types",
+    "views",
+    "routines",
+    "rls",
+    "constraints",
+    "indexes",
+    "triggers",
+    "hgp",
+    "enqueue",
+    "f3_objects_absent"
+  ],
+  "recognition": [
+    "manual_income"
+  ],
+  "note": "Expanded immutable catalog fingerprint contract sealed at tip ebd4c20"
+}

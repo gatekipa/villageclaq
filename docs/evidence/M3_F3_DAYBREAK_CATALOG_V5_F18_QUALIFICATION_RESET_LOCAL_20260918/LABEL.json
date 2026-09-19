@@ -1,0 +1,20 @@
+{
+  "package": "M3_F3_DAYBREAK_CATALOG_V5_F18_QUALIFICATION_RESET_LOCAL_20260918",
+  "localStatus": "LOCAL CANDIDATE READY",
+  "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "f18IndependentQa": "F18 ACCEPT",
+  "reviewerBcId": "bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
+  "reviewedPin": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "classification": "LOCAL_PG_EXECUTED",
+  "postgresServerVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+  "qaPackageCommit": "e85a7a537275596d54c5ccb6bd632bb6f12c0e4e",
+  "supersedes": {
+    "f17Ready": true,
+    "f17Package": "M3_F3_DAYBREAK_CATALOG_V5_F17_QUALIFICATION_RESET_LOCAL_20260918",
+    "f17Functional": "83b9f79483f3ba53f4f8cd60016450ff38a723b4",
+    "f17Evidence": "3fcbcbc438ccc90faf7e87d06ba0d270e3d17598",
+    "startingRef": "3fcbcbc438ccc90faf7e87d06ba0d270e3d17598"
+  },
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "label": "F18 LOCAL CORRECTION CANDIDATE — INDEPENDENT QA F18 ACCEPT"
+}

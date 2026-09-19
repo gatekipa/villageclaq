@@ -1,0 +1,8 @@
+{
+  "artifact": "canary-precheck-absent",
+  "canary_name": "public.__f3_acl_platform_canary_20260915",
+  "to_regclass": null,
+  "absent": true,
+  "sequence_absent": true,
+  "captured_at_iso": "2026-09-15T23:23:53.040Z"
+}

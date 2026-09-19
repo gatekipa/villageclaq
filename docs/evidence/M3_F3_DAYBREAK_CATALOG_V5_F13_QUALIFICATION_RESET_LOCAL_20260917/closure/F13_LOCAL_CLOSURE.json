@@ -1,0 +1,255 @@
+{
+  "schema": "f13-qualification-reset-local-closure-v1",
+  "notF12Digest": true,
+  "f12ClosureDigestCitedNotRecopied": "08c2d46d7ff0d7e80d4df30342ca804cd7f1ddc408951491f77d5bb92ce1157b",
+  "tip": "51cc864d1efbefc1398ad3fd1895360c95474a57",
+  "parent": "c85a64c9a3c4dbe89b6b3bde2211e213d3307ef1",
+  "design": "a117d06fb202696944ae423d77336db0a48a8a13",
+  "docsHeadAncestor": "020bb9ef23d5e6a9f4b75e0fbb800acc24786300",
+  "f12FunctionalPreserved": "1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+  "qa": {
+    "verdict": "IMPLEMENTATION ACCEPT",
+    "scoreRel": "qa-accept/score.md"
+  },
+  "p0p1p2": {
+    "P0_inventoryWired": true,
+    "P1_eligibleGated": true,
+    "P2_cleanBaselineVerdict": true,
+    "wipeStillRejected": true
+  },
+  "localPg": {
+    "overallOk": true,
+    "passCount": 13,
+    "failCount": 0,
+    "cases": [
+      {
+        "id": "SETUP_RESET_THROWAY",
+        "ok": true,
+        "code": null,
+        "verdict": null
+      },
+      {
+        "id": "WIPE_STILL_REJECTED",
+        "ok": true,
+        "code": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
+        "verdict": null
+      },
+      {
+        "id": "P0_INVENTORY_CAPTURE_REQUIRED",
+        "ok": true,
+        "code": "F13_INVENTORY_CAPTURE_REQUIRED",
+        "verdict": null
+      },
+      {
+        "id": "SETUP_MIGRATIONS_RELATION",
+        "ok": true,
+        "code": null,
+        "verdict": null
+      },
+      {
+        "id": "P1_ELIGIBLE_ALREADY_CLEAN",
+        "ok": true,
+        "code": null,
+        "verdict": null
+      },
+      {
+        "id": "P2_CLEAN_BASELINE_VERDICT",
+        "ok": true,
+        "code": null,
+        "verdict": "CLEAN_BASELINE"
+      },
+      {
+        "id": "SETUP_LEFTOVER_FIXTURE",
+        "ok": true,
+        "code": null,
+        "verdict": null
+      },
+      {
+        "id": "P1_LEFTOVER_ELIGIBLE",
+        "ok": true,
+        "code": null,
+        "verdict": null
+      },
+      {
+        "id": "SUCCESS_LEFTOVER_CLEAN_BASELINE",
+        "ok": true,
+        "code": "F13_RESET_COMMITTED",
+        "verdict": "CLEAN_BASELINE"
+      },
+      {
+        "id": "ROLLBACK_EXTRAS_HOLD_OFFLINE",
+        "ok": true,
+        "code": "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY",
+        "verdict": null
+      },
+      {
+        "id": "ROLLBACK_UNEXPECTED_OBJECT_SQL",
+        "ok": true,
+        "code": "F13_RESET_SQL_FAILED",
+        "verdict": null
+      },
+      {
+        "id": "ROLLBACK_HISTORY_MISMATCH",
+        "ok": true,
+        "code": "F13_RESET_SQL_FAILED",
+        "verdict": null
+      },
+      {
+        "id": "FAILURE_BEFORE_MUTATION_NO_EFFECTS",
+        "ok": true,
+        "code": "F13_FAILURE_BEFORE_MUTATION",
+        "verdict": null
+      }
+    ],
+    "databaseLabel": "local-throwaway-f13-qual-reset",
+    "containerLabel": "f3-reference-pg176",
+    "server": "PostgreSQL 17.6"
+  },
+  "suites": [
+    {
+      "suite": "test-f3-reset-design",
+      "classification": "PASS",
+      "observed": {
+        "tests": 24,
+        "pass": 24,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "suite": "test-f3-reset",
+      "classification": "PASS",
+      "observed": {
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "suite": "test-f3-db-push",
+      "classification": "PASS_WITH_SKIPS",
+      "observed": {
+        "tests": 196,
+        "pass": 195,
+        "fail": 0,
+        "skipped": 1
+      }
+    },
+    {
+      "suite": "test-f3-recognition",
+      "classification": "PASS",
+      "observed": {
+        "tests": 40,
+        "pass": 40,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "suite": "test-f3-oracles",
+      "classification": "PASS",
+      "observed": {
+        "tests": 577,
+        "pass": 577,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "suite": "test-f3-local-safety",
+      "classification": "PASS",
+      "observed": {
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "suite": "test-f3-mapi-harness",
+      "classification": "PASS",
+      "observed": {
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "suite": "test-m2",
+      "classification": "PASS",
+      "observed": {
+        "tests": 111,
+        "pass": 111,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "suite": "test-m2-static-security",
+      "classification": "PASS",
+      "observed": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "suite": "test-s0-cut1",
+      "classification": "PASS",
+      "observed": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "suite": "test-s0-cut2",
+      "classification": "ENV_DEPENDENT_FAIL",
+      "observed": {
+        "tests": 21,
+        "pass": 14,
+        "fail": 7,
+        "skipped": 0
+      }
+    },
+    {
+      "suite": "test-storage-buckets",
+      "classification": "PASS",
+      "observed": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "suite": "tsc-noEmit",
+      "classification": "PASS",
+      "observed": null
+    },
+    {
+      "suite": "next-build",
+      "classification": "PASS",
+      "observed": null
+    },
+    {
+      "suite": "local-pg-proof",
+      "classification": "PASS",
+      "observed": null
+    }
+  ],
+  "bansHonored": {
+    "disposable": false,
+    "production": false,
+    "daybreakAstra": false,
+    "wipeBypass": false,
+    "forcePush": false
+  },
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "localStatus": "LOCAL CANDIDATE READY"
+}

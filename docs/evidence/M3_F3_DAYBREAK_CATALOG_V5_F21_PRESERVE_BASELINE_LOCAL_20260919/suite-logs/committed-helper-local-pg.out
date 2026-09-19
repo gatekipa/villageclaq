@@ -1,0 +1,17 @@
+{
+  "proveHead": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+  "localPg": {
+    "available": true,
+    "reason": null,
+    "classification": "LOCAL_PG_EXECUTED",
+    "serverVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)"
+  },
+  "distinctions": {
+    "checks": 30,
+    "scenarios": 12,
+    "executedTransactions": 9
+  },
+  "passCount": 42,
+  "failCount": 0,
+  "overallOk": true
+}

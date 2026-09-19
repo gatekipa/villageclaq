@@ -1,0 +1,51 @@
+{
+  "status": "FILE-BASED RUNNER QUALIFICATION PASS \u2014 STUB/LIVE-PIN FLOOR LIMITATION",
+  "verdict": "FILE-BASED RUNNER QUALIFICATION PASS \u2014 STUB/LIVE-PIN FLOOR LIMITATION",
+  "candidateOnly": true,
+  "productionApproved": false,
+  "sealedPlatformAclEnvelopeDigest": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "managementApiApply": "PERMANENTLY DISQUALIFIED: Management API POST /database/migrations {query,name} \u2014 SQL can COMMIT while history INSERT fails with no recoverable version (Chief live probe 2026-09-13 on jkorwnwwmdeflfntxntl).",
+  "projectRef": "jkorwnwwmdeflfntxntl",
+  "host": "db.jkorwnwwmdeflfntxntl.supabase.co",
+  "inventoryBefore_keys": [
+    "status",
+    "body"
+  ],
+  "inventoryCapture_keys": [
+    "status",
+    "body"
+  ],
+  "inventories_keys": [
+    "before_reset",
+    "CLEAN_BASELINE",
+    "after_floor",
+    "after_failed_history_insertion",
+    "after_repair",
+    "after_retry",
+    "after_continuation",
+    "FINAL"
+  ],
+  "inventoryChronology_keys": [
+    "do_not_call_pre_floor_final",
+    "final_label"
+  ],
+  "cleanup": null,
+  "stagingInvariant": "PREFIX-COMPLETE, SINGLE-PENDING",
+  "productionHistoryLimitation": "WARNING: disposable proves prefix-complete staging for F3 qualification history only. Before any production db push, a separately authorized read-only production preflight must prove every production-recorded migration has an authoritative local timestamp file, frozen SQL digest, and order. Empty placeholders and guessed history are forbidden. Do not invent production migrations.",
+  "cleanupRecommendation": "Leave disposable project jkorwnwwmdeflfntxntl in place. Do not delete or pause. Throwaway probe may be dropped; do not drop supabase_migrations unless CLI docs require init.",
+  "finalPoisonProbe": {
+    "ok": true,
+    "absent": true,
+    "poisonPresent": false,
+    "parser_verdict": "valid_json_exact_schema",
+    "poison_absence_verdict": "proven_absent"
+  },
+  "finalInventoryChronology_keys": [
+    "ok",
+    "historyRows",
+    "recognition"
+  ],
+  "floorLabel": "DOCUMENTED QUALIFICATION FIXTURE \u2014 NOT A CLEAN 00001\u201300117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "fingerprintSchemaVersion": "f3-full-catalog-v4",
+  "mustReverifyOn176": true
+}

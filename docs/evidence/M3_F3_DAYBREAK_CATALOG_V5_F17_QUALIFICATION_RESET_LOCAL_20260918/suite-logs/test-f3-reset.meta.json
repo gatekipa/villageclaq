@@ -1,0 +1,13 @@
+{
+  "suite": "test-f3-qualification-reset",
+  "executableCommit": "83b9f79483f3ba53f4f8cd60016450ff38a723b4",
+  "platform": "linux",
+  "pgAvailable": true,
+  "originalLogSha256": "a4de2b9afb93efe9e25e3062439d1bc8dc89a416b5a03ad053ea5c65946c8aa7",
+  "packagedSanitized": true,
+  "originalByteEqual": false,
+  "tests": 59,
+  "pass": 59,
+  "fail": 0,
+  "skipped": 0
+}

@@ -1,0 +1,15 @@
+{
+  "name": "test-f3-acl-portability",
+  "command": "node --test scripts/test-f3-acl-portability.mjs",
+  "startedAt": "2026-09-14T21:32:12Z",
+  "endedAt": "2026-09-14T21:32:12Z",
+  "exit": 0,
+  "pass": 3,
+  "fail": 0,
+  "skip": 1,
+  "tap_ok": 4,
+  "tap_not_ok": 0,
+  "log": "<redacted-path>",
+  "sha256": "a7babdc18d3a32ebc03ab1231abad986fa0d8ca44cbbba98a73e41bd5b583e27",
+  "bytes": 1238
+}

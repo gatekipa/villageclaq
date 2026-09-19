@@ -1,0 +1,160 @@
+TAP version 13
+# Subtest: F13-A01 financial_* prefix is not a destructive allowlist
+ok 1 - F13-A01 financial_* prefix is not a destructive allowlist
+  ---
+  duration_ms: 0.952819
+  ...
+# Subtest: F13-A02 exact schema-qualified identities are accepted
+ok 2 - F13-A02 exact schema-qualified identities are accepted
+  ---
+  duration_ms: 1.24105
+  ...
+# Subtest: F13-A03 unexpected object blocks
+ok 3 - F13-A03 unexpected object blocks
+  ---
+  duration_ms: 0.288568
+  ...
+# Subtest: F13-A04 unexpected dependency blocks
+ok 4 - F13-A04 unexpected dependency blocks
+  ---
+  duration_ms: 0.093209
+  ...
+# Subtest: F13-A05 broad CASCADE is rejected including F12 and historical SQL
+ok 5 - F13-A05 broad CASCADE is rejected including F12 and historical SQL
+  ---
+  duration_ms: 0.956806
+  ...
+# Subtest: F13-A06 every allowlist row has identity, provenance, state, action, effects, order
+ok 6 - F13-A06 every allowlist row has identity, provenance, state, action, effects, order
+  ---
+  duration_ms: 0.288668
+  ...
+# Subtest: F13-A07 schemas are dropped RESTRICT after emptiness, never CASCADE
+ok 7 - F13-A07 schemas are dropped RESTRICT after emptiness, never CASCADE
+  ---
+  duration_ms: 0.514769
+  ...
+# Subtest: F13-B01 complete transaction phases are required
+ok 8 - F13-B01 complete transaction phases are required
+  ---
+  duration_ms: 0.176974
+  ...
+# Subtest: F13-B02 advisory lock alone is insufficient
+ok 9 - F13-B02 advisory lock alone is insufficient
+  ---
+  duration_ms: 0.205163
+  ...
+# Subtest: F13-B03 uncertain commit forbids automatic replay and unverifiable rollback
+ok 10 - F13-B03 uncertain commit forbids automatic replay and unverifiable rollback
+  ---
+  duration_ms: 0.267207
+  ...
+# Subtest: F13-C01 exact PREASSIGNED version+name keys match F12 tip pins
+ok 11 - F13-C01 exact PREASSIGNED version+name keys match F12 tip pins
+  ---
+  duration_ms: 0.163987
+  ...
+# Subtest: F13-C02 null or empty names are rejected without authenticated provenance
+ok 12 - F13-C02 null or empty names are rejected without authenticated provenance
+  ---
+  duration_ms: 0.182419
+  ...
+# Subtest: F13-C03 mismatched name aborts the whole operation
+ok 13 - F13-C03 mismatched name aborts the whole operation
+  ---
+  duration_ms: 0.082173
+  ...
+# Subtest: F13-C04 source-label substitution SQL is rejected
+ok 14 - F13-C04 source-label substitution SQL is rejected
+  ---
+  duration_ms: 0.443283
+  ...
+# Subtest: F13-C05 historical six-row deletion does not establish live state
+ok 15 - F13-C05 historical six-row deletion does not establish live state
+  ---
+  duration_ms: 0.09736
+  ...
+# Subtest: F13-D01 flag alone is not founder authorization
+ok 16 - F13-D01 flag alone is not founder authorization
+  ---
+  duration_ms: 0.212694
+  ...
+# Subtest: F13-D02 complete binding of target, candidate, closure, scope, budget is required
+ok 17 - F13-D02 complete binding of target, candidate, closure, scope, budget is required
+  ---
+  duration_ms: 0.400987
+  ...
+# Subtest: F13-D03 production and wipe flag remain refused
+ok 18 - F13-D03 production and wipe flag remain refused
+  ---
+  duration_ms: 0.61406
+  ...
+# Subtest: F13-D04 Phase 1 planner never opens mutation and refuses live contact
+ok 19 - F13-D04 Phase 1 planner never opens mutation and refuses live contact
+  ---
+  duration_ms: 0.824951
+  ...
+# Subtest: F13-D05 planner fail-closes on F12-style SQL even with otherwise valid auth
+ok 20 - F13-D05 planner fail-closes on F12-style SQL even with otherwise valid auth
+  ---
+  duration_ms: 0.180863
+  ...
+# Subtest: F13-E01 F9 sanitized artifact is byte-for-byte the finalized source
+ok 21 - F13-E01 F9 sanitized artifact is byte-for-byte the finalized source
+  ---
+  duration_ms: 0.155748
+  ...
+# Subtest: F13-E02 new package discloses zero workspace absolute paths
+ok 22 - F13-E02 new package discloses zero workspace absolute paths
+  ---
+  duration_ms: 0.980281
+  ...
+# Subtest: F13-E03 historical complete argv remains CANNOT CONFIRM
+ok 23 - F13-E03 historical complete argv remains CANNOT CONFIRM
+  ---
+  duration_ms: 0.12182
+  ...
+# Subtest: F13-E04 design artifact export stays offline and labeled
+ok 24 - F13-E04 design artifact export stays offline and labeled
+  ---
+  duration_ms: 0.190576
+  ...
+# Subtest: F14-A01 named-arg and catalog identities compare as the same function
+ok 25 - F14-A01 named-arg and catalog identities compare as the same function
+  ---
+  duration_ms: 0.363649
+  ...
+# Subtest: F14-A02 allowed function surface includes zero-arg, custom types, and timestamptz aliases
+ok 26 - F14-A02 allowed function surface includes zero-arg, custom types, and timestamptz aliases
+  ---
+  duration_ms: 0.651212
+  ...
+# Subtest: F15-C2-A01 matching constraint name cannot authorize different endpoints
+ok 27 - F15-C2-A01 matching constraint name cannot authorize different endpoints
+  ---
+  duration_ms: 0.53922
+  ...
+# Subtest: F15-C3-A01 allowlist carries actual catalog FK identities from migrations
+ok 28 - F15-C3-A01 allowlist carries actual catalog FK identities from migrations
+  ---
+  duration_ms: 0.201156
+  ...
+# Subtest: F17-B01 T1 isolation is READ COMMITTED after snapshot-before-lock proof
+ok 29 - F17-B01 T1 isolation is READ COMMITTED after snapshot-before-lock proof
+  ---
+  duration_ms: 0.104596
+  ...
+# Subtest: F16-B01 finite dependency contract remains 37 complete tuples
+ok 30 - F16-B01 finite dependency contract remains 37 complete tuples
+  ---
+  duration_ms: 0.115155
+  ...
+1..30
+# tests 30
+# suites 0
+# pass 30
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 692.10203

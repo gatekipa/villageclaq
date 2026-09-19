@@ -1,0 +1,782 @@
+{
+  "phase": "local",
+  "verdict": "READY_TO_FF",
+  "hold_reason": null,
+  "tip_sha": "50b3d884f13e3f0be573699889d772b1d83a09da",
+  "E3": "a0c71ad8871e58c4b1d45885341298919d4e6307",
+  "F3": "e61894fa222beb44b35eb2ac642ef4b16aae86f7",
+  "main_pin": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr83_pin": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "tip_vs_E3_files_only": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/lib/f3-full-catalog-independent-reference.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "tip_vs_E3_file_count": 4,
+  "pg": "17.6",
+  "seal_database": "f3_reference_catalog_v4_20260915",
+  "schema_version": "f3-full-catalog-v4",
+  "envelope_digest": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "envelope_proof": {
+    "tip_digest_constant": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "tip_envelope_digest_field": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "tip_recomputed": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "original_canonical_bytes": 10222,
+    "original_canonical_sha256": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "expected_pin": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "match": true,
+    "original_has_REDACTED": false,
+    "tip_envelope_has_REDACTED": false,
+    "not_from_hosted_fingerprint_72af6699": true,
+    "not_from_financial_ledger_epochs": true,
+    "provenance_claim": "INDEPENDENT SUPABASE PLATFORM-ACL CALIBRATION \u2014 derived ONLY from disposable pg_default_acl + canary agreement",
+    "semantic_match_tip": true
+  },
+  "independent_module_sha": {
+    "claimed": "d96554569cb8b452445c7f14faa6218845d34a1812aba97c8abf196f0834cc57",
+    "tip_closure": "d96554569cb8b452445c7f14faa6218845d34a1812aba97c8abf196f0834cc57",
+    "file_sha256": "d96554569cb8b452445c7f14faa6218845d34a1812aba97c8abf196f0834cc57",
+    "match": true
+  },
+  "recursive_closure": {
+    "closure_complete": true,
+    "missing": 0,
+    "unresolved": 0,
+    "unexplained_exclusions": 0,
+    "uncommitted_functional_diffs": 0,
+    "hosted_tree_mismatches": 0,
+    "schema_primary": "f3-full-catalog-v4",
+    "schema_independent": "f3-full-catalog-v4"
+  },
+  "independent_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "92140cbe453f5edc47d7d85c022adfeb69212fff18ebfbff09dd588918756c94",
+    "00119_f3_01_core_ledger_foundation.sql": "647e0174fcd0ed47a5281aad66dd2e056b1ae69c603b670c2fe6aea66e685109",
+    "00120_f3_02_secure_posting_idempotency.sql": "8ab365c03f6340d42676f5f7c06bca9e0386e7bcdd5d9d18d34d2726123b050a",
+    "00121_f3_03_projection_read_proof.sql": "9c02198e6e277590cf5c514704314a719d5323ae547623edd630f6c5591b1dc6",
+    "00122_f3_04_correction_reversal.sql": "41fd34c976ed48f7a9d1ce6a154a2dba16d37487cffb364693bbae2046cbc31c",
+    "00123_f3_05_opening_cash_command.sql": "a1eb6ba2741c8337bea35553f3d8b128e0ca83d1db014bd67342187b59cb78b6"
+  },
+  "tip_embedded_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "92140cbe453f5edc47d7d85c022adfeb69212fff18ebfbff09dd588918756c94",
+    "00119_f3_01_core_ledger_foundation.sql": "647e0174fcd0ed47a5281aad66dd2e056b1ae69c603b670c2fe6aea66e685109",
+    "00120_f3_02_secure_posting_idempotency.sql": "8ab365c03f6340d42676f5f7c06bca9e0386e7bcdd5d9d18d34d2726123b050a",
+    "00121_f3_03_projection_read_proof.sql": "9c02198e6e277590cf5c514704314a719d5323ae547623edd630f6c5591b1dc6",
+    "00122_f3_04_correction_reversal.sql": "41fd34c976ed48f7a9d1ce6a154a2dba16d37487cffb364693bbae2046cbc31c",
+    "00123_f3_05_opening_cash_command.sql": "a1eb6ba2741c8337bea35553f3d8b128e0ca83d1db014bd67342187b59cb78b6"
+  },
+  "cloud_agent_v4_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "92140cbe453f5edc47d7d85c022adfeb69212fff18ebfbff09dd588918756c94",
+    "00119_f3_01_core_ledger_foundation.sql": "647e0174fcd0ed47a5281aad66dd2e056b1ae69c603b670c2fe6aea66e685109",
+    "00120_f3_02_secure_posting_idempotency.sql": "8ab365c03f6340d42676f5f7c06bca9e0386e7bcdd5d9d18d34d2726123b050a",
+    "00121_f3_03_projection_read_proof.sql": "9c02198e6e277590cf5c514704314a719d5323ae547623edd630f6c5591b1dc6",
+    "00122_f3_04_correction_reversal.sql": "41fd34c976ed48f7a9d1ce6a154a2dba16d37487cffb364693bbae2046cbc31c",
+    "00123_f3_05_opening_cash_command.sql": "a1eb6ba2741c8337bea35553f3d8b128e0ca83d1db014bd67342187b59cb78b6"
+  },
+  "builder_eq_reference_all_six": true,
+  "tip_eq_independent_all_six": true,
+  "cloud_eq_independent_all_six": true,
+  "trigger_universe_ok": true,
+  "trigger_universe": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": {
+      "observed": {
+        "total": 21,
+        "internal": 20,
+        "referencing": 10,
+        "referenced": 10,
+        "user": 1
+      },
+      "match_claimed": true,
+      "refs": [
+        "public.groups",
+        "public.organizations",
+        "public.profiles"
+      ],
+      "tgdefer_ok": true
+    },
+    "00119_f3_01_core_ledger_foundation.sql": {
+      "observed": {
+        "total": 101,
+        "internal": 92,
+        "referencing": 50,
+        "referenced": 42,
+        "user": 7
+      },
+      "match_claimed": true,
+      "refs": [
+        "public.financial_accounts",
+        "public.financial_categories",
+        "public.financial_events",
+        "public.financial_funds",
+        "public.financial_ledger_epochs",
+        "public.groups",
+        "public.memberships",
+        "public.organizations",
+        "public.profiles",
+        "public.projects"
+      ],
+      "tgdefer_ok": true
+    },
+    "00120_f3_02_secure_posting_idempotency.sql": {
+      "observed": {
+        "total": 108,
+        "internal": 96,
+        "referencing": 52,
+        "referenced": 44,
+        "user": 9
+      },
+      "match_claimed": true,
+      "refs": [
+        "public.financial_accounts",
+        "public.financial_categories",
+        "public.financial_events",
+        "public.financial_funds",
+        "public.financial_ledger_epochs",
+        "public.groups",
+        "public.memberships",
+        "public.organizations",
+        "public.profiles",
+        "public.projects"
+      ],
+      "tgdefer_ok": true
+    },
+    "00121_f3_03_projection_read_proof.sql": {
+      "observed": {
+        "total": 108,
+        "internal": 96,
+        "referencing": 52,
+        "referenced": 44,
+        "user": 9
+      },
+      "match_claimed": true,
+      "refs": [
+        "public.financial_accounts",
+        "public.financial_categories",
+        "public.financial_events",
+        "public.financial_funds",
+        "public.financial_ledger_epochs",
+        "public.groups",
+        "public.memberships",
+        "public.organizations",
+        "public.profiles",
+        "public.projects"
+      ],
+      "tgdefer_ok": true
+    },
+    "00122_f3_04_correction_reversal.sql": {
+      "observed": {
+        "total": 131,
+        "internal": 116,
+        "referencing": 62,
+        "referenced": 54,
+        "user": 11
+      },
+      "match_claimed": true,
+      "refs": [
+        "public.financial_accounts",
+        "public.financial_categories",
+        "public.financial_events",
+        "public.financial_funds",
+        "public.financial_ledger_epochs",
+        "public.groups",
+        "public.memberships",
+        "public.organizations",
+        "public.profiles",
+        "public.projects"
+      ],
+      "tgdefer_ok": true
+    },
+    "00123_f3_05_opening_cash_command.sql": {
+      "observed": {
+        "total": 140,
+        "internal": 124,
+        "referencing": 66,
+        "referenced": 58,
+        "user": 12
+      },
+      "match_claimed": true,
+      "refs": [
+        "public.financial_accounts",
+        "public.financial_categories",
+        "public.financial_events",
+        "public.financial_funds",
+        "public.financial_ledger_epochs",
+        "public.groups",
+        "public.memberships",
+        "public.organizations",
+        "public.profiles",
+        "public.projects"
+      ],
+      "tgdefer_ok": true
+    }
+  },
+  "seal_independent_agrees": true,
+  "seal_ok": true,
+  "d692_d802_supersession": {
+    "both_superseded_by_v4": true,
+    "d692": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d692703b4e8ead41",
+    "d802": "ec4582d1a5c85c23d598b568b8d08c3cb57b8ab9f4b38c68d802703b4e8ead41"
+  },
+  "local_suites": {
+    "command": "npm run test:f3-db-push",
+    "tests": 123,
+    "pass": 122,
+    "fail": 0,
+    "skipped": 1,
+    "skipped_detail": [
+      "ok 19 - optional-role REVOKE is a no-op when absent and revokes when present # SKIP local PostgreSQL 17 unavailable: psql: error: connection to server on socket \"/var/run/postgresql/.s.PGSQL.5432\" failed: FATAL:  Peer authentication failed for user \"ubuntu\"\\\\n"
+    ],
+    "exit_ok": true,
+    "tsc_exit": 0,
+    "build_exit": 0,
+    "cli_version": "2.117.0",
+    "env_dependent": [
+      "test-s0-cut2"
+    ],
+    "suite_metas": {
+      "test-f3-mapi-harness": {
+        "suite": "test-f3-mapi-harness",
+        "exit_code": 0,
+        "classification": "PASS",
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "skipped": 0,
+        "sha256": "07e8ea87329928bb3a5645eb0108f670d476836fc71833af1ae90644fc6ea42f",
+        "bytes": 4559
+      },
+      "test-f3-recognition": {
+        "suite": "test-f3-recognition",
+        "exit_code": 0,
+        "classification": "PASS",
+        "tests": 40,
+        "pass": 40,
+        "fail": 0,
+        "skipped": 0,
+        "sha256": "f0f54d05ecdf7a1824c69f765d0e6166995218e73cefa8fa8d533e740407b789",
+        "bytes": 7566
+      },
+      "test-m2-static-security": {
+        "suite": "test-m2-static-security",
+        "exit_code": 0,
+        "classification": "PASS",
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "skipped": 0,
+        "sha256": "2584046d5e0fcdd38ebfd295b43c075d7ae9c13c8d9987db0d4353456d21b095",
+        "bytes": 1916
+      },
+      "test-m2": {
+        "suite": "test-m2",
+        "exit_code": 0,
+        "classification": "PASS",
+        "tests": 111,
+        "pass": 111,
+        "fail": 0,
+        "skipped": 0,
+        "sha256": "5c123c5e837b5bc81183efa88155ac32df0db0b85c690db2185f9a519172c617",
+        "bytes": 22523
+      },
+      "test-s0-cut1": {
+        "suite": "test-s0-cut1",
+        "exit_code": 0,
+        "classification": "PASS",
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0,
+        "sha256": "ff79097ac6643cba3393563888282b06a449e68b93dc9ea1dd036fd89b739f3a",
+        "bytes": 2403,
+        "script": "test:s0-cut1-active-authorization"
+      },
+      "test-s0-cut2": {
+        "suite": "test-s0-cut2",
+        "exit_code": 1,
+        "classification": "ENV_DEPENDENT_FAIL",
+        "tests": 21,
+        "pass": 14,
+        "fail": 7,
+        "skipped": 0,
+        "sha256": "feb588ac5e9602d21a69c4b5d1fd52374ee2e873a7233ba9e093533d4e4372eb",
+        "bytes": 15688
+      },
+      "test-storage-buckets": {
+        "suite": "test-storage-buckets",
+        "exit_code": 0,
+        "classification": "PASS",
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0,
+        "sha256": "61e76d218fea851fc89832f6dd45f4219505c002fcb7e834907c61779d299186",
+        "bytes": 2427
+      },
+      "test-f3-oracles": {
+        "suite": "test-f3-oracles",
+        "exit_code": 0,
+        "classification": "PASS",
+        "tests": 577,
+        "pass": 577,
+        "fail": 0,
+        "skipped": 0,
+        "sha256": "978ab8617a4bbb221d5e757d4c4cfd75c61bda3d4dab640aeadee79017d616fc",
+        "bytes": 87534
+      },
+      "test-f3-local-safety": {
+        "suite": "test-f3-local-safety",
+        "exit_code": 0,
+        "classification": "PASS",
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "skipped": 0,
+        "sha256": "192c6e20cd7f7b1fd2803b96f09a57562538230d7c6ccf83ec1e6e5309f688f5",
+        "bytes": 10223
+      },
+      "test-f3-db-push": {
+        "suite": "test-f3-db-push",
+        "exit_code": 0,
+        "classification": "PASS_WITH_SKIPS",
+        "tests": 123,
+        "pass": 122,
+        "fail": 0,
+        "skipped": 1,
+        "sha256": "9aa1838b5450dd83adfd8e4ebc654cd49ec004ad3e32595dfbba656c067b17d7",
+        "bytes": 92462
+      },
+      "tsc-noEmit": {
+        "suite": "tsc-noEmit",
+        "exit_code": 0,
+        "classification": "PASS",
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "skipped": null,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "next-build": {
+        "suite": "next-build",
+        "exit_code": 0,
+        "classification": "PASS",
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "skipped": null,
+        "sha256": "9bff01d67ced6dba8d570ef264d06278af3eabb3d3f1b22b298ffd6c873ead7a",
+        "bytes": 6884
+      }
+    }
+  },
+  "negative_matrix": {
+    "v4_count": 25,
+    "v4_ids": [
+      "V4-ACTION-ROLE",
+      "V4-CONDEFER-SUBST",
+      "V4-DUPLICATE",
+      "V4-EXTRA-REF-ACTION",
+      "V4-FN-IDENTITY",
+      "V4-INCOMPLETE-CLOSURE",
+      "V4-INDEX-NE-COMMITTED",
+      "V4-MALFORMED",
+      "V4-MANIFEST-MUTATED",
+      "V4-MISSING-REF-ACTION",
+      "V4-OWNING-REASSOC",
+      "V4-POISON-MISSING-BOOL",
+      "V4-POISON-NONJSON",
+      "V4-POISON-NONZERO",
+      "V4-POISON-PRESENT-TRUE",
+      "V4-POISON-SQL",
+      "V4-PRIMARY-REF-DISAGREE",
+      "V4-REF-SWAP",
+      "V4-RUNTIME-READ-MISSING",
+      "V4-SANITIZE-SEMANTIC",
+      "V4-TGDEFERRABLE",
+      "V4-TGENABLED-O-A",
+      "V4-TGENABLED-O-D",
+      "V4-TGENABLED-O-R",
+      "V4-TGINITDEFERRED"
+    ],
+    "all_v4_dbPushCalls_zero": true,
+    "all_v4_repairCalls_zero": true,
+    "c14_actual_dbPushCalls": 6,
+    "v4_cases": [
+      {
+        "caseId": "V4-ACTION-ROLE",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "fingerprint_exact",
+        "classification": "fingerprint expected and observed are not canonically equal",
+        "exactMutation": "action role mismatch",
+        "poisonVerification": "none"
+      },
+      {
+        "caseId": "V4-CONDEFER-SUBST",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "fingerprint_exact",
+        "classification": "observed triggers unexpected nested key deferrable",
+        "exactMutation": "constraint-level substituted for per-trigger",
+        "poisonVerification": "none"
+      },
+      {
+        "caseId": "V4-DUPLICATE",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "fingerprint_exact",
+        "classification": "observed canonicalization rejected: triggers duplicate records",
+        "exactMutation": "duplicate record",
+        "poisonVerification": "none"
+      },
+      {
+        "caseId": "V4-EXTRA-REF-ACTION",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "fingerprint_exact",
+        "classification": "fingerprint expected and observed are not canonically equal",
+        "exactMutation": "extra referenced-side action trigger",
+        "poisonVerification": "none"
+      },
+      {
+        "caseId": "V4-FN-IDENTITY",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "fingerprint_exact",
+        "classification": "fingerprint expected and observed are not canonically equal",
+        "exactMutation": "function identity mismatch",
+        "poisonVerification": "none"
+      },
+      {
+        "caseId": "V4-INCOMPLETE-CLOSURE",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "recursive_runtime_closure",
+        "classification": "HOLD: recursive runtime closure incomplete; db push not spawned; repair not spawned",
+        "exactMutation": "hand list missing runtime-read inputs and migrations",
+        "poisonVerification": null
+      },
+      {
+        "caseId": "V4-INDEX-NE-COMMITTED",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "evidence_index",
+        "classification": "evidence-index.sha256 does not match evidence-index.json",
+        "exactMutation": "index suite.out sha256 rewritten after commit",
+        "poisonVerification": null
+      },
+      {
+        "caseId": "V4-MALFORMED",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "fingerprint_exact",
+        "classification": "observed per-trigger tgdeferrable/tginitdeferred must be boolean",
+        "exactMutation": "malformed/partial trigger record",
+        "poisonVerification": "none"
+      },
+      {
+        "caseId": "V4-MANIFEST-MUTATED",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "evidence_index",
+        "classification": "evidence-index independent verify failed",
+        "exactMutation": "rewrite executable-manifest.json after detached index write",
+        "poisonVerification": null
+      },
+      {
+        "caseId": "V4-MISSING-REF-ACTION",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "fingerprint_exact",
+        "classification": "fingerprint expected and observed are not canonically equal",
+        "exactMutation": "missing referenced-side action trigger",
+        "poisonVerification": "none"
+      },
+      {
+        "caseId": "V4-OWNING-REASSOC",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "fingerprint_exact",
+        "classification": "fingerprint expected and observed are not canonically equal",
+        "exactMutation": "trigger-owning reassociation",
+        "poisonVerification": "none"
+      },
+      {
+        "caseId": "V4-POISON-MISSING-BOOL",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "final_poison_absence",
+        "classification": "final poison probe missing required boolean keys",
+        "exactMutation": "missing boolean",
+        "poisonVerification": null
+      },
+      {
+        "caseId": "V4-POISON-NONJSON",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "final_poison_absence",
+        "classification": "final poison probe non-JSON",
+        "exactMutation": "non-JSON",
+        "poisonVerification": null
+      },
+      {
+        "caseId": "V4-POISON-NONZERO",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "final_poison_absence",
+        "classification": "final poison probe status 1",
+        "exactMutation": "nonzero",
+        "poisonVerification": null
+      },
+      {
+        "caseId": "V4-POISON-PRESENT-TRUE",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "final_poison_absence",
+        "classification": "poisonPresent true or poison objects remain",
+        "exactMutation": "poisonPresent true",
+        "poisonVerification": null
+      },
+      {
+        "caseId": "V4-POISON-SQL",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "final_poison_absence",
+        "classification": "final poison probe SQL error",
+        "exactMutation": "SQL error",
+        "poisonVerification": null
+      },
+      {
+        "caseId": "V4-PRIMARY-REF-DISAGREE",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "fingerprint_exact",
+        "classification": "independent_reference_disagreement",
+        "exactMutation": "independent triggers emptied",
+        "poisonVerification": null
+      },
+      {
+        "caseId": "V4-REF-SWAP",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "fingerprint_exact",
+        "classification": "fingerprint expected and observed are not canonically equal",
+        "exactMutation": "referencing/referenced swap",
+        "poisonVerification": "none"
+      },
+      {
+        "caseId": "V4-RUNTIME-READ-MISSING",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "recursive_runtime_closure",
+        "classification": "HOLD: recursive runtime closure incomplete; db push not spawned; repair not spawned",
+        "exactMutation": "drop src/lib/financial-f3-recognition.ts from submitted closure",
+        "poisonVerification": null
+      },
+      {
+        "caseId": "V4-SANITIZE-SEMANTIC",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "evidence_sanitize",
+        "classification": "F3_SEMANTIC_SANITIZE",
+        "exactMutation": "REDACT privilege-adjacent secret inside default_acl_canonical",
+        "poisonVerification": null
+      },
+      {
+        "caseId": "V4-TGDEFERRABLE",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "fingerprint_exact",
+        "classification": "fingerprint expected and observed are not canonically equal",
+        "exactMutation": "tgdeferrable mismatch",
+        "poisonVerification": "none"
+      },
+      {
+        "caseId": "V4-TGENABLED-O-A",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "fingerprint_exact",
+        "classification": "fingerprint expected and observed are not canonically equal",
+        "exactMutation": "tgenabled O\u2192A",
+        "poisonVerification": "none"
+      },
+      {
+        "caseId": "V4-TGENABLED-O-D",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "fingerprint_exact",
+        "classification": "fingerprint expected and observed are not canonically equal",
+        "exactMutation": "tgenabled O\u2192D",
+        "poisonVerification": "none"
+      },
+      {
+        "caseId": "V4-TGENABLED-O-R",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "fingerprint_exact",
+        "classification": "fingerprint expected and observed are not canonically equal",
+        "exactMutation": "tgenabled O\u2192R",
+        "poisonVerification": "none"
+      },
+      {
+        "caseId": "V4-TGINITDEFERRED",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "migrationRepairCalls": null,
+        "failedGate": "fingerprint_exact",
+        "classification": "fingerprint expected and observed are not canonically equal",
+        "exactMutation": "tginitdeferred mismatch",
+        "poisonVerification": "none"
+      }
+    ],
+    "c_cases": [
+      {
+        "caseId": "C1",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "failedGate": "fingerprint_exact",
+        "classification": "fingerprint expected and observed are not canonically equal",
+        "exactMutation": "internal FK trigger tgenabled O\u2192D"
+      },
+      {
+        "caseId": "C2",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "failedGate": "fingerprint_exact",
+        "classification": "fingerprint expected and observed are not canonically equal",
+        "exactMutation": "internal/user trigger missing"
+      },
+      {
+        "caseId": "C3",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "failedGate": "fingerprint_exact",
+        "classification": "fingerprint expected and observed are not canonically equal",
+        "exactMutation": "extra internal constraint trigger"
+      },
+      {
+        "caseId": "C4",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "failedGate": "fingerprint_exact",
+        "classification": "fingerprint expected and observed are not canonically equal",
+        "exactMutation": "constraint-trigger reassociation"
+      },
+      {
+        "caseId": "C5",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "failedGate": "fingerprint_exact",
+        "classification": "fingerprint expected and observed are not canonically equal",
+        "exactMutation": "trigger-function identity mismatch"
+      },
+      {
+        "caseId": "C6",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "failedGate": "fingerprint_exact",
+        "classification": "fingerprint expected and observed are not canonically equal",
+        "exactMutation": "trigger event/timing/level mismatch"
+      },
+      {
+        "caseId": "C7",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "failedGate": "suite_evidence_integrity",
+        "classification": "F3_SUITE_OUTPUT_MISSING",
+        "exactMutation": "missing suite output referenced by committed evidence"
+      },
+      {
+        "caseId": "C8",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "failedGate": "suite_evidence_integrity",
+        "classification": "F3_SUITE_META_MISMATCH",
+        "exactMutation": "suite output vs metadata SHA/byte-length disagreement"
+      },
+      {
+        "caseId": "C9",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "failedGate": "fingerprint_exact",
+        "classification": "independent_reference_disagreement",
+        "exactMutation": "actual independent-reference disagreement (empty triggers)"
+      },
+      {
+        "caseId": "C10",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "failedGate": "evidence_sanitize",
+        "classification": "F3_SEMANTIC_SANITIZE",
+        "exactMutation": "semantic fingerprint mutation during sanitization"
+      },
+      {
+        "caseId": "C11",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "failedGate": "recursive_runtime_closure",
+        "classification": "rejected-incomplete-closure",
+        "exactMutation": "incomplete recursive local dependency closure submitted to real enforcement gate"
+      },
+      {
+        "caseId": "C12",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "failedGate": "inventory_chronology",
+        "classification": "F3_INVENTORY_PREMATURE_FINAL",
+        "exactMutation": "purported final inventory captured before final DB state"
+      },
+      {
+        "caseId": "C13",
+        "dbPushCalls": 0,
+        "repairCalls": 0,
+        "failedGate": "evidence_out_contract",
+        "classification": "EISDIR",
+        "exactMutation": "invalid --evidence-out directory rejected BEFORE database access"
+      },
+      {
+        "caseId": "C14",
+        "dbPushCalls": 6,
+        "repairCalls": 0,
+        "failedGate": "evidence_write",
+        "classification": "EISDIR",
+        "exactMutation": "post-database evidence-write EISDIR must prevent PASS"
+      }
+    ]
+  },
+  "recognition": [
+    "manual_income"
+  ],
+  "production_contacted": false,
+  "disposable_reset": false,
+  "pr96_untouched": "d526b407992fc2a806f2b7ba7170af335a118630",
+  "pr97_untouched": "019321b4ce3f50aea0ecffd553df8d04f6753171",
+  "pr98_untouched": "9bf86c3f5bd4946bec649d4ea596bf80e7da3318",
+  "pr99_open_draft_untouched": "50b3d884f13e3f0be573699889d772b1d83a09da",
+  "captured_at_et": "09/16/2026, 12:55:11 AM ET",
+  "captured_at_iso": "2026-09-16T00:55:11.838608-04:00"
+}

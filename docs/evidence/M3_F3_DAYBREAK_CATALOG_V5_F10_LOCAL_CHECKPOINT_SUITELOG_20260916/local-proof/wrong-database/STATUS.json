@@ -1,0 +1,93 @@
+{
+  "verdict": "HOLD",
+  "caseId": "wrong-database",
+  "must_local_psql_proof_on_17_6": false,
+  "captured_at_et": "9/16/2026, 7:37:32 PM EDT",
+  "repo_root": "[SANITIZED_ABS_PATH]",
+  "out_dir": "[SANITIZED_ABS_PATH]",
+  "exact_command": {
+    "argv": [
+      "psql",
+      "-X",
+      "-q",
+      "-t",
+      "-A",
+      "-w",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-c",
+      "\nSELECT json_build_object(\n  'schema_version', 'f3-poison-envelope-v1',\n  'poisonPresent', (\n    EXISTS (\n      SELECT 1\n      FROM pg_trigger t\n      JOIN pg_class c ON c.oid = t.tgrelid\n      JOIN pg_namespace n ON n.oid = c.relnamespace\n      WHERE t.tgname = 'trg_f3_dbpush_fail_target_history'\n        AND n.nspname = 'supabase_migrations'\n        AND NOT t.tgisinternal\n    )\n    OR to_regprocedure('supabase_migrations.f3_dbpush_fail_target_history()') IS NOT NULL\n  ),\n  'current_database', current_database(),\n  'current_user', current_user,\n  'probe_marker', 'f3_poison_absent_probe'\n)::text;\n"
+    ],
+    "password_on_argv": false,
+    "env_keys": [
+      "HOME",
+      "PATH",
+      "PGCONNECT_TIMEOUT",
+      "PGDATABASE",
+      "PGHOST",
+      "PGPASSWORD",
+      "PGPORT",
+      "PGSSLMODE",
+      "PGUSER"
+    ]
+  },
+  "process": {
+    "exit_status": 0,
+    "signal": null,
+    "timeout": false,
+    "spawnError": null,
+    "spawned": true,
+    "transport": "isolated-psql"
+  },
+  "stderr": {
+    "byte_length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "exact_zero_bytes": true
+  },
+  "stdout": {
+    "byte_length": 162,
+    "sha256": "fbe7ebfc50802f3a54f610f12d8ddf8a4140e8f34d9eb941e71ef24b60f6ba83",
+    "BEFORE_parse": true,
+    "last_byte": 10
+  },
+  "parser": {
+    "contract_ok": true,
+    "framing_ok": true,
+    "parse_ok": true,
+    "duplicate_key_safe": true,
+    "envelope_ok": true,
+    "parser_verdict": null
+  },
+  "live_bind": {
+    "ok": false,
+    "live": {
+      "current_database": "template1",
+      "current_user": "postgres",
+      "provenance": "original_query_output"
+    },
+    "expected_database": "postgres",
+    "expected_user": "postgres"
+  },
+  "gate_input": {
+    "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+    "digest": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+    "cliVersion": "2.117.0",
+    "fingerprint_expected_sha256": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d"
+  },
+  "gate_result": {
+    "repairAuthorized": false,
+    "gateAuthorized": true,
+    "failedGates": [],
+    "repairCalls": 0,
+    "cleanupCalls": 1,
+    "verifyCalls": 1
+  },
+  "callback_order": [
+    "cleanup",
+    "verify"
+  ],
+  "repairCalls": 0,
+  "expectedRepairCalls": 0,
+  "repair_is_spy": true,
+  "hold_reason": "positive local proof conditions not met"
+}

@@ -1,0 +1,72 @@
+{
+  "artifact": "expected-fingerprint-hashes-pre-post",
+  "functional_sha": "c59afad411a07838688aeb5583ab179683f25a7f",
+  "immutable_expected": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+    "00119_f3_01_core_ledger_foundation.sql": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+    "00120_f3_02_secure_posting_idempotency.sql": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+    "00121_f3_03_projection_read_proof.sql": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+    "00122_f3_04_correction_reversal.sql": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+    "00123_f3_05_opening_cash_command.sql": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965"
+  },
+  "recorded_before_db": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+    "00119_f3_01_core_ledger_foundation.sql": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+    "00120_f3_02_secure_posting_idempotency.sql": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+    "00121_f3_03_projection_read_proof.sql": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+    "00122_f3_04_correction_reversal.sql": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+    "00123_f3_05_opening_cash_command.sql": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965"
+  },
+  "match_before_db": true,
+  "per_migration_phase_sha256": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": {
+      "fingerprintExpectedFrozen": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+      "fingerprintAfterCommitFailedHistory": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+      "fingerprintAfterPoisonCleanup": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+      "fingerprintAfterRepair": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+      "fingerprintAfterRetryNoPending": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+      "fingerprintAfterCleanContinuation": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02"
+    },
+    "00119_f3_01_core_ledger_foundation.sql": {
+      "fingerprintExpectedFrozen": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+      "fingerprintAfterCommitFailedHistory": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+      "fingerprintAfterPoisonCleanup": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+      "fingerprintAfterRepair": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+      "fingerprintAfterRetryNoPending": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+      "fingerprintAfterCleanContinuation": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf"
+    },
+    "00120_f3_02_secure_posting_idempotency.sql": {
+      "fingerprintExpectedFrozen": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+      "fingerprintAfterCommitFailedHistory": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+      "fingerprintAfterPoisonCleanup": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+      "fingerprintAfterRepair": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+      "fingerprintAfterRetryNoPending": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+      "fingerprintAfterCleanContinuation": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161"
+    },
+    "00121_f3_03_projection_read_proof.sql": {
+      "fingerprintExpectedFrozen": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+      "fingerprintAfterCommitFailedHistory": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+      "fingerprintAfterPoisonCleanup": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+      "fingerprintAfterRepair": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+      "fingerprintAfterRetryNoPending": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+      "fingerprintAfterCleanContinuation": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af"
+    },
+    "00122_f3_04_correction_reversal.sql": {
+      "fingerprintExpectedFrozen": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+      "fingerprintAfterCommitFailedHistory": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+      "fingerprintAfterPoisonCleanup": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+      "fingerprintAfterRepair": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+      "fingerprintAfterRetryNoPending": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+      "fingerprintAfterCleanContinuation": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16"
+    },
+    "00123_f3_05_opening_cash_command.sql": {
+      "fingerprintExpectedFrozen": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
+      "fingerprintAfterCommitFailedHistory": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
+      "fingerprintAfterPoisonCleanup": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
+      "fingerprintAfterRepair": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
+      "fingerprintAfterRetryNoPending": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
+      "fingerprintAfterCleanContinuation": null
+    }
+  },
+  "all_phases_match_expected": true
+}

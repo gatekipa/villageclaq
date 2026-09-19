@@ -1,0 +1,19 @@
+{
+  "status": "PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE",
+  "authorized": false,
+  "executed": false,
+  "functionalTip": "83b9f79483f3ba53f4f8cd60016450ff38a723b4",
+  "runtimeClosure": {
+    "label": "F17_QUALIFICATION_RESET_RUNTIME_CLOSURE",
+    "sha256": "0db1c600c620c0e406038fa3ebc5c4d7df6104bce64545ef9e16a63a6237c741",
+    "count": 45,
+    "notSummaryFileHash": true,
+    "forbiddenSummaryHash": "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d"
+  },
+  "verificationUnion": {
+    "label": "F17_QUALIFICATION_RESET_VERIFICATION_UNION",
+    "sha256": "d3fd2eb52a2adc2a1f963a54955b888b2d3e8eadea0283894c4a51f5effc41cb",
+    "count": 48
+  },
+  "wipeRejectionCode": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH"
+}

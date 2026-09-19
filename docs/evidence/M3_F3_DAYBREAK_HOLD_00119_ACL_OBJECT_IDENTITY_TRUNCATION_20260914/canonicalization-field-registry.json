@@ -1,0 +1,147 @@
+{
+  "artifact": "canonicalization-field-registry",
+  "functional_sha": "8e67138929d5c0925a89adb0d34eeff9a2d3cab4",
+  "FINGERPRINT_FIELD_REGISTRY": {
+    "schema": {
+      "kind": "record_set",
+      "fields": [
+        "schema",
+        "owner"
+      ],
+      "sortBy": [
+        "schema",
+        "owner"
+      ],
+      "innerSetFields": [],
+      "doNotSort": [],
+      "notes": "Schema inventory members are (schema, owner). Order of schemas is meaningless."
+    },
+    "function_owner": {
+      "kind": "record_set",
+      "fields": [
+        "schema",
+        "function",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "search_path"
+      ],
+      "sortBy": [
+        "schema",
+        "function",
+        "identity_arguments",
+        "owner"
+      ],
+      "innerSetFields": [],
+      "doNotSort": [
+        "identity_arguments",
+        "search_path"
+      ],
+      "notes": "Complete function↔owner association. Owner-name multisets are not compared. identity_arguments are never reordered."
+    },
+    "acl": {
+      "kind": "record_set",
+      "fields": [
+        "object_type",
+        "schema",
+        "object_identity",
+        "grantee",
+        "grantor",
+        "privilege",
+        "grantable"
+      ],
+      "sortBy": [
+        "object_type",
+        "schema",
+        "object_identity",
+        "grantee",
+        "grantor",
+        "privilege",
+        "grantable"
+      ],
+      "innerSetFields": [],
+      "doNotSort": [
+        "object_identity"
+      ],
+      "notes": "One record per privilege. Object identity is not split. grantable is boolean."
+    },
+    "policy": {
+      "kind": "record_set",
+      "fields": [
+        "schema",
+        "table",
+        "policy_name",
+        "command",
+        "permissive",
+        "roles",
+        "using",
+        "with_check"
+      ],
+      "sortBy": [
+        "schema",
+        "table",
+        "policy_name",
+        "command"
+      ],
+      "innerSetFields": [
+        "roles"
+      ],
+      "doNotSort": [
+        "using",
+        "with_check"
+      ],
+      "notes": "Roles are a set (order meaningless). USING / WITH CHECK expressions are never sorted or whitespace-normalized."
+    },
+    "function_definition": {
+      "kind": "record_set_or_exact_string",
+      "fields": [
+        "schema",
+        "name",
+        "identity_arguments",
+        "definition",
+        "owner",
+        "security_mode",
+        "search_path"
+      ],
+      "sortBy": [
+        "schema",
+        "name",
+        "identity_arguments",
+        "owner"
+      ],
+      "innerSetFields": [],
+      "doNotSort": [
+        "identity_arguments",
+        "definition",
+        "search_path",
+        "security_mode"
+      ],
+      "notes": "Optional. String values compare exactly. Record arrays sort by identity only; definition/owner/search_path/security changes fail."
+    },
+    "recognition": {
+      "kind": "exact_string_set",
+      "fields": [],
+      "sortBy": [],
+      "innerSetFields": [],
+      "doNotSort": [],
+      "notes": "Allowlist tags. Order meaningless. Exact strings only — never word-split."
+    }
+  },
+  "superseded_reason": "canonicalization format (comma-joined catalog strings → structured records + registry set-order); semantic members unchanged",
+  "new_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "07ce0b411f0a7098de31ada42dd2863cb6fc50e94fe685ff998b0bd16613e535",
+    "00119_f3_01_core_ledger_foundation.sql": "e8005d0591d974d4b24ced9529904bd7c0727bc3fd98a5aeabf61c7325ab4d26",
+    "00120_f3_02_secure_posting_idempotency.sql": "ebeb5c45edc4ee41e1fc98687b11d6c0fe122d629a972c8d4b507ab2096b117b",
+    "00121_f3_03_projection_read_proof.sql": "f026b6abcfd37efda7c5d12c687077958acf0be01cf9154a77070b32fd245976",
+    "00122_f3_04_correction_reversal.sql": "e245610827cc6aebbfd64b86f684f8cea9b6d53311b7788bbd5459c93029faae",
+    "00123_f3_05_opening_cash_command.sql": "f25e2ea4a86650faf3d5f0a01175bac4a1d2f44f11e3c2e7fc5a9acff422c09a"
+  },
+  "superseded_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "a1538e7d2d451c198350535128ece77cbe54ad31cd11d6d902f7efc0ece231c5",
+    "00119_f3_01_core_ledger_foundation.sql": "422c5d8b22ae4c07f59261f09988afccf80efb85f3c05dc5c3c91063a12f7f4c",
+    "00120_f3_02_secure_posting_idempotency.sql": "1f5433b99ee60148fe708c51e576ce50cf082e8279e32057aa8e0e1a2e450610",
+    "00121_f3_03_projection_read_proof.sql": "6705f7bb63cf18eda2b22bace9ff69c2c915207238f760437eccf08441e95c3c",
+    "00122_f3_04_correction_reversal.sql": "e84cf051957897be0434d6b2fb71a3f4317228080d994110ec4470b8cb97b9ee",
+    "00123_f3_05_opening_cash_command.sql": "3ff28c4c5f3f31c05014febd2c4e25158b597048f5e1e3bc7ea23a1d7ef40b66"
+  }
+}

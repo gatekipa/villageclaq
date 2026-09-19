@@ -1,0 +1,14 @@
+{
+  "verdict": "F15 ACCEPT",
+  "kind": "framing-follow-up",
+  "tip": "49a91169fbb53dba149f4e7bbcf3016f988f4922",
+  "parentAcceptTip": "a4fa0832420d46f6cdd73b8f5e2ab381029dd2e1",
+  "planCommit": "206dce13d424f5303520d2b63a43768a078dda35",
+  "planBlob": "e8f2e894c9446793ae806eab2e58f46aa1026f58",
+  "priorHoldEvidenceTip": "d9e37d1f3bbfe35c47145b7ca886d2b4af486475",
+  "parentEvidenceTip": "437f27c2721bf7710746468a2cef9a52e1c4651a",
+  "f14FunctionalTip": "2d502a028b0d01808a871fb1d48d051813591ed2",
+  "f12FunctionalTip": "1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+  "sourceLabel": "villageclaq-f15-49a91169/qa/score.md",
+  "note": "Independent QA offline F15 ACCEPT (framing follow-up) on tip 49a91169. C4-R04 PASS; C4-R01–R03 still reject PREFIX/WRONG_PHASE/SUFFIX and EACCES+success. Not live reset / wipe / production authorization. Chief local PG 3-TX all PASS (framing HOLD closed)."
+}

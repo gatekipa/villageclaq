@@ -1,0 +1,17 @@
+{
+  "closures": {
+    "f18ThrownOnlyAuthorizesSuccess": true,
+    "f18RecordDropsThrown": true,
+    "f18ProcessEvidenceMutatesAfterHashes": true,
+    "f19ThrownEaccesClosed": true,
+    "f19PathRedactClosed": true,
+    "f19ThrownOnlyClosed": true,
+    "f19SuccessClosed": true
+  },
+  "overall": {
+    "f18DefectsReproduced": true,
+    "f19TipClosesThem": true,
+    "reviewedPin": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
+    "f18Pin": "ca2c0d536037da8c7f55627ac1694cacb932d1d7"
+  }
+}

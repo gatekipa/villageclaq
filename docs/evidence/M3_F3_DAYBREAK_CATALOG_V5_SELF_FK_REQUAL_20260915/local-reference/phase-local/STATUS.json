@@ -1,0 +1,221 @@
+{
+  "phase": "local",
+  "verdict": "READY_TO_FF",
+  "hold_reason": null,
+  "tip_sha": "cc8495f0e7cc3b51d55d4363356f555f2fdb6f55",
+  "E4": "11c99b9579360ed9ccad2a527db0162b7d8e884f",
+  "F4": "26d91b1a4fa636346098efd33c36df7b466586ae",
+  "main_pin": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr83_pin": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "tip_vs_E4_files_only": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/lib/f3-full-catalog-independent-reference.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "tip_vs_E4_file_count": 4,
+  "pg": "17.6",
+  "seal_database": "f3_reference_catalog_v5_20260915",
+  "schema_version": "f3-full-catalog-v5",
+  "envelope_digest": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "envelope_proof": {
+    "tip_digest_constant": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "tip_envelope_digest_field": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "tip_recomputed": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "original_canonical_bytes": 10222,
+    "original_canonical_sha256": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "expected_pin": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "match": true,
+    "original_has_REDACTED": false,
+    "tip_envelope_has_REDACTED": false,
+    "not_from_hosted_fingerprint_72af6699": true,
+    "not_from_financial_ledger_epochs": true,
+    "provenance_claim": "INDEPENDENT SUPABASE PLATFORM-ACL CALIBRATION \u2014 derived ONLY from disposable pg_default_acl + canary agreement",
+    "semantic_match_tip": true
+  },
+  "independent_module_sha": {
+    "claimed": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+    "tip_closure": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+    "file_sha256": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+    "match": true
+  },
+  "recursive_closure": {
+    "closure_complete": true,
+    "missing": 0,
+    "unresolved": 0,
+    "unexplained_exclusions": 0,
+    "uncommitted_functional_diffs": 0,
+    "hosted_tree_mismatches": 0,
+    "schema_primary": "f3-full-catalog-v5",
+    "schema_independent": "f3-full-catalog-v5"
+  },
+  "independent_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d",
+    "00119_f3_01_core_ledger_foundation.sql": "5e03111ffb34be3ed76a714370c93e70210a9741a25ac7b9158a9a9ad22f12f4",
+    "00120_f3_02_secure_posting_idempotency.sql": "35eba6966d2c077a9467f09adc6c85306b951c9d8388ee758a60d924c05ae51a",
+    "00121_f3_03_projection_read_proof.sql": "8f65797949d8c5afb7dfa99b8020da52385347099b2a5b9be5148b253e76bde6",
+    "00122_f3_04_correction_reversal.sql": "6e3240759aec64d4692422aac006b4fb865e3039832be84efea86b39c0253175",
+    "00123_f3_05_opening_cash_command.sql": "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34"
+  },
+  "tip_embedded_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d",
+    "00119_f3_01_core_ledger_foundation.sql": "5e03111ffb34be3ed76a714370c93e70210a9741a25ac7b9158a9a9ad22f12f4",
+    "00120_f3_02_secure_posting_idempotency.sql": "35eba6966d2c077a9467f09adc6c85306b951c9d8388ee758a60d924c05ae51a",
+    "00121_f3_03_projection_read_proof.sql": "8f65797949d8c5afb7dfa99b8020da52385347099b2a5b9be5148b253e76bde6",
+    "00122_f3_04_correction_reversal.sql": "6e3240759aec64d4692422aac006b4fb865e3039832be84efea86b39c0253175",
+    "00123_f3_05_opening_cash_command.sql": "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34"
+  },
+  "cloud_agent_v5_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d",
+    "00119_f3_01_core_ledger_foundation.sql": "5e03111ffb34be3ed76a714370c93e70210a9741a25ac7b9158a9a9ad22f12f4",
+    "00120_f3_02_secure_posting_idempotency.sql": "35eba6966d2c077a9467f09adc6c85306b951c9d8388ee758a60d924c05ae51a",
+    "00121_f3_03_projection_read_proof.sql": "8f65797949d8c5afb7dfa99b8020da52385347099b2a5b9be5148b253e76bde6",
+    "00122_f3_04_correction_reversal.sql": "6e3240759aec64d4692422aac006b4fb865e3039832be84efea86b39c0253175",
+    "00123_f3_05_opening_cash_command.sql": "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34"
+  },
+  "builder_eq_reference_all_six": true,
+  "tip_eq_independent_all_six": true,
+  "cloud_eq_independent_all_six": true,
+  "partitions_reconcile_ok": true,
+  "self_fk_ri_roles_ok": true,
+  "partition_table_reproduced": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": {
+      "required": {
+        "total": 21,
+        "internal_fk": 20,
+        "ordinary_user": 1,
+        "user_defined_constraint": 0,
+        "referencing": 10,
+        "referenced": 10
+      },
+      "reproduced": {
+        "total": 21,
+        "internal_fk": 20,
+        "ordinary_user": 1,
+        "user_defined_constraint": 0,
+        "referencing": 10,
+        "referenced": 10
+      },
+      "match": true,
+      "internal_fk_sum_ok": true
+    },
+    "00119_f3_01_core_ledger_foundation.sql": {
+      "required": {
+        "total": 101,
+        "internal_fk": 92,
+        "ordinary_user": 7,
+        "user_defined_constraint": 2,
+        "referencing": 46,
+        "referenced": 46
+      },
+      "reproduced": {
+        "total": 101,
+        "internal_fk": 92,
+        "ordinary_user": 7,
+        "user_defined_constraint": 2,
+        "referencing": 46,
+        "referenced": 46
+      },
+      "match": true,
+      "internal_fk_sum_ok": true
+    },
+    "00120_f3_02_secure_posting_idempotency.sql": {
+      "required": {
+        "total": 108,
+        "internal_fk": 96,
+        "ordinary_user": 9,
+        "user_defined_constraint": 3,
+        "referencing": 48,
+        "referenced": 48
+      },
+      "reproduced": {
+        "total": 108,
+        "internal_fk": 96,
+        "ordinary_user": 9,
+        "user_defined_constraint": 3,
+        "referencing": 48,
+        "referenced": 48
+      },
+      "match": true,
+      "internal_fk_sum_ok": true
+    },
+    "00121_f3_03_projection_read_proof.sql": {
+      "required": {
+        "total": 108,
+        "internal_fk": 96,
+        "ordinary_user": 9,
+        "user_defined_constraint": 3,
+        "referencing": 48,
+        "referenced": 48
+      },
+      "reproduced": {
+        "total": 108,
+        "internal_fk": 96,
+        "ordinary_user": 9,
+        "user_defined_constraint": 3,
+        "referencing": 48,
+        "referenced": 48
+      },
+      "match": true,
+      "internal_fk_sum_ok": true
+    },
+    "00122_f3_04_correction_reversal.sql": {
+      "required": {
+        "total": 131,
+        "internal_fk": 116,
+        "ordinary_user": 11,
+        "user_defined_constraint": 4,
+        "referencing": 58,
+        "referenced": 58
+      },
+      "reproduced": {
+        "total": 131,
+        "internal_fk": 116,
+        "ordinary_user": 11,
+        "user_defined_constraint": 4,
+        "referencing": 58,
+        "referenced": 58
+      },
+      "match": true,
+      "internal_fk_sum_ok": true
+    },
+    "00123_f3_05_opening_cash_command.sql": {
+      "required": {
+        "total": 140,
+        "internal_fk": 124,
+        "ordinary_user": 12,
+        "user_defined_constraint": 4,
+        "referencing": 62,
+        "referenced": 62
+      },
+      "reproduced": {
+        "total": 140,
+        "internal_fk": 124,
+        "ordinary_user": 12,
+        "user_defined_constraint": 4,
+        "referencing": 62,
+        "referenced": 62
+      },
+      "match": true,
+      "internal_fk_sum_ok": true
+    }
+  },
+  "trigger_universe_ok": true,
+  "local_suites": {
+    "test_f3_db_push": {
+      "tests": 125,
+      "pass": 124,
+      "fail": 0,
+      "skipped": 1
+    },
+    "tsc_exit": 0,
+    "build_exit": 0,
+    "env_dependent": [
+      "test-s0-cut2"
+    ]
+  },
+  "note_17_11_recollected_on_17_6": true,
+  "captured_at_et": "09/16/2026, 1:18:11 PM ET",
+  "prehhosted": "CONTINUE",
+  "F5": "228549412cf3b7a3cfa3a1c6c6bdee553a1c0a65"
+}

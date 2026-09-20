@@ -987,6 +987,9 @@ test("qualify runner refuses to run without env (NOT_RUN) and never applies via 
   assert.match(qualify, /--no-wipe/);
   assert.match(qualify, /re-wipe is forbidden/);
   assert.match(qualify, /evaluatePreStubFloorCleanCheck/);
+  assert.match(qualify, /resolvePreFloorQualificationGate/);
+  assert.match(qualify, /QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL/);
+  assert.match(qualify, /runQualifyDisposablePath/);
   assert.match(qualify, /inventoryFromQuery/);
   assert.match(qualify, /parseEvidenceOutArg/);
   assert.match(qualify, /f3-db-push-query-parse/);
@@ -2561,12 +2564,14 @@ test("qualify runner classifies before repair and uses the new success label", (
   const seq = qualify.slice(qualify.indexOf("for (const file of F3_FORWARD_FILES)"));
   const stageIdx = seq.indexOf("syncIsolatedMigrationsThrough");
   const preflightIdx = seq.indexOf("assertPrefixCompleteSinglePendingStaging");
-  const pushIdx = seq.indexOf("runDbPushCandidate");
+  const pushIdx = seq.indexOf("ops.dbPush");
   const gateIdx = seq.indexOf("runRepairSafetyThenMaybeRepair");
-  const repairIdx = seq.indexOf("runFilenameVersionRepair");
+  const repairIdx = seq.indexOf("ops.repair");
   const retryStageIdx = seq.lastIndexOf("syncIsolatedMigrationsThrough");
   const retryPreflightIdx = seq.lastIndexOf("assertPrefixCompleteSinglePendingStaging");
-  const retryIdx = seq.lastIndexOf("runDbPushCandidate");
+  const retryIdx = seq.lastIndexOf("ops.dbPush");
+  assert.match(qualify, /dbPush: \(input\) => runDbPushCandidate\(input\)/);
+  assert.match(qualify, /repair: \(input\) => runFilenameVersionRepair\(input\)/);
   assert.ok(stageIdx >= 0 && stageIdx < preflightIdx && preflightIdx < pushIdx, "stage + preflight before first push");
   assert.ok(gateIdx >= 0 && repairIdx > gateIdx);
   assert.ok(retryStageIdx > repairIdx && retryPreflightIdx > retryStageIdx && retryIdx > retryPreflightIdx, "restage + preflight before retry");

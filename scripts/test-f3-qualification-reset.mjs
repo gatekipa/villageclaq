@@ -117,8 +117,22 @@ import {
   qualificationResetRuntimeContext,
   runHostedQualificationReset,
   runQualificationResetQualifyPath,
+  runQualifyDisposablePath,
   validateProposedQualificationResetHostedPlanOffline,
 } from "./qualify-f3-db-push-disposable.mjs";
+import {
+  evaluatePreserveBaselinePreFloorGate,
+  evaluatePreStubFloorCleanCheck,
+  passingPreStubFloorCleanInventory,
+  resolvePreFloorQualificationGate,
+  F21_PRESERVE_BASELINE_FRESH_CAPTURE_REQUIRED,
+  F21_PRESERVE_BASELINE_POLICY_UNSUPPORTED,
+  F21_PRESERVE_BASELINE_TARGET_REJECTED,
+} from "./lib/f3-db-push-pre-stub-floor-clean-check.mjs";
+import {
+  F21_AUTHORIZED_EXTENSION_IDENTITY,
+  F21_QUALIFICATION_RESET_MEMBERSHIP_SCHEMA,
+} from "./lib/f3-db-push-qualification-reset-design.mjs";
 import { processEvidence, record } from "./prove-f3-qualification-reset-local.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -2537,6 +2551,305 @@ test("F21 wipe remains forbidden for stub-live-pin auth", () => {
   const wiped = planQualificationReset(planInput({ wipeToBaseline: true }));
   assert.equal(wiped.ok, false);
   assert.equal(wiped.code, F13_WIPE_REJECTION_CODE);
+});
+
+function validF21Membership(overrides = {}) {
+  return {
+    schema: F21_QUALIFICATION_RESET_MEMBERSHIP_SCHEMA,
+    schemaVersion: 1,
+    kind: "function",
+    identity: "public.gbt_text_consistent(internal,text,smallint,oid,internal)",
+    classid: 1255,
+    objid: 424242,
+    objsubid: 0,
+    refclassid: 3079,
+    refobjid: 989898,
+    extname: F21_AUTHORIZED_EXTENSION_IDENTITY,
+    deptype: "e",
+    ...overrides,
+  };
+}
+
+function preserveMemberObjects() {
+  return [
+    { kind: "extension", identity: "btree_gist" },
+    {
+      kind: "function",
+      identity: "public.gbt_text_consistent(internal,text,smallint,oid,internal)",
+      membership: validF21Membership(),
+    },
+  ];
+}
+
+function preserveInventory() {
+  return emptyQualificationResetInventoryObject({
+    public_functions: [{
+      name: "gbt_text_consistent",
+      identity: "public.gbt_text_consistent(internal,text,smallint,oid,internal)",
+    }],
+  });
+}
+
+function preserveObservedCapture(overrides = {}) {
+  const objects = overrides.discovered_objects || preserveMemberObjects();
+  return observedFromQualificationResetCapture(completeCaptureBody({
+    inventory: preserveInventory(),
+    discovered_objects: objects,
+    observed_objects: objects,
+    observed_history_rows: [],
+    ...overrides,
+  }));
+}
+
+const DISPOSABLE_TARGET = {
+  ref: APPROVED_DISPOSABLE_PROJECT_REF,
+  project_ref: APPROVED_DISPOSABLE_PROJECT_REF,
+};
+
+test("F22 historical CLEAN_BASELINE pre-floor behavior is unchanged", () => {
+  const historical = evaluatePreStubFloorCleanCheck({
+    inventory: passingPreStubFloorCleanInventory(),
+    historyRows: [],
+    listMigrations: [],
+  });
+  assert.equal(historical.clean_ok, true);
+  assert.equal(historical.classification_verdict, "CLEAN_BASELINE");
+  const resolved = resolvePreFloorQualificationGate({
+    policy: F21_RESET_SUCCESS_VERDICT,
+    target: DISPOSABLE_TARGET,
+    inventory: passingPreStubFloorCleanInventory(),
+    historyRows: [],
+    listMigrations: [],
+    previousResetResult: { ok: true, verdict: F21_RESET_SUCCESS_VERDICT },
+  });
+  assert.equal(resolved.allowFloor, true);
+  assert.equal(resolved.verdict, "CLEAN_BASELINE");
+  assert.equal(resolved.cleanBaseline, true);
+  assert.equal(resolved.preserveBaseline, false);
+});
+
+test("F22 preserve residuals are not CLEAN_BASELINE but authenticate the preserve pre-floor gate", () => {
+  const historical = evaluatePreStubFloorCleanCheck({
+    inventory: preserveInventory(),
+    historyRows: [],
+    listMigrations: [],
+  });
+  assert.equal(historical.clean_ok, false);
+  assert.notEqual(historical.classification_verdict, "CLEAN_BASELINE");
+  const observed = preserveObservedCapture();
+  assert.equal(observed.ok, true);
+  const gate = evaluatePreserveBaselinePreFloorGate({
+    policy: F21_RESET_SUCCESS_VERDICT,
+    target: DISPOSABLE_TARGET,
+    capture: observed,
+    inventory: preserveInventory(),
+    inventoryCaptured: true,
+    captureComplete: true,
+  });
+  assert.equal(gate.ok, true);
+  assert.equal(gate.allowFloor, true);
+  assert.equal(gate.verdict, F21_RESET_SUCCESS_VERDICT);
+  assert.equal(gate.cleanBaseline, false);
+  assert.notEqual(gate.classificationVerdict, "CLEAN_BASELINE");
+});
+
+test("F22 previous reset-success record cannot authenticate current database", () => {
+  const gate = evaluatePreserveBaselinePreFloorGate({
+    policy: F21_RESET_SUCCESS_VERDICT,
+    target: DISPOSABLE_TARGET,
+    previousResetResult: { ok: true, verdict: F21_RESET_SUCCESS_VERDICT, alreadyClean: true },
+    inventoryCaptured: false,
+    captureComplete: false,
+  });
+  assert.equal(gate.ok, false);
+  assert.equal(gate.allowFloor, false);
+  assert.equal(gate.code, F21_PRESERVE_BASELINE_FRESH_CAPTURE_REQUIRED);
+  assert.equal(gate.trustedPreviousResetRecord, false);
+});
+
+test("F22 unsupported policy, production target, and unauthenticated leftovers HOLD", () => {
+  const observed = preserveObservedCapture();
+  const badPolicy = evaluatePreserveBaselinePreFloorGate({
+    policy: "CLEAN_BASELINE",
+    target: DISPOSABLE_TARGET,
+    capture: observed,
+    inventoryCaptured: true,
+    captureComplete: true,
+  });
+  assert.equal(badPolicy.code, F21_PRESERVE_BASELINE_POLICY_UNSUPPORTED);
+
+  const prod = evaluatePreserveBaselinePreFloorGate({
+    policy: F21_RESET_SUCCESS_VERDICT,
+    target: { ref: PRODUCTION_REF },
+    capture: observed,
+    inventoryCaptured: true,
+    captureComplete: true,
+  });
+  assert.equal(prod.code, F21_PRESERVE_BASELINE_TARGET_REJECTED);
+
+  const nameOnly = resolvePreFloorQualificationGate({
+    policy: F21_RESET_SUCCESS_VERDICT,
+    target: DISPOSABLE_TARGET,
+    inventory: preserveInventory(),
+    capture: observedFromQualificationResetCapture(completeCaptureBody({
+      inventory: preserveInventory(),
+      discovered_objects: [{
+        kind: "function",
+        identity: "public.gbt_text_consistent(internal,text,smallint,oid,internal)",
+      }],
+      observed_objects: [{
+        kind: "function",
+        identity: "public.gbt_text_consistent(internal,text,smallint,oid,internal)",
+      }],
+    })),
+    inventoryCaptured: true,
+    captureComplete: true,
+  });
+  assert.equal(nameOnly.allowFloor, false);
+
+  const leftover = resolvePreFloorQualificationGate({
+    policy: F21_RESET_SUCCESS_VERDICT,
+    target: DISPOSABLE_TARGET,
+    inventory: emptyQualificationResetInventoryObject({ public_views: ["unexpected_view"] }),
+    capture: observedFromQualificationResetCapture(completeCaptureBody({
+      inventory: emptyQualificationResetInventoryObject({ public_views: ["unexpected_view"] }),
+      discovered_objects: [{ kind: "view", identity: "public.unexpected_view" }],
+      observed_objects: [{ kind: "view", identity: "public.unexpected_view" }],
+    })),
+    inventoryCaptured: true,
+    captureComplete: true,
+  });
+  assert.equal(leftover.allowFloor, false);
+  assert.equal(leftover.strippedUnexpectedObjects, false);
+});
+
+function mockQualifyAdapters({ query, floor } = {}) {
+  const calls = { floor: 0, dbPush: 0, repair: 0, sequence: 0 };
+  return {
+    calls,
+    adapters: {
+      kind: "local-fixture",
+      localFixtureRoutingOnly: true,
+      notProductionBypass: true,
+      notHostedIdentityProof: true,
+      substitutedInterfaces: [],
+      discoverCli: () => ({ available: false, matchesPin: false, version: null, bin: null }),
+      identity: async () => ({ projectRef: APPROVED_DISPOSABLE_PROJECT_REF, localFixture: true }),
+      listMigrationsViaGet: async () => ({ rows: [] }),
+      constructTarget: () => ({
+        ok: true,
+        target: {
+          project_ref: APPROVED_DISPOSABLE_PROJECT_REF,
+          localFixture: true,
+          localFixtureRoutingOnly: true,
+          notProductionBypass: true,
+        },
+      }),
+      query: query || (async () => ({ status: 0, stdout: JSON.stringify(passingPreStubFloorCleanInventory()), stderr: "" })),
+      installFloor: floor || ((input) => {
+        calls.floor += 1;
+        return { installed: true, exact: true, invented00117History: false, transforms: [], components: [], file00117: {}, isolatedMigrations: [] };
+      }),
+      gatedSql: () => ({ status: 0, stdout: "", stderr: "" }),
+      dbPush: () => {
+        calls.dbPush += 1;
+        calls.sequence += 1;
+        return { status: 1, stdout: "", stderr: "not-reached" };
+      },
+      repair: () => {
+        calls.repair += 1;
+        return { status: 1, stdout: "", stderr: "not-reached" };
+      },
+      list: () => ({ status: 0, stdout: "", stderr: "" }),
+      poisonQuery: () => ({ status: 0, stdout: JSON.stringify({ poison: false }), stderr: "" }),
+    },
+  };
+}
+
+test("F22 shared entrypoint: authenticated preserve baseline reaches floor preparation", async () => {
+  const body = completeCaptureBody({
+    inventory: preserveInventory(),
+    discovered_objects: preserveMemberObjects(),
+    observed_objects: preserveMemberObjects(),
+  });
+  const { adapters, calls } = mockQualifyAdapters({
+    query: async ({ sql } = {}) => {
+      if (String(sql).includes("f21-qualification-reset-inventory-v1")) {
+        return { status: 0, stdout: JSON.stringify(body), stderr: "" };
+      }
+      return { status: 0, stdout: JSON.stringify(preserveInventory()), stderr: "" };
+    },
+  });
+  const evidence = await runQualifyDisposablePath({
+    args: { prepFloor: true, sequenceF3: false, noWipe: true },
+    adapters,
+    skipCliPin: true,
+    calls,
+  });
+  assert.equal(evidence.preFloorQualificationGate?.allowFloor, true);
+  assert.equal(evidence.preFloorQualificationGate?.verdict, F21_RESET_SUCCESS_VERDICT);
+  assert.ok((calls.floor || 0) >= 1);
+  assert.equal(calls.dbPush || 0, 0);
+});
+
+test("F22 shared entrypoint: historical CLEAN_BASELINE still reaches floor", async () => {
+  const clean = passingPreStubFloorCleanInventory();
+  const { adapters, calls } = mockQualifyAdapters({
+    query: async () => ({ status: 0, stdout: JSON.stringify(clean), stderr: "" }),
+  });
+  const evidence = await runQualifyDisposablePath({
+    args: { prepFloor: true, sequenceF3: false, noWipe: true },
+    adapters,
+    skipCliPin: true,
+    calls,
+  });
+  assert.equal(evidence.preStubFloorCleanCheck?.clean_ok, true);
+  assert.equal(evidence.preFloorQualificationGate?.verdict, "CLEAN_BASELINE");
+  assert.ok((calls.floor || 0) >= 1);
+});
+
+test("F22 shared entrypoint: invalid preservation evidence blocks floor and migration", async () => {
+  const dirty = emptyQualificationResetInventoryObject({ public_views: ["unexpected_view"] });
+  const body = completeCaptureBody({
+    inventory: dirty,
+    discovered_objects: [{ kind: "view", identity: "public.unexpected_view" }],
+    observed_objects: [{ kind: "view", identity: "public.unexpected_view" }],
+  });
+  const { adapters, calls } = mockQualifyAdapters({
+    query: async ({ sql } = {}) => {
+      if (String(sql).includes("f21-qualification-reset-inventory-v1")) {
+        return { status: 0, stdout: JSON.stringify(body), stderr: "" };
+      }
+      return { status: 0, stdout: JSON.stringify(dirty), stderr: "" };
+    },
+  });
+  const evidence = await runQualifyDisposablePath({
+    args: { prepFloor: true, sequenceF3: true, noWipe: true },
+    adapters,
+    skipCliPin: true,
+    calls,
+  });
+  assert.equal(evidence.preFloorQualificationGate?.allowFloor, false);
+  assert.equal(calls.floor || 0, 0);
+  assert.equal(calls.dbPush || 0, 0);
+  assert.equal(calls.repair || 0, 0);
+});
+
+test("F22 missing process evidence cannot produce qualification success", () => {
+  const missing = qualificationResetQualifyEmitPayload({
+    ok: true,
+    alreadyClean: true,
+  });
+  assert.equal(missing.ok, false);
+  assert.equal(missing.code, "F21_PRESERVE_BASELINE_VERDICT_REQUIRED");
+  assert.notEqual(missing.verdict, F21_RESET_SUCCESS_VERDICT);
+  const stale = evaluatePreserveBaselinePreFloorGate({
+    policy: F21_RESET_SUCCESS_VERDICT,
+    target: DISPOSABLE_TARGET,
+    previousResetResult: { ok: true, verdict: F21_RESET_SUCCESS_VERDICT },
+  });
+  assert.equal(stale.allowFloor, false);
+  assert.notEqual(stale.verdict, F21_RESET_SUCCESS_VERDICT);
 });
 
 

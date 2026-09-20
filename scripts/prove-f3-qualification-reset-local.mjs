@@ -15,7 +15,11 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
-import { APPROVED_DISPOSABLE_PROJECT_REF } from "./lib/f3-db-push-pins.mjs";
+import {
+  APPROVED_DISPOSABLE_PROJECT_REF,
+  FILE_BASED_RUNNER_VERDICTS,
+  F3_FORWARD_FILES,
+} from "./lib/f3-db-push-pins.mjs";
 import {
   AUTHENTICATED_HISTORY_KEYS,
   CANONICAL_FUNCTION_IDENTITY_SQL,
@@ -35,7 +39,15 @@ import {
   emptyQualificationResetInventoryObject,
   evaluateQualificationResetEligibility,
   parseQualificationResetInventoryProcessResult,
+  observedFromQualificationResetCapture,
 } from "./lib/f3-db-push-inventory.mjs";
+import {
+  evaluatePreStubFloorCleanCheck,
+  evaluatePreserveBaselinePreFloorGate,
+  passingPreStubFloorCleanInventory,
+  resolvePreFloorQualificationGate,
+  F21_PRESERVE_BASELINE_FRESH_CAPTURE_REQUIRED,
+} from "./lib/f3-db-push-pre-stub-floor-clean-check.mjs";
 import {
   F19_RUNTIME_LABEL,
   F16_BASELINE_RUNTIME_CLOSURE,
@@ -61,7 +73,9 @@ import {
   runQualificationReset,
 } from "./lib/f3-db-push-qualification-reset.mjs";
 import {
+  createLocalFixtureQualifyAdapters,
   evaluateWipeToBaselineArg,
+  runQualifyDisposablePath,
   validateProposedQualificationResetHostedPlanOffline,
 } from "./qualify-f3-db-push-disposable.mjs";
 
@@ -113,7 +127,7 @@ function processEvidence(result, { captureCalls = 1 } = {}) {
 }
 
 function record(id, kind, extra = {}) {
-  return {
+  const base = {
     id,
     kind,
     ok: extra.ok !== false,
@@ -153,6 +167,12 @@ function record(id, kind, extra = {}) {
     appliedSqlIdentity: extra.appliedSqlIdentity ?? null,
     reparseAttestation: extra.reparseAttestation ?? null,
   };
+  const passthrough = {};
+  for (const [key, value] of Object.entries(extra)) {
+    if (key === "ok" || Object.prototype.hasOwnProperty.call(base, key)) continue;
+    passthrough[key] = value;
+  }
+  return { ...base, ...passthrough };
 }
 
 export { completeCaptureBody, processEvidence, record, secretsRemoved };
@@ -442,6 +462,33 @@ function runOfflineChecks() {
   checks.push(record("F21_STALE_SCOPE_DIGEST_HOLD", "check", {
     ok: staleAuth.ok === false && staleAuth.code === "F13_FOUNDER_AUTH_MISMATCH",
     code: staleAuth.code,
+  }));
+  const historicalClean = evaluatePreStubFloorCleanCheck({
+    inventory: passingPreStubFloorCleanInventory(),
+    historyRows: [],
+    listMigrations: [],
+  });
+  const historicalResolved = resolvePreFloorQualificationGate({
+    policy: "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+    target: { project_ref: APPROVED_DISPOSABLE_PROJECT_REF },
+    inventory: passingPreStubFloorCleanInventory(),
+    historyRows: [],
+    listMigrations: [],
+  });
+  checks.push(record("F22_CLEAN_BASELINE_PRE_FLOOR_UNCHANGED", "check", {
+    ok: historicalClean.clean_ok === true
+      && historicalClean.classification_verdict === "CLEAN_BASELINE"
+      && historicalResolved.allowFloor === true
+      && historicalResolved.verdict === "CLEAN_BASELINE",
+  }));
+  const staleReset = evaluatePreserveBaselinePreFloorGate({
+    policy: "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+    target: { project_ref: APPROVED_DISPOSABLE_PROJECT_REF },
+    previousResetResult: { ok: true, verdict: "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1" },
+  });
+  checks.push(record("F22_STALE_RESET_RECORD_CANNOT_AUTHENTICATE", "check", {
+    ok: staleReset.allowFloor !== true && staleReset.code === F21_PRESERVE_BASELINE_FRESH_CAPTURE_REQUIRED,
+    code: staleReset.code,
   }));
   const leftoverNamedStorage = evaluateQualificationResetEligibility({
     observedObjectIdentities: ["public.financial_accounts"],
@@ -737,6 +784,219 @@ function dropApprovedDependencyState(psql, url) {
 
 function sqlLiteral(value) {
   return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+function snapshotExtensionMembership(psql, url) {
+  const raw = psql(url, `SELECT coalesce(jsonb_agg(row ORDER BY row->>'classid', row->>'objid', row->>'objsubid', row->>'identity'), '[]'::jsonb)::text
+    FROM (
+      SELECT jsonb_build_object(
+        'classid', d.classid::bigint,
+        'objid', d.objid::bigint,
+        'objsubid', d.objsubid,
+        'refclassid', d.refclassid::bigint,
+        'refobjid', d.refobjid::bigint,
+        'extname', e.extname,
+        'deptype', d.deptype,
+        'identity', CASE
+          WHEN d.classid = 'pg_proc'::regclass THEN ${CANONICAL_FUNCTION_IDENTITY_SQL}
+          WHEN d.classid = 'pg_class'::regclass THEN nc.nspname || '.' || c.relname
+          WHEN d.classid = 'pg_type'::regclass THEN nt.nspname || '.' || t.typname
+          ELSE d.objid::text
+        END
+      ) AS row
+      FROM pg_depend d
+      JOIN pg_extension e ON e.oid = d.refobjid
+      LEFT JOIN pg_proc p ON d.classid = 'pg_proc'::regclass AND p.oid = d.objid
+      LEFT JOIN pg_namespace n ON n.oid = p.pronamespace
+      LEFT JOIN pg_class c ON d.classid = 'pg_class'::regclass AND c.oid = d.objid
+      LEFT JOIN pg_namespace nc ON nc.oid = c.relnamespace
+      LEFT JOIN pg_type t ON d.classid = 'pg_type'::regclass AND t.oid = d.objid
+      LEFT JOIN pg_namespace nt ON nt.oid = t.typnamespace
+      WHERE e.extname = 'btree_gist' AND d.deptype = 'e'
+    ) s`);
+  let tuples = [];
+  try {
+    tuples = JSON.parse(raw || "[]");
+  } catch {
+    tuples = [];
+  }
+  if (!Array.isArray(tuples)) tuples = [];
+  const identities = tuples.map((row) => String(row.identity || "")).sort();
+  return {
+    extensionPresent: String(psql(url, "SELECT extname FROM pg_extension WHERE extname = 'btree_gist';")).includes("btree_gist"),
+    memberCount: tuples.length,
+    identities,
+    tuples,
+    identitySet: identities.join("\n"),
+    oidSet: tuples.map((row) => `${row.classid}:${row.objid}:${row.objsubid}:${row.refobjid}:${row.deptype}:${row.identity}`).sort().join("\n"),
+  };
+}
+
+function membershipSetsEqual(before, after) {
+  return before?.oidSet === after?.oidSet
+    && before?.identitySet === after?.identitySet
+    && before?.memberCount === after?.memberCount
+    && before?.memberCount > 0
+    && Array.isArray(before?.tuples)
+    && before.tuples.length === after.tuples.length;
+}
+
+async function runCompleteLocalQualificationSequence({ created, psql }) {
+  const db = created.mod.createDisposableDatabase("f22_complete_qual");
+  try {
+    psql(db.url, "CREATE SCHEMA IF NOT EXISTS supabase_migrations;");
+    psql(db.url, `CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (
+      version text PRIMARY KEY,
+      name text
+    );`);
+    psql(db.url, "CREATE SCHEMA IF NOT EXISTS storage;");
+    psql(db.url, "CREATE TABLE IF NOT EXISTS storage.buckets (id text PRIMARY KEY);");
+    psql(db.url, "CREATE EXTENSION IF NOT EXISTS btree_gist;");
+    const membershipBeforeReset = snapshotExtensionMembership(psql, db.url);
+    seedEligibleLeftover(psql, db.url);
+    const capture = captureViaLocalPsql(psql, db.url);
+    const observed = capture.ok
+      ? observedFromQualificationResetCapture(capture.body)
+      : capture;
+    const reset = observed.ok ? await executeSharedReset(db, observed) : observed;
+    const membershipAfterReset = snapshotExtensionMembership(psql, db.url);
+    const afterResetCapture = captureViaLocalPsql(psql, db.url);
+    const afterResetObserved = afterResetCapture.ok
+      ? observedFromQualificationResetCapture(afterResetCapture.body)
+      : afterResetCapture;
+    const preFloor = afterResetObserved.ok
+      ? resolvePreFloorQualificationGate({
+        policy: "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+        target: {
+          project_ref: APPROVED_DISPOSABLE_PROJECT_REF,
+          localFixture: true,
+          localFixtureRoutingOnly: true,
+          notProductionBypass: true,
+        },
+        inventory: afterResetObserved.inventory,
+        historyRows: afterResetObserved.observedHistoryRows,
+        listMigrations: [],
+        capture: afterResetObserved,
+        inventoryCaptured: true,
+        captureComplete: true,
+      })
+      : afterResetObserved;
+    const calls = { floor: 0, dbPush: 0, repair: 0, sequence: 0 };
+    const adapters = createLocalFixtureQualifyAdapters({
+      url: db.tcpUrl || db.url,
+      psql,
+      psqlFile: created.mod.psqlFile,
+      calls,
+    });
+    let qualify = { status: "NOT_RUN", verdict: "HOLD" };
+    if (preFloor.allowFloor === true && reset.ok === true) {
+      try {
+        qualify = await runQualifyDisposablePath({
+          args: {
+            prepFloor: true,
+            sequenceF3: true,
+            noWipe: true,
+            skipCleanup: true,
+            floorMode: "stub-live-pin",
+          },
+          adapters,
+          skipCliPin: false,
+          calls,
+        });
+      } catch (err) {
+        qualify = {
+          status: "HOLD",
+          verdict: "HOLD",
+          error: String(err?.message || err),
+          errorCode: err?.code || null,
+        };
+      }
+    }
+    const membershipAfterQual = snapshotExtensionMembership(psql, db.url);
+    const historyAfter = psql(db.url, `SELECT CASE
+      WHEN to_regclass('supabase_migrations.schema_migrations') IS NULL THEN 0
+      ELSE (SELECT count(*) FROM supabase_migrations.schema_migrations)
+    END`);
+    const firstStep = Array.isArray(qualify.sequence) ? qualify.sequence[0] : null;
+    const classification = firstStep?.classification || {};
+    const completeThrough00123 = String(qualify.verdict || "").includes("QUALIFICATION PASS")
+      && Number(historyAfter) === F3_FORWARD_FILES.length
+      && Array.isArray(qualify.sequence)
+      && qualify.sequence.length === F3_FORWARD_FILES.length;
+    const documentedAtomicRollbackHold = preFloor.allowFloor === true
+      && qualify.floor?.installed === true
+      && qualify.preDbPushGates?.ok === true
+      && classification.split === "PRE_COMMIT_OR_ATOMIC_ROLLBACK"
+      && classification.historyFailed === true
+      && classification.repairAuthorizedByFilenameVersion === false
+      && (calls.repair || qualify.calls?.repair || 0) === 0
+      && (calls.dbPush || qualify.calls?.dbPush || 0) >= 1
+      && /repair-safety gate failed/i.test(String(qualify.limitation || qualify.error || ""));
+    const pass = reset.ok === true
+      && reset.verdict === "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1"
+      && preFloor.allowFloor === true
+      && preFloor.verdict === "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1"
+      && membershipSetsEqual(membershipBeforeReset, membershipAfterReset)
+      && membershipSetsEqual(membershipAfterReset, membershipAfterQual)
+      && (completeThrough00123 || documentedAtomicRollbackHold);
+    return record("F22_COMPLETE_LOCAL_QUALIFICATION", "scenario", {
+      ok: pass,
+      capture: "preserve-reset-then-shared-qualify-00118-00123",
+      resetApply: reset.spies?.applyCalls ?? 0,
+      commit: reset.committed === true,
+      verdict: qualify.verdict || reset.verdict,
+      preFloorVerdict: preFloor.verdict || null,
+      qualifyStatus: qualify.status || null,
+      qualifyError: qualify.error || qualify.limitation || null,
+      qualifyErrorCode: qualify.errorCode || null,
+      completeThrough00123,
+      remainingHold: completeThrough00123 ? null : "F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
+      classification,
+      objectsPresent: firstStep?.objectsPresent ?? null,
+      repairAttempted: firstStep?.repairAttempted === true,
+      floorInstalled: qualify.floor?.installed === true,
+      preDbPushGatesOk: qualify.preDbPushGates?.ok === true,
+      sequenceLength: Array.isArray(qualify.sequence) ? qualify.sequence.length : 0,
+      historyAfter: Number(historyAfter),
+      expectedHistory: F3_FORWARD_FILES.length,
+      floorCalls: calls.floor || qualify.calls?.floor || 0,
+      dbPushCalls: calls.dbPush || qualify.calls?.dbPush || 0,
+      repairCalls: calls.repair || qualify.calls?.repair || 0,
+      executedTransaction: true,
+      substitutedInterfaces: adapters.substitutedInterfaces,
+      hostedIdentityProof: false,
+      membership: {
+        beforeReset: {
+          extensionPresent: membershipBeforeReset.extensionPresent,
+          memberCount: membershipBeforeReset.memberCount,
+          identities: membershipBeforeReset.identities,
+          tuples: membershipBeforeReset.tuples,
+        },
+        afterReset: {
+          extensionPresent: membershipAfterReset.extensionPresent,
+          memberCount: membershipAfterReset.memberCount,
+          identities: membershipAfterReset.identities,
+          tuples: membershipAfterReset.tuples,
+        },
+        afterQualification: {
+          extensionPresent: membershipAfterQual.extensionPresent,
+          memberCount: membershipAfterQual.memberCount,
+          identities: membershipAfterQual.identities,
+          tuples: membershipAfterQual.tuples,
+        },
+        exactSetEqualBeforeAfterReset: membershipSetsEqual(membershipBeforeReset, membershipAfterReset),
+        exactSetEqualAfterResetAfterQual: membershipSetsEqual(membershipAfterReset, membershipAfterQual),
+        countsAloneInsufficient: true,
+      },
+      note: "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+    });
+  } finally {
+    try {
+      db.close();
+    } catch {
+      // preserve other DBs
+    }
+  }
 }
 
 function sleep(ms) {
@@ -1197,6 +1457,7 @@ async function runLocalPgScenarios() {
         mustLocalRecord("F21_TX_PRESERVE_EXTENSION_AND_MEMBERS"),
         mustLocalRecord("F21_NAME_ONLY_OR_UNRELATED_LEFTOVER_HOLD"),
         mustLocalRecord("F21_LOCAL_QUAL_FROM_00118_PREINSTALLED_INDUCED_HOLD"),
+        mustLocalRecord("F22_COMPLETE_LOCAL_QUALIFICATION"),
         mustLocalRecord("TX_T3_LOCKWAIT_UNAPPROVED_FK_ROLLBACK"),
         mustLocalRecord("TX_T3_LOCKWAIT_RETARGETED_FK_ROLLBACK"),
       ],
@@ -1562,6 +1823,8 @@ async function runLocalPgScenarios() {
       catalogAfter: { extension: extAfter00118 },
     }));
 
+    scenarios.push(await runCompleteLocalQualificationSequence({ created, psql }));
+
     scenarios.push(await runLockWaitDriftScenario({
       psql,
       db,
@@ -1628,6 +1891,7 @@ export async function proveQualificationResetLocal() {
         mustLocalRecord("F21_TX_PRESERVE_EXTENSION_AND_MEMBERS"),
         mustLocalRecord("F21_NAME_ONLY_OR_UNRELATED_LEFTOVER_HOLD"),
         mustLocalRecord("F21_LOCAL_QUAL_FROM_00118_PREINSTALLED_INDUCED_HOLD"),
+        mustLocalRecord("F22_COMPLETE_LOCAL_QUALIFICATION"),
         mustLocalRecord("TX_T3_LOCKWAIT_UNAPPROVED_FK_ROLLBACK"),
         mustLocalRecord("TX_T3_LOCKWAIT_RETARGETED_FK_ROLLBACK"),
       ],

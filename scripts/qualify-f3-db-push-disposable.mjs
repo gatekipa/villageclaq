@@ -20,6 +20,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -103,9 +104,10 @@ import {
   STUB_LIVE_PIN_FLOOR_AUTHORITY,
   STUB_LIVE_PIN_FLOOR_HOLD,
   evaluatePreDbPushGates,
+  installStubLivePinFloorLocal,
   resolveHostedFloorMode,
 } from "./lib/f3-db-push-stub-live-pin-floor.mjs";
-import { GATED_PSQL_FILE_RENDERED, runGatedRemoteSqlText } from "./lib/f3-db-push-remote-sql-file.mjs";
+import { GATED_PSQL_FILE_RENDERED, runGatedRemoteSqlText, writeGatedSqlFile } from "./lib/f3-db-push-remote-sql-file.mjs";
 import {
   FAILED_FLOOR_AUTH_TRIGGER,
   FAILED_FLOOR_PUBLIC_FUNCTION_NAMES,
@@ -114,9 +116,11 @@ import {
   FAILED_FLOOR_STORAGE_BUCKETS,
   FAILED_FLOOR_STORAGE_POLICY_NAMES,
   INVENTORY_CAPTURE_SQL,
+  QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL,
   MANAGED_SCHEMAS,
   classifyInventory,
   isCleanBaseline,
+  observedFromQualificationResetCapture,
 } from "./lib/f3-db-push-inventory.mjs";
 import {
   F13_F14_RUNTIME_CLOSURE_LABEL,
@@ -166,9 +170,17 @@ import {
 } from "./lib/f3-db-push-query-parse.mjs";
 import {
   PRE_STUB_FLOOR_CLEAN_CHECK_HOLD,
+  assertPreFloorQualificationGate,
   assertPreStubFloorCleanCheck,
   evaluatePreStubFloorCleanCheck,
+  evaluatePreserveBaselinePreFloorGate,
+  resolvePreFloorQualificationGate,
 } from "./lib/f3-db-push-pre-stub-floor-clean-check.mjs";
+import {
+  assertLocalWorkConnection,
+  refuseProduction as refuseLocalProduction,
+  spawnLocalPsqlSync,
+} from "./lib/f3-local-connection-guard.mjs";
 import {
   CATALOG_FINGERPRINT_SQL, // structured JSON records; routine ACL identity is schema/object_name/prokind/identity_arguments — never a comma-joined object_identity label. Overrides floor comma-joined query.
   FULL_FINGERPRINT_PHASES,
@@ -447,6 +459,234 @@ export function qualificationResetQualifyEmitPayload(resetResult = {}) {
     observedFromCapture: resetResult.observedFromCapture || null,
     automaticReplay: false,
     fingerprint_exact: false,
+  };
+}
+
+export const F22_LOCAL_FIXTURE_SUBSTITUTED_INTERFACES = Object.freeze([
+  {
+    hosted: "getDisposableProjectIdentity (Management API)",
+    local: "local-fixture identity adapter; not hosted identity proof",
+  },
+  {
+    hosted: "listDisposableMigrationsViaGet (Management API)",
+    local: "local schema_migrations query via run-owned psql",
+  },
+  {
+    hosted: "constructImmutableValidatedTargetFromConnection",
+    local: "local-fixture target; production ref still rejected; not hosted identity proof",
+  },
+  {
+    hosted: "runDbQuery / runGatedRemoteSqlText / runIsolatedPoisonPsqlQuery",
+    local: "local-fixture psql (-t -A -w / -f) against run-owned f3_*",
+  },
+  {
+    hosted: "installHostedFloor (gated remote psql)",
+    local: "installStubLivePinFloorLocal (same SQL steps, local psql -f)",
+  },
+  {
+    hosted: "runDbPushCandidate / runFilenameVersionRepair via hosted --db-url",
+    local: "CLI 2.117.0 db push and migration repair as separate commands against local --db-url; not assertConstructedDbUrl hosted pooler",
+  },
+]);
+
+export function defaultHostedQualifyAdapters() {
+  return {
+    kind: "hosted",
+    substitutedInterfaces: [],
+    discoverCli: discoverSupabaseCli,
+    identity: getDisposableProjectIdentity,
+    listMigrationsViaGet: listDisposableMigrationsViaGet,
+    constructTarget: (input = {}) => constructImmutableValidatedTargetFromConnection({
+      source: "qualify-f3-db-push-disposable",
+      ...input,
+    }),
+    query: (input) => runDbQuery(input),
+    installFloor: ({ workdir, mode }) => installHostedFloor({ workdir, mode }),
+    gatedSql: (workdir, name, sql) => runGatedRemoteSqlText(workdir, name, sql),
+    dbPush: (input) => runDbPushCandidate(input),
+    repair: (input) => runFilenameVersionRepair(input),
+    list: (input) => runMigrationList(input),
+    poisonQuery: (input) => runIsolatedPoisonPsqlQuery(input),
+  };
+}
+
+function runLocalSupabaseCli(bin, args, url) {
+  refuseLocalProduction(url);
+  assertLocalWorkConnection(url);
+  for (const arg of args) refuseLocalProduction(String(arg));
+  try {
+    const stdout = execFileSync(bin, args, {
+      encoding: "utf8",
+      timeout: 180000,
+      env: {
+        PATH: process.env.PATH || "/usr/bin:/bin",
+        HOME: fs.mkdtempSync(path.join(os.tmpdir(), "f22-qualify-cli-home-")),
+        LANG: "C",
+      },
+    });
+    return { status: 0, stdout: stdout || "", stderr: "" };
+  } catch (err) {
+    return {
+      status: Number.isInteger(err.status) ? err.status : 1,
+      stdout: err.stdout || "",
+      stderr: err.stderr || String(err.message || err),
+    };
+  }
+}
+
+export function createLocalFixtureQualifyAdapters({
+  url,
+  psql,
+  psqlFile,
+  calls = null,
+} = {}) {
+  if (!url) {
+    throw Object.assign(new Error("local fixture URL is required"), {
+      code: "F13_LOCAL_FIXTURE_URL_REQUIRED",
+    });
+  }
+  refuseLocalProduction(url);
+  assertLocalWorkConnection(url);
+  const record = (name) => {
+    if (calls && typeof calls === "object") calls[name] = (calls[name] || 0) + 1;
+  };
+  return {
+    kind: "local-fixture",
+    localFixtureRoutingOnly: true,
+    notProductionBypass: true,
+    notHostedIdentityProof: true,
+    substitutedInterfaces: [...F22_LOCAL_FIXTURE_SUBSTITUTED_INTERFACES],
+    discoverCli: discoverSupabaseCli,
+    identity: async () => {
+      record("identity");
+      return {
+        projectRef: APPROVED_DISPOSABLE_PROJECT_REF,
+        host: "local-fixture",
+        localFixture: true,
+        localFixtureRoutingOnly: true,
+        notHostedIdentityProof: true,
+        substitutedHostedInterface: "getDisposableProjectIdentity",
+      };
+    },
+    listMigrationsViaGet: async () => {
+      record("listMigrationsViaGet");
+      if (typeof psql !== "function") return { rows: [] };
+      const raw = psql(url, `SELECT CASE
+        WHEN to_regclass('supabase_migrations.schema_migrations') IS NULL THEN '[]'::text
+        ELSE coalesce((
+          SELECT jsonb_agg(jsonb_build_object('version', version::text, 'name', name) ORDER BY version)::text
+          FROM supabase_migrations.schema_migrations
+        ), '[]')
+      END`);
+      try {
+        const parsed = JSON.parse(raw || "[]");
+        return { rows: Array.isArray(parsed) ? parsed : [] };
+      } catch {
+        return { rows: [] };
+      }
+    },
+    constructTarget: () => {
+      record("constructTarget");
+      return {
+        ok: true,
+        target: {
+          project_ref: APPROVED_DISPOSABLE_PROJECT_REF,
+          localFixture: true,
+          localFixtureRoutingOnly: true,
+          notProductionBypass: true,
+          notHostedIdentityProof: true,
+          provenance: "local-fixture-substitution",
+        },
+      };
+    },
+    query: async ({ sql } = {}) => {
+      record("query");
+      const extra = ["-t", "-A", "-w", "-c", String(sql || "")];
+      const spawned = spawnLocalPsqlSync(url, extra, { role: "work" });
+      const res = spawned.result || {};
+      return {
+        status: Object.prototype.hasOwnProperty.call(res, "status") ? res.status : 1,
+        stdout: res.stdout || "",
+        stderr: res.stderr || "",
+        signal: res.signal || null,
+      };
+    },
+    installFloor: ({ workdir } = {}) => {
+      record("floor");
+      if (typeof psql !== "function" || typeof psqlFile !== "function") {
+        throw Object.assign(new Error("local floor requires psql and psqlFile"), {
+          code: "F3_DBPUSH_FLOOR_HOLD",
+        });
+      }
+      // Hosted disposable already has schema extensions + uuid-ossp there.
+      // Local fixture installs that platform schema only after the
+      // authenticated pre-floor gate has allowed floor preparation.
+      // Not a wipe, not a membership allowlist, not gate evidence.
+      psql(url, "CREATE SCHEMA IF NOT EXISTS extensions;");
+      psql(url, `CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;`);
+      return installStubLivePinFloorLocal({ url, workdir, psql, psqlFile });
+    },
+    gatedSql: (workdir, name, sql) => {
+      record("gatedSql");
+      const abs = writeGatedSqlFile(workdir, name, sql);
+      const spawned = spawnLocalPsqlSync(url, ["-f", abs], { role: "work" });
+      const res = spawned.result || {};
+      return {
+        status: Object.prototype.hasOwnProperty.call(res, "status") ? res.status : 1,
+        stdout: res.stdout || "",
+        stderr: res.stderr || "",
+      };
+    },
+    dbPush: ({ bin, workdir } = {}) => {
+      record("dbPush");
+      record("sequence");
+      return runLocalSupabaseCli(bin, [
+        "db", "push", "--db-url", url, "--workdir", workdir, "--yes", "--skip-vault",
+      ], url);
+    },
+    repair: ({ bin, version, workdir } = {}) => {
+      record("repair");
+      return runLocalSupabaseCli(bin, [
+        "migration", "repair", String(version), "--status", "applied",
+        "--db-url", url, "--workdir", workdir, "--yes",
+      ], url);
+    },
+    list: ({ bin, workdir } = {}) => {
+      record("list");
+      return runLocalSupabaseCli(bin, [
+        "migration", "list", "--db-url", url, "--workdir", workdir,
+      ], url);
+    },
+    poisonQuery: ({ sql } = {}) => {
+      record("poisonQuery");
+      const extra = ["-t", "-A", "-w", "-c", String(sql || "")];
+      const spawned = spawnLocalPsqlSync(url, extra, { role: "work" });
+      const res = spawned.result || {};
+      return {
+        status: Object.prototype.hasOwnProperty.call(res, "status") ? res.status : 1,
+        stdout: res.stdout || "",
+        stderr: res.stderr || "",
+        argv: extra,
+        transport: "local-fixture-psql",
+      };
+    },
+  };
+}
+
+export function wrapQualifyAdapters(adapters = {}, calls = null) {
+  const base = { ...defaultHostedQualifyAdapters(), ...adapters };
+  if (!calls) return base;
+  const wrap = (name, fn) => (...args) => {
+    calls[name] = (calls[name] || 0) + 1;
+    return fn(...args);
+  };
+  return {
+    ...base,
+    query: wrap("query", base.query),
+    installFloor: wrap("floor", base.installFloor),
+    dbPush: wrap("dbPush", base.dbPush),
+    repair: wrap("repair", base.repair),
+    gatedSql: wrap("gatedSql", base.gatedSql),
   };
 }
 
@@ -3200,6 +3440,22 @@ async function main() {
     });
   }
 
+  const evidence = await runQualifyDisposablePath({
+    args,
+    platformAclCalibration,
+  });
+  emitQualifyEvidence(evidence, args);
+}
+
+export async function runQualifyDisposablePath({
+  args = {},
+  adapters = {},
+  skipCliPin = false,
+  calls = null,
+  platformAclCalibration = null,
+} = {}) {
+  const ops = wrapQualifyAdapters(adapters, calls);
+  const calibration = platformAclCalibration || authorizeDbPushAfterPlatformAclCalibration();
   const evidence = {
     status: "RUNNING",
     verdict: FILE_BASED_RUNNER_VERDICTS.HOLD,
@@ -3208,7 +3464,7 @@ async function main() {
     expectedFingerprintsBeforeDb: recordPreDbExpectedHashes(),
     frozenExpectedFingerprintCaptures: recordFrozenExpectedFingerprintCaptures(),
     sealedPlatformAclEnvelopeDigest: SEALED_PLATFORM_ACL_ENVELOPE_DIGEST,
-    platformAclCalibration,
+    platformAclCalibration: calibration,
     managementApiApply: MANAGEMENT_API_APPLY_DISQUALIFICATION,
     projectRef: APPROVED_DISPOSABLE_PROJECT_REF,
     host: APPROVED_DISPOSABLE_HOST,
@@ -3237,6 +3493,10 @@ async function main() {
     cleanup: null,
     floor: null,
     preStubFloorCleanCheck: null,
+    preFloorQualificationGate: null,
+    preserveBaselineCapture: null,
+    substitutedInterfaces: ops.substitutedInterfaces || [],
+    adapterKind: ops.kind || "hosted",
     preDbPushGates: null,
     cli: null,
     help: null,
@@ -3260,21 +3520,46 @@ async function main() {
   };
 
   try {
-    const cli = discoverSupabaseCli();
+    const cli = (ops.discoverCli || discoverSupabaseCli)();
     evidence.cli = sanitizeForLog(cli);
-    if (!cli.available || !cli.matchesPin) {
+    if (!skipCliPin && (!cli.available || !cli.matchesPin)) {
       evidence.status = "HOLD";
       evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
       evidence.limitation = `Supabase CLI ${CLI_PIN} is required; observed ${cli.version || "unavailable"}`;
       throw Object.assign(new Error(evidence.limitation), { code: "F3_DBPUSH_CLI_PIN" });
     }
+    if (skipCliPin && (!cli.available || !cli.matchesPin)) {
+      evidence.cliPinSkipped = true;
+      evidence.cliSkipReason = "skipCliPin for adapter-only gate/floor checks; sequence-f3 still requires CLI 2.117.0";
+    }
 
-    const pushHelp = readDbPushHelp(cli.bin);
-    const repairHelp = readMigrationRepairHelp(cli.bin);
-    const listHelp = readMigrationListHelp(cli.bin);
-    const queryHelp = readDbQueryHelp(cli.bin);
-    assertDbPushHelpUsable(pushHelp);
-    assertRepairHelpUsable(repairHelp);
+    const dummyHelp = {
+      status: 0,
+      hasDbUrl: true,
+      hasYes: true,
+      hasWorkdir: true,
+      hasSkipVault: true,
+      hasStatus: true,
+      hasApplied: true,
+      hasFile: true,
+      hasOutputFormat: true,
+    };
+    const pushHelp = skipCliPin && (!cli.available || !cli.matchesPin)
+      ? dummyHelp
+      : readDbPushHelp(cli.bin);
+    const repairHelp = skipCliPin && (!cli.available || !cli.matchesPin)
+      ? dummyHelp
+      : readMigrationRepairHelp(cli.bin);
+    const listHelp = skipCliPin && (!cli.available || !cli.matchesPin)
+      ? dummyHelp
+      : readMigrationListHelp(cli.bin);
+    const queryHelp = skipCliPin && (!cli.available || !cli.matchesPin)
+      ? dummyHelp
+      : readDbQueryHelp(cli.bin);
+    if (!(skipCliPin && (!cli.available || !cli.matchesPin))) {
+      assertDbPushHelpUsable(pushHelp);
+      assertRepairHelpUsable(repairHelp);
+    }
     evidence.help = {
       dbPush: { status: pushHelp.status, hasDbUrl: pushHelp.hasDbUrl, hasSkipVault: pushHelp.hasSkipVault, hasYes: pushHelp.hasYes, hasWorkdir: pushHelp.hasWorkdir },
       repair: { status: repairHelp.status, hasStatus: repairHelp.hasStatus, hasApplied: repairHelp.hasApplied, hasDbUrl: repairHelp.hasDbUrl },
@@ -3282,12 +3567,12 @@ async function main() {
       query: { status: queryHelp.status, hasDbUrl: queryHelp.hasDbUrl, hasFile: queryHelp.hasFile },
     };
 
-    evidence.identity = await getDisposableProjectIdentity();
-    const listed = await listDisposableMigrationsViaGet();
+    evidence.identity = await ops.identity();
+    const listed = await ops.listMigrationsViaGet();
     evidence.historyGet = listed;
 
     const isolated = createIsolatedDbPushWorkdir();
-    const frozenTargetBuilt = constructImmutableValidatedTargetFromConnection({
+    const frozenTargetBuilt = ops.constructTarget({
       source: "qualify-f3-db-push-disposable",
     });
     if (!frozenTargetBuilt.ok) {
@@ -3318,7 +3603,7 @@ async function main() {
       repoDigestsUnchanged: isolated.repoDigestsUnchanged,
     };
 
-    const historyPre = await runDbQuery({
+    const historyPre = await ops.query({
       bin: cli.bin,
       workdir: isolated.workdir,
       help: queryHelp,
@@ -3333,7 +3618,7 @@ async function main() {
       disposableHistoryVersions: (Array.isArray(historyRows) ? historyRows : []).map((r) => r.version),
     });
 
-    const inventory = await runDbQuery({
+    const inventory = await ops.query({
       bin: cli.bin,
       workdir: isolated.workdir,
       help: queryHelp,
@@ -3344,7 +3629,7 @@ async function main() {
       phase: INVENTORY_PHASES.BEFORE_RESET,
       body: inventoryFromQuery(inventory.stdout),
     });
-    const columns = await runDbQuery({
+    const columns = await ops.query({
       bin: cli.bin,
       workdir: isolated.workdir,
       help: queryHelp,
@@ -3353,7 +3638,7 @@ async function main() {
     evidence.schemaMigrationsColumns = { status: columns.status, body: parseJsonish(columns.stdout) };
 
     if (!args.skipCleanup) {
-      evidence.cleanup = await runDbQuery({
+      evidence.cleanup = await ops.query({
         bin: cli.bin,
         workdir: isolated.workdir,
         help: queryHelp,
@@ -3362,7 +3647,7 @@ async function main() {
       evidence.cleanup.dropped = LIVE_PROBE_THROWAWAY_TABLE;
     }
 
-    const captured = await runDbQuery({
+    const captured = await ops.query({
       bin: cli.bin,
       workdir: isolated.workdir,
       help: queryHelp,
@@ -3401,20 +3686,57 @@ async function main() {
       listMigrations: listedMigrations,
     });
     evidence.preStubFloorCleanCheck = cleanCheck;
+    const preserveCaptured = await ops.query({
+      bin: cli.bin,
+      workdir: isolated.workdir,
+      help: queryHelp,
+      sql: QUALIFICATION_RESET_INVENTORY_CAPTURE_SQL,
+    });
+    const preserveBody = inventoryFromQuery(preserveCaptured.stdout);
+    const preserveObserved = observedFromQualificationResetCapture(preserveBody);
+    evidence.preserveBaselineCapture = {
+      status: preserveCaptured.status,
+      ok: preserveObserved.ok === true,
+      captureComplete: preserveObserved.captureComplete === true,
+      inventoryCaptured: preserveObserved.inventoryCaptured === true,
+      captureSchema: preserveObserved.captureSchema || preserveBody?.schema || null,
+      code: preserveObserved.code || null,
+    };
+    const preFloorGate = resolvePreFloorQualificationGate({
+      policy: F21_RESET_SUCCESS_VERDICT,
+      target: frozenTargetBuilt.target,
+      inventory: inventoryFromQuery(captured.stdout),
+      historyRows: historyForClean,
+      listMigrations: listedMigrations,
+      capture: preserveObserved,
+      inventoryCaptured: preserveObserved.ok === true && preserveObserved.inventoryCaptured === true,
+      captureComplete: preserveObserved.ok === true && preserveObserved.captureComplete === true,
+      captureSchema: preserveObserved.captureSchema || preserveBody?.schema || null,
+      previousResetResult: null,
+    });
+    evidence.preFloorQualificationGate = preFloorGate;
     evidence.wipe = {
       skipped: true,
       noWipe: true,
       do_not_wipe: true,
       cleanCheck,
-      note: "Chief 06 clean-check is the pre-floor pin. Do not re-wipe. Do not replay 00001–00116. Leftover FAILED_FLOOR_STORAGE_POLICY_NAMES + avatars/group-documents/receipts are residual cleanup (narrow DROP), not --wipe-to-baseline.",
+      preFloorGate,
+      note: preFloorGate.verdict === F21_RESET_SUCCESS_VERDICT
+        ? "F22 preserve-baseline pre-floor gate authenticated current database. Do not re-wipe. Do not replay 00001–00116. classifyInventory CLEAN_BASELINE is unchanged and was not reused."
+        : "Chief 06 clean-check is the pre-floor pin. Do not re-wipe. Do not replay 00001–00116. Leftover FAILED_FLOOR_STORAGE_POLICY_NAMES + avatars/group-documents/receipts are residual cleanup (narrow DROP), not --wipe-to-baseline.",
     };
-    if (!cleanCheck.clean_ok) {
+    if (!preFloorGate.allowFloor) {
       evidence.status = "HOLD";
       evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
-      evidence.limitation = cleanCheck.hold || PRE_STUB_FLOOR_CLEAN_CHECK_HOLD;
-      throw Object.assign(new Error(evidence.limitation), { code: "F3_PRE_STUB_FLOOR_CLEAN_CHECK_HOLD" });
+      evidence.limitation = preFloorGate.hold || preFloorGate.reason || PRE_STUB_FLOOR_CLEAN_CHECK_HOLD;
+      throw Object.assign(new Error(evidence.limitation), {
+        code: preFloorGate.code || "F3_PRE_STUB_FLOOR_CLEAN_CHECK_HOLD",
+      });
     }
-    assertPreStubFloorCleanCheck(cleanCheck);
+    if (preFloorGate.cleanBaseline === true) {
+      assertPreStubFloorCleanCheck(cleanCheck);
+    }
+    assertPreFloorQualificationGate(preFloorGate);
 
     const precheck = hostedFloorPrecheck(floorMode);
     evidence.floor = {
@@ -3425,14 +3747,14 @@ async function main() {
       installed: false,
     };
     if (args.prepFloor) {
-      const installed = installHostedFloor({ workdir: isolated.workdir, mode: floorMode });
-      const fingerprint = await runDbQuery({
+      const installed = ops.installFloor({ workdir: isolated.workdir, mode: floorMode });
+      const fingerprint = await ops.query({
         bin: cli.bin,
         workdir: isolated.workdir,
         help: queryHelp,
         sql: CATALOG_FINGERPRINT_SQL,
       });
-      const gateQuery = await runDbQuery({
+      const gateQuery = await ops.query({
         bin: cli.bin,
         workdir: isolated.workdir,
         help: queryHelp,
@@ -3464,7 +3786,7 @@ async function main() {
         fingerprint: { status: fingerprint.status, body: inventoryFromQuery(fingerprint.stdout) },
         gateQuery: { status: gateQuery.status },
       };
-      const afterFloorInv = await runDbQuery({
+      const afterFloorInv = await ops.query({
         bin: cli.bin,
         workdir: isolated.workdir,
         help: queryHelp,
@@ -3494,6 +3816,13 @@ async function main() {
         "Pass --no-wipe --prep-floor to install the documented stub+live-pin floor (00117 via gated psql -f). Greenfield is disallowed.";
     }
 
+    if (args.sequenceF3 && skipCliPin && (!cli.available || !cli.matchesPin)) {
+      evidence.status = "HOLD";
+      evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+      evidence.limitation = `Supabase CLI ${CLI_PIN} is required for --sequence-f3; skipCliPin cannot authorize migration execution`;
+      throw Object.assign(new Error(evidence.limitation), { code: "F3_DBPUSH_CLI_PIN" });
+    }
+
     if (args.sequenceF3) {
       if (!args.prepFloor || !evidence.preDbPushGates?.ok) {
         evidence.status = "HOLD";
@@ -3519,7 +3848,7 @@ async function main() {
           counters: { ...runnerCounters },
         });
         const queryHistory = () =>
-          runDbQuery({
+          ops.query({
             bin: cli.bin,
             workdir: isolated.workdir,
             help: queryHelp,
@@ -3545,13 +3874,13 @@ async function main() {
           evidence.platformAclCalibration = prePushCalibration;
           throw Object.assign(new Error(evidence.limitation), { code: "F3_PLATFORM_ACL_CALIBRATION_HOLD" });
         }
-        const inject = runGatedRemoteSqlText(isolated.workdir, `inject-${version}.sql`, injectSql);
+        const inject = ops.gatedSql(isolated.workdir, `inject-${version}.sql`, injectSql);
         runnerCounters.initialDbPushCalls += 1;
         recordRunnerEvent("initial_db_push_started", {
           phase: "initial_db_push",
           commandIdentity: "supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault",
         });
-        const push = runDbPushCandidate({
+        const push = ops.dbPush({
           bin: cli.bin,
           workdir: isolated.workdir,
           help: pushHelp,
@@ -3560,20 +3889,20 @@ async function main() {
           phase: "initial_db_push",
           processResult: push,
         });
-        const historyAfterFail = await runDbQuery({
+        const historyAfterFail = await ops.query({
           bin: cli.bin,
           workdir: isolated.workdir,
           help: queryHelp,
           sql: READ_SCHEMA_MIGRATIONS_SQL,
         });
-        const probe = await runDbQuery({
+        const probe = await ops.query({
           bin: cli.bin,
           workdir: isolated.workdir,
           help: queryHelp,
           sql: objectProbeSql(TARGET_OBJECT_PROBES[file]),
         });
         const objectsPresent = objectsPresentFromProbe({ ...probe, file });
-        const fingerprintBeforeRepairQuery = await runDbQuery({
+        const fingerprintBeforeRepairQuery = await ops.query({
           bin: cli.bin,
           workdir: isolated.workdir,
           help: queryHelp,
@@ -3591,7 +3920,7 @@ async function main() {
           { expected: expectedFingerprint },
         );
         const fingerprintObserved = fingerprintAfterCommitFailedHistory.fingerprint;
-        const afterFailedHistoryInv = await runDbQuery({
+        const afterFailedHistoryInv = await ops.query({
           bin: cli.bin,
           workdir: isolated.workdir,
           help: queryHelp,
@@ -3681,7 +4010,7 @@ async function main() {
         const hostedCleanup = () => {
             runnerCounters.cleanupCalls += 1;
             recordRunnerEvent("cleanup_started", { phase: "cleanup" });
-            const cleanupResult = runGatedRemoteSqlText(
+            const cleanupResult = ops.gatedSql(
               isolated.workdir,
               `remove-inject-${version}.sql`,
               REMOVE_HISTORY_INJECT_SQL,
@@ -3709,7 +4038,7 @@ async function main() {
         const hostedVerifyPoisonAbsent = async () => {
             runnerCounters.poisonProbeCalls += 1;
             recordRunnerEvent("poison_probe_started", { phase: "poison_probe" });
-            const poisonProbe = runIsolatedPoisonPsqlQuery({
+            const poisonProbe = ops.poisonQuery({
               frozenTarget: frozenTargetBuilt.target,
               sql: POISON_ABSENT_PROBE_SQL,
             });
@@ -3790,7 +4119,7 @@ async function main() {
           return { ok: true, repairAuthorized: true, decided };
         };
         const hostedActualRepair = async () => {
-            const poisonQuery = await runDbQuery({
+            const poisonQuery = await ops.query({
               bin: cli.bin,
               workdir: isolated.workdir,
               help: queryHelp,
@@ -3826,7 +4155,7 @@ async function main() {
                 stderr: allowRepair.reason,
               };
             }
-            const repairResult = runFilenameVersionRepair({
+            const repairResult = ops.repair({
               bin: cli.bin,
               version,
               workdir: isolated.workdir,
@@ -3867,13 +4196,13 @@ async function main() {
             repairCommand: "supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
             repair: hostedActualRepair,
             postRepairVerify: async () => {
-              hostedStep.historyAfterRepair = await runDbQuery({
+              hostedStep.historyAfterRepair = await ops.query({
                 bin: cli.bin,
                 workdir: isolated.workdir,
                 help: queryHelp,
                 sql: READ_SCHEMA_MIGRATIONS_SQL,
               });
-              const fingerprintAfterRepairQuery = await runDbQuery({
+              const fingerprintAfterRepairQuery = await ops.query({
                 bin: cli.bin,
                 workdir: isolated.workdir,
                 help: queryHelp,
@@ -3893,7 +4222,7 @@ async function main() {
                 expected: expectedFingerprint,
                 preRepairObserved: fingerprintObserved,
               });
-              const afterRepairInv = await runDbQuery({
+              const afterRepairInv = await ops.query({
                 bin: cli.bin,
                 workdir: isolated.workdir,
                 help: queryHelp,
@@ -3931,7 +4260,7 @@ async function main() {
             },
             retryCommand: "supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault",
             retry: () => {
-              hostedStep.retry = runDbPushCandidate({
+              hostedStep.retry = ops.dbPush({
                 bin: cli.bin,
                 workdir: isolated.workdir,
                 help: pushHelp,
@@ -3939,7 +4268,7 @@ async function main() {
               return hostedStep.retry;
             },
             postRetryVerify: async () => {
-              const fingerprintAfterRetryQuery = await runDbQuery({
+              const fingerprintAfterRetryQuery = await ops.query({
                 bin: cli.bin,
                 workdir: isolated.workdir,
                 help: queryHelp,
@@ -3964,7 +4293,7 @@ async function main() {
                 preRepairObserved: fingerprintObserved,
                 postRepairObserved: hostedStep.fingerprintAfterRepair?.fingerprint,
               });
-              const afterRetryInv = await runDbQuery({
+              const afterRetryInv = await ops.query({
                 bin: cli.bin,
                 workdir: isolated.workdir,
                 help: queryHelp,
@@ -4071,7 +4400,7 @@ async function main() {
               });
             },
             continuation: async () => {
-              const continuationQuery = await runDbQuery({
+              const continuationQuery = await ops.query({
                 bin: cli.bin,
                 workdir: isolated.workdir,
                 help: queryHelp,
@@ -4096,7 +4425,7 @@ async function main() {
                 preRepairObserved: fingerprintObserved,
                 postRepairObserved: hostedStep.fingerprintAfterRepair?.fingerprint,
               });
-              const afterContInv = await runDbQuery({
+              const afterContInv = await ops.query({
                 bin: cli.bin,
                 workdir: isolated.workdir,
                 help: queryHelp,
@@ -4153,7 +4482,7 @@ async function main() {
           callbackOrder,
         };
         if (fingerprintAfterPoisonCleanup == null && decided?.cleanupProven) {
-          const poisonQuery = await runDbQuery({
+          const poisonQuery = await ops.query({
             bin: cli.bin,
             workdir: isolated.workdir,
             help: queryHelp,
@@ -4289,14 +4618,14 @@ async function main() {
     }
 
     if (evidence.status === "RUNNING") {
-      const listedAfter = await runMigrationList({
+      const listedAfter = await ops.list({
         bin: cli.bin,
         workdir: isolated.workdir,
         help: listHelp,
       });
       evidence.migrationListAfter = listedAfter;
       let chronologySeq = 0;
-      const poisonFinal = runIsolatedPoisonPsqlQuery({
+      const poisonFinal = ops.poisonQuery({
         frozenTarget: frozenTargetBuilt.target,
         sql: POISON_ABSENT_PROBE_SQL,
       });
@@ -4320,7 +4649,7 @@ async function main() {
           evidence.limitation = evidence.finalPoisonProbe?.reason || FINAL_POISON_ABSENCE_HOLD;
           evidence.claims.dbPush = FINAL_POISON_ABSENCE_HOLD;
         } else {
-        const historyFinal = await runDbQuery({
+        const historyFinal = await ops.query({
           bin: cli.bin,
           workdir: isolated.workdir,
           help: queryHelp,
@@ -4334,7 +4663,7 @@ async function main() {
           evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
           evidence.limitation = `HOLD: FINAL inventory history must contain six rows, saw ${Array.isArray(historyRows) ? historyRows.length : 0}`;
         } else {
-        const finalInv = await runDbQuery({
+        const finalInv = await ops.query({
           bin: cli.bin,
           workdir: isolated.workdir,
           help: queryHelp,
@@ -4398,6 +4727,12 @@ async function main() {
     independent_reference_source_sha256: F3_FUNCTIONAL_RECURSIVE_CLOSURE.independent_reference_source_sha256,
     required_runtime_read_inputs: F3_FUNCTIONAL_RECURSIVE_CLOSURE.required_runtime_read_inputs,
   };
+  evidence.hostedIdentityProof = ops.notHostedIdentityProof !== true;
+  evidence.calls = calls;
+  return evidence;
+}
+
+function emitQualifyEvidence(evidence, args = {}) {
   const json = JSON.stringify(sanitizeForLog(evidence), null, 2);
   console.log(json);
   if (args.evidenceOut) {

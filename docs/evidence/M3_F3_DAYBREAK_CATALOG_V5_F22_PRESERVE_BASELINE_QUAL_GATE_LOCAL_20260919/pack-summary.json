@@ -6,6 +6,10 @@
   "packScanDigestFree": true,
   "packScanIndexed": true,
   "qaSlot": "qa-package/QA_SLOT.md",
+  "qaSlotFilled": "qa-package/QA_SLOT_FILLED.md",
+  "qaProvenance": "qa-package/QA_PROVENANCE.md",
+  "qaVerdict": "F22 HOLD PACKAGE ACCEPT",
+  "notLocalCandidateReady": true,
   "membership": "local-pg-proof/MEMBERSHIP.json",
   "proposedPlan": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919/PROPOSED_HOSTED_REQUAL_PLAN.md"
 }

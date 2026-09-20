@@ -1,6 +1,6 @@
 # Independent VillageClaq Grok QA slot
 
-Chief will fill this after real QA. Builder does not impersonate QA.
+This empty template is retained. It is superseded by the attributable filled slot in `QA_SLOT_FILLED.md`. Builder does not impersonate QA.
 
 | Field | Value |
 |------|-------|

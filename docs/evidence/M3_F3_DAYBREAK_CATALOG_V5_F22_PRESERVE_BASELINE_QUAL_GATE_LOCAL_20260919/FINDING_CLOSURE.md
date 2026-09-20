@@ -15,7 +15,10 @@ The qualification entrypoint no longer requires historical CLEAN_BASELINE before
 
 Local CLI 2.117.0 `db push` of 00118 against run-owned PostgreSQL treated the induced `F3_DBPUSH_DISPOSABLE_HISTORY_INJECT` (SQLSTATE P0001) as a single-transaction rollback (`PRE_COMMIT_OR_ATOMIC_ROLLBACK`). The repair-safety gate correctly refused repair because objects were not present. Migrations 00119–00123 were not started.
 
-This is not reset-only success. Gate + floor + first real CLI push were exercised. Complete qualification through 00123 is not claimed.
+This is not reset-only success. Gate + floor + first real CLI push were exercised. Complete qualification through 00123 is not claimed. This package is not LOCAL CANDIDATE READY.
+
+## Independent QA
+VillageClaq QA (independent Grok-family; distinct from builder) recorded **F22 HOLD PACKAGE ACCEPT** for functional tip `f1d30b28830db902962467f801932254997e64c3` and evidence tip `6d6bdd7591d738e593bc7290d5f60e4be0de88ec`. Material findings: none. Complete local prove re-run was NOT EXECUTED on the QA host (no local PG); check 2 is artifact-inspected only. See `qa-package/QA_PROVENANCE.md`.
 
 ## Not done
-Hosted requalification, disposable contact, production, merge, F3-06, QA ACCEPT, Astra verdict.
+Hosted requalification, disposable contact, production, merge, F3-06, LOCAL CANDIDATE READY, Astra verdict.

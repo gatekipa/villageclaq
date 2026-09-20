@@ -15,5 +15,8 @@
   "disposableOnly": "jkorwnwwmdeflfntxntl",
   "productionRejected": "llbnliixczcqfftxpsmb",
   "remainingHold": "F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
-  "proposedPlan": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919/PROPOSED_HOSTED_REQUAL_PLAN.md"
+  "proposedPlan": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919/PROPOSED_HOSTED_REQUAL_PLAN.md",
+  "qaReviewedEvidenceTip": "6d6bdd7591d738e593bc7290d5f60e4be0de88ec",
+  "qaVerdict": "F22 HOLD PACKAGE ACCEPT",
+  "notLocalCandidateReady": true
 }

@@ -3,29 +3,31 @@
 **HOLD: F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED**
 **LOCAL_PROOF:** HOLD — complete qualification through 00123 not obtained
 **FUNCTIONAL_TIP:** `f1d30b28830db902962467f801932254997e64c3`
-**QA identity:** NOT CLAIMED — slot in `qa-package/QA_SLOT.md`
+**QA identity:** VillageClaq QA — F22 HOLD PACKAGE ACCEPT
 **Local classification:** `LOCAL_PG_EXECUTED`
 **Overall status:** DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN
 **Floor (verbatim):** DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT
 
-Do not fabricate QA ACCEPT. Coordinator (VillageClaq Chief) will obtain independent Grok QA after this freeze. Astra: both delegation attempts failed at service access; no Astra verdict. Do not contact Daybreak/Astra.
+Independent VillageClaq QA (Grok-family; distinct from builder) recorded **F22 HOLD PACKAGE ACCEPT** for FUNCTIONAL_TIP `f1d30b28830db902962467f801932254997e64c3` + evidence tip `6d6bdd7591d738e593bc7290d5f60e4be0de88ec`. That ACCEPT is HOLD-package integrity only. It is **not** LOCAL CANDIDATE READY and **not** hosted authorization. See `qa-package/QA_PROVENANCE.md`. Astra: both prior delegations failed at service access; no Astra verdict. Do not contact Daybreak/Astra.
 
 ## Pins
 
 | Role | SHA / value |
 |------|-------------|
 | FUNCTIONAL_TIP (frozen) | `f1d30b28830db902962467f801932254997e64c3` |
-| Evidence SHA (this package tip) | `686269dd3036ef654948d1812902d1b9a141ee3b` |
+| Evidence SHA (package content tip) | `686269dd3036ef654948d1812902d1b9a141ee3b` |
+| QA-reviewed evidence tip / prior PR heads | `6d6bdd7591d738e593bc7290d5f60e4be0de88ec` |
 | Starting #84/#85/#86 head | `a38db9c1c0e122dcc5900e1bd41c3857ecca6bd5` |
 | F21 functional | `3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0` |
 | F21 local evidence | `964fe8431f7ca22534a4277246e8330732373f64` |
 | Contract | `b7d16544cdbb86ce47baba329835bd93dcb16d6d` |
 | Success / already-clean | `QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1` |
 | Remaining HOLD | `F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED` |
+| QA verdict | F22 HOLD PACKAGE ACCEPT |
 | This package | `docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919/` |
 | PRs | #84 / #85 / #86 OPEN DRAFT UNMERGED DAYBREAK HOLD; builder PR #126 |
 
-Ancestry: `686269dd3036ef654948d1812902d1b9a141ee3b` → `f1d30b28830db902962467f801932254997e64c3` → a38db9c → 964fe843 → 3fe7314 → b7d16544 → …
+Ancestry: this QA evidence commit → `6d6bdd7591d738e593bc7290d5f60e4be0de88ec` → `686269dd3036ef654948d1812902d1b9a141ee3b` → `f1d30b28830db902962467f801932254997e64c3` → a38db9c → 964fe843 → 3fe7314 → b7d16544 → …
 
 ## Operational-path correction
 
@@ -75,9 +77,20 @@ At F21 packaging head a38db9c, independently verified with `git cat-file blob` (
 
 See `closure/DIGESTS.json`. Runtime `89e46973eb9312e35dff9efda30505b0c9ce140d83ff7246f7fd9c12097b8a3b` (count 45); union `64dfd55296d3c287a56499a47e749122269f00311920f5f3ad9c4d39b56dbc1c` (count 48).
 
-## What remains for independent QA / plan finalization
+## Independent QA (attributable)
 
-- Independent VillageClaq Grok QA of FUNCTIONAL_TIP `f1d30b28830db902962467f801932254997e64c3` + this evidence package
+- Reviewer: VillageClaq QA (independent Grok-family; distinct from builder)
+- Functional tip reviewed: `f1d30b28830db902962467f801932254997e64c3`
+- Evidence tip reviewed: `6d6bdd7591d738e593bc7290d5f60e4be0de88ec`
+- Verdict: **F22 HOLD PACKAGE ACCEPT**
+- Suites QA-executed: design 33/33, reset 78/78, harness 115/115
+- Complete local prove re-run: NOT EXECUTED on QA host (no local PG); check 2 artifact-inspected only
+- Astra: both prior delegations failed at service access; no Astra verdict; Daybreak/Astra not contacted
+- Material findings: none
+- Filled slot: `qa-package/QA_SLOT_FILLED.md` (template `qa-package/QA_SLOT.md` retained)
+
+## What remains
+
 - Decide whether hosted filename-version split (objects remain after inject) can be authorized; local CLI atomic rollback is the remaining complete-run HOLD
 - Dedicated disposable credential provision after future authorization (do not acquire now)
 - Plan remains PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE

@@ -4,31 +4,32 @@
 **LOCAL APPLICATION COMPLETE:** false
 **LOCAL_PROOF:** HOLD — six migrations applied with exact identities; QUALIFICATION PASS withheld on hosted-oracle fingerprint inequality
 **FUNCTIONAL_TIP:** `77fd61dbf51652acabec0093d2a8549524b2dd75`
-**QA identity:** NOT CLAIMED — empty slot for independent VillageClaq Grok QA
+**QA identity:** VillageClaq QA — F23 HOLD PACKAGE ACCEPT
 **Local classification:** `LOCAL_PG_EXECUTED`
 **Overall status:** DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN
 **Floor (verbatim):** DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT
 
-Builder froze the functional tip, then ran affected verification on those exact bytes. This evidence package is a later commit. Do not fabricate QA ACCEPT. Astra: both prior F22 delegations failed at service access; no Astra verdict. Do not contact Daybreak/Astra.
+Independent VillageClaq QA (Grok-family; distinct from builder) recorded **F23 HOLD PACKAGE ACCEPT** for FUNCTIONAL_TIP `77fd61dbf51652acabec0093d2a8549524b2dd75` + evidence tip reviewed `c0a6746516b115b9e1db6ce311c4a4fe80113b01`. That ACCEPT is HOLD-package integrity only. It is **not** LOCAL APPLICATION COMPLETE, **not** LOCAL CANDIDATE READY, and **not** hosted authorization. Fingerprint HOLD must not be credited as application success. Complete local prove re-run was NOT EXECUTED on the QA host (no local PG); check 2 artifact-inspected only. See `qa-package/QA_PROVENANCE.md`. Astra: prior F22 service-access failures only; no Astra verdict. Do not contact Daybreak/Astra.
 
 ## Pins
 
 | Role | SHA / value |
 |------|-------------|
 | FUNCTIONAL_TIP (frozen) | `77fd61dbf51652acabec0093d2a8549524b2dd75` |
-| Evidence SHA (package content) | `dccaa795c800a2fe0b4f370b6234f875bd2655d9` |
+| Evidence SHA (package content before QA) | `dccaa795c800a2fe0b4f370b6234f875bd2655d9` |
+| Evidence tip reviewed by QA / prior PR heads | `c0a6746516b115b9e1db6ce311c4a4fe80113b01` |
 | Starting #84/#85/#86/#126 head | `adb6ade2233f90aa34459bc8ac4fb381d23971a4` |
 | F22 FUNCTIONAL_TIP | `f1d30b28830db902962467f801932254997e64c3` |
 | F22 QA content | `f18331337c36e7c50cd1323c0202a298a4704e03` |
 | Success / already-clean | `QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1` |
 | Local application HOLD | `F23_FINGERPRINT_MISMATCH` |
 | Fault-injection HOLD | `F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED` |
-| QA verdict | NOT CLAIMED |
+| QA verdict | F23 HOLD PACKAGE ACCEPT (HOLD-package integrity only; NOT LOCAL APPLICATION COMPLETE; NOT LOCAL CANDIDATE READY) |
 | This package | `docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920/` |
 | F22 package (historical) | `docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919/` |
 | PRs | #84 / #85 / #86 OPEN DRAFT UNMERGED DAYBREAK HOLD (authoritative #84); #126 non-authoritative; builder #127 |
 
-Ancestry: this bind → `dccaa795c800a2fe0b4f370b6234f875bd2655d9` → `77fd61dbf51652acabec0093d2a8549524b2dd75` → `ff6c933e017e8d7fba517cb43596fb0d24f1d1dd` → `acd3e23711112a5c87ce83901e07f1e23443d5b6` → `adb6ade2233f90aa34459bc8ac4fb381d23971a4` → `f18331337c36e7c50cd1323c0202a298a4704e03` → `6d6bdd7591d738e593bc7290d5f60e4be0de88ec` → `686269dd3036ef654948d1812902d1b9a141ee3b` → `f1d30b28830db902962467f801932254997e64c3` → …
+Ancestry: this QA bind → QA content → `c0a6746516b115b9e1db6ce311c4a4fe80113b01` → `dccaa795c800a2fe0b4f370b6234f875bd2655d9` → `77fd61dbf51652acabec0093d2a8549524b2dd75` → `ff6c933e017e8d7fba517cb43596fb0d24f1d1dd` → `acd3e23711112a5c87ce83901e07f1e23443d5b6` → `adb6ade2233f90aa34459bc8ac4fb381d23971a4` → `f18331337c36e7c50cd1323c0202a298a4704e03` → `6d6bdd7591d738e593bc7290d5f60e4be0de88ec` → `686269dd3036ef654948d1812902d1b9a141ee3b` → `f1d30b28830db902962467f801932254997e64c3` → …
 
 ## Scope
 
@@ -80,9 +81,18 @@ F22 path re-executed on a **fresh** `f22_fault_inject` database (not the F23 DB)
 
 ## QA slot / package integrity
 
-- `qa-package/QA_SLOT.md` empty. No QA ACCEPT. No Astra verdict.
-- Closures recomputed from functional tip blobs (see `closure/DIGESTS.json`)
-- Sanitization keeps semantic evidence (repo-relative paths, migration identities, SQLSTATE/error codes, catalog tuples)
+- Reviewer: VillageClaq QA (independent Grok-family; distinct from builder)
+- Functional tip: `77fd61dbf51652acabec0093d2a8549524b2dd75`
+- Evidence tip reviewed: `c0a6746516b115b9e1db6ce311c4a4fe80113b01`
+- Verdict: **F23 HOLD PACKAGE ACCEPT** (HOLD-package integrity only; NOT LOCAL APPLICATION COMPLETE; NOT LOCAL CANDIDATE READY)
+- Builder claim corroborated: `F23_FINGERPRINT_MISMATCH`; `migrationsAppliedThrough00123=true`; `completeThrough00123=false`
+- Fingerprint HOLD must not be credited as application success
+- Suites QA-executed: design 33/33, reset 81/81, harness 116/116
+- Complete local prove re-run: NOT EXECUTED on QA host (no local PG)
+- Material findings: none
+- Filled slot: `qa-package/QA_SLOT_FILLED.md` (template `qa-package/QA_SLOT.md` retained, superseded)
+- Closures remain those computed from functional tip blobs (see `closure/DIGESTS.json`)
+- Sanitization keeps semantic evidence (repo-relative paths, migration identities, SQLSTATE/error codes, catalog tuples); QA absolute workspace paths redacted before hash
 - unindexed=0 after outer evidence-index
 - No renewed line-ending investigation (no contradictory raw-byte evidence)
 

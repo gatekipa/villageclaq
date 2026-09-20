@@ -27,7 +27,7 @@ PRE_COMMIT_OR_ATOMIC_ROLLBACK; repairCalls=0 remains correct. Historical F22 pac
 - Promoted not-exercised to PASS: no
 
 ## Independent QA
-Slot empty. Builder does not impersonate QA. No Astra verdict. Daybreak/Astra not contacted.
+VillageClaq QA (independent Grok-family; distinct from builder) recorded **F23 HOLD PACKAGE ACCEPT** for functional tip `77fd61dbf51652acabec0093d2a8549524b2dd75` and evidence tip `c0a6746516b115b9e1db6ce311c4a4fe80113b01`. Material findings: none. Builder claim corroborated: `F23_FINGERPRINT_MISMATCH`; `migrationsAppliedThrough00123=true`; `completeThrough00123=false`. Fingerprint HOLD must not be credited as application success. Complete local prove re-run was NOT EXECUTED on the QA host (no local PG); check 2 is artifact-inspected only. See `qa-package/QA_PROVENANCE.md`.
 
 ## Not done
-Hosted requalification, disposable contact, production, merge, F3-06, LOCAL CANDIDATE READY, fingerprint-equality waiver, post-commit repair, Astra verdict, QA ACCEPT.
+Hosted requalification, disposable contact, production, merge, F3-06, LOCAL APPLICATION COMPLETE, LOCAL CANDIDATE READY, fingerprint-equality waiver, post-commit repair, Astra verdict.

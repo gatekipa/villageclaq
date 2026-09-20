@@ -1,0 +1,228 @@
+{
+  "pins": {
+    "repo": "gatekipa/villageclaq",
+    "functionalTip": "77fd61dbf51652acabec0093d2a8549524b2dd75",
+    "evidenceTipPrHeads": "c0a6746516b115b9e1db6ce311c4a4fe80113b01",
+    "packageContentTipRecordedInPins": "dccaa795c800a2fe0b4f370b6234f875bd2655d9",
+    "package": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920/",
+    "handoff": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920/CHIEF_HANDOFF.md",
+    "qaSlotTemplate": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920/qa-package/QA_SLOT.md",
+    "workspace": "[SANITIZED_ABS_PATH]/"
+  },
+  "ancestryOk": true,
+  "ancestry": [
+    "c0a6746516b115b9e1db6ce311c4a4fe80113b01",
+    "dccaa795c800a2fe0b4f370b6234f875bd2655d9",
+    "77fd61dbf51652acabec0093d2a8549524b2dd75",
+    "ff6c933e017e8d7fba517cb43596fb0d24f1d1dd",
+    "acd3e23711112a5c87ce83901e07f1e23443d5b6",
+    "adb6ade2233f90aa34459bc8ac4fb381d23971a4",
+    "f18331337c36e7c50cd1323c0202a298a4704e03",
+    "6d6bdd7591d738e593bc7290d5f60e4be0de88ec",
+    "686269dd3036ef654948d1812902d1b9a141ee3b",
+    "f1d30b28830db902962467f801932254997e64c3"
+  ],
+  "builderClaim": {
+    "status": "HOLD",
+    "code": "F23_FINGERPRINT_MISMATCH",
+    "migrationsAppliedThrough00123": true,
+    "completeThrough00123": false,
+    "localApplicationComplete": false,
+    "notLocalCandidateReady": true,
+    "faultInjectionHold": "F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
+    "labelMatchesPackage": true,
+    "exactSixIdentitiesClaimed": true
+  },
+  "checks": {
+    "1": {
+      "name": "Verification-mode split (normal-application vs fault-injection)",
+      "ok": true,
+      "class": "QA_EXECUTION+ARTIFACT_INSPECTION",
+      "details": {
+        "modes": ["fault-injection", "normal-application"],
+        "defaultUnspecified": "fault-injection",
+        "selectedBeforeDatabaseOperations": true,
+        "hostedAuthority": false,
+        "combinedOrAcceptanceRemoved": true,
+        "helperCombinedAcceptanceRejected": true,
+        "caseF23OutcomesNotCombinedOr": true,
+        "harnessAssertsNoOrAcceptance": true,
+        "unitTests": {
+          "test-f3-qualification-reset-design.mjs": {"pass": 33, "fail": 0},
+          "test-f3-qualification-reset.mjs": {"pass": 81, "fail": 0},
+          "test-f3-db-push-harness.mjs": {"pass": 116, "fail": 0}
+        },
+        "packageSuiteLogsMatchQaRerun": true,
+        "sources": [
+          "scripts/qualify-f3-db-push-disposable.mjs#resolveQualificationVerificationMode",
+          "scripts/prove-f3-qualification-reset-local.mjs#combinedAcceptanceRejected",
+          "local-pg-proof/RESULTS.json#F23_OUTCOMES_NOT_COMBINED_OR",
+          "qa/logs/05_test_reset_design.out",
+          "qa/logs/06_test_reset.out",
+          "qa/logs/07_test_harness.out"
+        ]
+      },
+      "defects": []
+    },
+    "2": {
+      "name": "Normal path operational claim (preserve→gate→floor→CLI→00118–00123; fingerprint HOLD)",
+      "ok": true,
+      "class": "ARTIFACT_INSPECTION",
+      "details": {
+        "verificationMode": "normal-application",
+        "preFloorVerdict": "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+        "floorInstalled": true,
+        "preDbPushGatesOk": true,
+        "cliVersionClaimed": "2.117.0",
+        "sequenceLength": 6,
+        "historyAfter": 6,
+        "exactHistoryIdentities": [
+          {"version": "20260913173000", "name": "f3_bounded_financial_epoch_foundation"},
+          {"version": "20260913173001", "name": "f3_01_core_ledger_foundation"},
+          {"version": "20260913173002", "name": "f3_02_secure_posting_idempotency"},
+          {"version": "20260913173003", "name": "f3_03_projection_read_proof"},
+          {"version": "20260913173004", "name": "f3_04_correction_reversal"},
+          {"version": "20260913173005", "name": "f3_05_opening_cash_command"}
+        ],
+        "historyIdentitiesOk": true,
+        "operationCounts": {
+          "calibrationProbes": 6,
+          "migrationApplications": 6,
+          "retries": 0,
+          "repairs": 0,
+          "historyInjects": 0
+        },
+        "injectAbsent": true,
+        "repairCalls": 0,
+        "objectsPresent": true,
+        "migrationsAppliedThrough00123": true,
+        "completeThrough00123": false,
+        "localApplicationComplete": false,
+        "remainingHold": "F23_FINGERPRINT_MISMATCH",
+        "qualifyError": "fingerprint expected and observed are not canonically equal",
+        "fingerprintHoldNotCreditedAsApplicationSuccess": true,
+        "qaLocalProveRerun": "NOT_EXECUTED",
+        "qaLocalProveRerunReason": "No local PostgreSQL in QA environment (no ubuntu user, no :5432 listener, no docker/psql). Package prove artifacts inspected; mustLocal re-prove unavailable.",
+        "builderClassification": "LOCAL_PG_EXECUTED",
+        "builderMustLocal": false,
+        "sources": [
+          "local-pg-proof/COMPLETE_SEQUENCE.json#normalApplication",
+          "local-pg-proof/RESULTS.json#F23_NORMAL_APPLICATION_LOCAL_QUALIFICATION",
+          "local-pg-proof/COMMITTED_HELPER_SUMMARY.json",
+          "local-pg-proof/RESULTS.md",
+          "suite-logs/prove-helper.out"
+        ]
+      },
+      "defects": []
+    },
+    "3": {
+      "name": "Fault-injection path (fresh DB F22 PRE_COMMIT_OR_ATOMIC_ROLLBACK; repairCalls=0)",
+      "ok": true,
+      "class": "ARTIFACT_INSPECTION",
+      "details": {
+        "verificationMode": "fault-injection",
+        "freshDatabaseLabel": "f22_fault_inject (not reused for F23)",
+        "split": "PRE_COMMIT_OR_ATOMIC_ROLLBACK",
+        "repairCalls": 0,
+        "historyInjects": 1,
+        "historyAfter": 0,
+        "objectsPresent": false,
+        "documentedAtomicRollbackHold": true,
+        "faultInjectionSafetyPass": true,
+        "remainingHold": "F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
+        "f22HoldPreservedAsAuthenticatedNegative": true,
+        "completeThrough00123": false,
+        "migrationsAppliedThrough00123": false,
+        "sources": [
+          "local-pg-proof/COMPLETE_SEQUENCE.json#faultInjection",
+          "local-pg-proof/RESULTS.json#F22_COMPLETE_LOCAL_QUALIFICATION",
+          "local-pg-proof/FIXTURE.json",
+          "local-pg-proof/REPAIR_COVERAGE.json"
+        ]
+      },
+      "defects": []
+    },
+    "4": {
+      "name": "Repair coverage matrix honesty",
+      "ok": true,
+      "class": "ARTIFACT_INSPECTION",
+      "details": {
+        "freshlyExercised": "F22 induced history failure; repair-safety gate refused; repairCalls=0",
+        "inheritedAcceptedEvidence": "F22 HOLD PACKAGE ACCEPT for F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
+        "unexercised": "post-commit filename-version repair after objects remain; hosted split where SQL commits and history INSERT fails",
+        "mandatoryUnderApprovedContract": true,
+        "promotedNotExercisedToPass": false,
+        "sources": [
+          "local-pg-proof/REPAIR_COVERAGE.json",
+          "local-pg-proof/RESULTS.json#repairCoverage",
+          "FINDING_CLOSURE.md"
+        ]
+      },
+      "defects": []
+    },
+    "5": {
+      "name": "Membership 264 OID set equality + exact history identities",
+      "ok": true,
+      "class": "ARTIFACT_INSPECTION",
+      "details": {
+        "extension": "btree_gist",
+        "deptype": "e",
+        "memberCount": 264,
+        "faultInjection": {
+          "exactOidSetEqualBeforeAfterReset": true,
+          "exactOidSetEqualAfterResetAfterQual": true,
+          "independentlyRecomputed": true
+        },
+        "normalApplication": {
+          "exactOidSetEqualBeforeAfterReset": true,
+          "exactOidSetEqualAfterResetAfterQual": true,
+          "independentlyRecomputed": true
+        },
+        "crossModeOidNamespacesDistinct": true,
+        "countsAloneInsufficient": true,
+        "oidKey": "(classid,objid,objsubid,refclassid,refobjid,deptype,extname,identity)",
+        "normalPathExactSixHistoryIdentities": true,
+        "faultPathHistoryRows": 0,
+        "source": "local-pg-proof/MEMBERSHIP.json",
+        "recomputeLog": "qa/logs/02_membership_compare.txt"
+      },
+      "defects": []
+    },
+    "6": {
+      "name": "Package integrity unindexed=0; sanitization semantic",
+      "ok": true,
+      "class": "ARTIFACT_INSPECTION",
+      "details": {
+        "onDiskFilesExcludingIndexMeta": 34,
+        "evidenceIndexArtifacts": 34,
+        "unindexed": 0,
+        "perArtifactDigestMismatches": 0,
+        "evidenceIndexSha256Match": true,
+        "packScanIndexed": true,
+        "packScanDigestFree": true,
+        "closureFunctionalTipMatch": true,
+        "authorizedScriptClosuresMatchTipBytes": true,
+        "sanitization": {
+          "noCredentialOrPgUrlLeaksInKeyArtifacts": true,
+          "preservesRepoRelativePaths": true,
+          "preservesMigrationNamesAndVersions": true,
+          "preservesSqlstateAndErrorCodes": true,
+          "preservesCatalogTupleHints": true,
+          "runOwnedDbNameRedactionObserved": true
+        },
+        "rawGitByteAdjudication": "inherited; no renewed line-ending investigation (package PROVENANCE); authorized script closures crlfDetected=false"
+      },
+      "defects": []
+    }
+  },
+  "astraNote": "Both prior F22 Astra delegations failed at service access; no Astra verdict. QA did not contact Daybreak/Astra.",
+  "materialOpenFindings": [],
+  "nonMaterialLimitations": [
+    "QA environment lacked local PostgreSQL / ubuntu fixture; F23 prove-helper and F22 fault-injection path not re-executed (artifact-corroborated only). Recorded mustLocal re-prove as unavailable."
+  ],
+  "recommendedVerdict": "F23 HOLD PACKAGE ACCEPT",
+  "rationale": "Builder HOLD F23_FINGERPRINT_MISMATCH is corroborated: migrationsAppliedThrough00123=true with exact six version/name identities and repairs/historyInjects=0, while completeThrough00123=false / localApplicationComplete=false because hosted-oracle fingerprints are not canonically equal. Verification modes are separately selected and reported; combined OR acceptance is removed (helper + F23_OUTCOMES_NOT_COMBINED_OR + harness). Fresh F22 fault-injection re-run artifacts preserve PRE_COMMIT_OR_ATOMIC_ROLLBACK with repairCalls=0. Repair coverage matrix honestly leaves post-commit repair unexercised and mandatory. Membership 264 OID-bearing sets independently equal within each mode. Package byte integrity unindexed=0 with semantic sanitization. Package correctly does NOT claim LOCAL APPLICATION COMPLETE or LOCAL CANDIDATE READY. No material defects. QA did not re-run local prove (no PG).",
+  "qaSlotPath": "[SANITIZED_ABS_PATH]/qa/QA_SLOT_FILLED.md",
+  "reviewer": "VillageClaq QA",
+  "reviewedAtLocal": "2026-09-20T00:20:28-0400 America/New_York (EDT)"
+}

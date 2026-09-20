@@ -1,6 +1,6 @@
 # Independent VillageClaq Grok QA slot
 
-Empty template. Builder does not impersonate QA. Chief obtains independent Grok QA after this functional tip freeze.
+This empty template is retained. It is superseded by the attributable filled slot in `QA_SLOT_FILLED.md`. Builder does not impersonate QA.
 
 | Field | Value |
 |------|-------|
@@ -12,6 +12,6 @@ Empty template. Builder does not impersonate QA. Chief obtains independent Grok 
 | Raw results | _pending_ |
 | Verdict | NOT CLAIMED |
 
-Astra: both prior F22 delegation attempts failed at service access; no Astra verdict.
+Astra: prior F22 service-access failures only; no Astra verdict.
 Do not contact Daybreak/Astra from this package.
 Do not fabricate QA ACCEPT.

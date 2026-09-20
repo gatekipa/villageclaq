@@ -26,6 +26,7 @@ DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PR
 | Retention-helper commit | `8346c856b7ddbb75b7e4dbaf57a42fc14e6d8f78` |
 | Documentation/evidence head at attempt | `94b7b53f01c707bbbeda5416f4ab555393f9ce08` |
 | Capture-addendum content | `f26b91e433c2dd6324c13560b9a8e7659d895a9e` |
+| SHA-bind / shared head after this addendum | `8ec79fd34ba30857763e733c76ba69dcbd40dd2f` |
 | Helper blob at that checkout | `4099edd183a3ec0b73302b80ac7fd0f126d6f6de` |
 | Helper path | `scripts/prove-f3-qualification-reset-local.mjs` |
 | F23 historical package | `docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920/` |
@@ -66,4 +67,4 @@ After a successful capture, the smallest proposal remains: map only observed fix
 
 Do not contact Daybreak/Astra.
 
-#84 remains authoritative; #85/#86 aligned; titles remain DAYBREAK HOLD. OPEN DRAFT UNMERGED. No new sibling PR.
+#84 remains authoritative; #85/#86 aligned at the shared head; titles remain DAYBREAK HOLD. OPEN DRAFT UNMERGED. No new sibling PR. PR-body update via the agent PR tool was refused (descriptions are not agent-managed); heads were fast-forwarded.

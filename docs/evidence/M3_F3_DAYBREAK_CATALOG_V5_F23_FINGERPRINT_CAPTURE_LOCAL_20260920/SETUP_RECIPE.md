@@ -1,12 +1,14 @@
 # Temporary local PG 17 + CLI 2.117.0 recipe
 
-Jude-authorized for the 2026-09-20 fingerprint-capture task. Later tasks may reuse this recipe. Official package/release downloads only. No hosted/disposable/production contact. No public database listener.
+Jude-authorized for the 2026-09-20 fingerprint-capture work. Later tasks may reuse this recipe. Official package/release downloads only. No hosted/disposable/production contact. No public database listener.
 
-**This run used `ubuntu` with `CREATEDB` only** (connection-guard / disposable-postgres specification). Capture HOLDed at the stub+live-pin floor. F18/F23 successful local proves used `SUPERUSER LOGIN`. The SUPERUSER line below is the documented F18 recipe for a later founder-authorized capture — **not applied on this run**.
+**Verified privilege prerequisite:** local role `ubuntu` must be `SUPERUSER LOGIN` (`rolsuper=true`, `rolcanlogin=true`) **before** consuming a capture. The committed stub-core floor creates cluster roles `anon` / `authenticated` / `service_role`. `CREATEDB` alone cannot `CREATE ROLE` and HOLDs at `F3_DBPUSH_FLOOR_HOLD` (attempt 1).
+
+This is the documented F18 fixture privilege. It is a local-cluster privilege only. It is **not** hosted identity proof, **not** restricted-role authorization, and **not** RLS enforcement. It does **not** authorize fingerprint mapping, grant alignment, or an equality waiver.
 
 ## PostgreSQL 17.11 (do not substitute 16)
 
-Ubuntu 24.04 archive `postgresql` is 16. Use PGDG.
+Ubuntu 24.04 archive `postgresql` is 16. Use PGDG. A later VM from the same environment snapshot may **not** still have these packages even if a prior cleanup left them on another VM.
 
 ```bash
 sudo apt-get update
@@ -24,6 +26,16 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
 # postgresql-contrib-17 is not a separate PGDG 17 package; btree_gist ships in postgresql-17
 ```
 
+## Isolated run-owned cluster — confirm before creating the privileged role
+
+Do **not** alter an existing shared cluster. If `pg_lsclusters` already shows an online or previously used cluster that this run did not create, stop and create a new uniquely named cluster instead.
+
+```bash
+# expect: no cluster, or a this-run package-postinst 17/main that has never been started
+pg_lsclusters
+# confirm no public bind (must not be 0.0.0.0:5432 / [::]:5432)
+```
+
 Explicit localhost-only listen, then start without systemd if `policy-rc.d` blocks:
 
 ```bash
@@ -34,22 +46,25 @@ sudo pg_ctlcluster 17 main start
 # confirm not 0.0.0.0:5432 / [::]:5432
 ```
 
+Confirm isolation (single this-run cluster, localhost only, no `ubuntu` role yet) **then** create the privileged role.
+
 ### Role and extension
 
 Connection guard / `disposable-postgres.mjs` require socket `/var/run/postgresql`, maintenance DB `postgres`, role `ubuntu` able to `CREATE DATABASE` `f3_*`. Do not modify those files.
 
-This capture (CREATEDB only — **insufficient for stub floor**):
+**Required (verified on CAPTURE_ATTEMPT_2):**
 
 ```bash
-sudo -u postgres psql -d postgres -c "CREATE ROLE ubuntu LOGIN CREATEDB;"
+sudo -u postgres psql -c 'CREATE ROLE ubuntu SUPERUSER LOGIN;'
 sudo -u postgres psql -d template1 -c "CREATE EXTENSION IF NOT EXISTS btree_gist;"
 sudo -u postgres psql -d postgres -c "CREATE EXTENSION IF NOT EXISTS btree_gist;"
 ```
 
-F18 documented fixture (successful local proves; **proposal for a later authorized capture only**):
+Attempt 1 used `CREATEDB` only and HOLDed at the stub floor. Do not repeat that:
 
 ```bash
-sudo -u postgres psql -c 'CREATE ROLE ubuntu SUPERUSER LOGIN;'
+# INSUFFICIENT — documented attempt-1 failure; do not use for a capture
+# sudo -u postgres psql -d postgres -c "CREATE ROLE ubuntu LOGIN CREATEDB;"
 ```
 
 Fixture TCP password is set by `createDisposableDatabase()` via `LOCAL_TCP_PASSWORD` in the committed connection guard. Do not change the guard. Do not print the password into evidence.
@@ -75,17 +90,28 @@ supabase --version   # must print 2.117.0
 
 `discoverSupabaseCli()` looks at `$HOME/.local/bin/supabase` then `supabase` on `PATH`.
 
-## Readiness checks
+## Readiness checks (required before consuming a capture)
 
 ```bash
 psql --version
+# must print 17.11
 supabase --version
-psql -h /var/run/postgresql -U ubuntu -d postgres -Atc 'SHOW server_version; SHOW listen_addresses;'
+# must print 2.117.0
+psql -h /var/run/postgresql -U ubuntu -d postgres -Atc 'SHOW server_version; SHOW listen_addresses; SHOW server_version_num;'
 # server_version_num must match ^17
+psql -h /var/run/postgresql -U ubuntu -d postgres -Atc \
+  "SELECT rolname, rolsuper, rolcanlogin FROM pg_roles WHERE rolname='ubuntu';"
+# must print ubuntu|t|t
+psql -h /var/run/postgresql -U ubuntu -d postgres -Atc \
+  "SELECT extname FROM pg_extension WHERE extname='btree_gist';"
+psql -h /var/run/postgresql -U ubuntu -d template1 -Atc \
+  "SELECT extname FROM pg_extension WHERE extname='btree_gist';"
 # discoverSupabaseCli().matchesPin === true
 ```
 
-Then **one** capture (do not invent a second):
+Do not start a capture if `rolsuper` is not true. That is the attempt-1 CREATEDB-only failure.
+
+Then **one** capture only if newly authorized (do not invent a second):
 
 ```bash
 node scripts/prove-f3-qualification-reset-local.mjs \

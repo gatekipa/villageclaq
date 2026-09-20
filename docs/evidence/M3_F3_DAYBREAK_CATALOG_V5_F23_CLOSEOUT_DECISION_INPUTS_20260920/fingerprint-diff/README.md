@@ -15,7 +15,11 @@ Authoritative expectation: `getFrozenExpectedFingerprint(file)` / `FROZEN_EXPECT
 
 **Disclosure:** F23 did not persist `qualify.sequence[].fingerprintAfterApply` / expected catalog / field diffs. The slogan “hosted ACL/owner versus local ubuntu” is not a substitute for those values.
 
-A fresh normal-application capture was **not** executed on this closeout host (no local PostgreSQL, no CLI 2.117.0).
+A later authorized local capture (CAPTURE_ATTEMPT_2, 2026-09-20) retained phase-matched field diffs:
+
+`docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/`
+
+This closeout table is **not** rewritten. Mapping/waiver remain unapproved. Repair feasibility is unchanged.
 
 If a later authorized local run is needed, `scripts/prove-f3-qualification-reset-local.mjs` can retain field diffs without changing fingerprint acceptance:
 

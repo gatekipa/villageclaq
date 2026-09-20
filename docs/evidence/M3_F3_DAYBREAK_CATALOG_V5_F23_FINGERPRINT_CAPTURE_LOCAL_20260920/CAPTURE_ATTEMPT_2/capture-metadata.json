@@ -1,0 +1,30 @@
+{
+  "schema": "f23-fingerprint-capture-attempt-2-metadata-v1",
+  "capturedAt": "2026-09-20T06:27:01.317Z",
+  "windowUtc": {
+    "start": "2026-09-20T06:26:46Z",
+    "end": "2026-09-20T06:27:01Z"
+  },
+  "proveExitCode": 0,
+  "captureExecuted": true,
+  "dbApplyExecuted": true,
+  "proveCommandRun": true,
+  "normalApplicationOnly": true,
+  "automaticRerun": false,
+  "remainingHold": "F23_FINGERPRINT_MISMATCH",
+  "compareUnchanged": true,
+  "fingerprintAcceptanceUnchanged": true,
+  "roleAtCapture": {
+    "rolname": "ubuntu",
+    "rolsuper": true,
+    "rolcanlogin": true,
+    "rolcreaterole": false,
+    "rolcreatedb": false
+  },
+  "helperBlob": "4099edd183a3ec0b73302b80ac7fd0f126d6f6de",
+  "checkoutSha": "f65d1cec04450a017deec700d184aa9e82d4c6e7",
+  "fingerprintDiffSha256": "9ba92c15f6ee40f85c835365de3e96775a2cc280d72b6ff40744d802d5ed9bd5",
+  "helperStdoutSha256": "eca4ecf3d907575a5878f81d7436fe1a128f0e749a13473a31f6651e07e71c6f",
+  "helperStderrSha256": "e4ae224451d5fa3ffd5b290450330723ffd71c0f6e73927f8fa4096bc22e5ebc",
+  "note": "Fingerprint mismatch preserved. SUPERUSER fixture execution is not restricted-role authorization or RLS proof. Mapping and waiver remain unauthorized."
+}

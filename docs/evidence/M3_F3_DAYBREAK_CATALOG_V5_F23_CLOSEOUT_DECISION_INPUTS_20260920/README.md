@@ -11,7 +11,9 @@ Linked closeout. The F23 historical package is the unchanged base:
 | [fingerprint-diff/](fingerprint-diff/) | Difference table + retention disclosure |
 | [REPAIR_FEASIBILITY.md](REPAIR_FEASIBILITY.md) | Positive-repair procedure vs contract decision |
 
-**HOLD: F23_FINGERPRINT_MISMATCH** (fingerprint qualification incomplete)  
+Later field-level capture (index only; this closeout package is not rewritten): [CAPTURE_ATTEMPT_2](../M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/). [REPAIR_FEASIBILITY.md](REPAIR_FEASIBILITY.md) is unchanged.
+
+**HOLD: F23_FINGERPRINT_MISMATCH** (fingerprint qualification incomplete; field values now in CAPTURE_ATTEMPT_2)  
 **HOLD: F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED** (mandatory positive repair unexercised)  
 DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN  
 DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT

@@ -1,4 +1,12 @@
-# Chief handoff — authorized local fingerprint capture (executed)
+# Chief handoff — authorized local fingerprint capture
+
+**Current (CAPTURE_ATTEMPT_2):** [CAPTURE_ATTEMPT_2/CHIEF_HANDOFF.md](CAPTURE_ATTEMPT_2/CHIEF_HANDOFF.md) — SUPERUSER fixture; six applies; `F23_FINGERPRINT_MISMATCH` with field-level diffs. Both authorized captures are **used**.
+
+The remainder of this file is the **unchanged attempt 1** floor-HOLD record.
+
+---
+
+# Attempt 1 — CREATEDB-only floor HOLD (executed; preserved)
 
 | Field | Value |
 |-------|-------|

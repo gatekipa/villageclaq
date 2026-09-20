@@ -1,0 +1,133 @@
+{
+  "schema": "f23-fingerprint-capture-helper-summary-v1",
+  "capturedAt": "2026-09-20T06:27:01.317Z",
+  "helper": "scripts/prove-f3-qualification-reset-local.mjs",
+  "mustLocal": false,
+  "localPg": {
+    "available": true,
+    "reason": null,
+    "classification": "LOCAL_PG_EXECUTED",
+    "serverVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)"
+  },
+  "distinctions": {
+    "checks": 33,
+    "scenarios": 1,
+    "executedTransactions": 1
+  },
+  "completeThrough00123": false,
+  "migrationsAppliedThrough00123": true,
+  "documentedAtomicRollbackHold": false,
+  "localApplicationComplete": false,
+  "applicationRemainingHold": "F23_FINGERPRINT_MISMATCH",
+  "remainingHold": "F23_FINGERPRINT_MISMATCH",
+  "combinedAcceptanceRejected": true,
+  "passCount": 34,
+  "failCount": 0,
+  "overallOk": true,
+  "f23": {
+    "id": "F23_NORMAL_APPLICATION_LOCAL_QUALIFICATION",
+    "ok": true,
+    "capture": "preserve-reset-then-shared-qualify-normal-application-00118-00123",
+    "commit": true,
+    "preFloorVerdict": "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+    "qualifyStatus": "HOLD",
+    "qualifyError": "fingerprint expected and observed are not canonically equal",
+    "qualifyErrorCode": "F23_FINGERPRINT_MISMATCH",
+    "verificationMode": "normal-application",
+    "verificationModeRecorded": {
+      "ok": true,
+      "mode": "normal-application",
+      "selectedBeforeDatabaseOperations": true,
+      "hostedAuthority": false,
+      "faultInjection": false,
+      "normalApplication": true,
+      "note": "Local verification mode only. Supplies no hosted authority."
+    },
+    "completeThrough00123": false,
+    "migrationsAppliedThrough00123": true,
+    "localApplicationComplete": false,
+    "remainingHold": "F23_FINGERPRINT_MISMATCH",
+    "floorInstalled": true,
+    "preDbPushGatesOk": true,
+    "sequenceLength": 6,
+    "historyAfter": 6,
+    "historyIdentities": {
+      "ok": true,
+      "observed": [
+        {
+          "version": "20260913173000",
+          "name": "f3_bounded_financial_epoch_foundation"
+        },
+        {
+          "version": "20260913173001",
+          "name": "f3_01_core_ledger_foundation"
+        },
+        {
+          "version": "20260913173002",
+          "name": "f3_02_secure_posting_idempotency"
+        },
+        {
+          "version": "20260913173003",
+          "name": "f3_03_projection_read_proof"
+        },
+        {
+          "version": "20260913173004",
+          "name": "f3_04_correction_reversal"
+        },
+        {
+          "version": "20260913173005",
+          "name": "f3_05_opening_cash_command"
+        }
+      ],
+      "count": 6,
+      "expectedCount": 6,
+      "missingVersions": [],
+      "expectedVersions": [
+        "20260913173000",
+        "20260913173001",
+        "20260913173002",
+        "20260913173003",
+        "20260913173004",
+        "20260913173005"
+      ]
+    },
+    "operationCounts": {
+      "calibrationProbes": 6,
+      "migrationApplications": 6,
+      "retries": 0,
+      "repairs": 0,
+      "historyInjects": 0
+    },
+    "floorCalls": 2,
+    "dbPushCalls": 12,
+    "repairCalls": 0,
+    "repairAttempted": false,
+    "repairExercised": false,
+    "fingerprintRetention": {
+      "schema": "f23-fingerprint-field-diff-v1",
+      "compareUnchanged": true,
+      "fingerprintAcceptanceUnchanged": true,
+      "fileCount": 6,
+      "filesOmittedHere": true
+    },
+    "membership": {
+      "beforeReset": {
+        "extensionPresent": true,
+        "memberCount": 264
+      },
+      "afterReset": {
+        "extensionPresent": true,
+        "memberCount": 264
+      },
+      "afterQualification": {
+        "extensionPresent": true,
+        "memberCount": 264
+      },
+      "exactSetEqualBeforeAfterReset": true,
+      "exactSetEqualAfterResetAfterQual": true,
+      "countsAloneInsufficient": true,
+      "tuplesOmitted": true
+    },
+    "note": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT"
+  }
+}

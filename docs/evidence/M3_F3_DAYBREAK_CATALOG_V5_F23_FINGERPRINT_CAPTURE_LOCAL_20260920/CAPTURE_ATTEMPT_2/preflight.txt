@@ -1,0 +1,6 @@
+PREFLIGHT 2026-09-20T06:26:32Z
+HEAD=f65d1cec04450a017deec700d184aa9e82d4c6e7
+HELPER_BLOB=4099edd183a3ec0b73302b80ac7fd0f126d6f6de
+CLUSTER=17 main 5432 online postgres /var/lib/postgresql/17/main /var/log/postgresql/postgresql-17-main.log
+LISTEN=localhost
+ROLE=ubuntu|rolsuper=true|rolcanlogin=true

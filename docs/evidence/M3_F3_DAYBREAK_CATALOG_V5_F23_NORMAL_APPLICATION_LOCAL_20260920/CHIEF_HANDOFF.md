@@ -16,7 +16,7 @@ Builder froze the functional tip, then ran affected verification on those exact 
 | Role | SHA / value |
 |------|-------------|
 | FUNCTIONAL_TIP (frozen) | `77fd61dbf51652acabec0093d2a8549524b2dd75` |
-| Evidence SHA | PENDING_EVIDENCE_BIND |
+| Evidence SHA (package content) | `dccaa795c800a2fe0b4f370b6234f875bd2655d9` |
 | Starting #84/#85/#86/#126 head | `adb6ade2233f90aa34459bc8ac4fb381d23971a4` |
 | F22 FUNCTIONAL_TIP | `f1d30b28830db902962467f801932254997e64c3` |
 | F22 QA content | `f18331337c36e7c50cd1323c0202a298a4704e03` |
@@ -28,7 +28,7 @@ Builder froze the functional tip, then ran affected verification on those exact 
 | F22 package (historical) | `docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919/` |
 | PRs | #84 / #85 / #86 OPEN DRAFT UNMERGED DAYBREAK HOLD (authoritative #84); #126 non-authoritative; builder #127 |
 
-Ancestry: this bind → evidence commit → `77fd61dbf51652acabec0093d2a8549524b2dd75` → `ff6c933e017e8d7fba517cb43596fb0d24f1d1dd` → `acd3e23711112a5c87ce83901e07f1e23443d5b6` → `adb6ade2233f90aa34459bc8ac4fb381d23971a4` → `f18331337c36e7c50cd1323c0202a298a4704e03` → `6d6bdd7591d738e593bc7290d5f60e4be0de88ec` → `686269dd3036ef654948d1812902d1b9a141ee3b` → `f1d30b28830db902962467f801932254997e64c3` → …
+Ancestry: this bind → `dccaa795c800a2fe0b4f370b6234f875bd2655d9` → `77fd61dbf51652acabec0093d2a8549524b2dd75` → `ff6c933e017e8d7fba517cb43596fb0d24f1d1dd` → `acd3e23711112a5c87ce83901e07f1e23443d5b6` → `adb6ade2233f90aa34459bc8ac4fb381d23971a4` → `f18331337c36e7c50cd1323c0202a298a4704e03` → `6d6bdd7591d738e593bc7290d5f60e4be0de88ec` → `686269dd3036ef654948d1812902d1b9a141ee3b` → `f1d30b28830db902962467f801932254997e64c3` → …
 
 ## Scope
 

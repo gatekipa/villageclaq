@@ -9,8 +9,8 @@
   "artifacts": [
     {
       "path": "CHIEF_HANDOFF.md",
-      "sha256": "b58212ba9d614d2b560ce50ba5490c4ca13c9da466cf4b9981531854a7bc1dc5",
-      "bytes": 6341
+      "sha256": "87d8438bae559f50744fd8724f03ed045ff6580be316c1ccd8507c204c14a114",
+      "bytes": 6407
     },
     {
       "path": "closure/CLOSURES.json",
@@ -39,8 +39,8 @@
     },
     {
       "path": "LABEL.json",
-      "sha256": "144dea19ddda1969ea97a6874bd0fc189bb51e858d71c9b669b1a61c2f688bb5",
-      "bytes": 923
+      "sha256": "b69bec78c811d03708bcfdcb808618f7b032cb960aa6d2e6fb0ea21c178d4794",
+      "bytes": 984
     },
     {
       "path": "LOCAL_PG_EXECUTED",
@@ -99,18 +99,18 @@
     },
     {
       "path": "pack-summary.json",
-      "sha256": "24530701006569147903c2f96522e8e676619330b64337f8e442e3798b23f71b",
-      "bytes": 772
+      "sha256": "c839ee491173a8967516ed881b86902b5db7af056c036f062f04dfae98ea44de",
+      "bytes": 833
     },
     {
       "path": "PINS.json",
-      "sha256": "9a1a321fdc7d318d71434c89f92669d2f14f224a556453af8c07019a61734107",
-      "bytes": 1324
+      "sha256": "15aab1248f62015614d20587575dcacf6ff400238b9ebf0da7b24eeee33c6b90",
+      "bytes": 1391
     },
     {
       "path": "PROPOSED_HOSTED_REQUAL_PLAN.md",
-      "sha256": "2c481755ecf445136f229d8be1d0bf035492f7fda3887799f5bd2d8ae9c9ac3f",
-      "bytes": 6727
+      "sha256": "bca1cf49df4b7f954d4cd7856d5c40481e46064932c57f6afbdec9e8c30465ec",
+      "bytes": 6807
     },
     {
       "path": "PROVE_HEAD",

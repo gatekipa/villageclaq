@@ -18,6 +18,7 @@ This local change supplies **no hosted authority**.
 | Role | Value |
 |------|-------|
 | Functional tip (frozen) | `77fd61dbf51652acabec0093d2a8549524b2dd75` |
+| Evidence tip (package content) | `dccaa795c800a2fe0b4f370b6234f875bd2655d9` |
 | Starting #84/#85/#86/#126 head | `adb6ade2233f90aa34459bc8ac4fb381d23971a4` |
 | F22 functional ancestor | `f1d30b28830db902962467f801932254997e64c3` |
 | F22 QA content | `f18331337c36e7c50cd1323c0202a298a4704e03` |

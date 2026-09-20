@@ -9,8 +9,8 @@
   "artifacts": [
     {
       "path": "CHIEF_HANDOFF.md",
-      "sha256": "2fc32cc61ee8b261ab213cb489d4cdcb14d496ffc541fbcbf38c6e4233e5261d",
-      "bytes": 5997
+      "sha256": "5ee852f3a808b2de4b6a524e585037611669b65206441d41d9d7ebe69e6b8ee5",
+      "bytes": 6359
     },
     {
       "path": "closure/DIGESTS.json",

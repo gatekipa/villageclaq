@@ -36,7 +36,8 @@ QA: VillageClaq QA — F23 LOCAL ACCEPTANCE CONTRACT ACCEPT (already landed; not
 | Runtime closure | `b276d0cb9b39efd10f67422948b4cf9a6353359c116ab657d379c7c7f467a211` (count **47**) |
 | Verification union | `89e4f0d80ff24d0aa705b79210073e2316667317b50d2d82a69808e8d7ff1f50` (count **49**) |
 | Scope/SQL identity | `d95d96e02a3a1844977d852fa23a64f742b79b5f767984b6a2d4512cbe02632f` |
-| Concrete remaining blocker | Jude authorization. No command/contract incompatibility in the selected existing mode. Credentials, founder-auth artifact, and execution checkout at the functional tip are **not** issued by this package. |
+| PR body update | ManagePullRequest refused #84/#85/#86 (“not agent-managed”). `gh api` PATCH refused HTTP 403 Resource not accessible by integration. Heads FF’d to `fb27c8ae869ed1e0f4ae75a27d049cb6f0bc4799`. Current remainder lives in this package and `docs/BUILD_STATUS.md`. |
+| Concrete remaining blocker | Jude authorization. No command/contract incompatibility in the selected existing mode. Credentials, founder-auth artifact, and execution checkout at the functional tip are **not** issued by this package. PR web summaries remain stale until a human or authorized token edits them. |
 
 ## Exact commands (NOT AUTHORIZED)
 

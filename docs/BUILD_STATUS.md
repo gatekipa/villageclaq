@@ -54,8 +54,8 @@ Closest linked artifacts (none of these is that missing plan):
 | Process/status closeout | `98c8c3d2d2164defef95b715e8f3258bad4e819d` |
 | Fingerprint-retention executable | `8346c856b7ddbb75b7e4dbaf57a42fc14e6d8f78` |
 | Helper blob at capture | `4099edd183a3ec0b73302b80ac7fd0f126d6f6de` |
-| Authoritative PR | [#84](https://github.com/gatekipa/villageclaq/pull/84) OPEN DRAFT UNMERGED, title DAYBREAK HOLD |
-| Aligned PRs | #85 / #86 (same title, same head) |
+| Authoritative PR | [#84](https://github.com/gatekipa/villageclaq/pull/84) OPEN DRAFT UNMERGED, title DAYBREAK HOLD. Head FF’d; **web body update refused** (ManagePullRequest not-agent-managed; `gh api` 403). Current remainder is this file + the 2026-09-20 proposed plan. |
+| Aligned PRs | #85 / #86 (same title, same head after FF; same body-update refusal) |
 | Non-authoritative | #126 / #127 |
 | Shared branch | `feat/m3-f3-01-05-forward-foundation-9b17` |
 

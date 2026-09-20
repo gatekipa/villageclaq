@@ -1,6 +1,6 @@
 # Current status — VillageClaq F3 Daybreak qualification
 
-**Status:** DAYBREAK HOLD — HOSTED REQUALIFICATION STOPPED AT RESET (`F13_INVENTORY_CAPTURE_PROCESS_FAILED`; NOT PASS)  
+**Status:** DAYBREAK HOLD — HOSTED REQUALIFICATION ATTEMPT_2 STOPPED AT RESET (`F13_RESET_SQL_FAILED`; NOT PASS)  
 **Floor (verbatim):** DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT  
 **This file is the current remainder record.** Historical packages are linked, not copied.
 
@@ -8,7 +8,7 @@ Working rules: [AGENTS.md](../AGENTS.md). Product conventions: [CLAUDE.md](../CL
 Approved local comparison contract: [LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_LOCAL_ACCEPTANCE_CONTRACT_20260920/LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1.md).  
 Repair amendment: [REPAIR_AMENDMENT.md](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_LOCAL_ACCEPTANCE_CONTRACT_20260920/REPAIR_AMENDMENT.md).  
 Authorized local-capture record: [docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/CHIEF_HANDOFF.md](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/CHIEF_HANDOFF.md).  
-**Current proposed hosted plan:** [F23 proposed hosted requal plan 2026-09-20](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_PROPOSED_HOSTED_REQUAL_PLAN_20260920/PROPOSED_HOSTED_REQUAL_PLAN.md) — plan bytes preserved. **Founder-authorized constrained hosted attempt 2026-09-20 ET:** executed one reset, **stopped** (see [HOSTED_REQUAL_20260920](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL_20260920/SUMMARY.md)).
+**Current proposed hosted plan:** [F23 proposed hosted requal plan 2026-09-20](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_PROPOSED_HOSTED_REQUAL_PLAN_20260920/PROPOSED_HOSTED_REQUAL_PLAN.md) — plan bytes preserved. **Founder-authorized constrained hosted ATTEMPT_1 2026-09-20 ET:** reset stopped at missing `psql` (see [HOSTED_REQUAL_20260920](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL_20260920/SUMMARY.md)). **ATTEMPT_2 (fresh auth):** readiness READY; one reset → `F13_RESET_SQL_FAILED` (notification RLS policies block `has_group_permission` DROP RESTRICT; CASCADE forbidden); qual **NOT RUN**. See [HOSTED_REQUAL_ATTEMPT_2_20260920](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL_ATTEMPT_2_20260920/SUMMARY.md).
 
 ## Authorization (do not collapse these)
 
@@ -20,7 +20,7 @@ Authorized local-capture record: [docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FI
 | **Local fingerprint capture attempt 2** (one additional prove; `ubuntu` `SUPERUSER LOGIN`) | **Used.** Remaining raw hold `F23_FINGERPRINT_MISMATCH`. Six migrations applied. Field-level diffs retained. Offline profile reassessment is **derived**, not a fresh PostgreSQL execution. |
 | **Temporary PGDG PostgreSQL 17 + official CLI 2.117.0 install** | **Authorized for this fixture restore.** Isolated this-run `17/main`; cluster stopped and dropped after capture. Recipe: [SETUP_RECIPE.md](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/SETUP_RECIPE.md). |
 | **`ubuntu` `SUPERUSER LOGIN`** | **Authorized for attempt 2 only** (F18 recipe). Local-cluster privilege. Not restricted-role authorization or RLS proof. |
-| **Hosted reset / hosted qualification (F23 constrained 1+1)** | **Used (reset only).** Founder Jude authorized disposable `jkorwnwwmdeflfntxntl` only. One `--qualification-reset` → `F13_INVENTORY_CAPTURE_PROCESS_FAILED` (`psql` absent). Qual-from-00118 **NOT RUN**. Budget consumed: resets 1/1, quals 0/1, secondReset false. **No second reset.** Evidence: [HOSTED_REQUAL_20260920](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL_20260920/SUMMARY.md). |
+| **Hosted reset / hosted qualification (F23 constrained 1+1)** | **ATTEMPT_1 used (reset only, `psql` absent).** **ATTEMPT_2 (fresh Jude auth / new budget):** connection-free readiness READY; one `--qualification-reset` → inventory captured then `F13_RESET_SQL_FAILED` (`has_group_permission` DROP blocked by notification RLS policies; CASCADE forbidden; `committed=false`). Qual-from-00118 **NOT RUN**. Budget: reset attempts 1/1, committed resets 0, quals 0/1, secondReset false. **No second reset.** Evidence: [ATTEMPT_2 package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL_ATTEMPT_2_20260920/SUMMARY.md). |
 | **Merge / deploy / `origin/main` / F3-06 / Daybreak–Astra contact** | **Not authorized.** |
 
 ## Authoritative build-plan reference — missing
@@ -43,7 +43,8 @@ Closest linked artifacts (none of these is that missing plan):
 | Role | Value |
 |------|-------|
 | FUNCTIONAL_TIP | `66be2b4797515975d737a0fd66656bc4c0de2145` |
-| F23 hosted requal evidence tip (this stop) | `9332e0a53086c57dedebd63a82faadde9c11eccd` |
+| F23 hosted requal evidence tip (ATTEMPT_1 stop) | `1d340b40b318a52abd7f14d5496634ad5d7637ac` |
+| F23 hosted requal evidence tip (ATTEMPT_2 stop) | `PENDING_COMMIT` |
 | Starting #84/#85/#86 head for this plan | `9a78e2713d59c2656ca749ee63930bceb8d233fb` |
 | Proposed-plan package content | `b549656d30dd6ed931715222d618a1d0e9f3c658` |
 | Evidence / status tip (this plan bind) | `db628d03ec7e35c54afac2abac45d93b6ff71b36` |
@@ -79,7 +80,11 @@ Focused offline tests: 7/7 PASS (`node --test --test-name-pattern='F23 local|F23
 
 Evidence: [F23 package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920/), [F22 package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919/), [capture package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/), [attempt 2](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/), [local acceptance contract](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_LOCAL_ACCEPTANCE_CONTRACT_20260920/).
 
-## Hosted F23 constrained requal (2026-09-20 ET) — STOPPED
+## Operational rule — pre-budget host checks
+
+Future execution handoffs require **connection-free executable checks** on the actual host **before** consuming a database-run budget: `psql --version` (spawnSync from the runner Node/`PATH`), `supabase --version` exactly pinned, PATH includes client bins, evidence destination dirs creatable, and pinned identities (HEAD / plan SHA-256 / closureDigest / scopeSqlIdentitySha256). Record a readiness receipt. This is a short operational rule — not a new framework. Do not start reset/qual if readiness fails.
+
+## Hosted F23 constrained requal ATTEMPT_1 (2026-09-20 ET) — STOPPED (preserved)
 
 | Field | Value |
 |-------|-------|
@@ -87,18 +92,33 @@ Evidence: [F23 package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATIO
 | Phase | reset |
 | Reset exit | `1` / `F13_INVENTORY_CAPTURE_PROCESS_FAILED` |
 | Qual | **NOT RUN** |
+| Blocker | `psql` client missing on Chief box |
+| Package | [HOSTED_REQUAL_20260920](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL_20260920/) |
+
+## Hosted F23 constrained requal ATTEMPT_2 (2026-09-20 ET) — STOPPED
+
+| Field | Value |
+|-------|-------|
+| Outcome | **stopped** (not PASS) |
+| Readiness | **READY** (psql 17.11 Debian client; supabase 2.117.0; pins match) |
+| Reset attempted | **yes** — exit `1` / `F13_RESET_SQL_FAILED` |
+| Qualification started | **no** |
+| Qualification completed | **no** |
 | Functional SHA | `66be2b4797515975d737a0fd66656bc4c0de2145` |
 | Plan SHA-256 | `bf9ca7b6c408d72b9f1231f223628a41e77fe275132acf273cd5386dd8c3b138` verified |
 | closureDigest | `b276d0cb9b39efd10f67422948b4cf9a6353359c116ab657d379c7c7f467a211` confirmed |
 | scopeSqlIdentitySha256 | `d95d96e02a3a1844977d852fa23a64f742b79b5f767984b6a2d4512cbe02632f` confirmed |
-| CLI | 2.117.0 |
+| CLI / psql | 2.117.0 / 17.11 (Debian trixie/main client-only) |
 | Target | `jkorwnwwmdeflfntxntl` |
-| Mutation | false |
-| Preserve baseline gate | NOT REACHED |
-| Blocker | `psql` client missing on Chief box |
-| Package | [HOSTED_REQUAL_20260920](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL_20260920/) |
+| Inventory | captured (objects 299 / deps 43 / history 6); `btree_gist` membership present |
+| Mutation / commit | `mutation=false`, `committed=false` — disposable intact |
+| Preserve baseline gate | NOT achieved as success (`QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1` not reached) |
+| Blocker | RLS policies on `notification_*` block `DROP FUNCTION public.has_group_permission… RESTRICT`; CASCADE forbidden |
+| Qual / repairs | NOT RUN / n/a |
+| Known label quirk | `qualify-result.json` still carries stale F19 `fail()` label — no executable correction authorized |
+| Package | [HOSTED_REQUAL_ATTEMPT_2_20260920](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL_ATTEMPT_2_20260920/) |
 
-DAYBREAK HOLD pending assessment. Do not invent PASS. No second reset under this budget.
+DAYBREAK HOLD pending assessment. Do not invent PASS. No second reset under this ATTEMPT_2 budget.
 
 
 ## Incomplete requirements (why they matter)
@@ -113,7 +133,7 @@ DAYBREAK HOLD pending assessment. Do not invent PASS. No second reset under this
 |---------|--------|
 | Local profile | ACCEPTED under `LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1` (derived from retained capture) |
 | Raw local capture | `F23_FINGERPRINT_MISMATCH` unchanged |
-| Hosted disposable / production | Disposable `jkorwnwwmdeflfntxntl` contacted for inventory capture only; **failed before inventory** (`F13_INVENTORY_CAPTURE_PROCESS_FAILED`). Production never contacted. DAYBREAK HOLD — STOPPED AT RESET |
+| Hosted disposable / production | ATTEMPT_2: disposable `jkorwnwwmdeflfntxntl` inventory captured then reset SQL failed (`F13_RESET_SQL_FAILED`); `committed=false`. Production never contacted. DAYBREAK HOLD — STOPPED AT RESET |
 | Production | Forever denied from this work |
 | Astra | UNAVAILABLE — NO VERDICT |
 | QA (this contract) | VillageClaq QA — F23 LOCAL ACCEPTANCE CONTRACT ACCEPT (offline only; 7/7+10/10; material findings none) |
@@ -123,7 +143,7 @@ DAYBREAK HOLD pending assessment. Do not invent PASS. No second reset under this
 | Field | Value |
 |-------|-------|
 | Owner | Jude Anyere — authorize or refuse the current proposed hosted plan. |
-| Next bounded action | Jude authorization decision on [the current F23 proposed hosted plan](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_PROPOSED_HOSTED_REQUAL_PLAN_20260920/PROPOSED_HOSTED_REQUAL_PLAN.md). Do not execute, obtain credentials, contact any database, merge, deploy, or start F3-06. Do not restart the review budget. |
+| Next bounded action | Assess ATTEMPT_2 `F13_RESET_SQL_FAILED` (notification RLS vs `has_group_permission` drop order; CASCADE remains forbidden). Do not run a second reset or qual under the consumed ATTEMPT_2 budget. Do not merge, deploy, or start F3-06. Do not contact Daybreak/Astra. |
 | Permitted scope | Docs-only proposed plan published. No hosted/disposable/production contact. No merge. No deploy. No F3-06. |
 | Remaining acceptance | Hosted raw fingerprint equality; hosted POST_COMMIT repair after raw/repair-safety gates inside one `fault-injection` qual 00118–00123; hosted requalification |
 | Review / run budget | Documentation pass used. Focused offline work used. Independent VillageClaq QA already landed (ACCEPT; not repeated). Renaming F-numbers does not restart the budget. |
@@ -143,6 +163,6 @@ See [current proposed plan](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_PROPOSED_HOST
 
 - Add a single authoritative build-plan document (location still missing) so later outcomes can cite acceptance criteria without reconstructing them from tests or evidence packages.
 
-DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN  
-Any future execution procedure remains: PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE  
+DAYBREAK HOLD — HOSTED REQUALIFICATION ATTEMPT_2 STOPPED AT RESET (NOT PASS)  
+ATTEMPT_2 budget exhausted for reset attempt; qual not started; no second reset  
 DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT

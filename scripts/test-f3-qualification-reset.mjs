@@ -138,7 +138,36 @@ import {
   F21_AUTHORIZED_EXTENSION_IDENTITY,
   F21_QUALIFICATION_RESET_MEMBERSHIP_SCHEMA,
 } from "./lib/f3-db-push-qualification-reset-design.mjs";
-import { processEvidence, record } from "./prove-f3-qualification-reset-local.mjs";
+import {
+  processEvidence,
+  record,
+  retainQualifyFingerprintDiffs,
+  reportF23LocalFingerprintAcceptanceFromQualify,
+  reportF23RetainedCaptureLocalAcceptance,
+  qualifySequenceFromDerivedFingerprints,
+} from "./prove-f3-qualification-reset-local.mjs";
+import {
+  compareLocalFingerprint,
+  derivedFingerprintsFromRetainedCapture,
+  LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1,
+  LOCAL_REPAIR_AMENDMENT,
+  F23_FINGERPRINT_MISMATCH,
+  RECOGNIZED_NON_GRANTABLE_SERVICE_ROLE_OMISSIONS,
+  SEALED_PLATFORM_ACL_ENVELOPE_DIGEST,
+} from "./lib/f3-local-fingerprint-comparison.mjs";
+import {
+  evaluateRepairSafetyGate,
+  fingerprintCompleteAndExact,
+  getFrozenExpectedObjectProbeDescriptors,
+} from "./lib/f3-db-push-repair-safety-gate.mjs";
+import {
+  CLI_PIN,
+  FROZEN_DIGESTS,
+  HISTORY_INJECT_MARKER,
+  PREASSIGNED_VERSIONS,
+} from "./lib/f3-db-push-pins.mjs";
+import { historyInjectSqlForFile } from "./lib/f3-db-push-history-inject.mjs";
+import { timestampFilenameFor } from "./lib/f3-db-push-version-map.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 /** Synthetic bindings are negative-test inputs only — not runtime identity. */
@@ -2921,6 +2950,269 @@ test("F22 missing process evidence cannot produce qualification success", () => 
   });
   assert.equal(stale.allowFloor, false);
   assert.notEqual(stale.verdict, F21_RESET_SUCCESS_VERDICT);
+});
+
+function passingProbeForFile(file) {
+  const descriptors = getFrozenExpectedObjectProbeDescriptors(file);
+  const row = {};
+  descriptors.forEach((descriptor, i) => {
+    row[`p${i}`] = { ...descriptor };
+  });
+  return { status: 0, stdout: JSON.stringify([row]), stderr: "", file };
+}
+
+function repairGateInputWithFingerprint(file, fingerprint, extra = {}) {
+  const version = PREASSIGNED_VERSIONS[file];
+  return {
+    file,
+    targetVersion: version,
+    injectInstalled: true,
+    injectStatus: 0,
+    injectSql: historyInjectSqlForFile(file),
+    exitStatus: 3,
+    stdout: "",
+    stderr: `${HISTORY_INJECT_MARKER}: blocked INSERT for version ${version}`,
+    historyRows: [],
+    objectsPresent: true,
+    securityPostconditionsOk: true,
+    probe: passingProbeForFile(file),
+    fingerprint,
+    digest: FROZEN_DIGESTS[file],
+    onDiskDigest: FROZEN_DIGESTS[file],
+    disposableIdentityVerified: true,
+    productionIdentityRejected: true,
+    cliVersion: CLI_PIN,
+    stagedMigrations: [timestampFilenameFor(file)],
+    ...extra,
+  };
+}
+
+function clonePair(fileRow) {
+  return {
+    expected: structuredClone(fileRow.expected),
+    observed: structuredClone(fileRow.observed),
+    file: fileRow.file,
+  };
+}
+
+test("F23 local profile accepts retained capture and keeps raw F23_FINGERPRINT_MISMATCH", () => {
+  const derived = derivedFingerprintsFromRetainedCapture();
+  assert.equal(derived.derived, true);
+  assert.equal(derived.notFreshPostgreSQLExecution, true);
+  assert.equal(derived.allRecordedDigestsMatch, true);
+  assert.equal(derived.files.length, 6);
+
+  const report = reportF23RetainedCaptureLocalAcceptance();
+  assert.equal(report.profile, LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1);
+  assert.equal(report.derived, true);
+  assert.equal(report.notFreshPostgreSQLExecution, true);
+  assert.equal(report.recordedCanonicalDigestsMatch, true);
+  assert.equal(report.rawEquality.ok, false);
+  assert.equal(report.rawEquality.code, F23_FINGERPRINT_MISMATCH);
+  assert.equal(report.localAcceptance.ok, true);
+  assert.equal(report.repairAuthorized, false);
+  assert.equal(report.hostedEquality, false);
+  assert.equal(report.hostedOutstanding.repairAuthorized, false);
+  assert.equal(report.hostedOutstanding.hostedEquality, false);
+  assert.match(report.hostedOutstanding.remainingHold, /F23_FINGERPRINT_MISMATCH/);
+
+  const qualify = qualifySequenceFromDerivedFingerprints(derived.files);
+  const retention = retainQualifyFingerprintDiffs(qualify);
+  assert.equal(retention.compareUnchanged, true);
+  assert.equal(retention.fingerprintAcceptanceUnchanged, true);
+  assert.equal(retention.rawEquality.ok, false);
+  assert.equal(retention.localAcceptance.ok, true);
+  assert.equal(retention.repairAuthorized, false);
+  assert.equal(retention.hostedEquality, false);
+
+  const liveReport = reportF23LocalFingerprintAcceptanceFromQualify(qualify, {
+    source: "offline-derived-qualify-sequence",
+  });
+  assert.equal(liveReport.rawEquality.ok, false);
+  assert.equal(liveReport.localAcceptance.ok, true);
+  assert.equal(liveReport.repairAuthorized, false);
+  assert.equal(liveReport.hostedEquality, false);
+});
+
+test("F23 local profile rejects identity, signature, and role-mapping drift", () => {
+  const fileRow = derivedFingerprintsFromRetainedCapture().files[0];
+  const digest = SEALED_PLATFORM_ACL_ENVELOPE_DIGEST;
+
+  const renamed = clonePair(fileRow);
+  const relation = renamed.observed.relations.find((row) => row.name === "financial_ledger_epochs");
+  relation.name = "financial_ledger_epochs_renamed";
+  assert.equal(compareLocalFingerprint(renamed.expected, renamed.observed, {
+    file: fileRow.file,
+    platformAclEnvelopeDigest: digest,
+  }).ok, false);
+
+  const signature = clonePair(fileRow);
+  const routine = signature.observed.function_owner.find((row) => row.function === "guard_ledger_epoch");
+  routine.identity_arguments = "p_extra text";
+  assert.equal(compareLocalFingerprint(signature.expected, signature.observed, {
+    file: fileRow.file,
+    platformAclEnvelopeDigest: digest,
+  }).ok, false);
+
+  const mappedAuth = clonePair(fileRow);
+  for (const row of mappedAuth.observed.acl) {
+    if (row.grantee === "authenticated") row.grantee = "ubuntu";
+  }
+  assert.equal(compareLocalFingerprint(mappedAuth.expected, mappedAuth.observed, {
+    file: fileRow.file,
+    platformAclEnvelopeDigest: digest,
+  }).ok, false);
+
+  const mappedService = clonePair(fileRow);
+  for (const row of mappedService.observed.acl) {
+    if (row.grantee === "service_role") row.grantee = "ubuntu";
+  }
+  assert.equal(compareLocalFingerprint(mappedService.expected, mappedService.observed, {
+    file: fileRow.file,
+    platformAclEnvelopeDigest: digest,
+  }).ok, false);
+});
+
+test("F23 local profile rejects privilege, grant-option, and extra or missing ACL diffs", () => {
+  const fileRow = derivedFingerprintsFromRetainedCapture().files[0];
+  const digest = SEALED_PLATFORM_ACL_ENVELOPE_DIGEST;
+
+  const privilege = clonePair(fileRow);
+  const ownerSelect = privilege.observed.acl.find((row) => (
+    row.object_name === "financial_ledger_epochs"
+    && row.grantee === "ubuntu"
+    && row.privilege === "SELECT"
+  ));
+  ownerSelect.privilege = "INSERT";
+  assert.equal(compareLocalFingerprint(privilege.expected, privilege.observed, {
+    file: fileRow.file,
+    platformAclEnvelopeDigest: digest,
+  }).ok, false);
+
+  const grantOption = clonePair(fileRow);
+  const ownerDelete = grantOption.observed.acl.find((row) => (
+    row.object_name === "financial_ledger_epochs"
+    && row.grantee === "ubuntu"
+    && row.privilege === "DELETE"
+  ));
+  ownerDelete.grantable = true;
+  assert.equal(compareLocalFingerprint(grantOption.expected, grantOption.observed, {
+    file: fileRow.file,
+    platformAclEnvelopeDigest: digest,
+  }).ok, false);
+
+  const extraAcl = clonePair(fileRow);
+  extraAcl.observed.acl.push({
+    ...extraAcl.observed.acl[0],
+    object_name: "epoch_transitions",
+    grantee: "authenticated",
+    privilege: "DELETE",
+    grantable: false,
+  });
+  assert.equal(compareLocalFingerprint(extraAcl.expected, extraAcl.observed, {
+    file: fileRow.file,
+    platformAclEnvelopeDigest: digest,
+  }).ok, false);
+
+  const missingSelect = clonePair(fileRow);
+  missingSelect.observed.acl = missingSelect.observed.acl.filter((row) => !(
+    row.object_name === "financial_ledger_epochs"
+    && row.grantee === "service_role"
+    && row.privilege === "SELECT"
+  ));
+  assert.equal(compareLocalFingerprint(missingSelect.expected, missingSelect.observed, {
+    file: fileRow.file,
+    platformAclEnvelopeDigest: digest,
+  }).ok, false);
+  assert.equal(RECOGNIZED_NON_GRANTABLE_SERVICE_ROLE_OMISSIONS.includes("SELECT"), false);
+});
+
+test("F23 local profile rejects function definition, SECURITY DEFINER, search_path, and RLS drift", () => {
+  const fileRow = derivedFingerprintsFromRetainedCapture().files[0];
+  const digest = SEALED_PLATFORM_ACL_ENVELOPE_DIGEST;
+
+  const definition = clonePair(fileRow);
+  definition.observed.routines[0].functiondef = `${definition.observed.routines[0].functiondef}\n-- mutated`;
+  assert.equal(compareLocalFingerprint(definition.expected, definition.observed, {
+    file: fileRow.file,
+    platformAclEnvelopeDigest: digest,
+  }).ok, false);
+
+  const security = clonePair(fileRow);
+  security.observed.function_owner[0].security_definer = !security.observed.function_owner[0].security_definer;
+  assert.equal(compareLocalFingerprint(security.expected, security.observed, {
+    file: fileRow.file,
+    platformAclEnvelopeDigest: digest,
+  }).ok, false);
+
+  const searchPath = clonePair(fileRow);
+  searchPath.observed.function_owner[0].search_path = "public";
+  assert.equal(compareLocalFingerprint(searchPath.expected, searchPath.observed, {
+    file: fileRow.file,
+    platformAclEnvelopeDigest: digest,
+  }).ok, false);
+
+  const rls = clonePair(fileRow);
+  const epochs = rls.observed.relations.find((row) => row.name === "financial_ledger_epochs");
+  epochs.rls_enabled = !epochs.rls_enabled;
+  assert.equal(compareLocalFingerprint(rls.expected, rls.observed, {
+    file: fileRow.file,
+    platformAclEnvelopeDigest: digest,
+  }).ok, false);
+});
+
+test("F23 local profile rejects missing or incorrect envelope identity", () => {
+  const fileRow = derivedFingerprintsFromRetainedCapture().files[0];
+  const missing = compareLocalFingerprint(fileRow.expected, fileRow.observed, {
+    file: fileRow.file,
+  });
+  assert.equal(missing.ok, false);
+  assert.match(missing.reason, /missing sealed platform-envelope digest/);
+
+  const wrong = compareLocalFingerprint(fileRow.expected, fileRow.observed, {
+    file: fileRow.file,
+    platformAclEnvelopeDigest: "0".repeat(64),
+  });
+  assert.equal(wrong.ok, false);
+  assert.match(wrong.reason, /incorrect platform-envelope digest/);
+  assert.equal(wrong.repairAuthorized, false);
+  assert.equal(wrong.hostedEquality, false);
+});
+
+test("F23 hosted and repair paths still reject the raw captured mismatch", () => {
+  const fileRow = derivedFingerprintsFromRetainedCapture().files[0];
+  const fingerprint = { expected: fileRow.expected, observed: fileRow.observed };
+  const exact = fingerprintCompleteAndExact(fingerprint, fileRow.file);
+  assert.equal(exact.ok, false);
+  assert.match(exact.reason, /not canonically equal/);
+
+  const gate = evaluateRepairSafetyGate(repairGateInputWithFingerprint(fileRow.file, fingerprint));
+  assert.equal(gate.ok, false);
+  assert.equal(gate.repairAuthorized, false);
+  assert.equal(gate.failedGates.includes("fingerprint_exact"), true);
+
+  const qualifySrc = fs.readFileSync(path.join(ROOT, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
+  const gateSrc = fs.readFileSync(path.join(ROOT, "scripts/lib/f3-db-push-repair-safety-gate.mjs"), "utf8");
+  assert.match(qualifySrc, /fingerprintCompleteAndExact/);
+  assert.doesNotMatch(qualifySrc, /f3-local-fingerprint-comparison/);
+  assert.doesNotMatch(gateSrc, /f3-local-fingerprint-comparison/);
+});
+
+test("F23 local repair amendment keeps atomic refusal fail-closed and does not authorize repair", () => {
+  assert.equal(LOCAL_REPAIR_AMENDMENT.localPostCommitFilenameVersionRepairMandatory, false);
+  assert.equal(LOCAL_REPAIR_AMENDMENT.hostedPostCommitFilenameVersionRepairMandatory, true);
+  assert.equal(LOCAL_REPAIR_AMENDMENT.failClosedWhenObjectsAbsentOrAtomicPreCommit, true);
+  assert.equal(LOCAL_REPAIR_AMENDMENT.repairCallsRequiredOnAtomicOrAbsent, 0);
+  assert.equal(LOCAL_REPAIR_AMENDMENT.promoteFailedApplicationToSuccess, false);
+  assert.equal(LOCAL_REPAIR_AMENDMENT.authorizeRepairExecution, false);
+
+  const helperSrc = fs.readFileSync(path.join(ROOT, "scripts/prove-f3-qualification-reset-local.mjs"), "utf8");
+  assert.match(helperSrc, /mandatoryUnderApprovedContract: false/);
+  assert.match(helperSrc, /localPostCommitFilenameVersionRepairMandatory/);
+  assert.match(helperSrc, /hostedPostCommitFilenameVersionRepairMandatory/);
+  assert.match(helperSrc, /promotedNotExercisedToPass: false/);
+  assert.match(helperSrc, /repairCallsRequiredOnAtomicOrAbsent: 0/);
+  assert.doesNotMatch(helperSrc, /promotedNotExercisedToPass:\s*true/);
 });
 
 

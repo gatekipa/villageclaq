@@ -86,6 +86,14 @@ import {
   fingerprintCanonicalSha256,
   getFrozenExpectedFingerprint,
 } from "./lib/f3-db-push-repair-safety-gate.mjs";
+import {
+  F23_FINGERPRINT_MISMATCH,
+  LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1,
+  LOCAL_REPAIR_AMENDMENT,
+  reportLocalFingerprintQualification,
+  reportLocalFingerprintQualificationFromQualify,
+  reportRetainedCaptureLocalAcceptance,
+} from "./lib/f3-local-fingerprint-comparison.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const HELPER_RELPATH = QUALIFICATION_RESET_LOCAL_PROOF_HELPER_RELPATH;
@@ -243,6 +251,7 @@ export function retainFingerprintFieldDiffs(expected, observed) {
 export function retainQualifyFingerprintDiffs(qualify) {
   const steps = Array.isArray(qualify?.sequence) ? qualify.sequence : [];
   const files = [];
+  const pairs = [];
   for (const step of steps) {
     const file = step?.file;
     if (!file) continue;
@@ -278,11 +287,32 @@ export function retainQualifyFingerprintDiffs(qualify) {
       observedRetained: observed != null,
       diffs: expected && observed ? retainFingerprintFieldDiffs(expected, observed) : [],
     });
+    if (expected && observed) {
+      pairs.push({ file, expected, observed, expectedSha256, observedSha256 });
+    }
   }
+  const localReport = pairs.length > 0
+    ? reportLocalFingerprintQualification(pairs, {
+      source: "live-qualify-retention",
+      derived: false,
+      notFreshPostgreSQLExecution: false,
+    })
+    : null;
   return {
     schema: "f23-fingerprint-field-diff-v1",
     compareUnchanged: true,
     fingerprintAcceptanceUnchanged: true,
+    rawComparator: "fingerprintCompleteAndExact",
+    localComparisonProfile: LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1,
+    rawEquality: localReport?.rawEquality || {
+      ok: files.length > 0 && files.every((row) => row.exactOk === true),
+      code: files.some((row) => row.exactOk !== true) ? F23_FINGERPRINT_MISMATCH : null,
+    },
+    localAcceptance: localReport?.localAcceptance || null,
+    hostedOutstanding: localReport?.hostedOutstanding || null,
+    repairAuthorized: false,
+    hostedEquality: false,
+    localReport,
     files,
   };
 }
@@ -296,6 +326,30 @@ function parseHelperArgs(argv = process.argv.slice(2)) {
 }
 
 export { completeCaptureBody, processEvidence, record, secretsRemoved };
+
+export function reportF23LocalFingerprintAcceptanceFromQualify(qualify, options = {}) {
+  return reportLocalFingerprintQualificationFromQualify(qualify, options);
+}
+
+export function reportF23RetainedCaptureLocalAcceptance(root, options = {}) {
+  return reportRetainedCaptureLocalAcceptance(root, options);
+}
+
+export function qualifySequenceFromDerivedFingerprints(derivedFiles) {
+  return {
+    sequence: (derivedFiles || []).map((row) => ({
+      file: row.file,
+      fingerprintAfterApply: {
+        phase: "after_successful_normal_application",
+        fingerprint: row.observed,
+      },
+      fingerprintExact: {
+        ok: false,
+        reason: "fingerprint expected and observed are not canonically equal",
+      },
+    })),
+  };
+}
 
 function tryLocalPg() {
   try {
@@ -341,6 +395,25 @@ function runOfflineChecks() {
     completeThrough00123: null,
     documentedAtomicRollbackHold: null,
     combinedAcceptanceRejected: true,
+  }));
+
+  const retainedLocal = reportRetainedCaptureLocalAcceptance();
+  checks.push(record("F23_LOCAL_FINGERPRINT_PROFILE_V1_RETAINED_CAPTURE", "check", {
+    ok: retainedLocal.recordedCanonicalDigestsMatch === true
+      && retainedLocal.localAcceptance?.ok === true
+      && retainedLocal.rawEquality?.ok === false
+      && retainedLocal.rawEquality?.code === F23_FINGERPRINT_MISMATCH
+      && retainedLocal.repairAuthorized === false
+      && retainedLocal.hostedEquality === false
+      && retainedLocal.derived === true,
+    profile: LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1,
+    rawEquality: retainedLocal.rawEquality,
+    localAcceptance: retainedLocal.localAcceptance,
+    hostedOutstanding: retainedLocal.hostedOutstanding,
+    recordedCanonicalDigestsMatch: retainedLocal.recordedCanonicalDigestsMatch,
+    derived: true,
+    notFreshPostgreSQLExecution: true,
+    note: "Offline reassessment of retained CAPTURE_ATTEMPT_2. Derived fingerprints labeled derived. Not a fresh PostgreSQL execution.",
   }));
 
   const cmd = buildQualificationResetInventoryPsqlCommand({
@@ -1149,6 +1222,11 @@ async function runSharedLocalQualificationSequence({
       repairCalls: calls.repair || qualify.calls?.repair || 0,
       fingerprintRetention: verificationMode === QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION
         ? retainQualifyFingerprintDiffs(qualify)
+        : null,
+      fingerprintReport: verificationMode === QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION
+        ? reportLocalFingerprintQualificationFromQualify(qualify, {
+          source: "f23-normal-application-live-sequence",
+        })
         : null,
       executedTransaction: true,
       substitutedInterfaces: adapters.substitutedInterfaces,
@@ -2151,15 +2229,34 @@ export async function proveQualificationResetLocal(options = {}) {
     remainingHold: localApplicationComplete ? null : (f23.remainingHold || f22.remainingHold || null),
     combinedAcceptanceRejected: true,
     fingerprintRetention: f23.fingerprintRetention || null,
+    rawFingerprintEquality: f23.fingerprintReport?.rawEquality
+      || f23.fingerprintRetention?.rawEquality
+      || { ok: false, code: F23_FINGERPRINT_MISMATCH },
+    localFingerprintAcceptance: f23.fingerprintReport?.localAcceptance
+      || f23.fingerprintRetention?.localAcceptance
+      || null,
+    localComparisonProfile: LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1,
+    hostedOutstanding: f23.fingerprintReport?.hostedOutstanding
+      || f23.fingerprintRetention?.hostedOutstanding
+      || null,
+    fingerprintReport: f23.fingerprintReport || null,
+    retainedCaptureLocalReport: cases.find((row) => row.id === "F23_LOCAL_FINGERPRINT_PROFILE_V1_RETAINED_CAPTURE") || null,
     repairCoverage: {
       freshlyExercised: documentedAtomicRollbackHold
         ? "F22 fault-injection: induced history failure classified PRE_COMMIT_OR_ATOMIC_ROLLBACK; repair-safety gate refused repair; repairCalls=0"
         : "fault-injection path did not authenticate the documented atomic-rollback refuse",
       inheritedAcceptedEvidence: "F22 HOLD PACKAGE ACCEPT for F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED as historical authenticated negative test",
       unexercised: "post-commit filename-version repair after objects remain; hosted split where SQL commits and history INSERT fails",
-      mandatoryUnderApprovedContract: true,
+      mandatoryUnderApprovedContract: false,
+      localPostCommitFilenameVersionRepairMandatory: LOCAL_REPAIR_AMENDMENT.localPostCommitFilenameVersionRepairMandatory,
+      hostedPostCommitFilenameVersionRepairMandatory: LOCAL_REPAIR_AMENDMENT.hostedPostCommitFilenameVersionRepairMandatory,
+      failClosedWhenObjectsAbsentOrAtomicPreCommit: true,
+      repairCallsRequiredOnAtomicOrAbsent: 0,
       promotedNotExercisedToPass: false,
-      remainingFounderDecision: "Whether a hosted filename-version split (objects remain after inject) can be authorized. Local CLI atomic rollback cannot satisfy post-commit repair. Do not mark unapplied SQL applied or manufacture committed objects.",
+      authorizeRepairExecution: false,
+      reexecutedLocalRefusal: false,
+      historicalRepairEvidence: LOCAL_REPAIR_AMENDMENT.historicalRepairEvidence,
+      remainingHostedRequirement: "Before promotion beyond DAYBREAK HOLD, separately authorized hosted qualification must demonstrate current-candidate POST_COMMIT_HISTORY_FAILURE, surviving intended objects, absent exact filename history, pass repair-safety and raw fingerprint gates, perform CLI 2.117.0 filename-version repair, and authenticate resulting history/catalog state.",
     },
     cases,
     passCount: cases.filter((row) => row.ok === true).length,

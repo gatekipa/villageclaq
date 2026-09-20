@@ -3569,6 +3569,30 @@ function poisonPresentFromLocalProbe(result) {
   return null;
 }
 
+export function objectPresenceBooleanSql(expressions = []) {
+  const list = Array.isArray(expressions) ? expressions : [];
+  if (list.length === 0) {
+    return "SELECT json_build_object('present', false)::text;";
+  }
+  const fields = list.map((expr, i) => `'p${i}', (${expr}) IS NOT NULL`).join(", ");
+  return `SELECT json_build_object(${fields})::text;`;
+}
+
+export function objectsPresentFromBooleanProbe(result) {
+  const parsed = parseJsonish(result?.stdout);
+  const row = Array.isArray(parsed)
+    ? parsed[0]
+    : parsed && typeof parsed === "object"
+      ? (parsed.json_build_object || parsed)
+      : null;
+  if (!row || typeof row !== "object" || Array.isArray(row)) return false;
+  const vals = Object.keys(row)
+    .filter((key) => /^p\d+$/.test(key))
+    .sort()
+    .map((key) => row[key]);
+  return vals.length > 0 && vals.every((value) => value === true);
+}
+
 async function runNormalApplicationSequence({
   evidence,
   args,
@@ -3709,9 +3733,9 @@ async function runNormalApplicationSequence({
       bin: cli.bin,
       workdir: isolated.workdir,
       help: queryHelp,
-      sql: objectProbeSql(TARGET_OBJECT_PROBES[file]),
+      sql: objectPresenceBooleanSql(TARGET_OBJECT_PROBES[file]),
     });
-    const objectsPresent = objectsPresentFromProbe({ ...probe, file });
+    const objectsPresent = objectsPresentFromBooleanProbe(probe);
     if (objectsPresent !== true) {
       evidence.sequence.push({
         file,
@@ -3751,28 +3775,14 @@ async function runNormalApplicationSequence({
       observed: fingerprintAfterApply.fingerprint,
     }, file);
     if (!fingerprintExact.ok) {
-      evidence.sequence.push({
+      evidence.normalApplicationFingerprintsExact = false;
+      evidence.fingerprintHold = {
         file,
-        destName: timestampFilenameFor(file),
-        version,
-        name: expectedName,
-        digest: FROZEN_DIGESTS[file],
-        staged,
-        stagingPreflight,
-        inject: { installed: false, requiredAbsent: true, absent: true },
-        push,
-        historyIdentities,
-        objectsPresent,
-        fingerprintAfterApply,
-        fingerprintExact,
-        repairAttempted: false,
-        repairExercised: false,
-        verificationMode: QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION,
-      });
-      holdNormal(
-        fingerprintExact.reason || `HOLD: frozen fingerprint mismatch after ${file}`,
-        F23_FINGERPRINT_MISMATCH,
-      );
+        code: F23_FINGERPRINT_MISMATCH,
+        reason: fingerprintExact.reason || `HOLD: frozen fingerprint mismatch after ${file}`,
+        localIdentitySubstitution:
+          "observed catalog compared to hosted-oracle fingerprint; local ubuntu/fixture roles are not hosted postgres/service_role/authenticated identity proof",
+      };
     }
     const afterApplyInv = await ops.query({
       bin: cli.bin,
@@ -3786,6 +3796,9 @@ async function runNormalApplicationSequence({
       body: inventoryFromQuery(afterApplyInv.stdout),
     });
     evidence.runnerCountersByFile[file] = { ...runnerCounters };
+    if (evidence.normalApplicationFingerprintsExact !== false) {
+      evidence.normalApplicationFingerprintsExact = fingerprintExact.ok === true;
+    }
     evidence.sequence.push({
       file,
       destName: timestampFilenameFor(file),
@@ -5107,9 +5120,16 @@ export async function runQualifyDisposablePath({
           evidence.status = "HOLD";
           evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
           evidence.limitation = evidence.finalInventoryChronology?.reason || "HOLD: FINAL inventory chronology failed";
+        } else if (normalApplication && evidence.normalApplicationFingerprintsExact !== true) {
+          evidence.status = "HOLD";
+          evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+          evidence.limitation = evidence.fingerprintHold?.reason
+            || "HOLD: frozen hosted-oracle fingerprints are not canonically equal on this local fixture";
+          evidence.errorCode = F23_FINGERPRINT_MISMATCH;
+          evidence.claims.dbPush = evidence.limitation;
+          evidence.claims.repairExercised = false;
+          evidence.floorLabel = QUALIFICATION_FLOOR_LABEL;
         } else {
-          evidence.status = FILE_BASED_RUNNER_VERDICTS.QUALIFICATION_PASS;
-          evidence.verdict = FILE_BASED_RUNNER_VERDICTS.QUALIFICATION_PASS;
           evidence.claims.dbPush =
             "FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION; prior MECHANICS PASS SUPERSEDED; not production PASS; not clean replay PASS; not merge/deploy auth";
           evidence.claims.mechanicsPass = "SUPERSEDED";

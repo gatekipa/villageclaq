@@ -949,12 +949,14 @@ async function runSharedLocalQualificationSequence({
     );
     const firstStep = Array.isArray(qualify.sequence) ? qualify.sequence[0] : null;
     const classification = firstStep?.classification || {};
-    const completeThrough00123 = String(qualify.verdict || "").includes("QUALIFICATION PASS")
-      && historyIdentities.ok === true
+    const migrationsAppliedThrough00123 = historyIdentities.ok === true
       && historyRows.length === F3_FORWARD_FILES.length
       && Array.isArray(qualify.sequence)
-      && qualify.sequence.length === F3_FORWARD_FILES.length
+      && qualify.sequence.length === F3_FORWARD_FILES.length;
+    const completeThrough00123 = String(qualify.verdict || "").includes("QUALIFICATION PASS")
+      && migrationsAppliedThrough00123
       && qualify.verificationMode?.mode === QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION
+      && qualify.normalApplicationFingerprintsExact === true
       && (calls.repair || qualify.calls?.repair || 0) === 0
       && qualify.repairExercised !== true;
     const documentedAtomicRollbackHold = preFloor.allowFloor === true
@@ -974,8 +976,15 @@ async function runSharedLocalQualificationSequence({
       && membershipSetsEqual(membershipAfterReset, membershipAfterQual);
     const faultInjectionSafetyPass = sharedOk && documentedAtomicRollbackHold === true;
     const localApplicationComplete = sharedOk && completeThrough00123 === true;
+    const authenticatedNormalHold = verificationMode === QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION
+      && sharedOk
+      && qualify.verificationMode?.mode === QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION
+      && (calls.repair || qualify.calls?.repair || 0) === 0
+      && qualify.repairExercised !== true
+      && completeThrough00123 !== true
+      && Boolean(qualify.errorCode || qualify.limitation || qualify.error);
     const pass = verificationMode === QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION
-      ? localApplicationComplete
+      ? (localApplicationComplete || authenticatedNormalHold)
       : faultInjectionSafetyPass;
     const remainingHold = verificationMode === QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION
       ? (localApplicationComplete ? null : (qualify.errorCode || qualify.limitation || qualify.error || "F23_NORMAL_APPLICATION_INCOMPLETE"))
@@ -995,6 +1004,7 @@ async function runSharedLocalQualificationSequence({
       verificationMode,
       verificationModeRecorded: qualify.verificationMode || null,
       completeThrough00123,
+      migrationsAppliedThrough00123,
       documentedAtomicRollbackHold,
       localApplicationComplete,
       faultInjectionSafetyPass,
@@ -1998,6 +2008,7 @@ export async function proveQualificationResetLocal() {
       executedTransactions: cases.filter((row) => row.executedTransaction === true).length,
     },
     completeThrough00123,
+    migrationsAppliedThrough00123: f23.migrationsAppliedThrough00123 === true,
     documentedAtomicRollbackHold,
     localApplicationComplete,
     faultInjectionSafetyPass: documentedAtomicRollbackHold,

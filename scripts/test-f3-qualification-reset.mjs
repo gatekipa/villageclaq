@@ -116,6 +116,8 @@ import {
   QUALIFICATION_VERIFICATION_MODES,
   qualificationResetQualifyEmitPayload,
   qualificationResetRuntimeContext,
+  objectPresenceBooleanSql,
+  objectsPresentFromBooleanProbe,
   resolveQualificationVerificationMode,
   runHostedQualificationReset,
   runQualificationResetQualifyPath,
@@ -2866,6 +2868,22 @@ test("F23 verification mode is recorded before database operations", async () =>
   assert.equal(calls.floor || 0, 0);
   assert.equal(calls.dbPush || 0, 0);
   assert.match(String(evidence.limitation || evidence.error || ""), /unknown qualification verification mode/);
+});
+
+test("F23 boolean object probe requires every TARGET expression present", () => {
+  const sql = objectPresenceBooleanSql([
+    "to_regnamespace('financial_private')",
+    "to_regclass('public.financial_ledger_epochs')",
+  ]);
+  assert.match(sql, /IS NOT NULL/);
+  assert.equal(objectsPresentFromBooleanProbe({
+    status: 0,
+    stdout: '{"p0":true,"p1":true}\n',
+  }), true);
+  assert.equal(objectsPresentFromBooleanProbe({
+    status: 0,
+    stdout: '{"p0":true,"p1":false}\n',
+  }), false);
 });
 
 test("F23 exact history identities reject count-only matches", () => {

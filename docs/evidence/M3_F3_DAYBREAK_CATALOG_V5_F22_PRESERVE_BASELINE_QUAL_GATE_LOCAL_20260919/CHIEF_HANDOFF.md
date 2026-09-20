@@ -15,6 +15,7 @@ Do not fabricate QA ACCEPT. Coordinator (VillageClaq Chief) will obtain independ
 | Role | SHA / value |
 |------|-------------|
 | FUNCTIONAL_TIP (frozen) | `f1d30b28830db902962467f801932254997e64c3` |
+| Evidence SHA (this package tip) | `686269dd3036ef654948d1812902d1b9a141ee3b` |
 | Starting #84/#85/#86 head | `a38db9c1c0e122dcc5900e1bd41c3857ecca6bd5` |
 | F21 functional | `3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0` |
 | F21 local evidence | `964fe8431f7ca22534a4277246e8330732373f64` |
@@ -24,7 +25,7 @@ Do not fabricate QA ACCEPT. Coordinator (VillageClaq Chief) will obtain independ
 | This package | `docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919/` |
 | PRs | #84 / #85 / #86 OPEN DRAFT UNMERGED DAYBREAK HOLD; builder PR #126 |
 
-Ancestry: evidence SHA (this commit, after packaging) → `f1d30b28830db902962467f801932254997e64c3` → a38db9c → 964fe843 → 3fe7314 → b7d16544 → …
+Ancestry: `686269dd3036ef654948d1812902d1b9a141ee3b` → `f1d30b28830db902962467f801932254997e64c3` → a38db9c → 964fe843 → 3fe7314 → b7d16544 → …
 
 ## Operational-path correction
 

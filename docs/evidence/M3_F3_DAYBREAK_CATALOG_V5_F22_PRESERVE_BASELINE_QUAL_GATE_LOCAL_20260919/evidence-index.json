@@ -9,8 +9,8 @@
   "artifacts": [
     {
       "path": "CHIEF_HANDOFF.md",
-      "sha256": "e2009ed30c4eb5a60a83ca96ce006d9c562cfdef776cf642a74317bcc08cad91",
-      "bytes": 5480
+      "sha256": "1fb6dff0b09484ff211a0ef2fb8bc5cd1868b73c220dbbb7821b0e4d9f5476e4",
+      "bytes": 5560
     },
     {
       "path": "F22_CASES.json",
@@ -44,8 +44,8 @@
     },
     {
       "path": "PINS.json",
-      "sha256": "c5df214ff5ef669eed2f94ac99179af75bcbea893651fda799af28785a160e2c",
-      "bytes": 873
+      "sha256": "4239961c25bad2ca602104334bc526d87515fed93e4f3527b092844306384f4d",
+      "bytes": 934
     },
     {
       "path": "PROPOSED_HOSTED_REQUAL_PLAN.md",

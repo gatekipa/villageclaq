@@ -5130,6 +5130,8 @@ export async function runQualifyDisposablePath({
           evidence.claims.repairExercised = false;
           evidence.floorLabel = QUALIFICATION_FLOOR_LABEL;
         } else {
+          evidence.status = FILE_BASED_RUNNER_VERDICTS.QUALIFICATION_PASS;
+          evidence.verdict = FILE_BASED_RUNNER_VERDICTS.QUALIFICATION_PASS;
           evidence.claims.dbPush =
             "FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION; prior MECHANICS PASS SUPERSEDED; not production PASS; not clean replay PASS; not merge/deploy auth";
           evidence.claims.mechanicsPass = "SUPERSEDED";

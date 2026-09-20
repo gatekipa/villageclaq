@@ -1,0 +1,99 @@
+{
+  "generatedAt": "2026-09-20T08:26:32.051Z",
+  "zone": "America/New_York",
+  "attempt": "ATTEMPT_2",
+  "overall": "READY",
+  "connectionFree": true,
+  "databaseConnectAttempted": false,
+  "expected": {
+    "head": "66be2b4797515975d737a0fd66656bc4c0de2145",
+    "planSha256": "bf9ca7b6c408d72b9f1231f223628a41e77fe275132acf273cd5386dd8c3b138",
+    "closureDigest": "b276d0cb9b39efd10f67422948b4cf9a6353359c116ab657d379c7c7f467a211",
+    "scopeSqlIdentitySha256": "d95d96e02a3a1844977d852fa23a64f742b79b5f767984b6a2d4512cbe02632f",
+    "supabaseVersion": "2.117.0"
+  },
+  "checks": [
+    {
+      "name": "PATH_has_/usr/bin",
+      "ok": true,
+      "detail": "/usr/bin:/home/box/.local/bin:/usr/bin:/home/box/.local/bin:/usr/bin:/home/box/.local/bin:/usr/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games"
+    },
+    {
+      "name": "PATH_has_local_bin",
+      "ok": true,
+      "detail": "/usr/bin:/home/box/.local/bin:/usr/bin:/home/box/.local/bin:/usr/bin:/home/box/.local/bin:/usr/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games"
+    },
+    {
+      "name": "psql_spawnSync_version",
+      "ok": true,
+      "detail": "status=0 stdout=psql (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1) stderr= which=/usr/bin/psql"
+    },
+    {
+      "name": "supabase_version_exact",
+      "ok": true,
+      "detail": "status=0 version=\"2.117.0\""
+    },
+    {
+      "name": "evidence_dirs_creatable",
+      "ok": true,
+      "detail": "/workspace/villageclaq-f23-hosted-attempt2/repo/docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL/ATTEMPT_2/hosted/qualification-reset: creatable; /workspace/villageclaq-f23-hosted-attempt2/repo/docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL/ATTEMPT_2/hosted/qualify-from-00118: creatable; /workspace/villageclaq-f23-hosted-attempt2/repo/docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL_ATTEMPT_2_20260920: creatable"
+    },
+    {
+      "name": "git_HEAD_functional_tip",
+      "ok": true,
+      "detail": "HEAD=66be2b4797515975d737a0fd66656bc4c0de2145"
+    },
+    {
+      "name": "plan_sha256",
+      "ok": true,
+      "detail": "path=/workspace/villageclaq-f23-hosted-attempt2/repo/docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_PROPOSED_HOSTED_REQUAL_PLAN_20260920/PROPOSED_HOSTED_REQUAL_PLAN.md sha=bf9ca7b6c408d72b9f1231f223628a41e77fe275132acf273cd5386dd8c3b138"
+    },
+    {
+      "name": "closureDigest",
+      "ok": true,
+      "detail": "runtime=b276d0cb9b39efd10f67422948b4cf9a6353359c116ab657d379c7c7f467a211 count=47"
+    },
+    {
+      "name": "scopeSqlIdentitySha256",
+      "ok": true,
+      "detail": "scope=d95d96e02a3a1844977d852fa23a64f742b79b5f767984b6a2d4512cbe02632f"
+    },
+    {
+      "name": "env_DB_PASSWORD",
+      "ok": true,
+      "detail": "present-or-missing"
+    },
+    {
+      "name": "env_MGMT_TOKEN",
+      "ok": true,
+      "detail": "present-or-missing"
+    },
+    {
+      "name": "env_SENTINEL",
+      "ok": true,
+      "detail": "present-or-missing"
+    },
+    {
+      "name": "env_REMOTE_DESTRUCTIVE",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "debian_psql_packages",
+      "ok": true,
+      "detail": "libpq5 17.11-0+deb13u1 install ok installed | postgresql-client 17+278 install ok installed | postgresql-client-17 17.11-0+deb13u1 install ok installed | postgresql-client-common 278 install ok installed"
+    }
+  ],
+  "psql": {
+    "path": "/usr/bin/psql",
+    "version": "psql (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+    "source": "Debian official http://deb.debian.org/debian trixie/main",
+    "packages": "libpq5 17.11-0+deb13u1 install ok installed\npostgresql-client 17+278 install ok installed\npostgresql-client-17 17.11-0+deb13u1 install ok installed\npostgresql-client-common 278 install ok installed"
+  },
+  "supabase": {
+    "path": "/home/box/.local/bin/supabase",
+    "version": "2.117.0"
+  },
+  "node": "v20.19.2",
+  "path": "/usr/bin:/home/box/.local/bin:/usr/bin:/home/box/.local/bin:/usr/bin:/home/box/.local/bin:/usr/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/home/box/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games"
+}

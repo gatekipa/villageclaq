@@ -1,0 +1,84 @@
+{
+  "generatedAtET": "2026-09-20T04:27:58.146444-04:00",
+  "outcome": "stopped",
+  "phases": {
+    "readiness": "READY",
+    "resetAttempted": true,
+    "qualificationStarted": false,
+    "qualificationCompleted": false
+  },
+  "exitCodes": {
+    "reset": 1,
+    "qualification": null
+  },
+  "reset": {
+    "status": "HOLD",
+    "verdict": "HOLD",
+    "ok": false,
+    "code": "F13_RESET_SQL_FAILED",
+    "label": "F19 LOCAL CORRECTION CANDIDATE \u2014 AWAITING QA / LOCAL TX PROOF",
+    "executed": true,
+    "committed": false,
+    "mutation": false,
+    "alreadyClean": false,
+    "inventoryCaptured": true,
+    "fingerprint_exact": false,
+    "productionContacted": false,
+    "wipeToBaselineRejected": true,
+    "wipeRejectionCode": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
+    "blockerSummary": "DROP FUNCTION public.has_group_permission(uuid,text,uuid) RESTRICT failed because RLS policies m2_np_* / m2_npt_* / m2_npo_* on notification_* tables depend on it. CASCADE forbidden. F13_RESET_SQL_FAILED.",
+    "preserveBaselineGate": "NOT REACHED AS SUCCESS \u2014 inventory captured and reset SQL began, but apply failed before commit; QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1 success identity not achieved",
+    "btree_gist": "observed present in inventory; no DROP EXTENSION; disposable left intact (committed=false, mutation=false)",
+    "spies": {
+      "planCalls": 1,
+      "validateCalls": 1,
+      "captureCalls": 1,
+      "transportCalls": 1,
+      "applyCalls": 1,
+      "sqlCalls": 1,
+      "beginObserved": 1,
+      "mutateAttempted": 1,
+      "commitAttempted": 0,
+      "commitConfirmed": 0,
+      "rollbackObserved": 0,
+      "replayCalls": 0,
+      "committedEffects": 0,
+      "startedBeforeInvoke": true,
+      "completedAfterAwait": true
+    },
+    "inventoryCounts": {
+      "observedObjects": 299,
+      "observedDependencies": 43,
+      "observedHistoryRows": 6
+    },
+    "qualifyResultSha256": "1ad4b4e48dd88a25624e686e0003fbdf0010497681b10570b13696bbcde6367d"
+  },
+  "qualification": {
+    "status": "NOT_RUN",
+    "reason": "Reset required checks did not pass; budget forbids second reset and forbids starting qual without reset+gates pass"
+  },
+  "operationCounts": {
+    "constrainedResetsAttempted": 1,
+    "constrainedResetsCommitted": 0,
+    "completeQualsFrom00118": 0,
+    "secondReset": false,
+    "calibrationProbes": 0,
+    "migrationApplications": 0,
+    "historyInjects": 0,
+    "repairs": 0,
+    "perFileRetries": 0,
+    "note": "Qual not started; per-file fault-injection counters remain 0"
+  },
+  "cleanup": {
+    "disposableLeftIntact": true,
+    "authorizedProbeCleanup": "n/a (qual not started; reset did not commit)",
+    "cascadeUsed": false,
+    "wipeUsed": false,
+    "managementApiApply": false
+  },
+  "knownInconsistencies": [
+    "qualify-result.json label still reads 'F19 LOCAL CORRECTION CANDIDATE \u2014 AWAITING QA / LOCAL TX PROOF' (stale shared fail() label). This run is F23 hosted ATTEMPT_2 stop at F13_RESET_SQL_FAILED \u2014 not an F19 local correction. No executable correction authorized."
+  ],
+  "holdOrPass": "HOLD",
+  "daybreakHold": true
+}

@@ -1,0 +1,105 @@
+{
+  "package": "M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL_ATTEMPT_2_20260920",
+  "generatedAtET": "2026-09-20T04:27:58.146444-04:00",
+  "datedFiles": [
+    {
+      "path": "CLEANUP_OUTCOME.json",
+      "sha256": "b15b0e40b4c8fdf8889884a99df5f5050b6c76b097ca2fcab9f9e155f7cbe221",
+      "bytes": 187
+    },
+    {
+      "path": "CLIENT_READINESS_RECEIPT.json",
+      "sha256": "a433db58515b351bead3cb13a832b808820071bc63c647429cb1e6675f4e6dd3",
+      "bytes": 5997
+    },
+    {
+      "path": "CLIENT_READINESS_RECEIPT.md",
+      "sha256": "8205cd8750bd098e450e5befc8d06936f61473fefef0b8ab95028e6262da1798",
+      "bytes": 5293
+    },
+    {
+      "path": "EXECUTION_REPORT.json",
+      "sha256": "35ec578e8985ececc4ccfa420b4061891cd0253e4496df7f6ead525f4d669057",
+      "bytes": 3119
+    },
+    {
+      "path": "HISTORY_CATALOG_PROCESS_EVIDENCE.json",
+      "sha256": "50468326c7b89b66fcd70ddc1ddf6df3ddd40e1d6945b2ddc0d18ad791487f9a",
+      "bytes": 772
+    },
+    {
+      "path": "HOLD_SUMMARY.json",
+      "sha256": "7890a3a6a417e6808fc6a9acae85ac8e374940ecde1b157ac571decb05055d19",
+      "bytes": 184
+    },
+    {
+      "path": "OPERATION_COUNTS.json",
+      "sha256": "4a4a7175148d30cf05cddd47d0d1ce1ed084d48b92089ba4bdcd3ff99af0f60c",
+      "bytes": 320
+    },
+    {
+      "path": "PINS.json",
+      "sha256": "844b769fb4be78be74fa19c45ce8d89c4c5f6c53d93b594b41888eb344b18cb8",
+      "bytes": 1108
+    },
+    {
+      "path": "SUMMARY.md",
+      "sha256": "ce523e63332bb783f053209ab1632441ff79ed86582647a2dd75c0a7a06a1dd0",
+      "bytes": 4225
+    }
+  ],
+  "liveAttempt2Files": [
+    {
+      "path": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL/ATTEMPT_2/CLIENT_READINESS_RECEIPT.json",
+      "sha256": "a433db58515b351bead3cb13a832b808820071bc63c647429cb1e6675f4e6dd3",
+      "bytes": 5997
+    },
+    {
+      "path": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL/ATTEMPT_2/CLIENT_READINESS_RECEIPT.md",
+      "sha256": "8205cd8750bd098e450e5befc8d06936f61473fefef0b8ab95028e6262da1798",
+      "bytes": 5293
+    },
+    {
+      "path": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL/ATTEMPT_2/hosted/qualification-reset/FOUNDER_AUTH.json",
+      "sha256": "657ccb9dac0bdb45f09c8eccf5d295b0cd14a18479b6a4547038694b110a70a4",
+      "bytes": 411
+    },
+    {
+      "path": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL/ATTEMPT_2/hosted/qualification-reset/evidence-index.json",
+      "sha256": "d2665a623091275cbeaffa970020870607f5f10e5accc1b4913ffd5193f4a5e4",
+      "bytes": 961
+    },
+    {
+      "path": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL/ATTEMPT_2/hosted/qualification-reset/evidence-index.sha256",
+      "sha256": "2465156462fe66dc72283329d1b20a03d707448dbc6f73ca894ba21d919a4e46",
+      "bytes": 65
+    },
+    {
+      "path": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL/ATTEMPT_2/hosted/qualification-reset/executable-manifest.json",
+      "sha256": "2bc07209f597930349cb0be74472c1d71889ddb9d4b6950c36bba20a2c98be05",
+      "bytes": 444
+    },
+    {
+      "path": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL/ATTEMPT_2/hosted/qualification-reset/logs/qualification-reset.sanitized.log",
+      "sha256": "995f22b3a49679dbeba412e6b65cd3a25914885d1178f10f9c442204d7f6bee8",
+      "bytes": 126252
+    },
+    {
+      "path": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL/ATTEMPT_2/hosted/qualification-reset/qualify-result.json",
+      "sha256": "1ad4b4e48dd88a25624e686e0003fbdf0010497681b10570b13696bbcde6367d",
+      "bytes": 126251
+    },
+    {
+      "path": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL/ATTEMPT_2/hosted/qualification-reset/qualify-result.json.meta.json",
+      "sha256": "a945fcdb4434d556e2560eead9764a25b87daaf72e42c8ba0d77881f4bcf6743",
+      "bytes": 2737
+    },
+    {
+      "path": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL/ATTEMPT_2/hosted/qualify-from-00118/NOT_RUN.json",
+      "sha256": "172f148319d44114163255a57cfe4447e867fc5b7ab59e1e1dc656b0beff3120",
+      "bytes": 318
+    }
+  ],
+  "outcome": "stopped",
+  "holdOrPass": "HOLD"
+}

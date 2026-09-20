@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "exclusions": [
+    "evidence-index.json",
+    "evidence-index.sha256"
+  ],
+  "self_hash": false,
+  "detached_checksum": "evidence-index.sha256",
+  "artifacts": [
+    {
+      "path": ".write_probe",
+      "sha256": "2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df",
+      "bytes": 2
+    },
+    {
+      "path": "executable-manifest.json",
+      "sha256": "2bc07209f597930349cb0be74472c1d71889ddb9d4b6950c36bba20a2c98be05",
+      "bytes": 444
+    },
+    {
+      "path": "FOUNDER_AUTH.json",
+      "sha256": "657ccb9dac0bdb45f09c8eccf5d295b0cd14a18479b6a4547038694b110a70a4",
+      "bytes": 411
+    },
+    {
+      "path": "qualify-result.json",
+      "sha256": "1ad4b4e48dd88a25624e686e0003fbdf0010497681b10570b13696bbcde6367d",
+      "bytes": 126251
+    },
+    {
+      "path": "qualify-result.json.meta.json",
+      "sha256": "a945fcdb4434d556e2560eead9764a25b87daaf72e42c8ba0d77881f4bcf6743",
+      "bytes": 2737
+    }
+  ]
+}

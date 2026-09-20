@@ -1,0 +1,12 @@
+{
+  "constrainedResetsAttempted": 1,
+  "constrainedResetsCommitted": 0,
+  "completeQualsFrom00118": 0,
+  "secondReset": false,
+  "calibrationProbes": 0,
+  "migrationApplications": 0,
+  "historyInjects": 0,
+  "repairs": 0,
+  "perFileRetries": 0,
+  "note": "Qual not started; per-file fault-injection counters remain 0"
+}

@@ -1,6 +1,6 @@
 # Current status — VillageClaq F3 Daybreak qualification
 
-**Status:** DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN  
+**Status:** DAYBREAK HOLD — HOSTED REQUALIFICATION STOPPED AT RESET (`F13_INVENTORY_CAPTURE_PROCESS_FAILED`; NOT PASS)  
 **Floor (verbatim):** DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT  
 **This file is the current remainder record.** Historical packages are linked, not copied.
 
@@ -8,7 +8,7 @@ Working rules: [AGENTS.md](../AGENTS.md). Product conventions: [CLAUDE.md](../CL
 Approved local comparison contract: [LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_LOCAL_ACCEPTANCE_CONTRACT_20260920/LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1.md).  
 Repair amendment: [REPAIR_AMENDMENT.md](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_LOCAL_ACCEPTANCE_CONTRACT_20260920/REPAIR_AMENDMENT.md).  
 Authorized local-capture record: [docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/CHIEF_HANDOFF.md](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/CHIEF_HANDOFF.md).  
-**Current proposed hosted plan:** [F23 proposed hosted requal plan 2026-09-20](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_PROPOSED_HOSTED_REQUAL_PLAN_20260920/PROPOSED_HOSTED_REQUAL_PLAN.md) — **PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE.**
+**Current proposed hosted plan:** [F23 proposed hosted requal plan 2026-09-20](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_PROPOSED_HOSTED_REQUAL_PLAN_20260920/PROPOSED_HOSTED_REQUAL_PLAN.md) — plan bytes preserved. **Founder-authorized constrained hosted attempt 2026-09-20 ET:** executed one reset, **stopped** (see [HOSTED_REQUAL_20260920](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL_20260920/SUMMARY.md)).
 
 ## Authorization (do not collapse these)
 
@@ -20,7 +20,7 @@ Authorized local-capture record: [docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FI
 | **Local fingerprint capture attempt 2** (one additional prove; `ubuntu` `SUPERUSER LOGIN`) | **Used.** Remaining raw hold `F23_FINGERPRINT_MISMATCH`. Six migrations applied. Field-level diffs retained. Offline profile reassessment is **derived**, not a fresh PostgreSQL execution. |
 | **Temporary PGDG PostgreSQL 17 + official CLI 2.117.0 install** | **Authorized for this fixture restore.** Isolated this-run `17/main`; cluster stopped and dropped after capture. Recipe: [SETUP_RECIPE.md](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/SETUP_RECIPE.md). |
 | **`ubuntu` `SUPERUSER LOGIN`** | **Authorized for attempt 2 only** (F18 recipe). Local-cluster privilege. Not restricted-role authorization or RLS proof. |
-| **Hosted reset / hosted qualification / hosted or local repair experiments** | **Not authorized.** PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE. |
+| **Hosted reset / hosted qualification (F23 constrained 1+1)** | **Used (reset only).** Founder Jude authorized disposable `jkorwnwwmdeflfntxntl` only. One `--qualification-reset` → `F13_INVENTORY_CAPTURE_PROCESS_FAILED` (`psql` absent). Qual-from-00118 **NOT RUN**. Budget consumed: resets 1/1, quals 0/1, secondReset false. **No second reset.** Evidence: [HOSTED_REQUAL_20260920](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL_20260920/SUMMARY.md). |
 | **Merge / deploy / `origin/main` / F3-06 / Daybreak–Astra contact** | **Not authorized.** |
 
 ## Authoritative build-plan reference — missing
@@ -78,6 +78,28 @@ Focused offline tests: 7/7 PASS (`node --test --test-name-pattern='F23 local|F23
 
 Evidence: [F23 package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920/), [F22 package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919/), [capture package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/), [attempt 2](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/), [local acceptance contract](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_LOCAL_ACCEPTANCE_CONTRACT_20260920/).
 
+## Hosted F23 constrained requal (2026-09-20 ET) — STOPPED
+
+| Field | Value |
+|-------|-------|
+| Outcome | **stopped** (not PASS) |
+| Phase | reset |
+| Reset exit | `1` / `F13_INVENTORY_CAPTURE_PROCESS_FAILED` |
+| Qual | **NOT RUN** |
+| Functional SHA | `66be2b4797515975d737a0fd66656bc4c0de2145` |
+| Plan SHA-256 | `bf9ca7b6c408d72b9f1231f223628a41e77fe275132acf273cd5386dd8c3b138` verified |
+| closureDigest | `b276d0cb9b39efd10f67422948b4cf9a6353359c116ab657d379c7c7f467a211` confirmed |
+| scopeSqlIdentitySha256 | `d95d96e02a3a1844977d852fa23a64f742b79b5f767984b6a2d4512cbe02632f` confirmed |
+| CLI | 2.117.0 |
+| Target | `jkorwnwwmdeflfntxntl` |
+| Mutation | false |
+| Preserve baseline gate | NOT REACHED |
+| Blocker | `psql` client missing on Chief box |
+| Package | [HOSTED_REQUAL_20260920](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL_20260920/) |
+
+DAYBREAK HOLD pending assessment. Do not invent PASS. No second reset under this budget.
+
+
 ## Incomplete requirements (why they matter)
 
 1. **Hosted raw fingerprint equality** — local profile acceptance does not satisfy hosted equality. QUALIFICATION PASS / `localApplicationComplete` remain false. Frozen SQL must not be patched. See [attempt 2 DIFFERENCE_TABLE](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/DIFFERENCE_TABLE.md).
@@ -90,7 +112,7 @@ Evidence: [F23 package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATIO
 |---------|--------|
 | Local profile | ACCEPTED under `LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1` (derived from retained capture) |
 | Raw local capture | `F23_FINGERPRINT_MISMATCH` unchanged |
-| Hosted disposable / production | **Not contacted.** DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN |
+| Hosted disposable / production | Disposable `jkorwnwwmdeflfntxntl` contacted for inventory capture only; **failed before inventory** (`F13_INVENTORY_CAPTURE_PROCESS_FAILED`). Production never contacted. DAYBREAK HOLD — STOPPED AT RESET |
 | Production | Forever denied from this work |
 | Astra | UNAVAILABLE — NO VERDICT |
 | QA (this contract) | VillageClaq QA — F23 LOCAL ACCEPTANCE CONTRACT ACCEPT (offline only; 7/7+10/10; material findings none) |

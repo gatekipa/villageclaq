@@ -1,0 +1,11 @@
+{
+  "targetRef": "jkorwnwwmdeflfntxntl",
+  "functionalCandidateSha": "66be2b4797515975d737a0fd66656bc4c0de2145",
+  "closureDigest": "b276d0cb9b39efd10f67422948b4cf9a6353359c116ab657d379c7c7f467a211",
+  "scopeSqlIdentitySha256": "d95d96e02a3a1844977d852fa23a64f742b79b5f767984b6a2d4512cbe02632f",
+  "executionBudget": {
+    "constrainedResets": 1,
+    "completeQualsFrom00118": 1,
+    "secondReset": false
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "status": "NOT_RUN",
+  "reason": "Stopped after qualification-reset required-check failure F13_INVENTORY_CAPTURE_PROCESS_FAILED; budget forbids running qualification without passing reset and forbids second reset",
+  "verificationModeWouldHaveBeen": "fault-injection"
+}

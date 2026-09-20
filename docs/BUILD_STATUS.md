@@ -41,6 +41,7 @@ Closest linked artifacts (none of these is that missing plan):
 | Process/status closeout | `98c8c3d2d2164defef95b715e8f3258bad4e819d` |
 | Fingerprint-retention executable | `8346c856b7ddbb75b7e4dbaf57a42fc14e6d8f78` |
 | Documentation/evidence head at capture attempt | `94b7b53f01c707bbbeda5416f4ab555393f9ce08` |
+| Capture-addendum content | `f26b91e433c2dd6324c13560b9a8e7659d895a9e` |
 | Helper blob at that checkout | `4099edd183a3ec0b73302b80ac7fd0f126d6f6de` (`scripts/prove-f3-qualification-reset-local.mjs`) |
 | Authoritative PR | [#84](https://github.com/gatekipa/villageclaq/pull/84) OPEN DRAFT UNMERGED, title DAYBREAK HOLD |
 | Aligned PRs | #85 / #86 (same title, same head) |

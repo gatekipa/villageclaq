@@ -25,6 +25,7 @@ DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PR
 | FUNCTIONAL_TIP | `77fd61dbf51652acabec0093d2a8549524b2dd75` |
 | Retention-helper commit | `8346c856b7ddbb75b7e4dbaf57a42fc14e6d8f78` |
 | Documentation/evidence head at attempt | `94b7b53f01c707bbbeda5416f4ab555393f9ce08` |
+| Capture-addendum content | `f26b91e433c2dd6324c13560b9a8e7659d895a9e` |
 | Helper blob at that checkout | `4099edd183a3ec0b73302b80ac7fd0f126d6f6de` |
 | Helper path | `scripts/prove-f3-qualification-reset-local.mjs` |
 | F23 historical package | `docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920/` |

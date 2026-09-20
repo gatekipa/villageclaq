@@ -9,6 +9,7 @@ No hosted / disposable / production contact.
 | Item | Value |
 |------|-------|
 | Recorded checkout SHA | `94b7b53f01c707bbbeda5416f4ab555393f9ce08` |
+| Capture-addendum content | `f26b91e433c2dd6324c13560b9a8e7659d895a9e` |
 | Contains retention helper | yes (`8346c856b7ddbb75b7e4dbaf57a42fc14e6d8f78` is ancestor) |
 | Helper path | `scripts/prove-f3-qualification-reset-local.mjs` |
 | Helper git commit | `8346c856b7ddbb75b7e4dbaf57a42fc14e6d8f78` |

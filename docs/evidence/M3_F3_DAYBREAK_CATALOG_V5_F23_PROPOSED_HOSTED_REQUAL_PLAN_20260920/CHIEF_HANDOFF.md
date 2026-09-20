@@ -27,7 +27,7 @@ QA: VillageClaq QA — F23 LOCAL ACCEPTANCE CONTRACT ACCEPT (already landed; not
 
 | Item | Value |
 |------|-------|
-| Final evidence head | this package commit on `feat/m3-f3-01-05-forward-foundation-9b17` (see Pins after bind) |
+| Package content SHA | `b549656d30dd6ed931715222d618a1d0e9f3c658` |
 | Functional SHA (unchanged) | `66be2b4797515975d737a0fd66656bc4c0de2145` |
 | Current plan path | `docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_PROPOSED_HOSTED_REQUAL_PLAN_20260920/PROPOSED_HOSTED_REQUAL_PLAN.md` |
 | Full SHA-256 of plan bytes | `bf9ca7b6c408d72b9f1231f223628a41e77fe275132acf273cd5386dd8c3b138` (20690 bytes) |
@@ -64,6 +64,7 @@ If all six files classify `POST_COMMIT_HISTORY_FAILURE` and pass raw/repair-safe
 |------|-------|
 | Starting head | `9a78e2713d59c2656ca749ee63930bceb8d233fb` |
 | FUNCTIONAL_TIP | `66be2b4797515975d737a0fd66656bc4c0de2145` |
+| Package content | `b549656d30dd6ed931715222d618a1d0e9f3c658` |
 | QA package content | `b71e07ef6f1736438631034d6fe82328998b4c60` |
 | Shared branch | `feat/m3-f3-01-05-forward-foundation-9b17` |
 | Authoritative PR | #84 OPEN DRAFT UNMERGED DAYBREAK HOLD |

@@ -1,0 +1,26 @@
+{
+  "schema": "f23-fingerprint-field-diff-v1",
+  "capturedAt": "2026-09-20T05:46:46Z",
+  "helper": "scripts/prove-f3-qualification-reset-local.mjs",
+  "compareUnchanged": true,
+  "fingerprintAcceptanceUnchanged": true,
+  "captureExecuted": false,
+  "dbApplyExecuted": false,
+  "remainingHold": "F23_FINGERPRINT_MISMATCH",
+  "blocker": {
+    "code": "MUST_LOCAL",
+    "detail": "LOCAL_PG17_AND_CLI_2_117_0_ABSENT",
+    "psql": "MISSING",
+    "postgresServer": "MISSING",
+    "unixSocket": "/var/run/postgresql MISSING",
+    "supabaseCli": "MISSING",
+    "homeLocalBinSupabase": "MISSING",
+    "ubuntuArchivePostgresqlCandidate": "16+257build1.1",
+    "helperRequiresServerVersion": "^17",
+    "helperRequiresCli": "2.117.0",
+    "proveCommandRun": false,
+    "reasonProveCommandNotRun": "Running the helper without psql/CLI would only emit MUST_LOCAL placeholders and would not be a complete normal-application capture. The one authorized capture remains unused."
+  },
+  "retention": null,
+  "files": []
+}

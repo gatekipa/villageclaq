@@ -4,8 +4,10 @@
   "f22QaContent": "f18331337c36e7c50cd1323c0202a298a4704e03",
   "f22EvidencePackage": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919",
   "functionalTip": "77fd61dbf51652acabec0093d2a8549524b2dd75",
-  "evidenceTip": "dccaa795c800a2fe0b4f370b6234f875bd2655d9",
+  "evidenceTip": "b61c640b069c8568820d4e02516518bd45a7fc7f",
+  "packageContentBeforeQa": "dccaa795c800a2fe0b4f370b6234f875bd2655d9",
   "ancestry": [
+    "b61c640b069c8568820d4e02516518bd45a7fc7f",
     "c0a6746516b115b9e1db6ce311c4a4fe80113b01",
     "dccaa795c800a2fe0b4f370b6234f875bd2655d9",
     "77fd61dbf51652acabec0093d2a8549524b2dd75",

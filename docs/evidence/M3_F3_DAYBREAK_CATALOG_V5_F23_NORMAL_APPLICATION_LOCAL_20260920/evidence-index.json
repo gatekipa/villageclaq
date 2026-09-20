@@ -9,8 +9,8 @@
   "artifacts": [
     {
       "path": "CHIEF_HANDOFF.md",
-      "sha256": "805adb0ed44a7a014353cc457d25479356e2762c79f22905c68b8b712caef88b",
-      "bytes": 7854
+      "sha256": "2c6f852467e0eec2611deb458f0712d2f21d3a9dcf1145244f2c936c0376c148",
+      "bytes": 7954
     },
     {
       "path": "closure/CLOSURES.json",
@@ -39,7 +39,7 @@
     },
     {
       "path": "LABEL.json",
-      "sha256": "de0bc0bdd2f5939ffd4dc663704fd294661096b1ac325041212adcc1ddccf336",
+      "sha256": "172b4052b326d1d6d6acb4a9a91909c8f924946ea30a108ffec06df7be881997",
       "bytes": 1074
     },
     {
@@ -99,13 +99,13 @@
     },
     {
       "path": "pack-summary.json",
-      "sha256": "a4c3651514fa33f033fede8c739a195efc588b7fe35c37593c2d8430985ca37b",
+      "sha256": "efaed0f9a57f9b3208f98e9401819a74f39ea6f8b486d52bf88bfa840ed89f2a",
       "bytes": 944
     },
     {
       "path": "PINS.json",
-      "sha256": "9c3c9adad2110ccce9b8fe16245956cfef99e469122262e7e2206302583a9c2a",
-      "bytes": 1522
+      "sha256": "90a3e52d74b95260c62170a0ef9aa1c8ba250d11c9f5b14e3671fd353fcb2b2a",
+      "bytes": 1642
     },
     {
       "path": "PROPOSED_HOSTED_REQUAL_PLAN.md",

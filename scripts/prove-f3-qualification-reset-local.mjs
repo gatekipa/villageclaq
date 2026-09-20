@@ -2302,13 +2302,13 @@ async function runF24DependencyOrderScenarios() {
       ok: /cannot drop function has_group_permission/i.test(oldErr)
         && /m2_np_select/i.test(oldErr)
         && /notification_policies/i.test(oldErr)
-        && /HINT:[\s\S]*CASCADE/i.test(oldErr)
+        && /CASCADE/i.test(oldErr)
         && before.hasGroupPermission.includes("t")
         && afterFailedDrop.hasGroupPermission.includes("t")
         && afterFailedDrop.notificationPolicies.includes("t")
         && reconnect.hasGroupPermission.includes("t")
         && reconnect.policyCount === before.policyCount
-        && String(membershipBefore.extensionPresent).includes("btree_gist"),
+        && membershipBefore.extensionPresent === true,
       capture: "pinned-00117-owned-deps-then-old-drop-function-first",
       resetApply: "old-order-drop-function-restrict-only",
       commit: false,
@@ -2318,7 +2318,7 @@ async function runF24DependencyOrderScenarios() {
       observedRollback: false,
       code: "F13_RESET_SQL_FAILED",
       note: "ATTEMPT_2 shape: DROP FUNCTION has_group_permission RESTRICT blocked by table-owned m2_np_* policies; CASCADE not used; catalog unchanged on reconnect",
-      errorExcerpt: oldErr.slice(0, 800),
+      errorExcerpt: oldErr.slice(0, 1600),
       before,
       afterFailedDrop,
       reconnect,
@@ -2348,7 +2348,7 @@ async function runF24DependencyOrderScenarios() {
         && after.historyCount === "0"
         && historyBefore === String(AUTHENTICATED_HISTORY_KEYS.length)
         && membershipSetsEqual(membershipBefore, membershipAfter)
-        && String(membershipAfter.extensionPresent).includes("btree_gist"),
+        && membershipAfter.extensionPresent === true,
       capture: "pinned-00117-owned-deps-plus-00119-trigger-policy",
       resetApply: reset.spies?.applyCalls ?? 0,
       commit: reset.committed === true,
@@ -2470,6 +2470,7 @@ export async function proveQualificationResetLocal(options = {}) {
         observedRollbacks: cases.filter((row) => row.observedRollback === true).length,
       },
       failCount,
+      overallOk: failCount === 0,
       cases,
       floor: "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
     };

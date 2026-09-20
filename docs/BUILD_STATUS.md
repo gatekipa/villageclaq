@@ -41,7 +41,7 @@ Closest linked artifacts (none of these is that missing plan):
 | Role | Value |
 |------|-------|
 | FUNCTIONAL_TIP | `66be2b4797515975d737a0fd66656bc4c0de2145` |
-| Evidence / status tip | `0eb84ac20169ecb9288c7747aea9c31a18cc8425` |
+| Evidence / status tip | `b71e07ef6f1736438631034d6fe82328998b4c60` |
 | Evidence tip reviewed by QA / prior PR heads | `b71f6fa37ac27dd559d9af09aa5fb0f3d9e74367` |
 | QA verdict | VillageClaq QA — F23 LOCAL ACCEPTANCE CONTRACT ACCEPT |
 | Start of this contract implementation | `b8bde21770b347b5dd6f0c4cc5f4fd3ae0f267ae` |

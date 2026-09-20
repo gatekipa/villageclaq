@@ -29,7 +29,7 @@ QA: VillageClaq QA — **F23 LOCAL ACCEPTANCE CONTRACT ACCEPT** (offline only; 7
 |------|-------|
 | Starting head | `b8bde21770b347b5dd6f0c4cc5f4fd3ae0f267ae` |
 | FUNCTIONAL_TIP | `66be2b4797515975d737a0fd66656bc4c0de2145` |
-| Evidence / status tip | `0eb84ac20169ecb9288c7747aea9c31a18cc8425` |
+| Evidence / status tip | `b71e07ef6f1736438631034d6fe82328998b4c60` |
 | Evidence tip reviewed by QA / prior PR heads | `b71f6fa37ac27dd559d9af09aa5fb0f3d9e74367` |
 | Shared branch | `feat/m3-f3-01-05-forward-foundation-9b17` |
 | Authoritative PR | #84 OPEN DRAFT UNMERGED DAYBREAK HOLD |

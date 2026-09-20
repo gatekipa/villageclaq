@@ -45,7 +45,7 @@ Closest linked artifacts (none of these is that missing plan):
 | FUNCTIONAL_TIP | `66be2b4797515975d737a0fd66656bc4c0de2145` |
 | Starting #84/#85/#86 head for this plan | `9a78e2713d59c2656ca749ee63930bceb8d233fb` |
 | Proposed-plan package content | `b549656d30dd6ed931715222d618a1d0e9f3c658` |
-| Evidence / status tip (this plan bind) | `ffc183774502caffc5504e1152d865998e4ec47f` |
+| Evidence / status tip (this plan bind) | `db628d03ec7e35c54afac2abac45d93b6ff71b36` |
 | QA package content | `b71e07ef6f1736438631034d6fe82328998b4c60` |
 | Evidence tip reviewed by QA / prior PR heads | `b71f6fa37ac27dd559d9af09aa5fb0f3d9e74367` |
 | QA verdict | VillageClaq QA — F23 LOCAL ACCEPTANCE CONTRACT ACCEPT |

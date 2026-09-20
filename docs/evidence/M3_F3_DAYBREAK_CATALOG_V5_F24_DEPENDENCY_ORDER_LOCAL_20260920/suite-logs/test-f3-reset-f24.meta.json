@@ -1,0 +1,12 @@
+{
+  "command": "node --test --test-name-pattern=F24 scripts/test-f3-qualification-reset.mjs",
+  "exit": 0,
+  "tests": 2,
+  "pass": 2,
+  "fail": 0,
+  "includes": [
+    "F24 generated reset SQL drops 00117/00119 owning tables before helper functions",
+    "F24 focused dependency-order local cases or MUST_LOCAL"
+  ],
+  "livePgDurationMs": 4128.917126
+}

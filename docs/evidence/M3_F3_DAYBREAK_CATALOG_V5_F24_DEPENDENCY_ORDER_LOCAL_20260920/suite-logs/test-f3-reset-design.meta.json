@@ -1,0 +1,8 @@
+{
+  "command": "node --test scripts/test-f3-qualification-reset-design.mjs",
+  "exit": 0,
+  "tests": 34,
+  "pass": 34,
+  "fail": 0,
+  "includes": "F24-D01 pinned DDL owned policies/triggers/CHECKs drop before their helper functions"
+}

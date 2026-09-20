@@ -321,6 +321,7 @@ function parseHelperArgs(argv = process.argv.slice(2)) {
   const outIdx = argv.indexOf("--fingerprint-diff-out");
   return {
     normalApplicationOnly: argv.includes("--normal-application-only"),
+    dependencyOrderOnly: argv.includes("--dependency-order-only"),
     fingerprintDiffOut: outIdx >= 0 ? argv[outIdx + 1] : (process.env.F23_FINGERPRINT_DIFF_OUT || null),
   };
 }
@@ -980,6 +981,103 @@ function dropApprovedDependencyState(psql, url) {
   psql(url, "DROP TABLE IF EXISTS public.profiles RESTRICT;");
   psql(url, "DROP FUNCTION IF EXISTS public.post_financial_opening_cash(jsonb) RESTRICT;");
   psql(url, "DELETE FROM supabase_migrations.schema_migrations;");
+}
+
+function extract00117OwnedDepSql() {
+  const sql = fs.readFileSync(
+    path.join(ROOT, "supabase/migrations/00117_m2_notification_policy_foundation.sql"),
+    "utf8",
+  );
+  const start = sql.indexOf("CREATE FUNCTION public.m2_is_valid_iana_timezone");
+  const end = sql.indexOf("COMMENT ON POLICY m2_np_select");
+  if (start < 0 || end < 0 || end <= start) {
+    throw new Error("00117 owned-dep slice markers missing");
+  }
+  return sql.slice(start, end);
+}
+
+function preparePinnedOwnedDepCatalog(psql, url) {
+  psql(url, "CREATE SCHEMA IF NOT EXISTS supabase_migrations;");
+  psql(url, `CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (
+    version text PRIMARY KEY,
+    name text
+  );`);
+  psql(url, "CREATE SCHEMA IF NOT EXISTS storage;");
+  psql(url, "CREATE TABLE IF NOT EXISTS storage.buckets (id text PRIMARY KEY);");
+  psql(url, "CREATE EXTENSION IF NOT EXISTS btree_gist;");
+  psql(url, `DO $f24_roles$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    CREATE ROLE anon NOLOGIN;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    CREATE ROLE authenticated NOLOGIN;
+  END IF;
+END
+$f24_roles$;`);
+  psql(url, "CREATE TABLE public.groups (id uuid PRIMARY KEY);");
+  psql(url, `CREATE TABLE public.memberships (
+    id uuid PRIMARY KEY,
+    group_id uuid NOT NULL REFERENCES public.groups(id)
+  );`);
+  psql(url, `CREATE FUNCTION public.has_group_permission(gid uuid, perm_key text, uid uuid DEFAULT NULL)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SET search_path TO ''
+AS $f24_hgp$
+BEGIN
+  RETURN false;
+END
+$f24_hgp$;`);
+  psql(url, extract00117OwnedDepSql());
+  psql(url, "CREATE SCHEMA IF NOT EXISTS financial_core;");
+  psql(url, `CREATE TABLE public.financial_accounts (
+    id uuid PRIMARY KEY,
+    group_id uuid
+  );`);
+  psql(url, `CREATE FUNCTION financial_core.guard_financial_account()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path TO ''
+AS $f24_gfa$
+BEGIN
+  RETURN COALESCE(NEW, OLD);
+END
+$f24_gfa$;`);
+  psql(url, `CREATE TRIGGER financial_accounts_guard
+BEFORE INSERT OR UPDATE OR DELETE ON public.financial_accounts
+FOR EACH ROW EXECUTE FUNCTION financial_core.guard_financial_account();`);
+  psql(url, `CREATE FUNCTION financial_core.can_manage_finances(p_group_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SET search_path TO ''
+AS $f24_cmf$
+  SELECT EXISTS (
+    SELECT 1 FROM public.memberships m WHERE m.group_id = p_group_id
+  ) AND public.has_group_permission(p_group_id, 'finances.manage', NULL);
+$f24_cmf$;`);
+  psql(url, `CREATE POLICY financial_accounts_manager_select
+  ON public.financial_accounts FOR SELECT TO authenticated
+  USING ((SELECT financial_core.can_manage_finances(group_id)));`);
+  psql(url, "ALTER TABLE public.financial_accounts ENABLE ROW LEVEL SECURITY;");
+  seedHistory(psql, url);
+}
+
+function catalogOwnedDepSnapshot(psql, url) {
+  return {
+    hasGroupPermission: String(psql(url, "SELECT to_regprocedure('public.has_group_permission(uuid,text,uuid)') IS NOT NULL;")),
+    notificationPolicies: String(psql(url, "SELECT to_regclass('public.notification_policies') IS NOT NULL;")),
+    notificationTriggers: String(psql(url, "SELECT to_regclass('public.notification_policy_triggers') IS NOT NULL;")),
+    notificationOccurrences: String(psql(url, "SELECT to_regclass('public.notification_policy_occurrences') IS NOT NULL;")),
+    financialAccounts: String(psql(url, "SELECT to_regclass('public.financial_accounts') IS NOT NULL;")),
+    policyCount: String(psql(url, `SELECT count(*)::text FROM pg_policy
+      WHERE polname LIKE 'm2_np%' OR polname LIKE 'm2_npt%' OR polname LIKE 'm2_npo%'
+         OR polname = 'financial_accounts_manager_select';`)),
+    historyCount: String(psql(url, "SELECT count(*)::text FROM supabase_migrations.schema_migrations;")),
+    btreeGist: String(psql(url, "SELECT extname FROM pg_extension WHERE extname = 'btree_gist';")),
+  };
 }
 
 function sqlLiteral(value) {
@@ -2161,8 +2259,221 @@ async function runLocalPgScenarios({ normalApplicationOnly = false } = {}) {
   return { available: true, scenarios, serverVersion };
 }
 
+const F24_FOCUSED_SCENARIO_IDS = Object.freeze([
+  "F24_OLD_ORDER_REPRODUCES_HGP_POLICY_DEPENDENCY",
+  "F24_CORRECTED_RESET_COMMITS_PRESERVE_BASELINE",
+  "F24_UNSUPPORTED_DEPENDENT_BLOCKS_DURABLE",
+]);
+
+async function runF24DependencyOrderScenarios() {
+  const created = await maybeCreateLocalDb();
+  if (!created.ok) {
+    return {
+      available: false,
+      reason: created.reason,
+      serverVersion: null,
+      scenarios: F24_FOCUSED_SCENARIO_IDS.map((id) => mustLocalRecord(id)),
+    };
+  }
+  const { psql } = created.mod;
+  const scenarios = [];
+  let serverVersion = null;
+  try {
+    serverVersion = String(psql(created.db.url, "SHOW server_version;")).trim();
+    created.db.close();
+  } catch {
+    try { created.db.close(); } catch { /* isolate */ }
+  }
+
+  const oldDb = created.mod.createDisposableDatabase("f24_old_order");
+  try {
+    preparePinnedOwnedDepCatalog(psql, oldDb.url);
+    const before = catalogOwnedDepSnapshot(psql, oldDb.url);
+    const membershipBefore = snapshotExtensionMembership(psql, oldDb.url);
+    let oldErr = "";
+    try {
+      psql(oldDb.url, "DROP FUNCTION IF EXISTS public.has_group_permission(uuid,text,uuid) RESTRICT;");
+    } catch (err) {
+      oldErr = String(err?.message || err);
+    }
+    const afterFailedDrop = catalogOwnedDepSnapshot(psql, oldDb.url);
+    const reconnect = catalogOwnedDepSnapshot(psql, oldDb.url);
+    scenarios.push(record("F24_OLD_ORDER_REPRODUCES_HGP_POLICY_DEPENDENCY", "scenario", {
+      ok: /cannot drop function has_group_permission/i.test(oldErr)
+        && /m2_np_select/i.test(oldErr)
+        && /notification_policies/i.test(oldErr)
+        && /HINT:[\s\S]*CASCADE/i.test(oldErr)
+        && before.hasGroupPermission.includes("t")
+        && afterFailedDrop.hasGroupPermission.includes("t")
+        && afterFailedDrop.notificationPolicies.includes("t")
+        && reconnect.hasGroupPermission.includes("t")
+        && reconnect.policyCount === before.policyCount
+        && String(membershipBefore.extensionPresent).includes("btree_gist"),
+      capture: "pinned-00117-owned-deps-then-old-drop-function-first",
+      resetApply: "old-order-drop-function-restrict-only",
+      commit: false,
+      executedTransaction: true,
+      mutationAttempted: true,
+      confirmedCommit: false,
+      observedRollback: false,
+      code: "F13_RESET_SQL_FAILED",
+      note: "ATTEMPT_2 shape: DROP FUNCTION has_group_permission RESTRICT blocked by table-owned m2_np_* policies; CASCADE not used; catalog unchanged on reconnect",
+      errorExcerpt: oldErr.slice(0, 800),
+      before,
+      afterFailedDrop,
+      reconnect,
+    }));
+  } finally {
+    try { oldDb.close(); } catch { /* isolate */ }
+  }
+
+  const okDb = created.mod.createDisposableDatabase("f24_corrected");
+  try {
+    preparePinnedOwnedDepCatalog(psql, okDb.url);
+    const membershipBefore = snapshotExtensionMembership(psql, okDb.url);
+    const historyBefore = String(psql(okDb.url, "SELECT count(*)::text FROM supabase_migrations.schema_migrations;"));
+    const capture = captureViaLocalPsql(psql, okDb.url);
+    const observed = capture.ok ? observedFromQualificationResetCapture(capture.body) : capture;
+    const reset = observed.ok ? await executeSharedReset(okDb, observed) : observed;
+    const membershipAfter = snapshotExtensionMembership(psql, okDb.url);
+    const after = catalogOwnedDepSnapshot(psql, okDb.url);
+    const evidence = processEvidence(reset);
+    scenarios.push(record("F24_CORRECTED_RESET_COMMITS_PRESERVE_BASELINE", "scenario", {
+      ok: reset.ok === true
+        && reset.committed === true
+        && reset.verdict === "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1"
+        && after.hasGroupPermission.includes("f")
+        && after.notificationPolicies.includes("f")
+        && after.financialAccounts.includes("f")
+        && after.historyCount === "0"
+        && historyBefore === String(AUTHENTICATED_HISTORY_KEYS.length)
+        && membershipSetsEqual(membershipBefore, membershipAfter)
+        && String(membershipAfter.extensionPresent).includes("btree_gist"),
+      capture: "pinned-00117-owned-deps-plus-00119-trigger-policy",
+      resetApply: reset.spies?.applyCalls ?? 0,
+      commit: reset.committed === true,
+      executedTransaction: true,
+      mutationAttempted: reset.spies?.mutateAttempted === 1,
+      confirmedCommit: reset.spies?.commitConfirmed === 1,
+      observedRollback: reset.spies?.rollbackObserved === 1,
+      verdict: reset.verdict,
+      note: "Corrected allowlist order commits QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1; btree_gist membership unchanged; approved history rows removed",
+      after,
+      membership: {
+        beforeCount: membershipBefore.memberCount,
+        afterCount: membershipAfter.memberCount,
+        equal: membershipSetsEqual(membershipBefore, membershipAfter),
+      },
+      ...evidence,
+    }));
+  } finally {
+    try { okDb.close(); } catch { /* isolate */ }
+  }
+
+  const blockDb = created.mod.createDisposableDatabase("f24_unsup_dep");
+  try {
+    preparePinnedOwnedDepCatalog(psql, blockDb.url);
+    psql(blockDb.url, `CREATE TABLE public.retained_out_of_scope (
+      id uuid PRIMARY KEY,
+      group_id uuid
+    );`);
+    psql(blockDb.url, `CREATE POLICY leftover_hgp ON public.retained_out_of_scope
+      FOR SELECT TO authenticated
+      USING (public.has_group_permission(group_id, 'settings.manage'));`);
+    const before = catalogOwnedDepSnapshot(psql, blockDb.url);
+    const leftoverBefore = String(psql(blockDb.url, "SELECT to_regclass('public.retained_out_of_scope') IS NOT NULL;"));
+    const capture = captureViaLocalPsql(psql, blockDb.url);
+    const observed = capture.ok ? observedFromQualificationResetCapture(capture.body) : capture;
+    const reset = observed.ok ? await executeSharedReset(blockDb, observed) : observed;
+    const eligibility = observed.ok
+      ? evaluateQualificationResetEligibility({
+        observedObjectIdentities: observed.observedObjects,
+        observedDependencies: observed.observedDependencies,
+        observedHistoryRows: observed.observedHistoryRows,
+        inventory: observed.inventory,
+        inventoryCaptured: true,
+        captureComplete: true,
+      })
+      : observed;
+    const after = catalogOwnedDepSnapshot(psql, blockDb.url);
+    const leftoverAfter = String(psql(blockDb.url, "SELECT to_regclass('public.retained_out_of_scope') IS NOT NULL;"));
+    const leftoverPolicy = String(psql(blockDb.url, "SELECT polname FROM pg_policy WHERE polname = 'leftover_hgp';"));
+    const blocked = (
+      (eligibility.ok === false && eligibility.code === "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY")
+      || (reset.ok === false && reset.committed !== true)
+    );
+    scenarios.push(record("F24_UNSUPPORTED_DEPENDENT_BLOCKS_DURABLE", "scenario", {
+      ok: blocked
+        && leftoverBefore.includes("t")
+        && leftoverAfter.includes("t")
+        && leftoverPolicy.includes("leftover_hgp")
+        && after.hasGroupPermission.includes("t")
+        && after.notificationPolicies.includes("t")
+        && after.historyCount === before.historyCount
+        && reset.committed !== true,
+      capture: "pinned-owned-deps-plus-out-of-scope-policy-table",
+      resetApply: reset.spies?.applyCalls ?? 0,
+      commit: false,
+      executedTransaction: reset.spies?.applyCalls >= 1 || eligibility.ok === false,
+      mutationAttempted: reset.spies?.mutateAttempted === 1,
+      confirmedCommit: reset.spies?.commitConfirmed === 1,
+      observedRollback: reset.spies?.rollbackObserved === 1,
+      code: eligibility.code || reset.code,
+      note: "Out-of-scope table+policy on has_group_permission remains; no CASCADE; durable state verified on a subsequent statement",
+      leftoverAfter,
+      leftoverPolicy,
+      after,
+    }));
+  } finally {
+    try { blockDb.close(); } catch { /* isolate */ }
+  }
+
+  return { available: true, scenarios, serverVersion };
+}
+
 export async function proveQualificationResetLocal(options = {}) {
   const helperArgs = { ...parseHelperArgs(), ...options };
+  if (helperArgs.dependencyOrderOnly === true) {
+    const pgProbe = tryLocalPg();
+    const pg = pgProbe.status === 0
+      ? await runF24DependencyOrderScenarios()
+      : {
+        available: false,
+        reason: "psql binary not present",
+        serverVersion: null,
+        scenarios: F24_FOCUSED_SCENARIO_IDS.map((id) => mustLocalRecord(id)),
+      };
+    const cases = pg.scenarios;
+    const failCount = cases.filter((row) => row.ok !== true).length;
+    return {
+      schema: "f18-qualification-reset-local-proof-v1",
+      label: "F24 DEPENDENCY-ORDER LOCAL PROOF",
+      helper: HELPER_RELPATH,
+      hostedIdentityProof: false,
+      disposableContact: false,
+      productionContact: false,
+      wipeRejectionCode: F13_WIPE_REJECTION_CODE,
+      mustLocal: pg.available !== true,
+      dependencyOrderOnly: true,
+      localPg: {
+        available: pg.available === true,
+        reason: pg.available ? null : (pg.reason || "MUST_LOCAL"),
+        classification: pg.available ? "LOCAL_PG_EXECUTED" : "MUST_LOCAL",
+        serverVersion: pg.serverVersion || null,
+      },
+      distinctions: {
+        checks: 0,
+        scenarios: cases.filter((row) => row.kind === "scenario").length,
+        executedTransactions: cases.filter((row) => row.executedTransaction === true).length,
+        mutationAttempts: cases.filter((row) => row.mutationAttempted === true).length,
+        confirmedCommits: cases.filter((row) => row.confirmedCommit === true).length,
+        observedRollbacks: cases.filter((row) => row.observedRollback === true).length,
+      },
+      failCount,
+      cases,
+      floor: "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+    };
+  }
   const checks = runOfflineChecks();
   const pgProbe = tryLocalPg();
   const pg = pgProbe.status === 0

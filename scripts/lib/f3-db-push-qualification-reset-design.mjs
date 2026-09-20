@@ -258,7 +258,9 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 90,
+    // After notification_* tables (900–920). 00117 policies m2_np_*/m2_npt_*/m2_npo_*
+    // are table-owned; DROP FUNCTION RESTRICT before those tables is the ATTEMPT_2 defect.
+    dropOrder: 925,
   }),
   obj({
     id: "fn.public.compute_member_standing",
@@ -282,7 +284,9 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 110,
+    // After notification_policies (920). 00117 CHECK notification_policies_timezone_iana
+    // is table-owned.
+    dropOrder: 926,
   }),
   obj({
     id: "fn.public.notification_policy_set_updated_at",
@@ -294,7 +298,9 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 120,
+    // After notification_* tables (900–920). 00117 trg_notification_*_updated_at
+    // triggers are table-owned.
+    dropOrder: 927,
   }),
   obj({
     id: "fn.public.uuid_generate_v5",
@@ -342,7 +348,8 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 220,
+    // After opening_provenances (700). 00123 trigger opening_provenances_immutable is table-owned.
+    dropOrder: 801,
   }),
   obj({
     id: "fn.financial_core.correct_f3_command",
@@ -366,7 +373,8 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 240,
+    // After correction_command_payloads (710). 00122 constraint trigger is table-owned.
+    dropOrder: 802,
   }),
   obj({
     id: "fn.financial_core.guard_f3_correction_lineage",
@@ -378,7 +386,8 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 250,
+    // After financial_events (740). 00122 trigger financial_events_f3_correction_lineage is table-owned.
+    dropOrder: 803,
   }),
   obj({
     id: "fn.financial_core.assert_f3_correction_postings",
@@ -498,7 +507,8 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 350,
+    // After correction_command_payloads (710). 00122 trigger is table-owned.
+    dropOrder: 804,
   }),
   obj({
     id: "fn.financial_core.projection_cashbook_rows",
@@ -558,7 +568,8 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 400,
+    // After posting_command_payloads (720). 00120 constraint trigger is table-owned.
+    dropOrder: 805,
   }),
   obj({
     id: "fn.financial_core.guard_f3_posting_closure",
@@ -570,7 +581,8 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 410,
+    // After financial_postings (730). 00120 trigger financial_postings_f3_closure is table-owned.
+    dropOrder: 806,
   }),
   obj({
     id: "fn.financial_core.guard_f3_payload",
@@ -582,7 +594,8 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 420,
+    // After posting_command_payloads (720). 00120 trigger posting_command_payloads_immutable is table-owned.
+    dropOrder: 807,
   }),
   obj({
     id: "fn.financial_core.f3_fingerprint",
@@ -702,7 +715,10 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 520,
+    // After financial_* tables that own 00119 reader policies (730–770), and
+    // before public.memberships (1170) and has_group_permission (925): LANGUAGE sql
+    // hard-depends on both.
+    dropOrder: 808,
   }),
   obj({
     id: "fn.financial_core.can_manage_finances",
@@ -714,7 +730,10 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 530,
+    // After financial_* tables that own 00119 manager policies (730–770), and
+    // before public.memberships (1170) and has_group_permission (925): LANGUAGE sql
+    // hard-depends on both.
+    dropOrder: 809,
   }),
   obj({
     id: "fn.financial_core.check_event_balance_from_posting",
@@ -726,7 +745,8 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 540,
+    // After financial_postings (730). 00119 balance trigger is table-owned.
+    dropOrder: 810,
   }),
   obj({
     id: "fn.financial_core.check_event_balance_from_event",
@@ -738,7 +758,8 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 550,
+    // After financial_events (740). 00119 balance trigger is table-owned.
+    dropOrder: 811,
   }),
   obj({
     id: "fn.financial_core.assert_financial_event_balanced",
@@ -762,7 +783,8 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 570,
+    // After financial_postings (730). 00119 history trigger is table-owned.
+    dropOrder: 812,
   }),
   obj({
     id: "fn.financial_core.guard_financial_event_history",
@@ -774,7 +796,8 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 580,
+    // After financial_events (740). 00119 history trigger is table-owned.
+    dropOrder: 813,
   }),
   obj({
     id: "fn.financial_core.guard_financial_event_epoch",
@@ -786,7 +809,8 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 590,
+    // After financial_events (740). 00119 epoch trigger is table-owned.
+    dropOrder: 814,
   }),
   obj({
     id: "fn.financial_core.guard_financial_category",
@@ -798,7 +822,8 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 600,
+    // After financial_categories (750). 00119 trigger is table-owned.
+    dropOrder: 815,
   }),
   obj({
     id: "fn.financial_core.guard_financial_fund",
@@ -810,7 +835,8 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 610,
+    // After financial_funds (760). 00119 trigger is table-owned.
+    dropOrder: 816,
   }),
   obj({
     id: "fn.financial_core.guard_financial_account",
@@ -822,7 +848,8 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 620,
+    // After financial_accounts (770). 00119 trigger is table-owned.
+    dropOrder: 817,
   }),
   obj({
     id: "fn.financial_core.currency_scale",
@@ -834,7 +861,9 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 630,
+    // After financial_accounts/events/postings (730–770). 00119 CHECKs
+    // financial_*_currency_supported / financial_postings_amount_precision are table-owned.
+    dropOrder: 819,
   }),
   obj({
     id: "fn.financial_private.guard_ledger_epoch",
@@ -846,7 +875,8 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_FN,
     permittedDependentEffects: [],
-    dropOrder: 640,
+    // After financial_ledger_epochs (780). 00118 trigger financial_ledger_epoch_guard is table-owned.
+    dropOrder: 818,
   }),
   obj({
     id: "tbl.financial_core.opening_provenances",
@@ -977,7 +1007,7 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     provenance: P_HIST,
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_TBL,
-    permittedDependentEffects: [OWNED, "policies m2_npt_select, m2_npt_insert, m2_npt_update, m2_npt_delete"],
+    permittedDependentEffects: [OWNED, "policies m2_npt_select, m2_npt_insert, m2_npt_update, m2_npt_delete", "trigger trg_notification_policy_triggers_updated_at"],
     dropOrder: 900,
   }),
   obj({
@@ -988,7 +1018,7 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     provenance: P_HIST,
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_TBL,
-    permittedDependentEffects: [OWNED],
+    permittedDependentEffects: [OWNED, "policy m2_npo_select", "trigger trg_notification_policy_occurrences_updated_at"],
     dropOrder: 910,
   }),
   obj({
@@ -999,7 +1029,7 @@ export const FINITE_OBJECT_ALLOWLIST = Object.freeze([
     provenance: P_HIST,
     requiredStartingState: PRESENT_OR_ABSENT,
     intendedAction: DROP_TBL,
-    permittedDependentEffects: [OWNED],
+    permittedDependentEffects: [OWNED, "policies m2_np_select, m2_np_insert, m2_np_update, m2_np_delete", "trigger trg_notification_policies_updated_at", "constraint notification_policies_timezone_iana"],
     dropOrder: 920,
   }),
   obj({

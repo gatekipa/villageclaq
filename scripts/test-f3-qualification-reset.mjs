@@ -1601,6 +1601,88 @@ test("F15-C4-R03 new protocol still rejects equivalent WRONG_PHASE / missing / r
   assert.equal(missingBegin.committed, false);
 });
 
+test("F24 generated reset SQL drops 00117/00119 owning tables before helper functions", () => {
+  const generated = buildQualificationResetSql({
+    observedHistoryRows: authenticatedHistory(),
+    scopeSqlIdentitySha256: scopeSqlIdentityDigest(),
+  });
+  assert.equal(generated.ok, true);
+  assert.doesNotMatch(generated.sql, /DROP\s+POLICY/i);
+  assert.doesNotMatch(generated.sql, /DROP\s+TRIGGER/i);
+  assert.doesNotMatch(generated.sql, /\bCASCADE\b/);
+
+  const dropFn = (identity) => `DROP FUNCTION IF EXISTS ${identity} RESTRICT;`;
+  const dropTbl = (identity) => `DROP TABLE IF EXISTS ${identity} RESTRICT;`;
+  const idx = (needle) => {
+    const at = generated.sql.indexOf(needle);
+    assert.ok(at >= 0, `missing ${needle}`);
+    return at;
+  };
+
+  const m117 = fs.readFileSync(path.join(ROOT, "supabase/migrations/00117_m2_notification_policy_foundation.sql"), "utf8");
+  assert.match(m117, /CREATE POLICY m2_np_select ON public\.notification_policies[\s\S]*has_group_permission/);
+  assert.match(m117, /CHECK \(public\.m2_is_valid_iana_timezone\(timezone\)\)/);
+  assert.match(m117, /EXECUTE FUNCTION public\.notification_policy_set_updated_at\(\)/);
+
+  assert.ok(idx(dropTbl("public.notification_policies")) < idx(dropFn("public.has_group_permission(uuid,text,uuid)")));
+  assert.ok(idx(dropTbl("public.notification_policy_triggers")) < idx(dropFn("public.has_group_permission(uuid,text,uuid)")));
+  assert.ok(idx(dropTbl("public.notification_policy_occurrences")) < idx(dropFn("public.has_group_permission(uuid,text,uuid)")));
+  assert.ok(idx(dropTbl("public.notification_policies")) < idx(dropFn("public.m2_is_valid_iana_timezone(text)")));
+  assert.ok(idx(dropTbl("public.notification_policies")) < idx(dropFn("public.notification_policy_set_updated_at()")));
+
+  const m119 = fs.readFileSync(path.join(ROOT, "supabase/migrations/00119_f3_01_core_ledger_foundation.sql"), "utf8");
+  assert.match(m119, /CREATE POLICY financial_accounts_manager_select[\s\S]*can_manage_finances/);
+  assert.match(m119, /EXECUTE FUNCTION financial_core\.guard_financial_account\(\)/);
+  assert.ok(idx(dropTbl("public.financial_accounts")) < idx(dropFn("financial_core.can_manage_finances(uuid)")));
+  assert.ok(idx(dropTbl("public.financial_accounts")) < idx(dropFn("financial_core.guard_financial_account()")));
+  assert.ok(idx(dropTbl("public.financial_accounts")) < idx(dropFn("financial_core.currency_scale(text)")));
+  assert.ok(idx(dropTbl("public.financial_postings")) < idx(dropFn("financial_core.currency_scale(text)")));
+  assert.ok(idx(dropFn("financial_core.can_manage_finances(uuid)")) < idx(dropFn("public.has_group_permission(uuid,text,uuid)")));
+  assert.ok(idx(dropFn("financial_core.can_manage_finances(uuid)")) < idx(dropTbl("public.memberships")));
+
+  const emit = generated.dropOrder;
+  assert.ok(emit.indexOf("tbl.public.notification_policies") < emit.indexOf("fn.public.has_group_permission"));
+  assert.ok(emit.indexOf("tbl.public.financial_accounts") < emit.indexOf("fn.financial_core.can_manage_finances"));
+});
+
+test("F24 focused dependency-order local cases or MUST_LOCAL", async () => {
+  const { proveQualificationResetLocal } = await import("./prove-f3-qualification-reset-local.mjs");
+  const proof = await proveQualificationResetLocal({ dependencyOrderOnly: true });
+  assert.equal(proof.hostedIdentityProof, false);
+  assert.equal(proof.disposableContact, false);
+  assert.equal(proof.dependencyOrderOnly, true);
+  const required = [
+    "F24_OLD_ORDER_REPRODUCES_HGP_POLICY_DEPENDENCY",
+    "F24_CORRECTED_RESET_COMMITS_PRESERVE_BASELINE",
+    "F24_UNSUPPORTED_DEPENDENT_BLOCKS_DURABLE",
+  ];
+  for (const id of required) {
+    assert.ok(proof.cases.some((row) => row.id === id), `missing ${id}`);
+  }
+  if (proof.localPg.available !== true) {
+    assert.equal(proof.mustLocal, true);
+    for (const id of required) {
+      const row = proof.cases.find((item) => item.id === id);
+      assert.equal(row.ok, true);
+      assert.equal(row.executedTransaction, false);
+      assert.match(String(row.note || row.code || ""), /MUST_LOCAL/);
+    }
+  } else {
+    for (const id of required) {
+      const row = proof.cases.find((item) => item.id === id);
+      assert.equal(row.ok, true, `${id}: ${row.note || row.code || row.errorExcerpt || ""}`);
+      assert.equal(row.executedTransaction, true);
+    }
+    const old = proof.cases.find((row) => row.id === "F24_OLD_ORDER_REPRODUCES_HGP_POLICY_DEPENDENCY");
+    const ok = proof.cases.find((row) => row.id === "F24_CORRECTED_RESET_COMMITS_PRESERVE_BASELINE");
+    const blocked = proof.cases.find((row) => row.id === "F24_UNSUPPORTED_DEPENDENT_BLOCKS_DURABLE");
+    assert.equal(old.commit, false);
+    assert.equal(ok.commit, true);
+    assert.equal(ok.confirmedCommit, true);
+    assert.equal(blocked.commit, false);
+  }
+});
+
 test("F15-C5-R01 committed helper records three real TX scenarios or MUST_LOCAL", async () => {
   const { proveQualificationResetLocal } = await import("./prove-f3-qualification-reset-local.mjs");
   const proof = await proveQualificationResetLocal();

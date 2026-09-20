@@ -648,3 +648,108 @@ test("F21-C0/C6 typed membership authenticates; forged/name-only/x/stale reject"
   assert.equal(F21_QUALIFICATION_RESET_INVENTORY_SCHEMA, "f21-qualification-reset-inventory-v1");
 });
 
+const PINNED_OWNED_DEP_MIGRATIONS = Object.freeze([
+  "supabase/migrations/00117_m2_notification_policy_foundation.sql",
+  "supabase/migrations/00118_f3_bounded_financial_epoch_foundation.sql",
+  "supabase/migrations/00119_f3_01_core_ledger_foundation.sql",
+  "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql",
+  "supabase/migrations/00122_f3_04_correction_reversal.sql",
+  "supabase/migrations/00123_f3_05_opening_cash_command.sql",
+]);
+
+// Demonstrated ATTEMPT_2 / pre-correction 66be2b47 orders (evidence, not current bytes).
+const ATTEMPT_2_HGP_DROP_ORDER = 90;
+const ATTEMPT_2_NOTIFICATION_TABLE_DROP_ORDERS = Object.freeze({
+  "public.notification_policy_triggers": 900,
+  "public.notification_policy_occurrences": 910,
+  "public.notification_policies": 920,
+});
+
+function allowlistByIdentity(identity) {
+  return FINITE_OBJECT_ALLOWLIST.find((row) => row.identity === identity);
+}
+
+function ownedCatalogDepsFromPinnedMigrations() {
+  const pairs = [];
+  for (const rel of PINNED_OWNED_DEP_MIGRATIONS) {
+    const sql = fs.readFileSync(path.join(ROOT, rel), "utf8");
+    const triggerRe = /CREATE TRIGGER\s+\S+\s+[\s\S]*?ON\s+((?:public|financial_core|financial_private)\.[A-Za-z0-9_]+)\s+[\s\S]*?EXECUTE FUNCTION\s+((?:public|financial_core|financial_private)\.[A-Za-z0-9_]+)\s*\(/gi;
+    let match;
+    while ((match = triggerRe.exec(sql))) {
+      pairs.push({
+        kind: "trigger",
+        table: match[1],
+        funcName: match[2],
+        file: rel,
+      });
+    }
+    const policyRe = /CREATE POLICY\s+\S+\s+ON\s+((?:public|financial_core|financial_private)\.[A-Za-z0-9_]+)([\s\S]*?)(?=\nCREATE POLICY|\nCREATE |\nALTER |\nCOMMENT ON POLICY|\nREVOKE |\nGRANT |\nDO \$|$)/gi;
+    while ((match = policyRe.exec(sql))) {
+      const table = match[1];
+      const body = match[2];
+      const fnRe = /((?:public|financial_core|financial_private)\.[A-Za-z0-9_]+)\s*\(/g;
+      let fn;
+      const seen = new Set();
+      while ((fn = fnRe.exec(body))) {
+        if (seen.has(fn[1])) continue;
+        seen.add(fn[1]);
+        pairs.push({ kind: "policy", table, funcName: fn[1], file: rel });
+      }
+    }
+    const checkRe = /CHECK\s*\(\s*((?:public|financial_core|financial_private)\.[A-Za-z0-9_]+)\s*\(/gi;
+    const tableForCheck = /CREATE TABLE\s+((?:public|financial_core|financial_private)\.[A-Za-z0-9_]+)\s*\(([\s\S]*?)\n\);/gi;
+    while ((match = tableForCheck.exec(sql))) {
+      const table = match[1];
+      const body = match[2];
+      let chk;
+      while ((chk = checkRe.exec(body))) {
+        pairs.push({ kind: "check", table, funcName: chk[1], file: rel });
+      }
+    }
+  }
+  return pairs;
+}
+
+test("F24-D01 pinned DDL owned policies/triggers/CHECKs drop before their helper functions", () => {
+  const pairs = ownedCatalogDepsFromPinnedMigrations();
+  assert.ok(pairs.some((p) => p.kind === "policy" && p.funcName === "public.has_group_permission" && p.table.startsWith("public.notification_polic")));
+  assert.ok(pairs.some((p) => p.kind === "check" && p.funcName === "public.m2_is_valid_iana_timezone" && p.table === "public.notification_policies"));
+  assert.ok(pairs.some((p) => p.kind === "trigger" && p.funcName === "public.notification_policy_set_updated_at"));
+  assert.ok(pairs.some((p) => p.kind === "trigger" && p.funcName === "financial_core.guard_financial_account"));
+  assert.ok(pairs.some((p) => p.kind === "policy" && p.funcName === "financial_core.can_manage_finances"));
+
+  const hgp = allowlistByIdentity("public.has_group_permission(uuid,text,uuid)");
+  assert.ok(hgp.dropOrder > ATTEMPT_2_HGP_DROP_ORDER);
+  for (const [table, oldOrder] of Object.entries(ATTEMPT_2_NOTIFICATION_TABLE_DROP_ORDERS)) {
+    const row = allowlistByIdentity(table);
+    assert.equal(row.dropOrder, oldOrder, `${table} FK/table order must stay ${oldOrder}`);
+    assert.ok(hgp.dropOrder > row.dropOrder, `has_group_permission must drop after ${table}`);
+  }
+
+  for (const pair of pairs) {
+    const tableRow = allowlistByIdentity(pair.table);
+    const funcRows = FINITE_OBJECT_ALLOWLIST.filter((row) => (
+      row.kind === "function" && row.identity.startsWith(`${pair.funcName}(`)
+    ));
+    if (!tableRow || funcRows.length === 0) continue;
+    for (const funcRow of funcRows) {
+      assert.ok(
+        funcRow.dropOrder > tableRow.dropOrder,
+        `${pair.file} ${pair.kind}: ${funcRow.identity} dropOrder ${funcRow.dropOrder} must be after ${tableRow.identity} ${tableRow.dropOrder}`,
+      );
+    }
+  }
+
+  const memberships = allowlistByIdentity("public.memberships");
+  for (const identity of ["financial_core.can_view_finances(uuid)", "financial_core.can_manage_finances(uuid)"]) {
+    const row = allowlistByIdentity(identity);
+    assert.ok(row.dropOrder < memberships.dropOrder, `${identity} is LANGUAGE sql on memberships`);
+    assert.ok(row.dropOrder < hgp.dropOrder, `${identity} is LANGUAGE sql on has_group_permission`);
+  }
+
+  const tableOrders = FINITE_OBJECT_ALLOWLIST.filter((row) => row.kind === "table").map((row) => row.dropOrder);
+  for (let i = 1; i < tableOrders.length; i += 1) {
+    assert.ok(tableOrders[i] > tableOrders[i - 1], "table FK drop order remains increasing");
+  }
+});
+

@@ -3,6 +3,7 @@
   "profile": "LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1",
   "startingHead": "b8bde21770b347b5dd6f0c4cc5f4fd3ae0f267ae",
   "functionalTip": "66be2b4797515975d737a0fd66656bc4c0de2145",
+  "evidenceTip": "0eb84ac20169ecb9288c7747aea9c31a18cc8425",
   "sharedBranch": "feat/m3-f3-01-05-forward-foundation-9b17",
   "authoritativePr": 84,
   "alignedPrs": [85, 86],

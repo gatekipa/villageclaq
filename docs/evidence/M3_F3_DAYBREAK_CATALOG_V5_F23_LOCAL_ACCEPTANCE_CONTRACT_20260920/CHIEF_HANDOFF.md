@@ -29,6 +29,7 @@ QA: empty — VillageClaq QA not requested this turn
 |------|-------|
 | Starting head | `b8bde21770b347b5dd6f0c4cc5f4fd3ae0f267ae` |
 | FUNCTIONAL_TIP | `66be2b4797515975d737a0fd66656bc4c0de2145` |
+| Evidence / status tip | `0eb84ac20169ecb9288c7747aea9c31a18cc8425` |
 | Shared branch | `feat/m3-f3-01-05-forward-foundation-9b17` |
 | Authoritative PR | #84 OPEN DRAFT UNMERGED DAYBREAK HOLD |
 | Aligned PRs | #85 / #86 (same title, same head after FF) |

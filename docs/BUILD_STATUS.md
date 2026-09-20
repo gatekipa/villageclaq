@@ -41,6 +41,7 @@ Closest linked artifacts (none of these is that missing plan):
 | Role | Value |
 |------|-------|
 | FUNCTIONAL_TIP | `66be2b4797515975d737a0fd66656bc4c0de2145` |
+| Evidence / status tip | `0eb84ac20169ecb9288c7747aea9c31a18cc8425` |
 | Start of this contract implementation | `b8bde21770b347b5dd6f0c4cc5f4fd3ae0f267ae` |
 | F23 evidence / prior #84 head before this work | `a41549e9f5463f02993be6e5e72ee8bde4852d80` |
 | Process/status closeout | `98c8c3d2d2164defef95b715e8f3258bad4e819d` |

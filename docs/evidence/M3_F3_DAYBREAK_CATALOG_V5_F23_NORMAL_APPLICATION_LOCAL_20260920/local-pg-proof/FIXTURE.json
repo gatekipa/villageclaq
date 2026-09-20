@@ -1,0 +1,40 @@
+{
+  "kind": "run-owned-local-postgresql",
+  "serverVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+  "workPrefix": "f3_",
+  "socket": "[SANITIZED_ABS_PATH]",
+  "transport": "peer socket + TCP ubuntu@[REDACTED]@127.0.0.1:5432",
+  "btreeGist": "preinstalled",
+  "hostedIdentityProof": false,
+  "disposableContact": false,
+  "productionContact": false,
+  "reusedFailedQualificationDatabase": false,
+  "f22Database": "f3_[RUN_OWNED_DB] label f22_fault_inject (fresh, not reused for F23)",
+  "f23Database": "f3_[RUN_OWNED_DB] label f23_normal_app (fresh isolated)",
+  "substitutedInterfaces": [
+    {
+      "hosted": "getDisposableProjectIdentity (Management API)",
+      "local": "local-fixture identity adapter; not hosted identity proof"
+    },
+    {
+      "hosted": "listDisposableMigrationsViaGet (Management API)",
+      "local": "local schema_migrations query via run-owned psql"
+    },
+    {
+      "hosted": "constructImmutableValidatedTargetFromConnection",
+      "local": "local-fixture target; production ref still rejected; not hosted identity proof"
+    },
+    {
+      "hosted": "runDbQuery / runGatedRemoteSqlText / runIsolatedPoisonPsqlQuery",
+      "local": "local-fixture psql (-t -A -w / -f) against run-owned f3_*"
+    },
+    {
+      "hosted": "installHostedFloor (gated remote psql)",
+      "local": "installStubLivePinFloorLocal (same SQL steps, local psql -f)"
+    },
+    {
+      "hosted": "runDbPushCandidate / runFilenameVersionRepair via hosted --db-url",
+      "local": "CLI 2.117.0 db push and migration repair as separate commands against local --db-url; not assertConstructedDbUrl hosted pooler"
+    }
+  ]
+}

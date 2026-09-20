@@ -1,0 +1,28 @@
+{
+  "startingHead": "adb6ade2233f90aa34459bc8ac4fb381d23971a4",
+  "f22Functional": "f1d30b28830db902962467f801932254997e64c3",
+  "f22QaContent": "f18331337c36e7c50cd1323c0202a298a4704e03",
+  "f22EvidencePackage": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919",
+  "functionalTip": "77fd61dbf51652acabec0093d2a8549524b2dd75",
+  "evidenceTip": "PENDING_EVIDENCE_BIND",
+  "ancestry": [
+    "77fd61dbf51652acabec0093d2a8549524b2dd75",
+    "ff6c933e017e8d7fba517cb43596fb0d24f1d1dd",
+    "acd3e23711112a5c87ce83901e07f1e23443d5b6",
+    "adb6ade2233f90aa34459bc8ac4fb381d23971a4",
+    "f18331337c36e7c50cd1323c0202a298a4704e03",
+    "6d6bdd7591d738e593bc7290d5f60e4be0de88ec",
+    "686269dd3036ef654948d1812902d1b9a141ee3b",
+    "f1d30b28830db902962467f801932254997e64c3"
+  ],
+  "disposableOnly": "jkorwnwwmdeflfntxntl",
+  "productionRejected": "llbnliixczcqfftxpsmb",
+  "remainingHold": "F23_FINGERPRINT_MISMATCH",
+  "faultInjectionHold": "F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
+  "localApplicationComplete": false,
+  "migrationsAppliedThrough00123": true,
+  "proposedPlan": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920/PROPOSED_HOSTED_REQUAL_PLAN.md",
+  "qaVerdict": "NOT CLAIMED",
+  "notLocalCandidateReady": true,
+  "hostedAuthority": false
+}

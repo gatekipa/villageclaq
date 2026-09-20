@@ -1,0 +1,17 @@
+{
+  "evidenceRel": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920",
+  "functionalTip": "77fd61dbf51652acabec0093d2a8549524b2dd75",
+  "localStatus": "HOLD: F23_FINGERPRINT_MISMATCH",
+  "localApplicationComplete": false,
+  "migrationsAppliedThrough00123": true,
+  "faultInjectionHold": "F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
+  "classification": "LOCAL_PG_EXECUTED",
+  "packScanDigestFree": true,
+  "packScanIndexed": true,
+  "qaSlot": "qa-package/QA_SLOT.md",
+  "qaVerdict": "NOT CLAIMED",
+  "notLocalCandidateReady": true,
+  "membership": "local-pg-proof/MEMBERSHIP.json",
+  "proposedPlan": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920/PROPOSED_HOSTED_REQUAL_PLAN.md",
+  "hostedAuthority": false
+}

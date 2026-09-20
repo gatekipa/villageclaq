@@ -1,0 +1,15 @@
+{
+  "runtime": "8b6bf5aff5f4448df9a7bc7791b9db63c24d800c43dbd81a39dfcef141ecc95a",
+  "union": "9c2e5d63bd30723b331d49c76fb66d05951e1ef68b9615c907ab8bf23c597815",
+  "runtimeCount": 46,
+  "unionCount": 48,
+  "runtimeLabel": "F19_QUALIFICATION_RESET_RUNTIME_CLOSURE",
+  "unionLabel": "F19_QUALIFICATION_RESET_VERIFICATION_UNION",
+  "forbiddenSummary": "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d",
+  "notEqualForbiddenSummary": true,
+  "scopeSqlIdentitySha256": "d95d96e02a3a1844977d852fa23a64f742b79b5f767984b6a2d4512cbe02632f",
+  "independentReference": "3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91",
+  "f18RuntimeCitedNotExpected": "c6ecf620e41dbbce340e2207b2b9b793c8df750c703d245363139b497526a392",
+  "f18UnionCitedNotExpected": "b9a9e6b7ad95f6e5935d05bb6c41bdabe543f0f88a086bc6b28fcb07dd03be78",
+  "functionalTip": "77fd61dbf51652acabec0093d2a8549524b2dd75"
+}

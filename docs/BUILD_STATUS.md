@@ -43,6 +43,7 @@ Closest linked artifacts (none of these is that missing plan):
 | Role | Value |
 |------|-------|
 | FUNCTIONAL_TIP | `66be2b4797515975d737a0fd66656bc4c0de2145` |
+| F23 hosted requal evidence tip (this stop) | `9332e0a53086c57dedebd63a82faadde9c11eccd` |
 | Starting #84/#85/#86 head for this plan | `9a78e2713d59c2656ca749ee63930bceb8d233fb` |
 | Proposed-plan package content | `b549656d30dd6ed931715222d618a1d0e9f3c658` |
 | Evidence / status tip (this plan bind) | `db628d03ec7e35c54afac2abac45d93b6ff71b36` |

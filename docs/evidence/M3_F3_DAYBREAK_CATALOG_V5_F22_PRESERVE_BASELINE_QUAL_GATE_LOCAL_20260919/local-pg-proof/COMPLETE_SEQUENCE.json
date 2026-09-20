@@ -1,0 +1,56 @@
+{
+  "id": "F22_COMPLETE_LOCAL_QUALIFICATION",
+  "ok": true,
+  "completeThrough00123": false,
+  "remainingHold": "F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
+  "preFloorVerdict": "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+  "qualifyStatus": "HOLD",
+  "qualifyError": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+  "classification": {
+    "nonzeroExit": true,
+    "historyFailed": true,
+    "historyInsertMentioned": true,
+    "targetVersionPresent": false,
+    "targetVersionAbsent": true,
+    "sqlCommitted": false,
+    "rolledBack": true,
+    "split": "PRE_COMMIT_OR_ATOMIC_ROLLBACK",
+    "knownFilenameVersion": "20260913173000",
+    "repairAuthorizedByFilenameVersion": false
+  },
+  "objectsPresent": false,
+  "repairAttempted": false,
+  "floorInstalled": true,
+  "preDbPushGatesOk": true,
+  "sequenceLength": 1,
+  "historyAfter": 0,
+  "floorCalls": 2,
+  "dbPushCalls": 2,
+  "repairCalls": 0,
+  "substitutedInterfaces": [
+    {
+      "hosted": "getDisposableProjectIdentity (Management API)",
+      "local": "local-fixture identity adapter; not hosted identity proof"
+    },
+    {
+      "hosted": "listDisposableMigrationsViaGet (Management API)",
+      "local": "local schema_migrations query via run-owned psql"
+    },
+    {
+      "hosted": "constructImmutableValidatedTargetFromConnection",
+      "local": "local-fixture target; production ref still rejected; not hosted identity proof"
+    },
+    {
+      "hosted": "runDbQuery / runGatedRemoteSqlText / runIsolatedPoisonPsqlQuery",
+      "local": "local-fixture psql (-t -A -w / -f) against run-owned f3_*"
+    },
+    {
+      "hosted": "installHostedFloor (gated remote psql)",
+      "local": "installStubLivePinFloorLocal (same SQL steps, local psql -f)"
+    },
+    {
+      "hosted": "runDbPushCandidate / runFilenameVersionRepair via hosted --db-url",
+      "local": "CLI 2.117.0 db push and migration repair as separate commands against local --db-url; not assertConstructedDbUrl hosted pooler"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "helper": "scripts/prove-f3-qualification-reset-local.mjs",
+  "functionalTip": "f1d30b28830db902962467f801932254997e64c3",
+  "wipeRejectionCode": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
+  "overallOk": true,
+  "remainingHold": "F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
+  "completeThrough00123": false,
+  "preFloorVerdict": "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+  "floorInstalled": true,
+  "dbPushCalls": 2,
+  "repairCalls": 0
+}

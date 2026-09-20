@@ -7,7 +7,8 @@
 Working rules: [AGENTS.md](../AGENTS.md). Product conventions: [CLAUDE.md](../CLAUDE.md).  
 Approved local comparison contract: [LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_LOCAL_ACCEPTANCE_CONTRACT_20260920/LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1.md).  
 Repair amendment: [REPAIR_AMENDMENT.md](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_LOCAL_ACCEPTANCE_CONTRACT_20260920/REPAIR_AMENDMENT.md).  
-Authorized local-capture record: [docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/CHIEF_HANDOFF.md](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/CHIEF_HANDOFF.md).
+Authorized local-capture record: [docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/CHIEF_HANDOFF.md](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/CHIEF_HANDOFF.md).  
+**Current proposed hosted plan:** [F23 proposed hosted requal plan 2026-09-20](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_PROPOSED_HOSTED_REQUAL_PLAN_20260920/PROPOSED_HOSTED_REQUAL_PLAN.md) — **PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE.**
 
 ## Authorization (do not collapse these)
 
@@ -32,7 +33,8 @@ Closest linked artifacts (none of these is that missing plan):
 |----------|------|
 | [F21 preserve-baseline contract](evidence/M3_F3_DAYBREAK_CATALOG_V5_F21_PRESERVE_BASELINE_CONTRACT_20260919/) | Accepted contract for the preserve-`btree_gist` baseline |
 | [F23 local acceptance contract](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_LOCAL_ACCEPTANCE_CONTRACT_20260920/) | Approved local comparison profile + local repair amendment |
-| [F23 proposed hosted requal plan](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920/PROPOSED_HOSTED_REQUAL_PLAN.md) | **PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE** |
+| [F23 current proposed hosted requal plan](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_PROPOSED_HOSTED_REQUAL_PLAN_20260920/PROPOSED_HOSTED_REQUAL_PLAN.md) | **Current.** PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE. Mode `fault-injection`. |
+| [F23 historical proposed hosted plan](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920/PROPOSED_HOSTED_REQUAL_PLAN.md) | Historical (bound to `77fd61db…`). Preserved, not current. |
 | [F23 historical package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920/) | Authoritative local-application HOLD package |
 | [F23 capture 2026-09-20](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/) | Attempt 1 floor HOLD (preserved) + attempt 2 field diffs |
 
@@ -41,7 +43,8 @@ Closest linked artifacts (none of these is that missing plan):
 | Role | Value |
 |------|-------|
 | FUNCTIONAL_TIP | `66be2b4797515975d737a0fd66656bc4c0de2145` |
-| Evidence / status tip | `b71e07ef6f1736438631034d6fe82328998b4c60` |
+| Starting #84/#85/#86 head for this plan | `9a78e2713d59c2656ca749ee63930bceb8d233fb` |
+| QA package content | `b71e07ef6f1736438631034d6fe82328998b4c60` |
 | Evidence tip reviewed by QA / prior PR heads | `b71f6fa37ac27dd559d9af09aa5fb0f3d9e74367` |
 | QA verdict | VillageClaq QA — F23 LOCAL ACCEPTANCE CONTRACT ACCEPT |
 | Start of this contract implementation | `b8bde21770b347b5dd6f0c4cc5f4fd3ae0f267ae` |
@@ -94,16 +97,20 @@ Evidence: [F23 package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATIO
 
 | Field | Value |
 |-------|-------|
-| Owner | Jude Anyere / Chief — PASS/HOLD on local-acceptance-contract ACCEPT. Hosted requalification remains a separate authorization. |
-| Next bounded action | Chief PASS/HOLD decision. Do not run hosted contact, repair, merge, deploy, or F3-06. Do not restart the review budget. |
-| Permitted scope | Recorded QA bind only. No hosted/disposable/production contact. No merge. No deploy. No F3-06. |
-| Remaining acceptance | Hosted raw fingerprint equality; hosted POST_COMMIT repair after raw/repair-safety gates; hosted requalification |
-| Review / run budget | Focused offline work used. Independent VillageClaq QA used (ACCEPT; material findings none). Renaming F-numbers does not restart the budget. |
-| Stop | Functional tip frozen. QA recorded ACCEPT. No automatic further cycle. |
+| Owner | Jude Anyere — authorize or refuse the current proposed hosted plan. |
+| Next bounded action | Jude authorization decision on [the current F23 proposed hosted plan](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_PROPOSED_HOSTED_REQUAL_PLAN_20260920/PROPOSED_HOSTED_REQUAL_PLAN.md). Do not execute, obtain credentials, contact any database, merge, deploy, or start F3-06. Do not restart the review budget. |
+| Permitted scope | Docs-only proposed plan published. No hosted/disposable/production contact. No merge. No deploy. No F3-06. |
+| Remaining acceptance | Hosted raw fingerprint equality; hosted POST_COMMIT repair after raw/repair-safety gates inside one `fault-injection` qual 00118–00123; hosted requalification |
+| Review / run budget | Documentation pass used. Focused offline work used. Independent VillageClaq QA already landed (ACCEPT; not repeated). Renaming F-numbers does not restart the budget. |
+| Stop | Functional tip frozen. Current proposed plan published. No automatic implementation cycle. |
 
 ## Exact remaining hosted gate
 
 Separately authorized hosted qualification must: demonstrate current-candidate `POST_COMMIT_HISTORY_FAILURE`; keep surviving intended objects; show absent exact filename history; pass existing repair-safety and **raw** fingerprint gates; perform supported CLI 2.117.0 filename-version repair; authenticate resulting history/catalog state.
+
+Current proposed procedure (not authorized): one constrained preserve reset + one `--verification-mode=fault-injection` qualification 00118–00123. Positive repair proof is inside that qualification. `normal-application` cannot satisfy the repair requirement. Local profile grants no hosted authority.
+
+See [current proposed plan](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_PROPOSED_HOSTED_REQUAL_PLAN_20260920/PROPOSED_HOSTED_REQUAL_PLAN.md).
 
 **PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE.**
 

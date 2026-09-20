@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "exclusions": [
+    "evidence-index.json",
+    "evidence-index.sha256"
+  ],
+  "self_hash": false,
+  "detached_checksum": "evidence-index.sha256",
+  "artifacts": [
+    {
+      "path": "CHIEF_HANDOFF.md"
+    },
+    {
+      "path": "closure/DIGESTS.json"
+    },
+    {
+      "path": "PINS.json"
+    },
+    {
+      "path": "PROPOSED_HOSTED_REQUAL_PLAN.md"
+    }
+  ]
+}

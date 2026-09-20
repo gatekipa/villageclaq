@@ -62,7 +62,7 @@ Closest linked artifacts (none of these is that missing plan):
 | Starting #84/#85/#86 head for the prior F23 plan | `9a78e2713d59c2656ca749ee63930bceb8d233fb` |
 | QA package content | `b71e07ef6f1736438631034d6fe82328998b4c60` |
 | QA verdict | VillageClaq QA — F23 LOCAL ACCEPTANCE CONTRACT ACCEPT |
-| Authoritative PR | [#84](https://github.com/gatekipa/villageclaq/pull/84) OPEN DRAFT UNMERGED, title DAYBREAK HOLD. Head follows shared branch after push. **Web body historically refused** (ManagePullRequest not-agent-managed; `gh api` 403). Body still described ATTEMPT_1 missing-`psql` at last read. Current remainder is this file + the F24 proposed plan. |
+| Authoritative PR | [#84](https://github.com/gatekipa/villageclaq/pull/84) OPEN DRAFT UNMERGED, title DAYBREAK HOLD. Head follows shared branch after push. **Web body update refused again on F24 packaging** (ManagePullRequest: current description is not agent-managed). Body still describes ATTEMPT_1 missing-`psql` on the web. Current remainder is this file + the F24 proposed plan. |
 | Aligned PRs | #85 / #86 (same title; other branches still at `afd1257` until Chief FF; same body-update refusal) |
 | Non-authoritative | #126 / #127 |
 | Shared branch | `feat/m3-f3-01-05-forward-foundation-9b17` |

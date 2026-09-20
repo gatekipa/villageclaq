@@ -340,6 +340,8 @@ import {
   F12_HISTORY_VERSION_NAME_PREDICATES,
   captureOriginalCheckpointAReceipt,
   parseArgs,
+  QUALIFICATION_VERIFICATION_MODES,
+  resolveQualificationVerificationMode,
   evaluateWipeToBaselineArg,
   assertWipeToBaselineRejected,
   WIPE_TO_BASELINE_REJECTION_CODE,
@@ -2557,6 +2559,26 @@ test("teardown poison removal is recorded separately and is not cleanup success"
   assert.equal(decided.teardownRecorded, true);
   assert.equal(decided.teardown.status, 0);
   assert.notEqual(decided.cleanup.status, decided.teardown.status);
+});
+
+test("F23 verification modes are explicit and default to fault-injection", () => {
+  const implicit = parseArgs(["--no-wipe", "--prep-floor", "--sequence-f3"]);
+  assert.equal(implicit.verificationMode, null);
+  const implicitResolved = resolveQualificationVerificationMode(implicit);
+  assert.equal(implicitResolved.mode, QUALIFICATION_VERIFICATION_MODES.FAULT_INJECTION);
+  assert.equal(implicitResolved.selectedBeforeDatabaseOperations, true);
+  assert.equal(implicitResolved.hostedAuthority, false);
+  const normal = parseArgs(["--no-wipe", "--prep-floor", "--sequence-f3", "--verification-mode=normal-application"]);
+  assert.equal(normal.verificationMode, QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION);
+  const qualify = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
+  const prove = fs.readFileSync(path.join(root, "scripts/prove-f3-qualification-reset-local.mjs"), "utf8");
+  assert.match(qualify, /QUALIFICATION_VERIFICATION_MODES/);
+  assert.match(qualify, /runNormalApplicationSequence/);
+  assert.match(qualify, /selectedBeforeDatabaseOperations/);
+  assert.doesNotMatch(prove, /completeThrough00123 \|\| documentedAtomicRollbackHold/);
+  const seq = qualify.slice(qualify.indexOf("for (const file of F3_FORWARD_FILES)"));
+  assert.match(seq, /historyInjectSqlForFile/);
+  assert.match(seq, /runRepairSafetyThenMaybeRepair/);
 });
 
 test("qualify runner classifies before repair and uses the new success label", () => {

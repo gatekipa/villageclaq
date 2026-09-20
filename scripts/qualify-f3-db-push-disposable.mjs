@@ -201,6 +201,7 @@ import {
   evaluatePostRetryFullFingerprint,
   expectedFingerprintSha256,
   finalizeFingerprintCapture,
+  fingerprintCompleteAndExact,
   getFrozenExpectedFingerprint,
   objectProbeSql, // catalog-boundary structured probe identity; to_regprocedure resolves OID only; compare pg_proc identity to frozen descriptor — never to_regprocedure::text vs lookup spelling. Overrides history-inject text compare.
   objectsPresentFromProbe as objectsPresentFromProbeStrict,
@@ -332,6 +333,112 @@ function parseFloorMode(argv) {
   return HOSTED_DEFAULT_FLOOR_MODE;
 }
 
+export const QUALIFICATION_VERIFICATION_MODES = Object.freeze({
+  FAULT_INJECTION: "fault-injection",
+  NORMAL_APPLICATION: "normal-application",
+});
+
+export const F23_UNKNOWN_VERIFICATION_MODE = "F23_UNKNOWN_VERIFICATION_MODE";
+export const F23_INJECT_OBJECTS_PRESENT = "F23_INJECT_OBJECTS_PRESENT";
+export const F23_NORMAL_APPLICATION_PUSH_FAILED = "F23_NORMAL_APPLICATION_PUSH_FAILED";
+export const F23_HISTORY_IDENTITY_MISMATCH = "F23_HISTORY_IDENTITY_MISMATCH";
+export const F23_FINGERPRINT_MISMATCH = "F23_FINGERPRINT_MISMATCH";
+export const F23_OBJECTS_ABSENT_AFTER_APPLY = "F23_OBJECTS_ABSENT_AFTER_APPLY";
+
+function parseVerificationModeArg(argv) {
+  const list = Array.isArray(argv) ? argv : [];
+  const eq = list.find((a) => String(a).startsWith("--verification-mode="));
+  if (eq) return String(eq).slice("--verification-mode=".length);
+  const idx = list.indexOf("--verification-mode");
+  if (idx >= 0 && list[idx + 1] != null && !String(list[idx + 1]).startsWith("-")) {
+    return String(list[idx + 1]);
+  }
+  return null;
+}
+
+/**
+ * Record the selected qualification verification mode before any database
+ * operation. Unspecified defaults to fault-injection so existing callers
+ * keep the authenticated F22 negative path. This is not hosted authority.
+ */
+export function resolveQualificationVerificationMode(input = {}) {
+  const raw = input.verificationMode == null || input.verificationMode === ""
+    ? QUALIFICATION_VERIFICATION_MODES.FAULT_INJECTION
+    : String(input.verificationMode);
+  const known = new Set(Object.values(QUALIFICATION_VERIFICATION_MODES));
+  if (!known.has(raw)) {
+    return {
+      ok: false,
+      mode: raw,
+      selectedBeforeDatabaseOperations: true,
+      hostedAuthority: false,
+      faultInjection: false,
+      normalApplication: false,
+      reason: `HOLD: unknown qualification verification mode ${raw}`,
+      code: F23_UNKNOWN_VERIFICATION_MODE,
+    };
+  }
+  return {
+    ok: true,
+    mode: raw,
+    selectedBeforeDatabaseOperations: true,
+    hostedAuthority: false,
+    faultInjection: raw === QUALIFICATION_VERIFICATION_MODES.FAULT_INJECTION,
+    normalApplication: raw === QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION,
+    note: "Local verification mode only. Supplies no hosted authority.",
+  };
+}
+
+export function expectedForwardHistoryIdentities(throughFile = F3_FORWARD_FILES[F3_FORWARD_FILES.length - 1]) {
+  const idx = F3_FORWARD_FILES.indexOf(throughFile);
+  const files = idx >= 0 ? F3_FORWARD_FILES.slice(0, idx + 1) : [...F3_FORWARD_FILES];
+  return files.map((file) => ({
+    file,
+    version: PREASSIGNED_VERSIONS[file],
+    name: PREASSIGNED_NAMES[file],
+  }));
+}
+
+export function verifyExactForwardHistoryIdentities(rows, throughFile) {
+  const expected = expectedForwardHistoryIdentities(throughFile);
+  const list = Array.isArray(rows) ? rows : [];
+  const matched = expected.map((exp) => {
+    const row = list.find((item) => (
+      String(item?.version) === String(exp.version)
+      && String(item?.name) === String(exp.name)
+    ));
+    return { ...exp, present: Boolean(row) };
+  });
+  const expectedVersions = new Set(expected.map((row) => String(row.version)));
+  const extra = list.filter((item) => {
+    const version = String(item?.version || "");
+    const name = String(item?.name || "");
+    if (!expectedVersions.has(version)) return false;
+    return !expected.some((exp) => exp.version === version && exp.name === name);
+  });
+  const missing = matched.filter((row) => row.present !== true);
+  const exactCount = list.filter((item) => expectedVersions.has(String(item?.version || ""))).length;
+  return {
+    ok: missing.length === 0 && extra.length === 0 && exactCount === expected.length,
+    expected,
+    observed: list,
+    missing,
+    extra,
+    count: list.length,
+    expectedCount: expected.length,
+    identities: matched,
+  };
+}
+
+export function injectObjectsAbsentFromInventory(body = {}) {
+  const inventory = body && typeof body === "object" && !Array.isArray(body) ? body : {};
+  if (!Object.prototype.hasOwnProperty.call(inventory, "inject_function")
+    && !Object.prototype.hasOwnProperty.call(inventory, "mapi_inject_function")) {
+    return false;
+  }
+  return inventory.inject_function !== true && inventory.mapi_inject_function !== true;
+}
+
 export function parseArgs(argv) {
   return {
     prepFloor: argv.includes("--prep-floor"),
@@ -344,6 +451,7 @@ export function parseArgs(argv) {
     sealFromLocalOracle: argv.includes("--seal-expected-from-local-oracle"),
     qualificationReset: argv.includes("--qualification-reset"),
     founderAuthorizationArtifact: parseFounderAuthorizationArtifactArg(argv),
+    verificationMode: parseVerificationModeArg(argv),
   };
 }
 
@@ -391,6 +499,7 @@ export function evaluateQualificationResetCli(args = {}, runtimeContext = qualif
   }
   if (args.prepFloor) argv.push("--prep-floor");
   if (args.sequenceF3) argv.push("--sequence-f3");
+  if (args.verificationMode) argv.push(`--verification-mode=${args.verificationMode}`);
   if (args.sealFromLocalOracle) argv.push("--seal-expected-from-local-oracle");
   if (args.wipeToBaseline) argv.push("--wipe-to-baseline");
   if (!args.qualificationReset) {
@@ -3447,6 +3556,262 @@ async function main() {
   emitQualifyEvidence(evidence, args);
 }
 
+function poisonPresentFromLocalProbe(result) {
+  const parsed = parseJsonish(result?.stdout);
+  const row = Array.isArray(parsed)
+    ? parsed[0]
+    : parsed && typeof parsed === "object"
+      ? (parsed.json_build_object || parsed)
+      : null;
+  if (row && typeof row === "object" && typeof row.poisonPresent === "boolean") {
+    return row.poisonPresent;
+  }
+  return null;
+}
+
+async function runNormalApplicationSequence({
+  evidence,
+  args,
+  ops,
+  cli,
+  isolated,
+  queryHelp,
+  pushHelp,
+  frozenTargetBuilt,
+}) {
+  evidence.repairExercised = false;
+  evidence.faultInjectionInstalled = false;
+  evidence.operationCounts = {
+    calibrationProbes: 0,
+    migrationApplications: 0,
+    retries: 0,
+    repairs: 0,
+    historyInjects: 0,
+  };
+  if (!args.prepFloor || !evidence.preDbPushGates?.ok) {
+    evidence.status = "HOLD";
+    evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+    evidence.limitation = "HOLD: db push is refused until stub+live-pin floor and pre-db-push gates pass";
+    throw Object.assign(new Error(evidence.limitation), { code: "F3_DBPUSH_PRE_PUSH_GATE_HOLD" });
+  }
+  if (!evidence.expectedFingerprintsBeforeDb?.recordedBeforeDbAccess) {
+    evidence.expectedFingerprintsBeforeDb = recordPreDbExpectedHashes();
+  }
+  const queryHistory = () =>
+    ops.query({
+      bin: cli.bin,
+      workdir: isolated.workdir,
+      help: queryHelp,
+      sql: READ_SCHEMA_MIGRATIONS_SQL,
+    });
+  const holdNormal = (limitation, code, extra = {}) => {
+    evidence.status = "HOLD";
+    evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+    evidence.limitation = limitation;
+    evidence.errorCode = code;
+    throw Object.assign(new Error(limitation), { code, ...extra });
+  };
+  for (let i = 0; i < F3_FORWARD_FILES.length; i += 1) {
+    const file = F3_FORWARD_FILES[i];
+    const version = preassignedVersionFor(file);
+    const expectedName = PREASSIGNED_NAMES[file];
+    const runnerCounters = createEmptyRunnerCounters();
+    const inventoryProbe = await ops.query({
+      bin: cli.bin,
+      workdir: isolated.workdir,
+      help: queryHelp,
+      sql: INVENTORY_SQL,
+    });
+    const inventoryBody = inventoryFromQuery(inventoryProbe.stdout);
+    const poisonProbe = ops.poisonQuery({
+      frozenTarget: frozenTargetBuilt.target,
+      sql: POISON_ABSENT_PROBE_SQL,
+    });
+    const poisonPresent = poisonPresentFromLocalProbe(poisonProbe);
+    const injectAbsent = injectObjectsAbsentFromInventory(inventoryBody) && poisonPresent !== true;
+    if (!injectAbsent) {
+      holdNormal(
+        "HOLD: failure-injection objects must be absent for normal-application mode",
+        F23_INJECT_OBJECTS_PRESENT,
+      );
+    }
+    const staged = syncIsolatedMigrationsThrough(isolated, file);
+    const historyBeforePush = await queryHistory();
+    const stagingPreflight = assertPrefixCompleteSinglePendingStaging({
+      workdir: isolated.workdir,
+      currentFile: file,
+      historyResult: historyBeforePush,
+      cliVersion: cli.version,
+      phase: "initial",
+    });
+    const prePushCalibration = evaluatePlatformAclCalibration();
+    evidence.operationCounts.calibrationProbes += 1;
+    if (!prePushCalibration.ok) {
+      evidence.platformAclCalibration = prePushCalibration;
+      holdNormal(
+        prePushCalibration.reason || PLATFORM_ACL_CALIBRATION_HOLD,
+        "F3_PLATFORM_ACL_CALIBRATION_HOLD",
+      );
+    }
+    runnerCounters.initialDbPushCalls += 1;
+    evidence.operationCounts.migrationApplications += 1;
+    const push = ops.dbPush({
+      bin: cli.bin,
+      workdir: isolated.workdir,
+      help: pushHelp,
+    });
+    if (push.status !== 0) {
+      evidence.sequence.push({
+        file,
+        destName: timestampFilenameFor(file),
+        version,
+        name: expectedName,
+        digest: FROZEN_DIGESTS[file],
+        staged,
+        stagingPreflight,
+        inject: { installed: false, requiredAbsent: true, absent: true },
+        push,
+        classification: null,
+        repairAttempted: false,
+        repairExercised: false,
+        verificationMode: QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION,
+      });
+      holdNormal(
+        `HOLD: normal-application db push failed for ${file}: ${(push.stderr || push.stdout || "").slice(0, 400)}`,
+        F23_NORMAL_APPLICATION_PUSH_FAILED,
+      );
+    }
+    const historyAfterApply = await queryHistory();
+    const historyRows = rowsFromQuery(historyAfterApply);
+    const historyIdentities = verifyExactForwardHistoryIdentities(historyRows, file);
+    if (!historyIdentities.ok) {
+      evidence.sequence.push({
+        file,
+        destName: timestampFilenameFor(file),
+        version,
+        name: expectedName,
+        digest: FROZEN_DIGESTS[file],
+        staged,
+        stagingPreflight,
+        inject: { installed: false, requiredAbsent: true, absent: true },
+        push,
+        historyIdentities,
+        repairAttempted: false,
+        repairExercised: false,
+        verificationMode: QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION,
+      });
+      holdNormal(
+        `HOLD: exact history identity mismatch after ${file}`,
+        F23_HISTORY_IDENTITY_MISMATCH,
+      );
+    }
+    const probe = await ops.query({
+      bin: cli.bin,
+      workdir: isolated.workdir,
+      help: queryHelp,
+      sql: objectProbeSql(TARGET_OBJECT_PROBES[file]),
+    });
+    const objectsPresent = objectsPresentFromProbe({ ...probe, file });
+    if (objectsPresent !== true) {
+      evidence.sequence.push({
+        file,
+        destName: timestampFilenameFor(file),
+        version,
+        name: expectedName,
+        digest: FROZEN_DIGESTS[file],
+        staged,
+        stagingPreflight,
+        inject: { installed: false, requiredAbsent: true, absent: true },
+        push,
+        historyIdentities,
+        objectsPresent,
+        repairAttempted: false,
+        repairExercised: false,
+        verificationMode: QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION,
+      });
+      holdNormal(
+        `HOLD: expected objects absent after successful push of ${file}`,
+        F23_OBJECTS_ABSENT_AFTER_APPLY,
+      );
+    }
+    assertExpectedFingerprintImmutable(file);
+    const fingerprintQuery = await ops.query({
+      bin: cli.bin,
+      workdir: isolated.workdir,
+      help: queryHelp,
+      sql: CATALOG_FINGERPRINT_SQL,
+    });
+    const expectedFingerprint = getFrozenExpectedFingerprint(file);
+    const fingerprintAfterApply = finalizeFingerprintCapture(
+      collectPhaseFingerprint(file, fingerprintQuery, "after_successful_normal_application"),
+      { expected: expectedFingerprint },
+    );
+    const fingerprintExact = fingerprintCompleteAndExact({
+      expected: expectedFingerprint,
+      observed: fingerprintAfterApply.fingerprint,
+    }, file);
+    if (!fingerprintExact.ok) {
+      evidence.sequence.push({
+        file,
+        destName: timestampFilenameFor(file),
+        version,
+        name: expectedName,
+        digest: FROZEN_DIGESTS[file],
+        staged,
+        stagingPreflight,
+        inject: { installed: false, requiredAbsent: true, absent: true },
+        push,
+        historyIdentities,
+        objectsPresent,
+        fingerprintAfterApply,
+        fingerprintExact,
+        repairAttempted: false,
+        repairExercised: false,
+        verificationMode: QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION,
+      });
+      holdNormal(
+        fingerprintExact.reason || `HOLD: frozen fingerprint mismatch after ${file}`,
+        F23_FINGERPRINT_MISMATCH,
+      );
+    }
+    const afterApplyInv = await ops.query({
+      bin: cli.bin,
+      workdir: isolated.workdir,
+      help: queryHelp,
+      sql: INVENTORY_CAPTURE_SQL,
+    });
+    evidence.inventories[INVENTORY_PHASES.AFTER_CONTINUATION][file] = labelInventoryCapture({
+      phase: INVENTORY_PHASES.AFTER_CONTINUATION,
+      file,
+      body: inventoryFromQuery(afterApplyInv.stdout),
+    });
+    evidence.runnerCountersByFile[file] = { ...runnerCounters };
+    evidence.sequence.push({
+      file,
+      destName: timestampFilenameFor(file),
+      version,
+      name: expectedName,
+      digest: FROZEN_DIGESTS[file],
+      staged,
+      stagingPreflight,
+      inject: { installed: false, requiredAbsent: true, absent: true },
+      push,
+      classification: null,
+      repairSafety: null,
+      objectsPresent,
+      historyAfterApply: historyRows,
+      historyIdentities,
+      fingerprintAfterApply,
+      fingerprintExact,
+      repairAttempted: false,
+      repairExercised: false,
+      repairCalls: 0,
+      verificationMode: QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION,
+      runnerCounters: { ...runnerCounters },
+    });
+  }
+}
+
 export async function runQualifyDisposablePath({
   args = {},
   adapters = {},
@@ -3456,9 +3821,12 @@ export async function runQualifyDisposablePath({
 } = {}) {
   const ops = wrapQualifyAdapters(adapters, calls);
   const calibration = platformAclCalibration || authorizeDbPushAfterPlatformAclCalibration();
+  const verification = resolveQualificationVerificationMode(args);
   const evidence = {
     status: "RUNNING",
     verdict: FILE_BASED_RUNNER_VERDICTS.HOLD,
+    verificationMode: verification,
+    hostedAuthority: false,
     candidateOnly: true,
     productionApproved: false,
     expectedFingerprintsBeforeDb: recordPreDbExpectedHashes(),
@@ -3520,6 +3888,12 @@ export async function runQualifyDisposablePath({
   };
 
   try {
+    if (!verification.ok) {
+      evidence.status = "HOLD";
+      evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+      evidence.limitation = verification.reason;
+      throw Object.assign(new Error(verification.reason), { code: verification.code || F23_UNKNOWN_VERIFICATION_MODE });
+    }
     const cli = (ops.discoverCli || discoverSupabaseCli)();
     evidence.cli = sanitizeForLog(cli);
     if (!skipCliPin && (!cli.available || !cli.matchesPin)) {
@@ -3823,7 +4197,18 @@ export async function runQualifyDisposablePath({
       throw Object.assign(new Error(evidence.limitation), { code: "F3_DBPUSH_CLI_PIN" });
     }
 
-    if (args.sequenceF3) {
+    if (args.sequenceF3 && verification.mode === QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION) {
+      await runNormalApplicationSequence({
+        evidence,
+        args,
+        ops,
+        cli,
+        isolated,
+        queryHelp,
+        pushHelp,
+        frozenTargetBuilt,
+      });
+    } else if (args.sequenceF3) {
       if (!args.prepFloor || !evidence.preDbPushGates?.ok) {
         evidence.status = "HOLD";
         evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
@@ -4637,17 +5022,41 @@ export async function runQualifyDisposablePath({
         must_local_psql_proof_on_17_6: MUST_LOCAL_PSQL_PROOF_ON_17_6,
       };
       const poisonSeq = chronologySeq += 1;
-      const preservedPoison = preserveOriginalProcessStdout(poisonFinal);
-      evidence.finalPoisonProbe = evaluateFinalPoisonAbsence(
-        preservedPoison.ok ? preservedPoison.preserved : poisonFinal,
-        { frozenTarget: frozenTargetBuilt.target },
-      );
+      const normalApplication = verification.mode === QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION;
+      if (normalApplication) {
+        const inventoryProbe = await ops.query({
+          bin: cli.bin,
+          workdir: isolated.workdir,
+          help: queryHelp,
+          sql: INVENTORY_SQL,
+        });
+        const inventoryBody = inventoryFromQuery(inventoryProbe.stdout);
+        const poisonPresent = poisonPresentFromLocalProbe(poisonFinal);
+        const injectAbsent = injectObjectsAbsentFromInventory(inventoryBody) && poisonPresent !== true;
+        evidence.finalPoisonProbe = {
+          ok: injectAbsent,
+          poisonPresent: poisonPresent === true,
+          hostedTargetBindingAuthenticated: false,
+          localInjectObjectsAbsent: injectAbsent,
+          method: "local-inventory-and-poison-probe; not hosted identity proof",
+        };
+        evidence.hostedPoisonTargetBinding = "NOT AUTHENTICATED — local fixture substitution";
+      } else {
+        const preservedPoison = preserveOriginalProcessStdout(poisonFinal);
+        evidence.finalPoisonProbe = evaluateFinalPoisonAbsence(
+          preservedPoison.ok ? preservedPoison.preserved : poisonFinal,
+          { frozenTarget: frozenTargetBuilt.target },
+        );
+      }
       if (args.sequenceF3 && evidence.sequence.length === F3_FORWARD_FILES.length) {
         if (!evidence.finalPoisonProbe?.ok || evidence.finalPoisonProbe.poisonPresent !== false) {
           evidence.status = "HOLD";
           evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
-          evidence.limitation = evidence.finalPoisonProbe?.reason || FINAL_POISON_ABSENCE_HOLD;
-          evidence.claims.dbPush = FINAL_POISON_ABSENCE_HOLD;
+          evidence.limitation = evidence.finalPoisonProbe?.reason
+            || (normalApplication
+              ? "HOLD: failure-injection objects must be absent after normal application"
+              : FINAL_POISON_ABSENCE_HOLD);
+          evidence.claims.dbPush = evidence.limitation;
         } else {
         const historyFinal = await ops.query({
           bin: cli.bin,
@@ -4657,11 +5066,20 @@ export async function runQualifyDisposablePath({
         });
         const historySeq = chronologySeq += 1;
         const historyRows = rowsFromQuery(historyFinal);
-        const historyVerified = Array.isArray(historyRows) && historyRows.length === F3_FORWARD_FILES.length;
+        const historyIdentities = verifyExactForwardHistoryIdentities(
+          historyRows,
+          F3_FORWARD_FILES[F3_FORWARD_FILES.length - 1],
+        );
+        evidence.finalHistoryIdentities = historyIdentities;
+        const historyVerified = historyIdentities.ok === true
+          && Array.isArray(historyRows)
+          && historyRows.length === F3_FORWARD_FILES.length;
         if (!historyVerified) {
           evidence.status = "HOLD";
           evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
-          evidence.limitation = `HOLD: FINAL inventory history must contain six rows, saw ${Array.isArray(historyRows) ? historyRows.length : 0}`;
+          evidence.limitation = historyIdentities.ok === false
+            ? "HOLD: FINAL history identities do not match frozen 00118–00123 version/name set"
+            : `HOLD: FINAL inventory history must contain six rows, saw ${Array.isArray(historyRows) ? historyRows.length : 0}`;
         } else {
         const finalInv = await ops.query({
           bin: cli.bin,
@@ -4696,6 +5114,7 @@ export async function runQualifyDisposablePath({
             "FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION; prior MECHANICS PASS SUPERSEDED; not production PASS; not clean replay PASS; not merge/deploy auth";
           evidence.claims.mechanicsPass = "SUPERSEDED";
           evidence.claims.productionApproval = "NOT CLAIMED";
+          evidence.claims.repairExercised = false;
           evidence.floorLabel = QUALIFICATION_FLOOR_LABEL;
         }
         }

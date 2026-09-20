@@ -113,12 +113,15 @@ import {
   evaluateQualificationResetCli,
   evaluateWipeToBaselineArg,
   parseArgs,
+  QUALIFICATION_VERIFICATION_MODES,
   qualificationResetQualifyEmitPayload,
   qualificationResetRuntimeContext,
+  resolveQualificationVerificationMode,
   runHostedQualificationReset,
   runQualificationResetQualifyPath,
   runQualifyDisposablePath,
   validateProposedQualificationResetHostedPlanOffline,
+  verifyExactForwardHistoryIdentities,
 } from "./qualify-f3-db-push-disposable.mjs";
 import {
   evaluatePreserveBaselinePreFloorGate,
@@ -2833,6 +2836,56 @@ test("F22 shared entrypoint: invalid preservation evidence blocks floor and migr
   assert.equal(calls.floor || 0, 0);
   assert.equal(calls.dbPush || 0, 0);
   assert.equal(calls.repair || 0, 0);
+});
+
+test("F23 verification mode is recorded before database operations", async () => {
+  const parsed = parseArgs(["--no-wipe", "--prep-floor", "--sequence-f3", "--verification-mode=normal-application"]);
+  assert.equal(parsed.verificationMode, QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION);
+  const resolved = resolveQualificationVerificationMode(parsed);
+  assert.equal(resolved.ok, true);
+  assert.equal(resolved.selectedBeforeDatabaseOperations, true);
+  assert.equal(resolved.hostedAuthority, false);
+  const unknown = resolveQualificationVerificationMode({ verificationMode: "hosted-force" });
+  assert.equal(unknown.ok, false);
+  let queryCalls = 0;
+  const { adapters, calls } = mockQualifyAdapters({
+    query: async () => {
+      queryCalls += 1;
+      return { status: 0, stdout: JSON.stringify(passingPreStubFloorCleanInventory()), stderr: "" };
+    },
+  });
+  const evidence = await runQualifyDisposablePath({
+    args: { prepFloor: true, sequenceF3: false, noWipe: true, verificationMode: "not-a-mode" },
+    adapters,
+    skipCliPin: true,
+    calls,
+  });
+  assert.equal(evidence.verificationMode?.ok, false);
+  assert.equal(evidence.verificationMode?.selectedBeforeDatabaseOperations, true);
+  assert.equal(queryCalls, 0);
+  assert.equal(calls.floor || 0, 0);
+  assert.equal(calls.dbPush || 0, 0);
+  assert.match(String(evidence.limitation || evidence.error || ""), /unknown qualification verification mode/);
+});
+
+test("F23 exact history identities reject count-only matches", () => {
+  const expected = [
+    { version: "20260913173000", name: "f3_bounded_financial_epoch_foundation" },
+    { version: "20260913173001", name: "f3_01_core_ledger_foundation" },
+    { version: "20260913173002", name: "f3_02_secure_posting_idempotency" },
+    { version: "20260913173003", name: "f3_03_projection_read_proof" },
+    { version: "20260913173004", name: "f3_04_correction_reversal" },
+    { version: "20260913173005", name: "f3_05_opening_cash_command" },
+  ];
+  const ok = verifyExactForwardHistoryIdentities(expected, "00123_f3_05_opening_cash_command.sql");
+  assert.equal(ok.ok, true);
+  assert.equal(ok.expectedCount, 6);
+  const countOnly = verifyExactForwardHistoryIdentities(
+    expected.map((row, i) => ({ version: row.version, name: `wrong_${i}` })),
+    "00123_f3_05_opening_cash_command.sql",
+  );
+  assert.equal(countOnly.ok, false);
+  assert.ok(countOnly.missing.length > 0);
 });
 
 test("F22 missing process evidence cannot produce qualification success", () => {

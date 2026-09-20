@@ -73,10 +73,12 @@ import {
   runQualificationReset,
 } from "./lib/f3-db-push-qualification-reset.mjs";
 import {
+  QUALIFICATION_VERIFICATION_MODES,
   createLocalFixtureQualifyAdapters,
   evaluateWipeToBaselineArg,
   runQualifyDisposablePath,
   validateProposedQualificationResetHostedPlanOffline,
+  verifyExactForwardHistoryIdentities,
 } from "./qualify-f3-db-push-disposable.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -214,6 +216,13 @@ function runOfflineChecks() {
     ok: wipe.code === F13_WIPE_REJECTION_CODE,
     code: wipe.code,
     replay: false,
+  }));
+  checks.push(record("F23_OUTCOMES_NOT_COMBINED_OR", "check", {
+    ok: true,
+    note: "completeThrough00123 and documentedAtomicRollbackHold are separately reported; neither OR-satisfies the other",
+    completeThrough00123: null,
+    documentedAtomicRollbackHold: null,
+    combinedAcceptanceRejected: true,
   }));
 
   const cmd = buildQualificationResetInventoryPsqlCommand({
@@ -841,8 +850,14 @@ function membershipSetsEqual(before, after) {
     && before.tuples.length === after.tuples.length;
 }
 
-async function runCompleteLocalQualificationSequence({ created, psql }) {
-  const db = created.mod.createDisposableDatabase("f22_complete_qual");
+async function runSharedLocalQualificationSequence({
+  created,
+  psql,
+  verificationMode,
+  scenarioId,
+  dbLabel,
+}) {
+  const db = created.mod.createDisposableDatabase(dbLabel);
   try {
     psql(db.url, "CREATE SCHEMA IF NOT EXISTS supabase_migrations;");
     psql(db.url, `CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (
@@ -898,6 +913,7 @@ async function runCompleteLocalQualificationSequence({ created, psql }) {
             noWipe: true,
             skipCleanup: true,
             floorMode: "stub-live-pin",
+            verificationMode,
           },
           adapters,
           skipCliPin: false,
@@ -913,16 +929,34 @@ async function runCompleteLocalQualificationSequence({ created, psql }) {
       }
     }
     const membershipAfterQual = snapshotExtensionMembership(psql, db.url);
-    const historyAfter = psql(db.url, `SELECT CASE
-      WHEN to_regclass('supabase_migrations.schema_migrations') IS NULL THEN 0
-      ELSE (SELECT count(*) FROM supabase_migrations.schema_migrations)
+    const historyRaw = psql(db.url, `SELECT CASE
+      WHEN to_regclass('supabase_migrations.schema_migrations') IS NULL THEN '[]'::text
+      ELSE coalesce((
+        SELECT jsonb_agg(jsonb_build_object('version', version::text, 'name', name) ORDER BY version)::text
+        FROM supabase_migrations.schema_migrations
+      ), '[]')
     END`);
+    let historyRows = [];
+    try {
+      historyRows = JSON.parse(historyRaw || "[]");
+    } catch {
+      historyRows = [];
+    }
+    if (!Array.isArray(historyRows)) historyRows = [];
+    const historyIdentities = verifyExactForwardHistoryIdentities(
+      historyRows,
+      F3_FORWARD_FILES[F3_FORWARD_FILES.length - 1],
+    );
     const firstStep = Array.isArray(qualify.sequence) ? qualify.sequence[0] : null;
     const classification = firstStep?.classification || {};
     const completeThrough00123 = String(qualify.verdict || "").includes("QUALIFICATION PASS")
-      && Number(historyAfter) === F3_FORWARD_FILES.length
+      && historyIdentities.ok === true
+      && historyRows.length === F3_FORWARD_FILES.length
       && Array.isArray(qualify.sequence)
-      && qualify.sequence.length === F3_FORWARD_FILES.length;
+      && qualify.sequence.length === F3_FORWARD_FILES.length
+      && qualify.verificationMode?.mode === QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION
+      && (calls.repair || qualify.calls?.repair || 0) === 0
+      && qualify.repairExercised !== true;
     const documentedAtomicRollbackHold = preFloor.allowFloor === true
       && qualify.floor?.installed === true
       && qualify.preDbPushGates?.ok === true
@@ -932,16 +966,25 @@ async function runCompleteLocalQualificationSequence({ created, psql }) {
       && (calls.repair || qualify.calls?.repair || 0) === 0
       && (calls.dbPush || qualify.calls?.dbPush || 0) >= 1
       && /repair-safety gate failed/i.test(String(qualify.limitation || qualify.error || ""));
-    const pass = reset.ok === true
+    const sharedOk = reset.ok === true
       && reset.verdict === "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1"
       && preFloor.allowFloor === true
       && preFloor.verdict === "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1"
       && membershipSetsEqual(membershipBeforeReset, membershipAfterReset)
-      && membershipSetsEqual(membershipAfterReset, membershipAfterQual)
-      && (completeThrough00123 || documentedAtomicRollbackHold);
-    return record("F22_COMPLETE_LOCAL_QUALIFICATION", "scenario", {
+      && membershipSetsEqual(membershipAfterReset, membershipAfterQual);
+    const faultInjectionSafetyPass = sharedOk && documentedAtomicRollbackHold === true;
+    const localApplicationComplete = sharedOk && completeThrough00123 === true;
+    const pass = verificationMode === QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION
+      ? localApplicationComplete
+      : faultInjectionSafetyPass;
+    const remainingHold = verificationMode === QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION
+      ? (localApplicationComplete ? null : (qualify.errorCode || qualify.limitation || qualify.error || "F23_NORMAL_APPLICATION_INCOMPLETE"))
+      : "F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED";
+    return record(scenarioId, "scenario", {
       ok: pass,
-      capture: "preserve-reset-then-shared-qualify-00118-00123",
+      capture: verificationMode === QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION
+        ? "preserve-reset-then-shared-qualify-normal-application-00118-00123"
+        : "preserve-reset-then-shared-qualify-fault-injection-00118",
       resetApply: reset.spies?.applyCalls ?? 0,
       commit: reset.committed === true,
       verdict: qualify.verdict || reset.verdict,
@@ -949,16 +992,30 @@ async function runCompleteLocalQualificationSequence({ created, psql }) {
       qualifyStatus: qualify.status || null,
       qualifyError: qualify.error || qualify.limitation || null,
       qualifyErrorCode: qualify.errorCode || null,
+      verificationMode,
+      verificationModeRecorded: qualify.verificationMode || null,
       completeThrough00123,
-      remainingHold: completeThrough00123 ? null : "F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
+      documentedAtomicRollbackHold,
+      localApplicationComplete,
+      faultInjectionSafetyPass,
+      remainingHold,
       classification,
       objectsPresent: firstStep?.objectsPresent ?? null,
       repairAttempted: firstStep?.repairAttempted === true,
+      repairExercised: qualify.repairExercised === true || firstStep?.repairExercised === true,
       floorInstalled: qualify.floor?.installed === true,
       preDbPushGatesOk: qualify.preDbPushGates?.ok === true,
       sequenceLength: Array.isArray(qualify.sequence) ? qualify.sequence.length : 0,
-      historyAfter: Number(historyAfter),
+      historyAfter: historyRows.length,
+      historyIdentities,
       expectedHistory: F3_FORWARD_FILES.length,
+      operationCounts: qualify.operationCounts || {
+        calibrationProbes: null,
+        migrationApplications: calls.dbPush || qualify.calls?.dbPush || 0,
+        retries: 0,
+        repairs: calls.repair || qualify.calls?.repair || 0,
+        historyInjects: verificationMode === QUALIFICATION_VERIFICATION_MODES.FAULT_INJECTION ? 1 : 0,
+      },
       floorCalls: calls.floor || qualify.calls?.floor || 0,
       dbPushCalls: calls.dbPush || qualify.calls?.dbPush || 0,
       repairCalls: calls.repair || qualify.calls?.repair || 0,
@@ -1458,6 +1515,7 @@ async function runLocalPgScenarios() {
         mustLocalRecord("F21_NAME_ONLY_OR_UNRELATED_LEFTOVER_HOLD"),
         mustLocalRecord("F21_LOCAL_QUAL_FROM_00118_PREINSTALLED_INDUCED_HOLD"),
         mustLocalRecord("F22_COMPLETE_LOCAL_QUALIFICATION"),
+        mustLocalRecord("F23_NORMAL_APPLICATION_LOCAL_QUALIFICATION"),
         mustLocalRecord("TX_T3_LOCKWAIT_UNAPPROVED_FK_ROLLBACK"),
         mustLocalRecord("TX_T3_LOCKWAIT_RETARGETED_FK_ROLLBACK"),
       ],
@@ -1823,7 +1881,20 @@ async function runLocalPgScenarios() {
       catalogAfter: { extension: extAfter00118 },
     }));
 
-    scenarios.push(await runCompleteLocalQualificationSequence({ created, psql }));
+    scenarios.push(await runSharedLocalQualificationSequence({
+      created,
+      psql,
+      verificationMode: QUALIFICATION_VERIFICATION_MODES.FAULT_INJECTION,
+      scenarioId: "F22_COMPLETE_LOCAL_QUALIFICATION",
+      dbLabel: "f22_fault_inject",
+    }));
+    scenarios.push(await runSharedLocalQualificationSequence({
+      created,
+      psql,
+      verificationMode: QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION,
+      scenarioId: "F23_NORMAL_APPLICATION_LOCAL_QUALIFICATION",
+      dbLabel: "f23_normal_app",
+    }));
 
     scenarios.push(await runLockWaitDriftScenario({
       psql,
@@ -1892,6 +1963,7 @@ export async function proveQualificationResetLocal() {
         mustLocalRecord("F21_NAME_ONLY_OR_UNRELATED_LEFTOVER_HOLD"),
         mustLocalRecord("F21_LOCAL_QUAL_FROM_00118_PREINSTALLED_INDUCED_HOLD"),
         mustLocalRecord("F22_COMPLETE_LOCAL_QUALIFICATION"),
+        mustLocalRecord("F23_NORMAL_APPLICATION_LOCAL_QUALIFICATION"),
         mustLocalRecord("TX_T3_LOCKWAIT_UNAPPROVED_FK_ROLLBACK"),
         mustLocalRecord("TX_T3_LOCKWAIT_RETARGETED_FK_ROLLBACK"),
       ],
@@ -1900,6 +1972,11 @@ export async function proveQualificationResetLocal() {
   const cases = [...checks, ...pg.scenarios];
   const mustLocal = pg.available !== true;
   const failCount = cases.filter((row) => row.ok !== true).length;
+  const f22 = cases.find((row) => row.id === "F22_COMPLETE_LOCAL_QUALIFICATION") || {};
+  const f23 = cases.find((row) => row.id === "F23_NORMAL_APPLICATION_LOCAL_QUALIFICATION") || {};
+  const completeThrough00123 = f23.completeThrough00123 === true;
+  const documentedAtomicRollbackHold = f22.documentedAtomicRollbackHold === true;
+  const localApplicationComplete = f23.localApplicationComplete === true && completeThrough00123 === true;
   return {
     schema: "f18-qualification-reset-local-proof-v1",
     label: F19_RUNTIME_LABEL,
@@ -1919,6 +1996,24 @@ export async function proveQualificationResetLocal() {
       checks: cases.filter((row) => row.kind === "check").length,
       scenarios: cases.filter((row) => row.kind === "scenario").length,
       executedTransactions: cases.filter((row) => row.executedTransaction === true).length,
+    },
+    completeThrough00123,
+    documentedAtomicRollbackHold,
+    localApplicationComplete,
+    faultInjectionSafetyPass: documentedAtomicRollbackHold,
+    applicationRemainingHold: localApplicationComplete ? null : (f23.remainingHold || null),
+    faultInjectionHold: "F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
+    remainingHold: localApplicationComplete ? null : (f23.remainingHold || f22.remainingHold || null),
+    combinedAcceptanceRejected: true,
+    repairCoverage: {
+      freshlyExercised: documentedAtomicRollbackHold
+        ? "F22 fault-injection: induced history failure classified PRE_COMMIT_OR_ATOMIC_ROLLBACK; repair-safety gate refused repair; repairCalls=0"
+        : "fault-injection path did not authenticate the documented atomic-rollback refuse",
+      inheritedAcceptedEvidence: "F22 HOLD PACKAGE ACCEPT for F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED as historical authenticated negative test",
+      unexercised: "post-commit filename-version repair after objects remain; hosted split where SQL commits and history INSERT fails",
+      mandatoryUnderApprovedContract: true,
+      promotedNotExercisedToPass: false,
+      remainingFounderDecision: "Whether a hosted filename-version split (objects remain after inject) can be authorized. Local CLI atomic rollback cannot satisfy post-commit repair. Do not mark unapplied SQL applied or manufacture committed objects.",
     },
     cases,
     passCount: cases.filter((row) => row.ok === true).length,

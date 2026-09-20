@@ -1,0 +1,10 @@
+{
+  "label": "F24 DEPENDENCY-ORDER LOCAL PROOF",
+  "status": "DAYBREAK HOLD — HOSTED ATTEMPT_2 STOPPED AT RESET; QUALIFICATION NOT STARTED",
+  "localOutcome": "LOCAL DEPENDENCY-ORDER CORRECTION PROVED ON DOCUMENTED QUALIFICATION FIXTURE",
+  "hostedOutcome": "NOT RUN — no third hosted attempt",
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "hostedIdentityProof": false,
+  "disposableContact": false,
+  "productionContact": false
+}

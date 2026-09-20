@@ -1,0 +1,142 @@
+{
+  "tip": "51cc864d1efbefc1398ad3fd1895360c95474a57",
+  "capturedAt": "2026-09-17T05:36:14.551Z",
+  "identity": {
+    "database": "f13_qual_reset_local_20260917",
+    "user": "f3_ref_oracle",
+    "host": "127.0.0.1:55432",
+    "container": "f3-reference-pg176",
+    "serverProbe": "db               |      usr      |                                                        ver                                                         \n-------------------------------+---------------+--------------------------------------------------------------------------------------------------------------------\n f13_qual_reset_local_20260917 | f3_ref_oracle | PostgreSQL 17.6 (Debian 17.6-2.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit\n(1 row)",
+    "tip": "51cc864d1efbefc1398ad3fd1895360c95474a57",
+    "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+    "disposableContacted": false,
+    "productionContacted": false
+  },
+  "scopeSqlIdentitySha256": "a0d09868aff25859521ae9931d14c9faa4562da11e5f872d7be8e8e1195071eb",
+  "closureDigestLocalSynthetic": "56f37948681bdea0dd31b913ddd88e9d7ce64b2175c25298435d19f3f9b4011b",
+  "qaAcceptScore": "[SANITIZED_ABS_PATH]",
+  "qaVerdict": "IMPLEMENTATION ACCEPT",
+  "cases": [
+    {
+      "id": "SETUP_RESET_THROWAY",
+      "ok": true,
+      "status": 0,
+      "stderr": "NOTICE:  schema \"financial_core\" does not exist, skipping\nNOTICE:  schema \"financial_private\" does not exist, skipping\nNOTICE:  drop cascades to table supabase_migrations.schema_migrations\nNOTICE:  extension \"btree_gist\" does not exist, skipping\n"
+    },
+    {
+      "id": "WIPE_STILL_REJECTED",
+      "ok": true,
+      "code": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
+      "wipeCliCode": null,
+      "expected": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH"
+    },
+    {
+      "id": "P0_INVENTORY_CAPTURE_REQUIRED",
+      "ok": true,
+      "code": "F13_INVENTORY_CAPTURE_REQUIRED"
+    },
+    {
+      "id": "SETUP_MIGRATIONS_RELATION",
+      "ok": true,
+      "status": 0
+    },
+    {
+      "id": "P1_ELIGIBLE_ALREADY_CLEAN",
+      "ok": true,
+      "alreadyClean": true,
+      "eligible": false,
+      "observedObjectCount": 0,
+      "observedHistoryCount": 0
+    },
+    {
+      "id": "P2_CLEAN_BASELINE_VERDICT",
+      "ok": true,
+      "verdict": "CLEAN_BASELINE",
+      "emitVerdict": "CLEAN_BASELINE",
+      "mutation": false,
+      "transportCalls": 0,
+      "committedEffects": 0
+    },
+    {
+      "id": "SETUP_LEFTOVER_FIXTURE",
+      "ok": true,
+      "status": 0,
+      "stderr": "NOTICE:  schema \"supabase_migrations\" already exists, skipping\nNOTICE:  relation \"schema_migrations\" already exists, skipping\n",
+      "tables": [
+        "financial_core.opening_provenances",
+        "financial_core.correction_command_payloads",
+        "financial_core.posting_command_payloads"
+      ]
+    },
+    {
+      "id": "P1_LEFTOVER_ELIGIBLE",
+      "ok": true,
+      "eligible": true,
+      "alreadyClean": false,
+      "reason": "every leftover identity is in FINITE_OBJECT_ALLOWLIST and history matches authenticated keys"
+    },
+    {
+      "id": "SUCCESS_LEFTOVER_CLEAN_BASELINE",
+      "ok": true,
+      "verdict": "CLEAN_BASELINE",
+      "emitVerdict": "CLEAN_BASELINE",
+      "code": "F13_RESET_COMMITTED",
+      "committed": true,
+      "committedEffects": 1,
+      "sqlSha256": "0fe958d693b1d79bf15ebd61424678d0a9d158437e302595a17aa04bf22aac8b",
+      "post": {
+        "schemas": 0,
+        "hist": 0,
+        "coreTables": 0
+      },
+      "stderr": "psql:[OVERNIGHT]/local-pg-proof/emitted-qualification-reset.sql:489: NOTICE:  function public.post_financial_opening_cash(jsonb) does not exist, skipping\npsql:[OVERNIGHT]/local-pg-proof/emitted-qualification-reset.sql:489: NOTICE:  function public.get_financial_cashbook(uuid,pg_catalog.timestamptz,pg_catalog.timestamptz,uuid,text,pg_catalog.int4,pg_catalog.int4) does not exist, skipping\npsql:[OVERNIGHT]/local-pg-proof/emitted-qualification-reset.sql:489: NOTICE:  function public.get_financial_projection_bundle(uuid,pg_catalog.timestamptz,pg_catalog.timestamptz,pg_catalog.timestamptz) does not "
+    },
+    {
+      "id": "ROLLBACK_EXTRAS_HOLD_OFFLINE",
+      "ok": true,
+      "eligible": false,
+      "code": "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY",
+      "reason": "Unexpected object or dependency blocks reset"
+    },
+    {
+      "id": "ROLLBACK_UNEXPECTED_OBJECT_SQL",
+      "ok": true,
+      "code": "F13_RESET_SQL_FAILED",
+      "committed": false,
+      "committedEffects": 0,
+      "rolledBack": true,
+      "sentinelPreserved": true,
+      "stderr": "psql:[OVERNIGHT]/local-pg-proof/emitted-qualification-reset.sql:266: ERROR:  F13_UNEXPECTED_OBJECT_OR_DEPENDENCY: public.not_allowlisted_extra\nCONTEXT:  PL/pgSQL function inline_code_block line 15 at RAISE\n"
+    },
+    {
+      "id": "ROLLBACK_HISTORY_MISMATCH",
+      "ok": true,
+      "code": "F13_RESET_SQL_FAILED",
+      "histRowsRemaining": 6,
+      "committedEffects": 0,
+      "stderr": "psql:[OVERNIGHT]/local-pg-proof/emitted-qualification-reset.sql:266: ERROR:  F13_HISTORY_KEY_MISMATCH: version 20260913173000 name WRONG_NAME\nCONTEXT:  PL/pgSQL function inline_code_block line 66 at RAISE\n"
+    },
+    {
+      "id": "FAILURE_BEFORE_MUTATION_NO_EFFECTS",
+      "ok": true,
+      "code": "F13_FAILURE_BEFORE_MUTATION",
+      "committedEffects": 0,
+      "transportCalls": 1
+    }
+  ],
+  "passCount": 13,
+  "failCount": 0,
+  "overallOk": true,
+  "labels": {
+    "localStatusTarget": "LOCAL CANDIDATE READY",
+    "overall": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+    "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT"
+  },
+  "bansHonored": {
+    "disposable": false,
+    "production": false,
+    "daybreakAstra": false,
+    "wipeBypass": false,
+    "forcePush": false
+  }
+}

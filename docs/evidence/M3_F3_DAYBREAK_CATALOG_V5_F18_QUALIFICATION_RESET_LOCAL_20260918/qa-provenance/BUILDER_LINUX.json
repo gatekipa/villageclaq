@@ -1,0 +1,39 @@
+{
+  "reviewer": "VillageClaq Builder",
+  "task": "F18 overnight LOCAL correction",
+  "reviewedPin": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "environment": "linux",
+  "postgresServerVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+  "classification": "LOCAL_PG_EXECUTED",
+  "notIndependentQa": true,
+  "gates": {
+    "resetDesign": {
+      "tests": 30,
+      "pass": 30,
+      "fail": 0
+    },
+    "reset": {
+      "tests": 62,
+      "pass": 62,
+      "fail": 0
+    },
+    "dbPushHarnessFile": {
+      "tests": 115,
+      "pass": 115,
+      "fail": 0
+    },
+    "combinedSuite": {
+      "tests": 243,
+      "pass": 243,
+      "fail": 0
+    },
+    "helper": {
+      "pass": 33,
+      "fail": 0,
+      "checks": 24,
+      "scenarios": 9,
+      "executedTransactions": 8,
+      "classification": "LOCAL_PG_EXECUTED"
+    }
+  }
+}

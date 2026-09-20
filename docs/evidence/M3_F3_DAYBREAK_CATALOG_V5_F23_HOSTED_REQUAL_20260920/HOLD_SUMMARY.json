@@ -1,0 +1,62 @@
+{
+  "overall": "DAYBREAK HOLD",
+  "outcome": "stopped",
+  "phaseReached": "reset",
+  "notPass": true,
+  "reset": {
+    "exitCode": 1,
+    "status": "HOLD",
+    "verdict": "HOLD",
+    "ok": false,
+    "code": "F13_INVENTORY_CAPTURE_PROCESS_FAILED",
+    "reason": "Inventory capture process was unsuccessful",
+    "executed": false,
+    "committed": false,
+    "mutation": false,
+    "alreadyClean": false,
+    "inventoryCaptured": false,
+    "captureSqlWired": true,
+    "productionContacted": false,
+    "wipeToBaselineRejected": true,
+    "wipeRejectionCode": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
+    "preserveBaselineGate": "NOT_REACHED — inventory capture failed before classifyInventory / preserve verdict",
+    "btreeGistPreserved": "N/A — no mutation; disposable left intact"
+  },
+  "qualification": {
+    "status": "NOT_RUN",
+    "reason": "Stopped after reset required-check failure; budget forbids second reset and forbids qual-without-passing-reset"
+  },
+  "operationCounts": {
+    "calibrationProbes": 0,
+    "migrationApplications": 0,
+    "historyInjects": 0,
+    "repairs": 0,
+    "retries": 0,
+    "note": "Qualification not started; counters remain zero"
+  },
+  "perFileClassifications": null,
+  "blocker": {
+    "primary": "psql client absent on execution host",
+    "detail": "Gated inventory capture requires argv psql -X -q -t -A -w -v ON_ERROR_STOP=1 -f [FILE]. which/type/ls found no psql on PATH or standard locations. Capture process returned non-zero/null status → F13_INVENTORY_CAPTURE_PROCESS_FAILED before plan/validate/mutate.",
+    "secureStepMissing": "Install PostgreSQL client psql on Chief box (matching gated remote psql -f contract) before any new founder-authorized reset. Do not retry under this consumed 1+1 budget.",
+    "credentialsPresent": {
+      "VILLAGECLAQ_F3_DISPOSABLE_DB_PASSWORD": true,
+      "VILLAGECLAQ_F3_DISPOSABLE_MGMT_TOKEN": true,
+      "F3_DBPUSH_DISPOSABLE_SENTINEL": true,
+      "F3_REMOTE_DESTRUCTIVE_TEST": true
+    },
+    "passwordValidity": "NOT_CONFIRMED — capture failed before authenticated SQL; env present but auth not proven"
+  },
+  "knownSummaryFieldInconsistencies": [
+    {
+      "field": "qualify-result.json label",
+      "observed": "F19 LOCAL CORRECTION CANDIDATE — AWAITING QA / LOCAL TX PROOF",
+      "note": "Stale fail()-builder label from shared orchestration; this run is F23 hosted requal stop at inventory capture, not an F19 local correction candidate. Do not treat label as F19 identity."
+    },
+    {
+      "field": "claims.repairExercised",
+      "note": "N/A — qualification not run. Plan warns qualify PASS branch may record claims.repairExercised=false even when repair exercised; irrelevant here."
+    }
+  ],
+  "floorVerbatim": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT"
+}

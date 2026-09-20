@@ -1,0 +1,20 @@
+{
+  "functionalTip": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+  "proveHead": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+  "proveHeadEqualsFunctionalTip": true,
+  "contractTip": "b7d16544cdbb86ce47baba329835bd93dcb16d6d",
+  "acceptedFunctionalAncestor": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
+  "supersededStub": "64b4abe65e938daac32b160882e358253c141015",
+  "pg": {
+    "product": "PostgreSQL",
+    "version": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+    "serverVersionNumPrefix": "17",
+    "endpoint": "unix:[SANITIZED_ABS_PATH]",
+    "role": "ubuntu",
+    "fixture": "scripts/fixtures/disposable-postgres.mjs createDisposableDatabase",
+    "workDbPrefix": "f3_",
+    "isolatedTaskOwned": true
+  },
+  "classification": "LOCAL_PG_EXECUTED",
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT"
+}

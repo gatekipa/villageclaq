@@ -1,0 +1,77 @@
+{
+  "schema": "f23-hosted-requal-execution-report-v1",
+  "recordedAtLocal": "2026-09-20T04:08-04:00 America/New_York (approx start); stop packaged same day ET",
+  "outcome": "stopped",
+  "phaseReached": "reset",
+  "exitCodes": {
+    "qualificationReset": 1,
+    "qualificationFrom00118": null
+  },
+  "executionCheckout": {
+    "requiredFunctionalSha": "66be2b4797515975d737a0fd66656bc4c0de2145",
+    "verifiedAtRun": true,
+    "packagingBranchTipAtStart": "a054585e187382533e7e06f44aeeea60810d1210",
+    "note": "Execution used detached HEAD at functional SHA; evidence commits land on shared branch without rewriting functional bytes"
+  },
+  "preflight": {
+    "planSha256Verified": true,
+    "closureDigestConfirmed": true,
+    "scopeSqlIdentityConfirmed": true,
+    "cliVersion": "2.117.0",
+    "targetRef": "jkorwnwwmdeflfntxntl",
+    "productionRefRejected": true,
+    "pooler6543RejectedByContract": true
+  },
+  "commands": {
+    "reset": "node scripts/qualify-f3-db-push-disposable.mjs --qualification-reset --founder-authorization-artifact=docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL/hosted/qualification-reset/FOUNDER_AUTH.json --evidence-out=docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL/hosted/qualification-reset/qualify-result.json",
+    "qualification": "NOT RUN"
+  },
+  "resetResult": {
+    "status": "HOLD",
+    "verdict": "HOLD",
+    "ok": false,
+    "reason": "Inventory capture process was unsuccessful",
+    "code": "F13_INVENTORY_CAPTURE_PROCESS_FAILED",
+    "label": "F19 LOCAL CORRECTION CANDIDATE \u2014 AWAITING QA / LOCAL TX PROOF",
+    "sharedOrchestration": "runQualificationReset",
+    "wipeToBaselineRejected": true,
+    "wipeRejectionCode": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
+    "productionContacted": false,
+    "spies": {
+      "planCalls": 0,
+      "validateCalls": 0,
+      "captureCalls": 1,
+      "transportCalls": 0,
+      "applyCalls": 0,
+      "sqlCalls": 0,
+      "beginObserved": 0,
+      "mutateAttempted": 0,
+      "commitAttempted": 0,
+      "commitConfirmed": 0,
+      "rollbackObserved": 0,
+      "replayCalls": 0,
+      "committedEffects": 0,
+      "startedBeforeInvoke": false,
+      "completedAfterAwait": false
+    },
+    "executed": false,
+    "committed": false,
+    "mutation": false,
+    "alreadyClean": false,
+    "inventoryCaptured": false,
+    "captureSqlWired": true,
+    "observedFromCapture": null,
+    "automaticReplay": false,
+    "fingerprint_exact": false
+  },
+  "cleanup": {
+    "status": "noop",
+    "reason": "No mutation; no run-owned probes/injectors created; disposable project left intact; no reset-as-cleanup"
+  },
+  "paths": {
+    "liveResetEvidence": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL/hosted/qualification-reset/",
+    "datedPackage": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL_20260920/",
+    "planBytesPreservedOutsideTree": "/workspace/villageclaq-f23-hosted/plan-bytes/PROPOSED_HOSTED_REQUAL_PLAN.md",
+    "founderAuthOutsideTree": "/workspace/villageclaq-f23-hosted/auth-outside-tree/FOUNDER_AUTH.json"
+  }
+}

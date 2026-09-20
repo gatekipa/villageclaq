@@ -1,0 +1,18 @@
+{
+  "package": "M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920",
+  "localStatus": "HOLD: F23_FINGERPRINT_MISMATCH",
+  "localApplicationComplete": false,
+  "migrationsAppliedThrough00123": true,
+  "faultInjectionSafetyPass": true,
+  "faultInjectionHold": "F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
+  "notLocalCandidateReady": true,
+  "classification": "LOCAL_PG_EXECUTED",
+  "functionalTip": "77fd61dbf51652acabec0093d2a8549524b2dd75",
+  "evidenceTip": "b61c640b069c8568820d4e02516518bd45a7fc7f",
+  "policy": "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "daybreak": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "qa": "F23 HOLD PACKAGE ACCEPT — VillageClaq QA (independent); not LOCAL APPLICATION COMPLETE; not LOCAL CANDIDATE READY",
+  "qaReviewedEvidenceTip": "c0a6746516b115b9e1db6ce311c4a4fe80113b01",
+  "astra": "both F22 delegation attempts failed at service access; no Astra verdict; Daybreak/Astra not contacted"
+}

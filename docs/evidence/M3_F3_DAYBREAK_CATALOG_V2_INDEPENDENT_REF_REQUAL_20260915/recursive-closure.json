@@ -1,0 +1,22 @@
+{
+  "artifact": "recursive-closure",
+  "functional_sha": "a4104b452c29e9bb103cb7b232004368875dc53f",
+  "files": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs",
+    "scripts/lib/f3-full-catalog-independent-reference.mjs"
+  ],
+  "source_sha256": {
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs": "07354bbf3022fe78fab5120cc9c18cf319ae0269fb3796c960abbb8a94463aef",
+    "scripts/qualify-f3-db-push-disposable.mjs": "842f21e8f2aab6b9c46275ef0e2d2257e73b8d0217b5e70ff10dc5052eba157c",
+    "scripts/test-f3-db-push-harness.mjs": "32b3a803f8c40dd326a3622a776d5db850a38a413d07c10f16f2859daa0bf9ab",
+    "scripts/lib/f3-full-catalog-independent-reference.mjs": "de4ed3fd1f79103cb85591209246e0dbd2194d0f5adbc2a6c82497fe83449c3f"
+  },
+  "closure_sha256": "c0673cff906c87dea9bf3e05d9af0ab51815a2e50bb2a2f4153d40b37180f60e",
+  "independent_reference_module": "scripts/lib/f3-full-catalog-independent-reference.mjs",
+  "independent_reference_source_sha256": "de4ed3fd1f79103cb85591209246e0dbd2194d0f5adbc2a6c82497fe83449c3f",
+  "independent_module_relpath": "scripts/lib/f3-full-catalog-independent-reference.mjs",
+  "claimed_independent_module_sha": "de4ed3fd1f79103cb85591209246e0dbd2194d0f5adbc2a6c82497fe83449c3f",
+  "match": true
+}

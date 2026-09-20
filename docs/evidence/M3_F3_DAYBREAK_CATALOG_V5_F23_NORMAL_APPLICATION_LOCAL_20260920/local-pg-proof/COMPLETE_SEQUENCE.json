@@ -1,0 +1,218 @@
+{
+  "combinedAcceptanceRejected": true,
+  "normalApplication": {
+    "id": "F23_NORMAL_APPLICATION_LOCAL_QUALIFICATION",
+    "verificationMode": {
+      "ok": true,
+      "mode": "normal-application",
+      "selectedBeforeDatabaseOperations": true,
+      "hostedAuthority": false,
+      "faultInjection": false,
+      "normalApplication": true,
+      "note": "Local verification mode only. Supplies no hosted authority."
+    },
+    "ok": true,
+    "completeThrough00123": false,
+    "migrationsAppliedThrough00123": true,
+    "localApplicationComplete": false,
+    "remainingHold": "F23_FINGERPRINT_MISMATCH",
+    "qualifyStatus": "HOLD",
+    "qualifyError": "fingerprint expected and observed are not canonically equal",
+    "qualifyErrorCode": "F23_FINGERPRINT_MISMATCH",
+    "preFloorVerdict": "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+    "floorInstalled": true,
+    "preDbPushGatesOk": true,
+    "sequenceLength": 6,
+    "historyAfter": 6,
+    "historyIdentities": {
+      "ok": true,
+      "expected": [
+        {
+          "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+          "version": "20260913173000",
+          "name": "f3_bounded_financial_epoch_foundation"
+        },
+        {
+          "file": "00119_f3_01_core_ledger_foundation.sql",
+          "version": "20260913173001",
+          "name": "f3_01_core_ledger_foundation"
+        },
+        {
+          "file": "00120_f3_02_secure_posting_idempotency.sql",
+          "version": "20260913173002",
+          "name": "f3_02_secure_posting_idempotency"
+        },
+        {
+          "file": "00121_f3_03_projection_read_proof.sql",
+          "version": "20260913173003",
+          "name": "f3_03_projection_read_proof"
+        },
+        {
+          "file": "00122_f3_04_correction_reversal.sql",
+          "version": "20260913173004",
+          "name": "f3_04_correction_reversal"
+        },
+        {
+          "file": "00123_f3_05_opening_cash_command.sql",
+          "version": "20260913173005",
+          "name": "f3_05_opening_cash_command"
+        }
+      ],
+      "observed": [
+        {
+          "name": "f3_bounded_financial_epoch_foundation",
+          "version": "20260913173000"
+        },
+        {
+          "name": "f3_01_core_ledger_foundation",
+          "version": "20260913173001"
+        },
+        {
+          "name": "f3_02_secure_posting_idempotency",
+          "version": "20260913173002"
+        },
+        {
+          "name": "f3_03_projection_read_proof",
+          "version": "20260913173003"
+        },
+        {
+          "name": "f3_04_correction_reversal",
+          "version": "20260913173004"
+        },
+        {
+          "name": "f3_05_opening_cash_command",
+          "version": "20260913173005"
+        }
+      ],
+      "missing": [],
+      "extra": [],
+      "count": 6,
+      "expectedCount": 6,
+      "identities": [
+        {
+          "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+          "version": "20260913173000",
+          "name": "f3_bounded_financial_epoch_foundation",
+          "present": true
+        },
+        {
+          "file": "00119_f3_01_core_ledger_foundation.sql",
+          "version": "20260913173001",
+          "name": "f3_01_core_ledger_foundation",
+          "present": true
+        },
+        {
+          "file": "00120_f3_02_secure_posting_idempotency.sql",
+          "version": "20260913173002",
+          "name": "f3_02_secure_posting_idempotency",
+          "present": true
+        },
+        {
+          "file": "00121_f3_03_projection_read_proof.sql",
+          "version": "20260913173003",
+          "name": "f3_03_projection_read_proof",
+          "present": true
+        },
+        {
+          "file": "00122_f3_04_correction_reversal.sql",
+          "version": "20260913173004",
+          "name": "f3_04_correction_reversal",
+          "present": true
+        },
+        {
+          "file": "00123_f3_05_opening_cash_command.sql",
+          "version": "20260913173005",
+          "name": "f3_05_opening_cash_command",
+          "present": true
+        }
+      ]
+    },
+    "operationCounts": {
+      "calibrationProbes": 6,
+      "migrationApplications": 6,
+      "retries": 0,
+      "repairs": 0,
+      "historyInjects": 0
+    },
+    "floorCalls": 2,
+    "dbPushCalls": 12,
+    "repairCalls": 0,
+    "repairAttempted": false,
+    "repairExercised": false,
+    "objectsPresent": true,
+    "note": "wrapQualifyAdapters dbPushCalls may double-count; truthful apply count is operationCounts.migrationApplications=6"
+  },
+  "faultInjection": {
+    "id": "F22_COMPLETE_LOCAL_QUALIFICATION",
+    "verificationMode": {
+      "ok": true,
+      "mode": "fault-injection",
+      "selectedBeforeDatabaseOperations": true,
+      "hostedAuthority": false,
+      "faultInjection": true,
+      "normalApplication": false,
+      "note": "Local verification mode only. Supplies no hosted authority."
+    },
+    "ok": true,
+    "completeThrough00123": false,
+    "documentedAtomicRollbackHold": true,
+    "remainingHold": "F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
+    "qualifyStatus": "HOLD",
+    "qualifyError": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+    "classification": {
+      "nonzeroExit": true,
+      "historyFailed": true,
+      "historyInsertMentioned": true,
+      "targetVersionPresent": false,
+      "targetVersionAbsent": true,
+      "sqlCommitted": false,
+      "rolledBack": true,
+      "split": "PRE_COMMIT_OR_ATOMIC_ROLLBACK",
+      "knownFilenameVersion": "20260913173000",
+      "repairAuthorizedByFilenameVersion": false
+    },
+    "objectsPresent": false,
+    "repairAttempted": false,
+    "repairCalls": 0,
+    "floorInstalled": true,
+    "preDbPushGatesOk": true,
+    "sequenceLength": 1,
+    "historyAfter": 0,
+    "operationCounts": {
+      "calibrationProbes": null,
+      "migrationApplications": 2,
+      "retries": 0,
+      "repairs": 0,
+      "historyInjects": 1
+    },
+    "floorCalls": 2,
+    "dbPushCalls": 2,
+    "inheritedPackage": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919"
+  },
+  "substitutedInterfaces": [
+    {
+      "hosted": "getDisposableProjectIdentity (Management API)",
+      "local": "local-fixture identity adapter; not hosted identity proof"
+    },
+    {
+      "hosted": "listDisposableMigrationsViaGet (Management API)",
+      "local": "local schema_migrations query via run-owned psql"
+    },
+    {
+      "hosted": "constructImmutableValidatedTargetFromConnection",
+      "local": "local-fixture target; production ref still rejected; not hosted identity proof"
+    },
+    {
+      "hosted": "runDbQuery / runGatedRemoteSqlText / runIsolatedPoisonPsqlQuery",
+      "local": "local-fixture psql (-t -A -w / -f) against run-owned f3_*"
+    },
+    {
+      "hosted": "installHostedFloor (gated remote psql)",
+      "local": "installStubLivePinFloorLocal (same SQL steps, local psql -f)"
+    },
+    {
+      "hosted": "runDbPushCandidate / runFilenameVersionRepair via hosted --db-url",
+      "local": "CLI 2.117.0 db push and migration repair as separate commands against local --db-url; not assertConstructedDbUrl hosted pooler"
+    }
+  ]
+}

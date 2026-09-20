@@ -1,0 +1,740 @@
+{
+  "artifact": "canary-acl",
+  "phase": "A",
+  "canary": "public.__f3_acl_platform_canary_20260915",
+  "captured_at_iso": "2026-09-15T23:23:53.176Z",
+  "table": {
+    "schema": "public",
+    "name": "__f3_acl_platform_canary_20260915",
+    "regclass": "public.__f3_acl_platform_canary_20260915",
+    "relkind": "r",
+    "owner": "postgres",
+    "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=[REDACTED]}"
+  },
+  "identity_sequence": {
+    "name": "__f3_acl_platform_canary_20260915_id_seq",
+    "relkind": "S",
+    "owner": "postgres",
+    "relacl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=[REDACTED]}"
+  },
+  "primary_key_index": {
+    "name": "__f3_acl_platform_canary_20260915_pkey",
+    "relkind": "i",
+    "owner": "postgres",
+    "indisprimary": true,
+    "indisunique": true,
+    "relacl": null
+  },
+  "table_acl_exploded": [
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "DELETE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "INSERT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "MAINTAIN",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "REFERENCES",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "TRIGGER",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "DELETE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "INSERT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "MAINTAIN",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "REFERENCES",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "TRIGGER",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "DELETE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "INSERT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "MAINTAIN",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "REFERENCES",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "TRIGGER",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "DELETE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "INSERT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "MAINTAIN",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "REFERENCES",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "TRIGGER",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    }
+  ],
+  "sequence_acl_exploded": [
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "USAGE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "USAGE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "USAGE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "USAGE",
+      "is_grantable": false
+    }
+  ],
+  "table_acl_exploded_actual_relacl_only": [
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "DELETE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "INSERT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "MAINTAIN",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "REFERENCES",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "TRIGGER",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "DELETE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "INSERT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "MAINTAIN",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "REFERENCES",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "TRIGGER",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "DELETE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "INSERT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "MAINTAIN",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "REFERENCES",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "TRIGGER",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "DELETE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "INSERT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "MAINTAIN",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "REFERENCES",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "TRIGGER",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "table",
+      "object_name": "public.__f3_acl_platform_canary_20260915",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    }
+  ],
+  "sequence_acl_exploded_actual_relacl_only": [
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "postgres",
+      "privilege_type": "USAGE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "anon",
+      "privilege_type": "USAGE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "authenticated",
+      "privilege_type": "USAGE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "SELECT",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "UPDATE",
+      "is_grantable": false
+    },
+    {
+      "object_class": "sequence",
+      "object_name": "__f3_acl_platform_canary_20260915_id_seq",
+      "grantor": "postgres",
+      "grantee": "service_role",
+      "privilege_type": "USAGE",
+      "is_grantable": false
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "phase": "B",
+  "verdict": "CONTINUE",
+  "classification_verdict": "CLEAN_BASELINE",
+  "ambiguous_objects": "none",
+  "reset_count": 1,
+  "second_reset": false,
+  "functional_sha": "55995cf0ab5f89dd0b59775eb99a7f63a5e0d5b1",
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "floorLabel": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT"
+}

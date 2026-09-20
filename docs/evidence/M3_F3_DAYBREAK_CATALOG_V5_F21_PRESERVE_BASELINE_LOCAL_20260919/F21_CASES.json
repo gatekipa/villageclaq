@@ -1,0 +1,159 @@
+{
+  "schema": "f21-qualification-reset-local-proof-v1",
+  "status": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "functionalTip": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+  "proveHead": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+  "proveHeadEqualsFunctionalTip": true,
+  "contractTip": "b7d16544cdbb86ce47baba329835bd93dcb16d6d",
+  "acceptedFunctionalAncestor": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
+  "supersededStub": "64b4abe65e938daac32b160882e358253c141015",
+  "successIdentity": "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+  "policyId": "f21-btree-gist-extension-preserve-scoped-v1",
+  "localPg": {
+    "available": true,
+    "reason": null,
+    "classification": "LOCAL_PG_EXECUTED",
+    "serverVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)"
+  },
+  "overallOk": true,
+  "mustLocal": false,
+  "hostedIdentityProof": false,
+  "disposableContact": false,
+  "wipeRejectionCode": "f3_[REDACTED_DB]",
+  "catalog": {
+    "before": {
+      "extension": "btree_gist",
+      "memberCount": 264,
+      "typedMembers": 188
+    },
+    "after": {
+      "extension": "btree_gist",
+      "memberCount": 264,
+      "typedMembers": 188
+    }
+  },
+  "cases": [
+    {
+      "id": "WIPE_STILL_REJECTED",
+      "kind": "check",
+      "ok": true,
+      "verdict": null,
+      "code": "f3_[REDACTED_DB]",
+      "executedTransaction": false,
+      "commit": null,
+      "capture": null,
+      "note": null
+    },
+    {
+      "id": "GENUINE_CLEAN_STILL_CLEAN",
+      "kind": "check",
+      "ok": true,
+      "verdict": "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+      "code": null,
+      "executedTransaction": false,
+      "commit": null,
+      "capture": null,
+      "note": null
+    },
+    {
+      "id": "F21_NAME_ONLY_GBT_HOLD",
+      "kind": "check",
+      "ok": true,
+      "verdict": null,
+      "code": "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY",
+      "executedTransaction": false,
+      "commit": null,
+      "capture": null,
+      "note": null
+    },
+    {
+      "id": "F21_SIX_HISTORICAL_FKS_OK",
+      "kind": "check",
+      "ok": true,
+      "verdict": "RESET_ELIGIBLE",
+      "code": null,
+      "executedTransaction": false,
+      "commit": null,
+      "capture": null,
+      "note": null
+    },
+    {
+      "id": "F21_ALTERED_FK_HOLD",
+      "kind": "check",
+      "ok": true,
+      "verdict": null,
+      "code": "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY",
+      "executedTransaction": false,
+      "commit": null,
+      "capture": null,
+      "note": null
+    },
+    {
+      "id": "F21_UNEXPECTED_MEMBERSHIP_OVERLAP_HOLD",
+      "kind": "check",
+      "ok": true,
+      "verdict": null,
+      "code": "F21_UNEXPECTED_MEMBERSHIP_OVERLAP",
+      "executedTransaction": false,
+      "commit": null,
+      "capture": null,
+      "note": null
+    },
+    {
+      "id": "F21_STALE_INVENTORY_SCHEMA_HOLD",
+      "kind": "check",
+      "ok": true,
+      "verdict": null,
+      "code": "F21_MEMBERSHIP_SCHEMA_STALE",
+      "executedTransaction": false,
+      "commit": null,
+      "capture": null,
+      "note": null
+    },
+    {
+      "id": "F21_STALE_SCOPE_DIGEST_HOLD",
+      "kind": "check",
+      "ok": true,
+      "verdict": null,
+      "code": "F13_FOUNDER_AUTH_MISMATCH",
+      "executedTransaction": false,
+      "commit": null,
+      "capture": null,
+      "note": null
+    },
+    {
+      "id": "F21_TX_PRESERVE_EXTENSION_AND_MEMBERS",
+      "kind": "scenario",
+      "ok": true,
+      "verdict": "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+      "code": null,
+      "executedTransaction": true,
+      "commit": true,
+      "capture": "preinstalled-btree_gist-plus-eligible-leftover",
+      "note": "reset preserves btree_gist and authenticated members; only approved leftovers/history change"
+    },
+    {
+      "id": "F21_NAME_ONLY_OR_UNRELATED_LEFTOVER_HOLD",
+      "kind": "scenario",
+      "ok": true,
+      "verdict": "HOLD",
+      "code": "F13_UNEXPECTED_OBJECT_OR_DEPENDENCY",
+      "executedTransaction": false,
+      "commit": null,
+      "capture": "unrelated-gbt-name-without-membership",
+      "note": "name-only/unrelated leftover is unexpected; extension members are not a prefix allowlist"
+    },
+    {
+      "id": "F21_LOCAL_QUAL_FROM_00118_PREINSTALLED_INDUCED_HOLD",
+      "kind": "scenario",
+      "ok": true,
+      "verdict": "HOLD",
+      "code": "f3_[REDACTED_DB]",
+      "executedTransaction": false,
+      "commit": null,
+      "capture": "preinstalled-extension-then-00118",
+      "note": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "artifact": "production-history-limitation",
+  "functional_sha": "104a5b514c35b5a3bee6526578f7bccc3575dfb3",
+  "warning": "WARNING: disposable proves prefix-complete staging for F3 qualification history only. Before any production db push, a separately authorized read-only production preflight must prove every production-recorded migration has an authoritative local timestamp file, frozen SQL digest, and order. Empty placeholders and guessed history are forbidden. Do not invent production migrations.",
+  "production_contacted": false,
+  "production_ref_forbidden": "llbnliixczcqfftxpsmb",
+  "disposable_only": {
+    "name": "villageclaq-f3-management-api-disposable-20260913",
+    "ref": "jkorwnwwmdeflfntxntl",
+    "org": "eyztkzkprpmlmcabrfef"
+  }
+}

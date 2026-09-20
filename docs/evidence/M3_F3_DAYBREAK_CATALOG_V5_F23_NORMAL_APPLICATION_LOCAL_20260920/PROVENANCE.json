@@ -1,0 +1,27 @@
+{
+  "producedAtUtc": "2026-09-20T04:10:00.000Z",
+  "functionalTip": "77fd61dbf51652acabec0093d2a8549524b2dd75",
+  "helper": "scripts/prove-f3-qualification-reset-local.mjs",
+  "qualifyEntrypoint": "scripts/qualify-f3-db-push-disposable.mjs",
+  "verificationModes": [
+    "fault-injection",
+    "normal-application"
+  ],
+  "hostedAuthority": false,
+  "sanitization": {
+    "finalizeBeforeHash": true,
+    "preserveRepoRelativePaths": true,
+    "preserveMigrationIdentities": true,
+    "preserveSqlstateAndErrorCodes": true,
+    "preserveCatalogTuples": true,
+    "redactSecretsAndAbsolutePaths": true,
+    "redactRunOwnedDbNamesOnly": "f3_<label>_<pid>_<ts> → f3_[RUN_OWNED_DB]",
+    "doNotRedactF3ErrorCodes": true
+  },
+  "rawGitByteAdjudication": {
+    "status": "inherited; no renewed line-ending investigation",
+    "reason": "No contradictory raw-byte evidence. F21/F22 LF adjudication at a38db9c remains accepted.",
+    "independentlyVerifiedThisPackage": false
+  },
+  "f22PackagePreservedHistorical": true
+}

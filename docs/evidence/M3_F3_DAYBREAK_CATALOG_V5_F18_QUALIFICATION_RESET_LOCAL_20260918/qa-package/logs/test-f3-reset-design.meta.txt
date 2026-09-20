@@ -1,0 +1,26 @@
+command: npm run test:f3-reset-design
+cwd: [REDACTED_PATH]/f18-ca2c0d5
+pin: ca2c0d536037da8c7f55627ac1694cacb932d1d7
+started: 2026-09-18T15:31:45Z
+exit=0
+finished: 2026-09-18T15:31:47Z
+  ...
+# Subtest: F16-B01 finite dependency contract remains 37 complete tuples
+ok 30 - F16-B01 finite dependency contract remains 37 complete tuples
+  ---
+  duration_ms: 0.125298
+  ...
+1..30
+# tests 30
+# suites 0
+# pass 30
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1200.071628
+npm notice
+npm notice New major version of npm available! 10.9.7 -> 12.0.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
+npm notice To update run: npm install -g npm@12.0.2
+npm notice

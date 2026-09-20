@@ -1,0 +1,10 @@
+{
+  "status": "synthetic-prehosted-f9",
+  "tip": "268f974a1adec7d3525beb850f7768137262c135",
+  "parent": "080dd6adc79931bbcff25893d407aecf91bc7c14",
+  "recognition": [
+    "manual_income"
+  ],
+  "schema_version": "f3-full-catalog-v5",
+  "suite": "synthetic"
+}

@@ -1,0 +1,29 @@
+{
+  "observedHistoryRows": [
+    {
+      "version": "20260913173000",
+      "name": "f3_bounded_financial_epoch_foundation"
+    },
+    {
+      "version": "20260913173001",
+      "name": "f3_01_core_ledger_foundation"
+    },
+    {
+      "version": "20260913173002",
+      "name": "f3_02_secure_posting_idempotency"
+    },
+    {
+      "version": "20260913173003",
+      "name": "f3_03_projection_read_proof"
+    },
+    {
+      "version": "20260913173004",
+      "name": "f3_04_correction_reversal"
+    },
+    {
+      "version": "20260913173005",
+      "name": "f3_05_opening_cash_command"
+    }
+  ],
+  "historyNote": "Pre-reset inventory showed all six F3 forward history rows present (00118\u201300123 versions). Reset did not commit; history unchanged by this attempt."
+}

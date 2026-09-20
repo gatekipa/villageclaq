@@ -1,0 +1,36 @@
+{
+  "label": "F23 HOSTED REQUAL — STOPPED AT RESET",
+  "outcome": "stopped",
+  "phaseReached": "reset",
+  "functionalCandidateSha": "66be2b4797515975d737a0fd66656bc4c0de2145",
+  "planCommit": "a054585e187382533e7e06f44aeeea60810d1210",
+  "planPath": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_PROPOSED_HOSTED_REQUAL_PLAN_20260920/PROPOSED_HOSTED_REQUAL_PLAN.md",
+  "planSha256": "bf9ca7b6c408d72b9f1231f223628a41e77fe275132acf273cd5386dd8c3b138",
+  "planSha256Verified": true,
+  "closureDigest": "b276d0cb9b39efd10f67422948b4cf9a6353359c116ab657d379c7c7f467a211",
+  "closureDigestConfirmed": true,
+  "closureRuntimeCount": 47,
+  "verificationUnion": "89e4f0d80ff24d0aa705b79210073e2316667317b50d2d82a69808e8d7ff1f50",
+  "verificationUnionCount": 49,
+  "scopeSqlIdentitySha256": "d95d96e02a3a1844977d852fa23a64f742b79b5f767984b6a2d4512cbe02632f",
+  "scopeSqlIdentityConfirmed": true,
+  "cliVersion": "2.117.0",
+  "cliPath": "/home/box/.local/bin/supabase",
+  "targetRef": "jkorwnwwmdeflfntxntl",
+  "productionRefRejected": "llbnliixczcqfftxpsmb",
+  "transactionPoolerPortRejected": 6543,
+  "policy": "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+  "verificationModeSelected": "fault-injection",
+  "executionBudget": {
+    "constrainedResets": 1,
+    "completeQualsFrom00118": 1,
+    "secondReset": false
+  },
+  "budgetConsumed": {
+    "resetInvocations": 1,
+    "qualificationInvocations": 0,
+    "secondReset": false
+  },
+  "sharedBranch": "feat/m3-f3-01-05-forward-foundation-9b17",
+  "prs": ["#84", "#85", "#86"]
+}

@@ -1,0 +1,164 @@
+{
+  "00118_f3_bounded_financial_epoch_foundation.sql": {
+    "equal": true,
+    "builder_sha256": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d",
+    "primary_sha256": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d",
+    "reference_sha256": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d",
+    "seal_helper_sha256": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d",
+    "tip_embedded_sha256": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d",
+    "cloud_agent_v5_sha256": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d",
+    "seal_equals_independent_reference": true,
+    "tip_equals_independent_reference": true,
+    "cloud_equals_independent_reference": true,
+    "structured_compare_ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "builder_error": null,
+    "field_diffs": [],
+    "recognition_builder": [
+      "manual_income"
+    ],
+    "recognition_reference": [
+      "manual_income"
+    ],
+    "schema_version_primary": "f3-full-catalog-v5",
+    "schema_version_independent": "f3-full-catalog-v5",
+    "migration_digest": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed"
+  },
+  "00119_f3_01_core_ledger_foundation.sql": {
+    "equal": true,
+    "builder_sha256": "5e03111ffb34be3ed76a714370c93e70210a9741a25ac7b9158a9a9ad22f12f4",
+    "primary_sha256": "5e03111ffb34be3ed76a714370c93e70210a9741a25ac7b9158a9a9ad22f12f4",
+    "reference_sha256": "5e03111ffb34be3ed76a714370c93e70210a9741a25ac7b9158a9a9ad22f12f4",
+    "seal_helper_sha256": "5e03111ffb34be3ed76a714370c93e70210a9741a25ac7b9158a9a9ad22f12f4",
+    "tip_embedded_sha256": "5e03111ffb34be3ed76a714370c93e70210a9741a25ac7b9158a9a9ad22f12f4",
+    "cloud_agent_v5_sha256": "5e03111ffb34be3ed76a714370c93e70210a9741a25ac7b9158a9a9ad22f12f4",
+    "seal_equals_independent_reference": true,
+    "tip_equals_independent_reference": true,
+    "cloud_equals_independent_reference": true,
+    "structured_compare_ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "builder_error": null,
+    "field_diffs": [],
+    "recognition_builder": [
+      "manual_income"
+    ],
+    "recognition_reference": [
+      "manual_income"
+    ],
+    "schema_version_primary": "f3-full-catalog-v5",
+    "schema_version_independent": "f3-full-catalog-v5",
+    "migration_digest": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11"
+  },
+  "00120_f3_02_secure_posting_idempotency.sql": {
+    "equal": true,
+    "builder_sha256": "35eba6966d2c077a9467f09adc6c85306b951c9d8388ee758a60d924c05ae51a",
+    "primary_sha256": "35eba6966d2c077a9467f09adc6c85306b951c9d8388ee758a60d924c05ae51a",
+    "reference_sha256": "35eba6966d2c077a9467f09adc6c85306b951c9d8388ee758a60d924c05ae51a",
+    "seal_helper_sha256": "35eba6966d2c077a9467f09adc6c85306b951c9d8388ee758a60d924c05ae51a",
+    "tip_embedded_sha256": "35eba6966d2c077a9467f09adc6c85306b951c9d8388ee758a60d924c05ae51a",
+    "cloud_agent_v5_sha256": "35eba6966d2c077a9467f09adc6c85306b951c9d8388ee758a60d924c05ae51a",
+    "seal_equals_independent_reference": true,
+    "tip_equals_independent_reference": true,
+    "cloud_equals_independent_reference": true,
+    "structured_compare_ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "builder_error": null,
+    "field_diffs": [],
+    "recognition_builder": [
+      "manual_income"
+    ],
+    "recognition_reference": [
+      "manual_income"
+    ],
+    "schema_version_primary": "f3-full-catalog-v5",
+    "schema_version_independent": "f3-full-catalog-v5",
+    "migration_digest": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60"
+  },
+  "00121_f3_03_projection_read_proof.sql": {
+    "equal": true,
+    "builder_sha256": "8f65797949d8c5afb7dfa99b8020da52385347099b2a5b9be5148b253e76bde6",
+    "primary_sha256": "8f65797949d8c5afb7dfa99b8020da52385347099b2a5b9be5148b253e76bde6",
+    "reference_sha256": "8f65797949d8c5afb7dfa99b8020da52385347099b2a5b9be5148b253e76bde6",
+    "seal_helper_sha256": "8f65797949d8c5afb7dfa99b8020da52385347099b2a5b9be5148b253e76bde6",
+    "tip_embedded_sha256": "8f65797949d8c5afb7dfa99b8020da52385347099b2a5b9be5148b253e76bde6",
+    "cloud_agent_v5_sha256": "8f65797949d8c5afb7dfa99b8020da52385347099b2a5b9be5148b253e76bde6",
+    "seal_equals_independent_reference": true,
+    "tip_equals_independent_reference": true,
+    "cloud_equals_independent_reference": true,
+    "structured_compare_ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "builder_error": null,
+    "field_diffs": [],
+    "recognition_builder": [
+      "manual_income"
+    ],
+    "recognition_reference": [
+      "manual_income"
+    ],
+    "schema_version_primary": "f3-full-catalog-v5",
+    "schema_version_independent": "f3-full-catalog-v5",
+    "migration_digest": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce"
+  },
+  "00122_f3_04_correction_reversal.sql": {
+    "equal": true,
+    "builder_sha256": "6e3240759aec64d4692422aac006b4fb865e3039832be84efea86b39c0253175",
+    "primary_sha256": "6e3240759aec64d4692422aac006b4fb865e3039832be84efea86b39c0253175",
+    "reference_sha256": "6e3240759aec64d4692422aac006b4fb865e3039832be84efea86b39c0253175",
+    "seal_helper_sha256": "6e3240759aec64d4692422aac006b4fb865e3039832be84efea86b39c0253175",
+    "tip_embedded_sha256": "6e3240759aec64d4692422aac006b4fb865e3039832be84efea86b39c0253175",
+    "cloud_agent_v5_sha256": "6e3240759aec64d4692422aac006b4fb865e3039832be84efea86b39c0253175",
+    "seal_equals_independent_reference": true,
+    "tip_equals_independent_reference": true,
+    "cloud_equals_independent_reference": true,
+    "structured_compare_ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "builder_error": null,
+    "field_diffs": [],
+    "recognition_builder": [
+      "manual_income"
+    ],
+    "recognition_reference": [
+      "manual_income"
+    ],
+    "schema_version_primary": "f3-full-catalog-v5",
+    "schema_version_independent": "f3-full-catalog-v5",
+    "migration_digest": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3"
+  },
+  "00123_f3_05_opening_cash_command.sql": {
+    "equal": true,
+    "builder_sha256": "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34",
+    "primary_sha256": "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34",
+    "reference_sha256": "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34",
+    "seal_helper_sha256": "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34",
+    "tip_embedded_sha256": "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34",
+    "cloud_agent_v5_sha256": "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34",
+    "seal_equals_independent_reference": true,
+    "tip_equals_independent_reference": true,
+    "cloud_equals_independent_reference": true,
+    "structured_compare_ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "builder_error": null,
+    "field_diffs": [],
+    "recognition_builder": [
+      "manual_income"
+    ],
+    "recognition_reference": [
+      "manual_income"
+    ],
+    "schema_version_primary": "f3-full-catalog-v5",
+    "schema_version_independent": "f3-full-catalog-v5",
+    "migration_digest": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d"
+  }
+}

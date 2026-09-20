@@ -1,0 +1,11 @@
+{
+  "module": "scripts/fixtures/disposable-postgres.mjs",
+  "proveCreate": "createDisposableDatabase(f15_qual_reset)",
+  "catalogCreate": "createDisposableDatabase(f21_preserve_cat)",
+  "adminMaintenanceDb": "postgres",
+  "workPrefix": "f3_",
+  "socket": "[SANITIZED_ABS_PATH]",
+  "expectedMajor": 17,
+  "hostedRefused": true,
+  "productionRefused": true
+}

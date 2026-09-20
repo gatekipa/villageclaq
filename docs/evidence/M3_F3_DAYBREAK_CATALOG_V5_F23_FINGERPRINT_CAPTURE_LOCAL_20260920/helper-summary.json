@@ -1,0 +1,114 @@
+{
+  "schema": "f23-fingerprint-capture-helper-summary-v1",
+  "capturedAt": "2026-09-20T06:06:02.147Z",
+  "helper": "scripts/prove-f3-qualification-reset-local.mjs",
+  "mustLocal": false,
+  "localPg": {
+    "available": true,
+    "reason": null,
+    "classification": "LOCAL_PG_EXECUTED",
+    "serverVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)"
+  },
+  "distinctions": {
+    "checks": 33,
+    "scenarios": 1,
+    "executedTransactions": 1
+  },
+  "completeThrough00123": false,
+  "migrationsAppliedThrough00123": false,
+  "documentedAtomicRollbackHold": false,
+  "localApplicationComplete": false,
+  "applicationRemainingHold": "F3_DBPUSH_FLOOR_HOLD",
+  "remainingHold": "F3_DBPUSH_FLOOR_HOLD",
+  "combinedAcceptanceRejected": true,
+  "passCount": 34,
+  "failCount": 0,
+  "overallOk": true,
+  "f23": {
+    "id": "F23_NORMAL_APPLICATION_LOCAL_QUALIFICATION",
+    "ok": true,
+    "capture": "preserve-reset-then-shared-qualify-normal-application-00118-00123",
+    "commit": true,
+    "preFloorVerdict": "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+    "qualifyStatus": "HOLD",
+    "qualifyError": "HOLD: stub+live-pin qualification floor or pre-db-push gates failed; db push not started",
+    "qualifyErrorCode": "F3_DBPUSH_FLOOR_HOLD",
+    "verificationMode": "normal-application",
+    "verificationModeRecorded": {
+      "ok": true,
+      "mode": "normal-application",
+      "selectedBeforeDatabaseOperations": true,
+      "hostedAuthority": false,
+      "faultInjection": false,
+      "normalApplication": true,
+      "note": "Local verification mode only. Supplies no hosted authority."
+    },
+    "completeThrough00123": false,
+    "migrationsAppliedThrough00123": false,
+    "localApplicationComplete": false,
+    "remainingHold": "F3_DBPUSH_FLOOR_HOLD",
+    "floorInstalled": false,
+    "preDbPushGatesOk": false,
+    "sequenceLength": 0,
+    "historyAfter": 0,
+    "historyIdentities": {
+      "ok": false,
+      "observed": [],
+      "count": 0,
+      "expectedCount": 6,
+      "missingVersions": [
+        "20260913173000",
+        "20260913173001",
+        "20260913173002",
+        "20260913173003",
+        "20260913173004",
+        "20260913173005"
+      ],
+      "expectedVersions": [
+        "20260913173000",
+        "20260913173001",
+        "20260913173002",
+        "20260913173003",
+        "20260913173004",
+        "20260913173005"
+      ]
+    },
+    "operationCounts": {
+      "calibrationProbes": null,
+      "migrationApplications": 0,
+      "retries": 0,
+      "repairs": 0,
+      "historyInjects": 0
+    },
+    "floorCalls": 2,
+    "dbPushCalls": 0,
+    "repairCalls": 0,
+    "repairAttempted": false,
+    "repairExercised": false,
+    "fingerprintRetention": {
+      "schema": "f23-fingerprint-field-diff-v1",
+      "compareUnchanged": true,
+      "fingerprintAcceptanceUnchanged": true,
+      "files": []
+    },
+    "membership": {
+      "beforeReset": {
+        "extensionPresent": true,
+        "memberCount": 264
+      },
+      "afterReset": {
+        "extensionPresent": true,
+        "memberCount": 264
+      },
+      "afterQualification": {
+        "extensionPresent": true,
+        "memberCount": 264
+      },
+      "exactSetEqualBeforeAfterReset": true,
+      "exactSetEqualAfterResetAfterQual": true,
+      "countsAloneInsufficient": true,
+      "tuplesOmitted": true
+    },
+    "note": "DOCUMENTED QUALIFICATION FIXTURE \u2014 NOT A CLEAN 00001\u201300117 REPLAY AND NOT PRODUCTION-EQUIVALENT"
+  }
+}

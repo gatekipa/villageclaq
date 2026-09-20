@@ -1,0 +1,12 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "status": 0,
+  "sanitized_before_hash": true,
+  "semantic_paths_preserved": true,
+  "f3_error_codes_preserved": true,
+  "migration_identities_preserved": true
+}

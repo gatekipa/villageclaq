@@ -1,0 +1,63 @@
+{
+  "schema": "f23-fingerprint-field-diff-v1",
+  "capturedAt": "2026-09-20T05:46:46.066Z",
+  "helper": "scripts/prove-f3-qualification-reset-local.mjs",
+  "note": "IN_MEMORY_ONLY — no database; verifies --fingerprint-diff-out write path. Not a qualification capture. Not F23 observed values.",
+  "remainingHold": null,
+  "retention": {
+    "schema": "f23-fingerprint-field-diff-v1",
+    "compareUnchanged": true,
+    "fingerprintAcceptanceUnchanged": true,
+    "files": [
+      {
+        "file": "IN_MEMORY_SYNTHETIC",
+        "phase": "in_memory_write_path_only",
+        "expectedSha256": null,
+        "observedSha256": null,
+        "exactOk": false,
+        "exactReason": "not a database capture",
+        "observedRetained": true,
+        "diffs": [
+          {
+            "field": "acl",
+            "kind": "record_set",
+            "expectedCount": 2,
+            "observedCount": 1,
+            "onlyInExpectedCount": 2,
+            "onlyInObservedCount": 1,
+            "onlyInExpected": [
+              {
+                "grantee": "authenticated",
+                "grantor": "postgres",
+                "privilege": "SELECT",
+                "grantable": false
+              },
+              {
+                "grantee": "service_role",
+                "grantor": "postgres",
+                "privilege": "ALL",
+                "grantable": true
+              }
+            ],
+            "onlyInObserved": [
+              {
+                "grantee": "ubuntu",
+                "grantor": "ubuntu",
+                "privilege": "ALL",
+                "grantable": true
+              }
+            ]
+          },
+          {
+            "field": "owner",
+            "kind": "value",
+            "expected": "postgres",
+            "observed": "ubuntu"
+          }
+        ]
+      }
+    ],
+    "frozenOracleImportOk": true,
+    "frozenOracleDiffCount": 27
+  }
+}

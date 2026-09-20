@@ -1,0 +1,20 @@
+{
+  "helper": "scripts/prove-f3-qualification-reset-local.mjs",
+  "functionalTip": "77fd61dbf51652acabec0093d2a8549524b2dd75",
+  "wipeRejectionCode": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
+  "overallOk": true,
+  "remainingHold": "F23_FINGERPRINT_MISMATCH",
+  "completeThrough00123": false,
+  "migrationsAppliedThrough00123": true,
+  "documentedAtomicRollbackHold": true,
+  "localApplicationComplete": false,
+  "faultInjectionSafetyPass": true,
+  "applicationRemainingHold": "F23_FINGERPRINT_MISMATCH",
+  "faultInjectionHold": "F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
+  "f23QualifyErrorCode": "F23_FINGERPRINT_MISMATCH",
+  "f23SequenceLength": 6,
+  "f23HistoryAfter": 6,
+  "f23RepairCalls": 0,
+  "f22RepairCalls": 0,
+  "combinedAcceptanceRejected": true
+}

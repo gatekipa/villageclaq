@@ -1,0 +1,13 @@
+{
+  "sha256": "0bfc8fa9f143928dd3bf17514d42bfd4b876e79068b8f4dc5c77ece04a53b3f5",
+  "bytes": 40572666,
+  "encoding": "utf8",
+  "sanitized_before_hash": false,
+  "tests": [
+    {
+      "name": "qualify-f3-db-push-disposable",
+      "ok": false,
+      "exact_error": "HOLD: poison target_identity.database_name is null or empty"
+    }
+  ]
+}

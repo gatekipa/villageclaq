@@ -1,0 +1,14 @@
+{
+  "tip": "41055f2f0a66626c1fb3719b3b20e6fcdde9025c",
+  "baseline": "ebd4c20bcf72500b77ea24bd7269094f3dc13b3e",
+  "differing_files": [
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs",
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs"
+  ],
+  "tip_sha256": {
+    "qualify-f3-db-push-disposable.mjs": "8bd9e5b03aec83cf5185d2a398298b15ed88203a226690d4a85392063fdf8e97",
+    "test-f3-db-push-harness.mjs": "d3c08917af5b151d11e30bec4f3503c661d3e94f430ca7ffd91f6704c1265f2e",
+    "f3-db-push-repair-safety-gate.mjs": "8d9a6182c214d111ca1cb5dc27cc071376b9c6e98b902f9fdc16fd83a3dd2258"
+  }
+}

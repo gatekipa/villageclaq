@@ -1,0 +1,38 @@
+{
+  "sha256": "1ad4b4e48dd88a25624e686e0003fbdf0010497681b10570b13696bbcde6367d",
+  "bytes": 126251,
+  "encoding": "utf8",
+  "sanitized_before_hash": true,
+  "tests": [
+    {
+      "name": "qualify-f3-db-push-disposable",
+      "ok": null,
+      "exact_error": "\"reason\": \"psql:[REDACTED_PATH] NOTICE:  F18_RESET_BACKEND pid=700508 datname=postgres app=f13_qualification_reset\\npsql:[REDACTED_PATH] NOTICE:  F18_RESET_LOCK_ACQUIRED pid=700508\\npsql:[REDACTED_PATH] ERROR:  cannot drop function has_group_permission(uuid,text,uuid) because other objects depend on it\\nDETAIL:  policy m2_np_select on table notification_policies depends on function has_group_permission(uuid,text,uuid)\\npolicy m2_np_insert on table notification_policies depends on function has_group_permission(uuid,text,uuid)\\npolicy m2_np_update on table notification_policies depends on function has_group_permission(uuid,text,uuid)\\npolicy m2_np_delete on table notification_policies depends on function has_group_permission(uuid,text,uuid)\\npolicy m2_npt_select on table notification_policy_triggers depends on function has_group_permission(uuid,text,uuid)\\npolicy m2_npt_insert on table notification_policy_triggers depends on function has_group_permission(uuid,text,uuid)\\npolicy m2_npt_update on table notification_policy_triggers depends on function has_group_permission(uuid,text,uuid)\\npolicy m2_npt_delete on table notification_policy_triggers depends on function has_group_permission(uuid,text,uuid)\\npolicy m2_npo_select on table notification_policy_occurrences depends on function has_group_permission(uuid,text,uuid)\\nHINT:  Use DROP ... CASCADE to drop the dependent objects too.\\nCONTEXT:  SQL statement \\\"DROP FUNCTION IF EXISTS public.has_group_permission(uuid,text,uuid) RESTRICT;\\\"\\nPL/pgSQL function inline_code_block line 15 at EXECUTE\\n\","
+    }
+  ],
+  "transformation_provenance": {
+    "producer": "scripts/lib/f3-db-push-repair-safety-gate.mjs#writeSuiteMetaForOutFile",
+    "builder": "scripts/lib/f3-db-push-repair-safety-gate.mjs#buildSuiteMetaFromSanitizedOut",
+    "transform": "scripts/lib/f3-db-push-repair-safety-gate.mjs#sanitizeEvidenceOutBytes",
+    "source_sha256": "1ad4b4e48dd88a25624e686e0003fbdf0010497681b10570b13696bbcde6367d",
+    "source_bytes": 126251,
+    "final_sha256": "1ad4b4e48dd88a25624e686e0003fbdf0010497681b10570b13696bbcde6367d",
+    "final_bytes": 126251,
+    "transformations": [
+      "identity_already_sanitized"
+    ],
+    "pipeline": [
+      "capture",
+      "sanitize",
+      "durable_write",
+      "reread",
+      "hash",
+      "suite_metadata",
+      "indexes"
+    ],
+    "durable_write": {
+      "temp_fsync_close_atomic_rename_reread": true,
+      "verified": true
+    }
+  }
+}

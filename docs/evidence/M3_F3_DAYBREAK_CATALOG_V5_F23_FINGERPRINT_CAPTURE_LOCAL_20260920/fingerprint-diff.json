@@ -1,0 +1,20 @@
+{
+  "schema": "f23-fingerprint-field-diff-v1",
+  "capturedAt": "2026-09-20T06:06:02.147Z",
+  "helper": "scripts/prove-f3-qualification-reset-local.mjs",
+  "compareUnchanged": true,
+  "fingerprintAcceptanceUnchanged": true,
+  "captureExecuted": true,
+  "dbApplyExecuted": false,
+  "proveCommandRun": true,
+  "proveExitCode": 0,
+  "remainingHold": "F3_DBPUSH_FLOOR_HOLD",
+  "retention": {
+    "schema": "f23-fingerprint-field-diff-v1",
+    "compareUnchanged": true,
+    "fingerprintAcceptanceUnchanged": true,
+    "files": []
+  },
+  "files": [],
+  "note": "Helper wrote retention.files=[] because qualify.sequence was empty (stub+live-pin floor HOLD; db push not started). This is an observed empty set from the authorized capture, not a missing-environment placeholder and not a canonical-equality result."
+}

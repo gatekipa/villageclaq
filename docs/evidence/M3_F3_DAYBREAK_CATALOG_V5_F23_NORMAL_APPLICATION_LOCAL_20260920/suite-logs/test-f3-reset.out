@@ -1,0 +1,535 @@
+TAP version 13
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173000_f3_bounded_financial_epoch_foundation.sql
+#  [Y/n] y
+# Applying migration 20260913173000_f3_bounded_financial_epoch_foundation.sql...
+# ERROR: F3_DBPUSH_DISPOSABLE_HISTORY_INJECT: blocked INSERT for version 20260913173000 name f3_bounded_financial_epoch_foundation (SQLSTATE P0001)
+# At statement: 28
+# INSERT INTO supabase_migrations.schema_migrations(version, name, statements) VALUES($1, $2, $3)
+# Try rerunning the command with --debug to troubleshoot the error.
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173000_f3_bounded_financial_epoch_foundation.sql
+#  [Y/n] y
+# Applying migration 20260913173000_f3_bounded_financial_epoch_foundation.sql...
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173001_f3_01_core_ledger_foundation.sql
+#  [Y/n] y
+# Applying migration 20260913173001_f3_01_core_ledger_foundation.sql...
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173002_f3_02_secure_posting_idempotency.sql
+#  [Y/n] y
+# Applying migration 20260913173002_f3_02_secure_posting_idempotency.sql...
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173003_f3_03_projection_read_proof.sql
+#  [Y/n] y
+# Applying migration 20260913173003_f3_03_projection_read_proof.sql...
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173004_f3_04_correction_reversal.sql
+#  [Y/n] y
+# Applying migration 20260913173004_f3_04_correction_reversal.sql...
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173005_f3_05_opening_cash_command.sql
+#  [Y/n] y
+# Applying migration 20260913173005_f3_05_opening_cash_command.sql...
+# Connecting to remote database...
+# Subtest: F13-R00 wipe flag remains unconditionally rejected with reset argv
+ok 1 - F13-R00 wipe flag remains unconditionally rejected with reset argv
+  ---
+  duration_ms: 1.983319
+  ...
+# Subtest: F13-R01 missing and malformed founder auth fail closed
+ok 2 - F13-R01 missing and malformed founder auth fail closed
+  ---
+  duration_ms: 2.195436
+  ...
+# Subtest: F13-R02 stale and mismatched founder auth fail closed
+ok 3 - F13-R02 stale and mismatched founder auth fail closed
+  ---
+  duration_ms: 1.341403
+  ...
+# Subtest: F13-R03 wrong and production targets are refused
+ok 4 - F13-R03 wrong and production targets are refused
+  ---
+  duration_ms: 1.376577
+  ...
+# Subtest: F13-R04 invalid flags, artifact path, and SQL digest fail closed
+ok 5 - F13-R04 invalid flags, artifact path, and SQL digest fail closed
+  ---
+  duration_ms: 10.080465
+  ...
+# Subtest: F13-R05 unexpected objects and deps block eligibility and plan
+ok 6 - F13-R05 unexpected objects and deps block eligibility and plan
+  ---
+  duration_ms: 1.768026
+  ...
+# Subtest: F13-R06 wrong/missing/extra/null/empty history abort the whole plan
+ok 7 - F13-R06 wrong/missing/extra/null/empty history abort the whole plan
+  ---
+  duration_ms: 2.452878
+  ...
+# Subtest: F13-R07 emitted SQL is RESTRICT-only with exact version+name deletes
+ok 8 - F13-R07 emitted SQL is RESTRICT-only with exact version+name deletes
+  ---
+  duration_ms: 2.342354
+  ...
+# Subtest: F13-R08 state change between plan and TX validation aborts without commit
+ok 9 - F13-R08 state change between plan and TX validation aborts without commit
+  ---
+  duration_ms: 4.275894
+  ...
+# Subtest: F13-R09 failure before mutation counts no committed effects
+ok 10 - F13-R09 failure before mutation counts no committed effects
+  ---
+  duration_ms: 6.087784
+  ...
+# Subtest: F13-R10 failure after begin does not claim success or infer rollback
+ok 11 - F13-R10 failure after begin does not claim success or infer rollback
+  ---
+  duration_ms: 4.224374
+  ...
+# Subtest: F13-R11 incorrect affected-row and failed final baseline do not claim commit
+ok 12 - F13-R11 incorrect affected-row and failed final baseline do not claim commit
+  ---
+  duration_ms: 6.552597
+  ...
+# Subtest: F13-R12 uncertain commit is labeled and never auto-replayed
+ok 13 - F13-R12 uncertain commit is labeled and never auto-replayed
+  ---
+  duration_ms: 3.488188
+  ...
+# Subtest: F13-R13 successful authorized synthetic execution uses the real planner
+ok 14 - F13-R13 successful authorized synthetic execution uses the real planner
+  ---
+  duration_ms: 3.782709
+  ...
+# Subtest: F13-R14 disabled transport is not a production bypass
+ok 15 - F13-R14 disabled transport is not a production bypass
+  ---
+  duration_ms: 2.26292
+  ...
+# Subtest: F13-R15 valid artifact plus matching runtime context is accepted
+ok 16 - F13-R15 valid artifact plus matching runtime context is accepted
+  ---
+  duration_ms: 0.842068
+  ...
+# Subtest: F13-R16 qualify runtime context helper stays disposable-bound
+ok 17 - F13-R16 qualify runtime context helper stays disposable-bound
+  ---
+  duration_ms: 697.420211
+  ...
+# Subtest: F13-R17 hardcoded empty inventory is refused until capture is wired
+ok 18 - F13-R17 hardcoded empty inventory is refused until capture is wired
+  ---
+  duration_ms: 2.485275
+  ...
+# Subtest: F13-R18 leftover emit requires eligible===true; alreadyClean is no-mutation
+ok 19 - F13-R18 leftover emit requires eligible===true; alreadyClean is no-mutation
+  ---
+  duration_ms: 4.204368
+  ...
+# Subtest: F13-R19 qualify-main path wires INVENTORY_CAPTURE_SQL before plan/emit
+ok 20 - F13-R19 qualify-main path wires INVENTORY_CAPTURE_SQL before plan/emit
+  ---
+  duration_ms: 6.901434
+  ...
+# Subtest: F13-R20 qualify-main empty capture is alreadyClean no-mutation; missing capture is refused
+ok 21 - F13-R20 qualify-main empty capture is alreadyClean no-mutation; missing capture is refused
+  ---
+  duration_ms: 2.034649
+  ...
+# Subtest: F13-R21 qualify-main leftover path requires eligible===true; extras HOLD with no DROP
+ok 22 - F13-R21 qualify-main leftover path requires eligible===true; extras HOLD with no DROP
+  ---
+  duration_ms: 5.018507
+  ...
+# Subtest: F14-R01 inventory parser rejects aligned framing and never defaults malformed to empty
+ok 23 - F14-R01 inventory parser rejects aligned framing and never defaults malformed to empty
+  ---
+  duration_ms: 1.360001
+  ...
+# Subtest: F14-R02 unexpected objects/deps stay in discovered universe and block apply
+ok 24 - F14-R02 unexpected objects/deps stay in discovered universe and block apply
+  ---
+  duration_ms: 1.419596
+  ...
+# Subtest: F14-R03 catalog-backed function identities canonicalize named args without stripping
+ok 25 - F14-R03 catalog-backed function identities canonicalize named args without stripping
+  ---
+  duration_ms: 1.497847
+  ...
+# Subtest: F14-R04 real transport contract: status0, SQL fail, truncate, COMMIT loss, timeout, ECONNRESET
+ok 26 - F14-R04 real transport contract: status0, SQL fail, truncate, COMMIT loss, timeout, ECONNRESET
+  ---
+  duration_ms: 24.432268
+  ...
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173000_f3_bounded_financial_epoch_foundation.sql
+#  [Y/n] y
+# Applying migration 20260913173000_f3_bounded_financial_epoch_foundation.sql...
+# ERROR: F3_DBPUSH_DISPOSABLE_HISTORY_INJECT: blocked INSERT for version 20260913173000 name f3_bounded_financial_epoch_foundation (SQLSTATE P0001)
+# At statement: 28
+# INSERT INTO supabase_migrations.schema_migrations(version, name, statements) VALUES($1, $2, $3)
+# Try rerunning the command with --debug to troubleshoot the error.
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173000_f3_bounded_financial_epoch_foundation.sql
+#  [Y/n] y
+# Applying migration 20260913173000_f3_bounded_financial_epoch_foundation.sql...
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173001_f3_01_core_ledger_foundation.sql
+#  [Y/n] y
+# Applying migration 20260913173001_f3_01_core_ledger_foundation.sql...
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173002_f3_02_secure_posting_idempotency.sql
+#  [Y/n] y
+# Applying migration 20260913173002_f3_02_secure_posting_idempotency.sql...
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173003_f3_03_projection_read_proof.sql
+#  [Y/n] y
+# Applying migration 20260913173003_f3_03_projection_read_proof.sql...
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173004_f3_04_correction_reversal.sql
+#  [Y/n] y
+# Applying migration 20260913173004_f3_04_correction_reversal.sql...
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173005_f3_05_opening_cash_command.sql
+#  [Y/n] y
+# Applying migration 20260913173005_f3_05_opening_cash_command.sql...
+# Connecting to remote database...
+# Subtest: F14-R05 committed local proof helper reports wipe rejection and MUST_LOCAL honestly
+ok 27 - F14-R05 committed local proof helper reports wipe rejection and MUST_LOCAL honestly
+  ---
+  duration_ms: 33983.286889
+  ...
+# Subtest: F14-R06 runtime closure is entrypoint digest, not summary-file hash
+ok 28 - F14-R06 runtime closure is entrypoint digest, not summary-file hash
+  ---
+  duration_ms: 1812.981837
+  ...
+# Subtest: F14-R07 proposed hosted plan is complete, offline, and unauthorized
+ok 29 - F14-R07 proposed hosted plan is complete, offline, and unauthorized
+  ---
+  duration_ms: 2554.519061
+  ...
+# Subtest: F15-C1-R01 empty discovered vs inventory.public_tables cannot be CLEAN_BASELINE
+ok 30 - F15-C1-R01 empty discovered vs inventory.public_tables cannot be CLEAN_BASELINE
+  ---
+  duration_ms: 1.313274
+  ...
+# Subtest: F15-C1-R02 empty discovered vs inventory.public_views cannot be CLEAN_BASELINE
+ok 31 - F15-C1-R02 empty discovered vs inventory.public_views cannot be CLEAN_BASELINE
+  ---
+  duration_ms: 0.562851
+  ...
+# Subtest: F15-C1-R03 empty discovered vs inventory.financial_core cannot be CLEAN_BASELINE
+ok 32 - F15-C1-R03 empty discovered vs inventory.financial_core cannot be CLEAN_BASELINE
+  ---
+  duration_ms: 0.566527
+  ...
+# Subtest: F15-C1-R04 empty history vs inventory.schema_migrations_rows=6 cannot be CLEAN_BASELINE
+ok 33 - F15-C1-R04 empty history vs inventory.schema_migrations_rows=6 cannot be CLEAN_BASELINE
+  ---
+  duration_ms: 0.460243
+  ...
+# Subtest: F15-C1-R05 combined inventory contradictions HOLD with zero apply/SQL
+ok 34 - F15-C1-R05 combined inventory contradictions HOLD with zero apply/SQL
+  ---
+  duration_ms: 0.459346
+  ...
+# Subtest: F15-C1-R06 duplicate JSON member names are rejected at the raw boundary
+ok 35 - F15-C1-R06 duplicate JSON member names are rejected at the raw boundary
+  ---
+  duration_ms: 0.373116
+  ...
+# Subtest: F15-C1-R07 genuine complete matching inventories remain usable
+ok 36 - F15-C1-R07 genuine complete matching inventories remain usable
+  ---
+  duration_ms: 0.647536
+  ...
+# Subtest: F15-C2-R01 same-name FK with altered endpoints is rejected before apply
+ok 37 - F15-C2-R01 same-name FK with altered endpoints is rejected before apply
+  ---
+  duration_ms: 1.423163
+  ...
+# Subtest: F15-C2-R02 name-only dependency strings are not a fallback identity
+ok 38 - F15-C2-R02 name-only dependency strings are not a fallback identity
+  ---
+  duration_ms: 0.649044
+  ...
+# Subtest: F15-C2-R03 complete matching dependency tuples are retained through plan
+ok 39 - F15-C2-R03 complete matching dependency tuples are retained through plan
+  ---
+  duration_ms: 3.691286
+  ...
+# Subtest: F15-C3-R01 genuine migration-created financial FKs are eligible leftovers
+ok 40 - F15-C3-R01 genuine migration-created financial FKs are eligible leftovers
+  ---
+  duration_ms: 9.419559
+  ...
+# Subtest: F15-C3-R02 same catalog name with altered kind/source/target is rejected
+ok 41 - F15-C3-R02 same catalog name with altered kind/source/target is rejected
+  ---
+  duration_ms: 3.794568
+  ...
+# Subtest: F15-C4-R01 PREFIX+WRONG_PHASE committed+SUFFIX status0 is not CLEAN_BASELINE
+ok 42 - F15-C4-R01 PREFIX+WRONG_PHASE committed+SUFFIX status0 is not CLEAN_BASELINE
+  ---
+  duration_ms: 3.56922
+  ...
+# Subtest: F15-C4-R02 PREFIX committed observation plus EACCES is not success
+ok 43 - F15-C4-R02 PREFIX committed observation plus EACCES is not success
+  ---
+  duration_ms: 3.248802
+  ...
+# Subtest: F15-C4-R04 advisory-lock void SELECT blank line must not break success observation framing
+ok 44 - F15-C4-R04 advisory-lock void SELECT blank line must not break success observation framing
+  ---
+  duration_ms: 5.508559
+  ...
+# Subtest: F15-C4-R03 new protocol still rejects equivalent WRONG_PHASE / missing / reorder mutations
+ok 45 - F15-C4-R03 new protocol still rejects equivalent WRONG_PHASE / missing / reorder mutations
+  ---
+  duration_ms: 1.019767
+  ...
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173000_f3_bounded_financial_epoch_foundation.sql
+#  [Y/n] y
+# Applying migration 20260913173000_f3_bounded_financial_epoch_foundation.sql...
+# ERROR: F3_DBPUSH_DISPOSABLE_HISTORY_INJECT: blocked INSERT for version 20260913173000 name f3_bounded_financial_epoch_foundation (SQLSTATE P0001)
+# At statement: 28
+# INSERT INTO supabase_migrations.schema_migrations(version, name, statements) VALUES($1, $2, $3)
+# Try rerunning the command with --debug to troubleshoot the error.
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173000_f3_bounded_financial_epoch_foundation.sql
+#  [Y/n] y
+# Applying migration 20260913173000_f3_bounded_financial_epoch_foundation.sql...
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173001_f3_01_core_ledger_foundation.sql
+#  [Y/n] y
+# Applying migration 20260913173001_f3_01_core_ledger_foundation.sql...
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173002_f3_02_secure_posting_idempotency.sql
+#  [Y/n] y
+# Applying migration 20260913173002_f3_02_secure_posting_idempotency.sql...
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173003_f3_03_projection_read_proof.sql
+#  [Y/n] y
+# Applying migration 20260913173003_f3_03_projection_read_proof.sql...
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173004_f3_04_correction_reversal.sql
+#  [Y/n] y
+# Applying migration 20260913173004_f3_04_correction_reversal.sql...
+# Connecting to remote database...
+# Do you want to push these migrations to the remote database?
+#  • 20260913173005_f3_05_opening_cash_command.sql
+#  [Y/n] y
+# Applying migration 20260913173005_f3_05_opening_cash_command.sql...
+# Connecting to remote database...
+# Subtest: F15-C5-R01 committed helper records three real TX scenarios or MUST_LOCAL
+ok 46 - F15-C5-R01 committed helper records three real TX scenarios or MUST_LOCAL
+  ---
+  duration_ms: 35213.028197
+  ...
+# Subtest: F15-C6-R01 hosted plan builder emits complete unauthorized candidate plan
+ok 47 - F15-C6-R01 hosted plan builder emits complete unauthorized candidate plan
+  ---
+  duration_ms: 764.155309
+  ...
+# Subtest: F16-A01 empty discovery plus auth/unnest/unexpected storage cannot be CLEAN_BASELINE
+ok 48 - F16-A01 empty discovery plus auth/unnest/unexpected storage cannot be CLEAN_BASELINE
+  ---
+  duration_ms: 1.889493
+  ...
+# Subtest: F16-A02 baseline-affecting inventory matrix is table-driven and fail-closed
+ok 49 - F16-A02 baseline-affecting inventory matrix is table-driven and fail-closed
+  ---
+  duration_ms: 8.795558
+  ...
+# Subtest: F16-A03 genuine already-clean and approved leftovers still reach supported paths
+ok 50 - F16-A03 genuine already-clean and approved leftovers still reach supported paths
+  ---
+  duration_ms: 5.032201
+  ...
+# Subtest: F16-B01 generated T3 SQL queries live catalog tuples and captured starting state
+ok 51 - F16-B01 generated T3 SQL queries live catalog tuples and captured starting state
+  ---
+  duration_ms: 5.05077
+  ...
+# Subtest: F17-A01 unexpected storage_buckets alone cannot be CLEAN_BASELINE
+ok 52 - F17-A01 unexpected storage_buckets alone cannot be CLEAN_BASELINE
+  ---
+  duration_ms: 0.465614
+  ...
+# Subtest: F17-A02 unexpected bucket plus valid baseline buckets still HOLD
+ok 53 - F17-A02 unexpected bucket plus valid baseline buckets still HOLD
+  ---
+  duration_ms: 0.369967
+  ...
+# Subtest: F17-A03 supported clean and named residual buckets still CLEAN_BASELINE
+ok 54 - F17-A03 supported clean and named residual buckets still CLEAN_BASELINE
+  ---
+  duration_ms: 0.659824
+  ...
+# Subtest: F17-A04 leftover plus unexpected bucket HOLDs; leftover plus named buckets stays eligible
+ok 55 - F17-A04 leftover plus unexpected bucket HOLDs; leftover plus named buckets stays eligible
+  ---
+  duration_ms: 4.292892
+  ...
+# Subtest: F17-A05 malformed and contradictory storage_buckets fail closed
+ok 56 - F17-A05 malformed and contradictory storage_buckets fail closed
+  ---
+  duration_ms: 0.542295
+  ...
+# Subtest: F17-B01 isolation is READ COMMITTED and lock order is documented
+ok 57 - F17-B01 isolation is READ COMMITTED and lock order is documented
+  ---
+  duration_ms: 1.517547
+  ...
+# Subtest: F17-B02 two-session lock-wait scenarios are recorded or MUST_LOCAL
+ok 58 - F17-B02 two-session lock-wait scenarios are recorded or MUST_LOCAL
+  ---
+  duration_ms: 32159.183542
+  ...
+# Subtest: F17-C01 process evidence packaging preserves failure metadata and stream hashes
+ok 59 - F17-C01 process evidence packaging preserves failure metadata and stream hashes
+  ---
+  duration_ms: 2.22022
+  ...
+# Subtest: F18-A01 backend-bound lock proof negatives cannot PASS
+ok 60 - F18-A01 backend-bound lock proof negatives cannot PASS
+  ---
+  duration_ms: 0.505181
+  ...
+# Subtest: F18-B01 runner-helper-serialize-reread-parser preserves provenance E2E
+ok 61 - F18-B01 runner-helper-serialize-reread-parser preserves provenance E2E
+  ---
+  duration_ms: 13.996161
+  ...
+# Subtest: F18-C01 success records reparse committed; failures stay rejected
+ok 62 - F18-C01 success records reparse committed; failures stay rejected
+  ---
+  duration_ms: 0.995609
+  ...
+# Subtest: F19-A01 real thrown EACCES survives runner-helper-serialize-reread and cannot finalize success
+ok 63 - F19-A01 real thrown EACCES survives runner-helper-serialize-reread and cannot finalize success
+  ---
+  duration_ms: 11.306823
+  ...
+# Subtest: F19-A02 path redaction preserves original identities and matches recovered sanitized bodies
+ok 64 - F19-A02 path redaction preserves original identities and matches recovered sanitized bodies
+  ---
+  duration_ms: 5.470959
+  ...
+# Subtest: F19-B01 thrown:true alone cannot authorize interpretation, attestation, or finalization
+ok 65 - F19-B01 thrown:true alone cannot authorize interpretation, attestation, or finalization
+  ---
+  duration_ms: 1.160332
+  ...
+# Subtest: F19-B02 unchanged valid success still reparses committed F21 preserve baseline
+ok 66 - F19-B02 unchanged valid success still reparses committed F21 preserve baseline
+  ---
+  duration_ms: 4.428945
+  ...
+# Subtest: F21-C8 classifyInventory CLEAN_BASELINE is not relaxed by preserve residuals
+ok 67 - F21-C8 classifyInventory CLEAN_BASELINE is not relaxed by preserve residuals
+  ---
+  duration_ms: 0.143718
+  ...
+# Subtest: F21 emit payload fails closed when verdict is missing
+ok 68 - F21 emit payload fails closed when verdict is missing
+  ---
+  duration_ms: 0.141495
+  ...
+# Subtest: F21 generated SQL preserves extension and rejects CASCADE
+ok 69 - F21 generated SQL preserves extension and rejects CASCADE
+  ---
+  duration_ms: 2.989746
+  ...
+# Subtest: F21 wipe remains forbidden for stub-live-pin auth
+ok 70 - F21 wipe remains forbidden for stub-live-pin auth
+  ---
+  duration_ms: 0.474293
+  ...
+# Subtest: F22 historical CLEAN_BASELINE pre-floor behavior is unchanged
+ok 71 - F22 historical CLEAN_BASELINE pre-floor behavior is unchanged
+  ---
+  duration_ms: 0.355183
+  ...
+# Subtest: F22 preserve residuals are not CLEAN_BASELINE but authenticate the preserve pre-floor gate
+ok 72 - F22 preserve residuals are not CLEAN_BASELINE but authenticate the preserve pre-floor gate
+  ---
+  duration_ms: 3.806134
+  ...
+# Subtest: F22 previous reset-success record cannot authenticate current database
+ok 73 - F22 previous reset-success record cannot authenticate current database
+  ---
+  duration_ms: 0.207296
+  ...
+# Subtest: F22 unsupported policy, production target, and unauthenticated leftovers HOLD
+ok 74 - F22 unsupported policy, production target, and unauthenticated leftovers HOLD
+  ---
+  duration_ms: 2.806323
+  ...
+# Subtest: F22 shared entrypoint: authenticated preserve baseline reaches floor preparation
+ok 75 - F22 shared entrypoint: authenticated preserve baseline reaches floor preparation
+  ---
+  duration_ms: 175.512834
+  ...
+# Subtest: F22 shared entrypoint: historical CLEAN_BASELINE still reaches floor
+ok 76 - F22 shared entrypoint: historical CLEAN_BASELINE still reaches floor
+  ---
+  duration_ms: 134.210994
+  ...
+# Subtest: F22 shared entrypoint: invalid preservation evidence blocks floor and migration
+ok 77 - F22 shared entrypoint: invalid preservation evidence blocks floor and migration
+  ---
+  duration_ms: 112.089043
+  ...
+# Subtest: F23 verification mode is recorded before database operations
+ok 78 - F23 verification mode is recorded before database operations
+  ---
+  duration_ms: 106.701268
+  ...
+# Subtest: F23 boolean object probe requires every TARGET expression present
+ok 79 - F23 boolean object probe requires every TARGET expression present
+  ---
+  duration_ms: 0.183487
+  ...
+# Subtest: F23 exact history identities reject count-only matches
+ok 80 - F23 exact history identities reject count-only matches
+  ---
+  duration_ms: 0.142845
+  ...
+# Subtest: F22 missing process evidence cannot produce qualification success
+ok 81 - F22 missing process evidence cannot produce qualification success
+  ---
+  duration_ms: 0.125745
+  ...
+1..81
+# tests 81
+# suites 0
+# pass 81
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 108874.990498

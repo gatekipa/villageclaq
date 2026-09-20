@@ -1,0 +1,11 @@
+{
+  "v5_negatives_with_dbPushCalls_0": 33,
+  "c14_dbPushCalls_6_mentions": 1,
+  "note": "Harness encodes fail-closed negatives with actual observed spy counters; see suite log test-f3-db-push.out",
+  "suite": {
+    "tests": 125,
+    "pass": 124,
+    "fail": 0,
+    "skipped": 1
+  }
+}

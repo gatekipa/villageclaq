@@ -1,0 +1,20 @@
+{
+  "artifact": "type-alias-canonicalization",
+  "functional_sha": "7d18aacaa163f9738be16be80489654b048e2150",
+  "rule": "TARGET_OBJECT_PROBES may look up via to_regprocedure(...timestamptz...); expected/observed identity_arguments must use catalog form \"timestamp with time zone\"",
+  "accepted_when_exact_canonical": true,
+  "rejected_when_identity_arguments_contain_timestamptz_alias": true,
+  "rejected_when_similar_type_timestamp_without_time_zone": true,
+  "proof_negatives": [
+    "N13",
+    "N14",
+    "N18",
+    "N19"
+  ],
+  "proof_positive_00121_live": {
+    "p0": "p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_as_of_exclusive timestamp with time zone",
+    "p1": "p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer, p_limit integer",
+    "contains_timestamptz_alias": false,
+    "contains_timestamp_with_time_zone": true
+  }
+}

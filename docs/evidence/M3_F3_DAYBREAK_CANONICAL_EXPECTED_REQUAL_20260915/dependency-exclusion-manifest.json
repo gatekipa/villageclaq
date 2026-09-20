@@ -1,0 +1,110 @@
+{
+  "artifact": "dependency-exclusion-manifest",
+  "functional_commit": "2fcc65114d89f098dc5d0f7787a99cb08c643c21",
+  "sealedAt": "2026-09-15T02:22:25.375Z",
+  "allowed_kinds": [
+    "node_builtin",
+    "npm_package",
+    "npm_package_path",
+    "os_binary",
+    "os_binary_cli",
+    "secrets",
+    "outside_tree",
+    "directory_literal"
+  ],
+  "unexplained_exclusions": [],
+  "exclusions": [
+    {
+      "kind": "node_builtin",
+      "spec": "node:fs",
+      "from": "scripts/qualify-f3-db-push-disposable.mjs"
+    },
+    {
+      "kind": "node_builtin",
+      "spec": "node:path",
+      "from": "scripts/qualify-f3-db-push-disposable.mjs"
+    },
+    {
+      "kind": "node_builtin",
+      "spec": "node:url",
+      "from": "scripts/qualify-f3-db-push-disposable.mjs"
+    },
+    {
+      "kind": "node_builtin",
+      "spec": "node:child_process",
+      "from": "scripts/lib/f3-db-push-target-guard.mjs"
+    },
+    {
+      "kind": "node_builtin",
+      "spec": "node:os",
+      "from": "scripts/lib/f3-db-push-target-guard.mjs"
+    },
+    {
+      "kind": "node_builtin",
+      "spec": "node:crypto",
+      "from": "scripts/lib/f3-db-push-version-map.mjs"
+    },
+    {
+      "kind": "directory_literal",
+      "spec": "supabase/migrations",
+      "reason": "path_join_root",
+      "from": "scripts/lib/f3-db-push-version-map.mjs"
+    },
+    {
+      "kind": "directory_literal",
+      "spec": "supabase",
+      "reason": "path_join_root",
+      "from": "scripts/lib/f3-db-push-version-map.mjs"
+    },
+    {
+      "kind": "node_builtin",
+      "spec": "node:assert/strict",
+      "from": "scripts/fixtures/disposable-postgres.mjs"
+    },
+    {
+      "kind": "npm_package",
+      "spec": "node:test",
+      "version": null,
+      "integrity": null,
+      "resolved": null,
+      "from": "scripts/test-f3-db-push-harness.mjs"
+    },
+    {
+      "kind": "outside_tree",
+      "spec": "/tmp/x.sql",
+      "reason": "string_literal_path",
+      "from": "scripts/test-f3-db-push-harness.mjs"
+    },
+    {
+      "kind": "os_binary_cli",
+      "spec": "/workspace/f3-dbpush-qual/bin/supabase",
+      "version": "2.117.0",
+      "bytes": 95393248,
+      "sha256": "40efbaffd04e4cbf501b4f29a52c88ca23f81c636ef211e3b255c4e7b81eeb01",
+      "note": "supabase CLI pinned path; not tip tree bytes"
+    },
+    {
+      "kind": "os_binary",
+      "spec": "psql",
+      "note": "postgres client invoked via spawnGatedRemotePsqlSync"
+    },
+    {
+      "kind": "secrets",
+      "spec": "/tmp/f3-disposable-creds.env",
+      "note": "creds never hashed into closure; loaded at runtime only"
+    },
+    {
+      "kind": "secrets",
+      "spec": "/tmp/f3-disposable-token.env",
+      "note": "token never hashed into closure; loaded at runtime only"
+    }
+  ],
+  "counts": {
+    "total": 15,
+    "node_builtin": 7,
+    "npm_package": 1,
+    "os_binary": 2,
+    "secrets": 2,
+    "unexplained": 0
+  }
+}

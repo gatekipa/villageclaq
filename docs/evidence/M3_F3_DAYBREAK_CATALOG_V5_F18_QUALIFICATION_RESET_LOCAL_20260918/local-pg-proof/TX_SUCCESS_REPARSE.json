@@ -1,0 +1,30 @@
+{
+  "source": "local-pg-proof/TX_SUCCESS_RAW.json independently reread via adaptStoredProcessRecordToParserInput",
+  "parser": "adaptStoredProcessRecordToParserInput + interpretQualificationResetTransportResult",
+  "observationMarkersAreNotSeparateTransactions": true,
+  "schema": "f18-qualification-reset-stored-process-adapter-v1",
+  "ok": true,
+  "consistent": true,
+  "parsedOk": true,
+  "observationCount": 8,
+  "lastEvent": {
+    "schema": "f15-qualification-reset-tx-observation-v1",
+    "phase": "T7_COMMIT",
+    "event": "committed",
+    "committed": true
+  },
+  "interpretedCommitted": true,
+  "interpretedVerdictPath": "CLEAN_BASELINE",
+  "phaseReached": "T7_COMMIT",
+  "t7CommitAttempted": true,
+  "t7CommittedTrue": true,
+  "processStatus": 0,
+  "processFailed": false,
+  "genuineSuccess": true,
+  "genuineFailure": false,
+  "successClaimedUncommitted": false,
+  "failureBecameCommitted": false,
+  "mappedProcessStatusToStatus": false,
+  "secretsRemoved": true,
+  "packagedSanitized": true
+}

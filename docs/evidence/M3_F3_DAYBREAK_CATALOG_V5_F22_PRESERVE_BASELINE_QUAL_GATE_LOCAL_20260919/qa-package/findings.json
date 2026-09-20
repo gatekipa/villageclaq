@@ -1,0 +1,143 @@
+{
+  "pins": {
+    "repo": "gatekipa/villageclaq",
+    "functionalTip": "f1d30b28830db902962467f801932254997e64c3",
+    "evidenceTipPrHeads": "6d6bdd7591d738e593bc7290d5f60e4be0de88ec",
+    "packageContentTipRecordedInPins": "686269dd3036ef654948d1812902d1b9a141ee3b",
+    "package": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919/",
+    "handoff": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919/CHIEF_HANDOFF.md",
+    "qaSlotTemplate": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919/qa-package/QA_SLOT.md",
+    "workspace": "[SANITIZED_ABS_PATH]/"
+  },
+  "ancestryOk": true,
+  "builderClaim": {
+    "status": "HOLD",
+    "code": "F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
+    "notResetOnlySuccess": true,
+    "notLocalCandidateReady": true,
+    "labelMatchesPackage": true
+  },
+  "checks": {
+    "1": {
+      "name": "Operational pre-floor gate QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+      "ok": true,
+      "class": "QA_EXECUTION+ARTIFACT_INSPECTION",
+      "details": {
+        "freshInventoryMembershipAuth": true,
+        "historicalCleanBaselineUnchanged": true,
+        "noStripOrTrustVerdictShortcuts": true,
+        "wiredIntoQualifyEntrypoint": true,
+        "missingVerdictFailsClosed": "F21_PRESERVE_BASELINE_VERDICT_REQUIRED",
+        "unitTests": {
+          "test-f3-qualification-reset-design.mjs": {
+            "pass": 33,
+            "fail": 0
+          },
+          "test-f3-qualification-reset.mjs": {
+            "pass": 78,
+            "fail": 0
+          },
+          "test-f3-db-push-harness.mjs": {
+            "pass": 115,
+            "fail": 0
+          }
+        },
+        "lib": "scripts/lib/f3-db-push-pre-stub-floor-clean-check.mjs"
+      },
+      "defects": []
+    },
+    "2": {
+      "name": "Complete local qualification claim",
+      "ok": true,
+      "class": "ARTIFACT_INSPECTION",
+      "details": {
+        "preserveResetToPreFloor": "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+        "floorInstalled": true,
+        "preDbPushGatesOk": true,
+        "cliVersion": "2.117.0",
+        "stoppedAt": "00118 / 20260913173000",
+        "injectError": "F3_DBPUSH_DISPOSABLE_HISTORY_INJECT",
+        "sqlstate": "P0001",
+        "split": "PRE_COMMIT_OR_ATOMIC_ROLLBACK",
+        "repairCalls": 0,
+        "completeThrough00123": false,
+        "remainingHold": "F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
+        "builderMustLocal": false,
+        "builderClassification": "LOCAL_PG_EXECUTED",
+        "qaLocalProveRerun": "NOT_EXECUTED",
+        "qaLocalProveRerunReason": "No local PostgreSQL in QA environment (no ubuntu user, no :5432 listener). Package prove artifacts inspected; mustLocal re-prove unavailable.",
+        "sources": [
+          "local-pg-proof/COMPLETE_SEQUENCE.json",
+          "local-pg-proof/RESULTS.json#F22_COMPLETE_LOCAL_QUALIFICATION",
+          "local-pg-proof/COMMITTED_HELPER_SUMMARY.json",
+          "suite-logs/prove-helper.out"
+        ]
+      },
+      "defects": []
+    },
+    "3": {
+      "name": "Exact OID-bearing btree_gist membership preservation",
+      "ok": true,
+      "class": "ARTIFACT_INSPECTION",
+      "details": {
+        "extension": "btree_gist",
+        "deptype": "e",
+        "memberCount": 264,
+        "exactOidSetEqualBeforeAfterReset": true,
+        "exactOidSetEqualAfterResetAfterQual": true,
+        "independentlyRecomputed": true,
+        "oidKey": "(classid,objid,objsubid,refclassid,refobjid,deptype,extname,identity)",
+        "source": "local-pg-proof/MEMBERSHIP.json"
+      },
+      "defects": []
+    },
+    "4": {
+      "name": "Final committed-byte package integrity",
+      "ok": true,
+      "class": "ARTIFACT_INSPECTION",
+      "details": {
+        "onDiskFiles": 35,
+        "packScanFiles": 31,
+        "evidenceIndexArtifacts": 33,
+        "unindexed": 0,
+        "packScanIndexed": true,
+        "evidenceIndexSha256Match": true,
+        "perArtifactDigestMismatches": 0,
+        "sanitization": {
+          "noCredentialOrPgUrlLeaksInKeyArtifacts": true,
+          "preservesRepoRelativePaths": true,
+          "preservesMigrationNamesAndVersions": true,
+          "preservesSqlstateAndErrorCodes": true
+        }
+      },
+      "defects": []
+    },
+    "5": {
+      "name": "Raw-Git LF adjudication vs reviewer CRLF hash drift",
+      "ok": true,
+      "class": "QA_EXECUTION",
+      "details": {
+        "f22PackageFilesWithCR": 0,
+        "extractedEqualsGitShow": true,
+        "a38db9cClaimedDigestsVerifiedLf": {
+          "contractIndex": "2cfcc004dcda81e14d8bbdf21b475a502e88a2a3abaab8f24ff665a2e9c54bc5",
+          "localIndex": "5e709c37f89c17b06abbb6f7a1f3f5594124a05accc6a3b827bb93271b7129a9",
+          "planIndex": "b543d24840ddd0c4120b7acd3b6aff0ee3d81dae7ee7233437221f02a61dfa52",
+          "proposedPlanBytes": "94256d3d8f594e109cc3b1ae76a74c11405cc15f4bac3aa7c436a59404b86f93"
+        },
+        "noCrlfCopyFailuresCreditedAsF12F19Regressions": true
+      },
+      "defects": []
+    }
+  },
+  "astraNote": "Both prior Astra delegations failed at service access; no Astra verdict. QA did not contact Daybreak/Astra.",
+  "materialOpenFindings": [],
+  "nonMaterialLimitations": [
+    "QA environment lacked local PostgreSQL; complete local prove path not re-executed (artifact-corroborated only)."
+  ],
+  "recommendedVerdict": "F22 HOLD PACKAGE ACCEPT",
+  "rationale": "Builder HOLD F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED is corroborated by package raw logs/results (PRE_COMMIT_OR_ATOMIC_ROLLBACK at 00118, repairCalls=0, completeThrough00123=false). Pre-floor gate behavior verified by functional-tip inspection plus passing F22 unit/design/harness tests. Membership 264 OID-bearing sets independently equal. Package byte integrity unindexed=0 with LF-authoritative hashes. Package correctly does NOT claim LOCAL CANDIDATE READY. No material defects found.",
+  "qaSlotPath": "[SANITIZED_ABS_PATH]/qa/QA_SLOT_FILLED.md",
+  "reviewer": "VillageClaq QA",
+  "reviewedAtLocal": "2026-09-19T21:06-04:00 America/New_York (approx; completed same evening EDT)"
+}

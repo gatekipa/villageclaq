@@ -1,0 +1,22 @@
+{
+  "head": "55995cf0ab5f89dd0b59775eb99a7f63a5e0d5b1",
+  "head_is_F51": true,
+  "clean_porcelain": true,
+  "porcelain": "",
+  "pr100_tip": "cc8495f0e7cc3b51d55d4363356f555f2fdb6f55",
+  "pr100_is_ancestor_of_F51": false,
+  "note_pr100": "F5.1 functional lineage is E4→F5→F5.1; #96-#100 are not authority. Blob source for F5 may share tip content but candidate pin is F5.1 SHA.",
+  "no_pr96_100_as_authority": true,
+  "closure_exports": [
+    "F3_FUNCTIONAL_RECURSIVE_CLOSURE",
+    "F3_FUNCTIONAL_RECURSIVE_CLOSURE_FILES",
+    "GIT_VERIFICATION_UNAVAILABLE",
+    "RECURSIVE_CLOSURE_HOLD",
+    "__installGitRunnerForTests",
+    "__resetGitRunnerForTests",
+    "assertRecursiveClosureReadyForDb",
+    "buildFunctionalRecursiveRuntimeClosure",
+    "runVerifiedGit",
+    "verifyGitBlobIdentity"
+  ]
+}

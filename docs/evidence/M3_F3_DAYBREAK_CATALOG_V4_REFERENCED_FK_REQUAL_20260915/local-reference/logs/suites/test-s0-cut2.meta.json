@@ -1,0 +1,11 @@
+{
+  "suite": "test-s0-cut2",
+  "exit_code": 1,
+  "classification": "ENV_DEPENDENT_FAIL",
+  "tests": 21,
+  "pass": 14,
+  "fail": 7,
+  "skipped": 0,
+  "sha256": "feb588ac5e9602d21a69c4b5d1fd52374ee2e873a7233ba9e093533d4e4372eb",
+  "bytes": 15688
+}

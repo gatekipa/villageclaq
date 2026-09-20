@@ -1,0 +1,20 @@
+TAP version 13
+# Subtest: F24 generated reset SQL drops 00117/00119 owning tables before helper functions
+ok 1 - F24 generated reset SQL drops 00117/00119 owning tables before helper functions
+  ---
+  duration_ms: 4.906743
+  ...
+# Subtest: F24 focused dependency-order local cases or MUST_LOCAL
+ok 2 - F24 focused dependency-order local cases or MUST_LOCAL
+  ---
+  duration_ms: 4128.917126
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4932.95529

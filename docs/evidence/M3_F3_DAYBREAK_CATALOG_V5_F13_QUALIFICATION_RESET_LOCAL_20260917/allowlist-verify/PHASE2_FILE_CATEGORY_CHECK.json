@@ -1,0 +1,26 @@
+{
+  "designTip": "a117d06fb202696944ae423d77336db0a48a8a13",
+  "functionalTip": "51cc864d1efbefc1398ad3fd1895360c95474a57",
+  "filesVsDesign": [
+    "package.json",
+    "scripts/lib/f3-db-push-inventory.mjs",
+    "scripts/lib/f3-db-push-qualification-reset.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs",
+    "scripts/test-f3-qualification-reset.mjs"
+  ],
+  "phase2Categories": [
+    "scripts/lib/f3-db-push-qualification-reset.mjs",
+    "scripts/lib/f3-db-push-qualification-reset-design.mjs",
+    "scripts/lib/f3-db-push-inventory.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs",
+    "scripts/test-f3-qualification-reset-design.mjs",
+    "scripts/test-f3-qualification-reset.mjs",
+    "package.json"
+  ],
+  "allWithinCategories": true,
+  "objectAllowlistCount": 113,
+  "dependencyAllowlistCount": 8,
+  "historyKeys": 6
+}

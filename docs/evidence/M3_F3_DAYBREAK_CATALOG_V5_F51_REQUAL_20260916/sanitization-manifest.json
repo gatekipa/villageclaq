@@ -1,0 +1,8 @@
+{
+  "qualify_result_sanitized": true,
+  "password_absent": true,
+  "token_absent": true,
+  "redacted_markers_present": true,
+  "bytes": 40605781,
+  "sha256_after_sanitize": "376b5d1a1c467c30a95b71a969cdfe5ad1e9947e0c4ccb5572c00fc1f7f8824b"
+}

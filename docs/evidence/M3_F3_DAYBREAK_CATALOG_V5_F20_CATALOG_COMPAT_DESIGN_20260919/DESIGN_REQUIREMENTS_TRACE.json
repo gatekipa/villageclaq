@@ -1,0 +1,250 @@
+{
+  "schema": "f20-catalog-compat-design-requirements-trace-v1",
+  "status": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "designVerdict": "DESIGN_HOLD",
+  "designHoldCode": "F20_EXTENSION_MEMBERSHIP_SERIALIZATION_UNSUPPORTED",
+  "primary": "CORRECTED_DESIGN.md",
+  "requirements": [
+    {
+      "id": "F20-R1",
+      "title": "Removal semantics (not preserve members)",
+      "sections": [
+        "CORRECTED_DESIGN.md#f20-r1--removal-semantics-not-preserve-members",
+        "CHIEF_HANDOFF.md"
+      ],
+      "founderBullets": [
+        "DROP EXTENSION btree_gist RESTRICT removes authenticated deptype=e members",
+        "Classification is EXTENSION_REMOVAL_SCOPED, not preserved leftovers",
+        "Individual DROP FUNCTION allowlist rows for gbt_*/dist are not authorized",
+        "Caller-supplied extensionMemberOf cannot establish membership",
+        "Name/prefix matches cannot establish membership"
+      ],
+      "qa": "ACCEPT wording or HOLD if preserve/leftover language remains"
+    },
+    {
+      "id": "F20-R2",
+      "title": "Versioned typed capture contract",
+      "sections": [
+        "CORRECTED_DESIGN.md#f20-r2--versioned-typed-capture-contract",
+        "PINS.json"
+      ],
+      "constants": {
+        "inventorySchemaName": "f20-qualification-reset-inventory-v2",
+        "inventorySchemaVersion": 2,
+        "membershipSchemaName": "f20-qualification-reset-membership-v1",
+        "membershipSchemaVersion": 1,
+        "membershipPolicyId": "f20-btree-gist-extension-removal-scoped-v1"
+      },
+      "mandatoryFields": [
+        "kind",
+        "identity",
+        "classid",
+        "objid",
+        "objsubid",
+        "refclassid",
+        "refobjid",
+        "extname",
+        "deptype"
+      ],
+      "survivalChain": [
+        "capture SQL",
+        "parse",
+        "snapshot",
+        "serialize/reread",
+        "evidence",
+        "validateObjectAllowlist",
+        "SQL emitter / T3"
+      ],
+      "founderBullets": [
+        "Define schema name + version constant",
+        "Bind kind + canonical identity + pg_depend object side + refclassid + extension OID + extname + deptype=e",
+        "Specify survival through capture→validateObjectAllowlist→T3"
+      ],
+      "qa": "ACCEPT if constants and field list are explicit and testable; HOLD if membership can be inferred from labels/prefixes"
+    },
+    {
+      "id": "F20-R3",
+      "title": "Rejection rules",
+      "sections": [
+        "CORRECTED_DESIGN.md#f20-r3--rejection-rules-fail-closed"
+      ],
+      "rules": [
+        "R3.1 missing fields",
+        "R3.2 conflicting OID/name",
+        "R3.3 wrong-kind",
+        "R3.4 wrong-OID",
+        "R3.5 wrong refclassid",
+        "R3.6 deptype≠e presented as membership",
+        "R3.7 forged/partial records",
+        "R3.8 stale schema version",
+        "R3.9 incompatible scope/authorization identity"
+      ],
+      "founderBullets": [
+        "Fail closed on missing fields, conflicting OID/name, wrong-kind, wrong-OID, wrong refclassid, deptype≠e as membership, forged/partial, stale schema, incompatible scope/auth"
+      ],
+      "qa": "ACCEPT if every listed failure is BLOCK with no skip path"
+    },
+    {
+      "id": "F20-R4",
+      "title": "Automatic removal effects",
+      "sections": [
+        "CORRECTED_DESIGN.md#f20-r4--automatic-removal-effects-of-drop-extension--restrict"
+      ],
+      "founderBullets": [
+        "Unexpected deptype=x and other unapproved automatic effects BLOCK",
+        "Normal external dependents (deptype n) continue to prevent RESTRICT removal and cause TX rollback"
+      ],
+      "qa": "ACCEPT if e=removal-scoped, n=retain existing RAISE/rollback, x/other=BLOCK"
+    },
+    {
+      "id": "F20-R5",
+      "title": "Transaction serialization of extension membership",
+      "sections": [
+        "CORRECTED_DESIGN.md#f20-r5--transaction-serialization-of-extension-membership",
+        "CHIEF_HANDOFF.md"
+      ],
+      "verdict": "DESIGN_HOLD",
+      "holdCode": "F20_EXTENSION_MEMBERSHIP_SERIALIZATION_UNSUPPORTED",
+      "candidatesEvaluated": [
+        "SELECT FROM pg_extension WHERE extname=$1 FOR UPDATE",
+        "transaction-scoped advisory lock keyed by authenticated extension OID",
+        "LOCK TABLE pg_depend/pg_extension",
+        "existing table/history locks"
+      ],
+      "founderBullets": [
+        "Serialize competing sessions against extension membership changes",
+        "Takes effect before fresh membership comparison (T3)",
+        "Remains effective through DROP EXTENSION",
+        "Not satisfied by existing table/history locks alone",
+        "Ordinary privileges only; no extra superuser vs local proof helper",
+        "If none works: HOLD with exact gap and smallest founder decision; do not invent a weaker substitute"
+      ],
+      "qa": "HOLD required. ACCEPT only if a later founder decision supplies a privilege-authorized lock. Do not ACCEPT advisory lock as sufficient."
+    },
+    {
+      "id": "F20-R6",
+      "title": "Part B accepted historicalNoticeOnly FK tuples",
+      "sections": [
+        "CORRECTED_DESIGN.md#f20-r6--part-b-fk-tuples-accepted-design-specification"
+      ],
+      "intendedCounts": {
+        "total": 43,
+        "migrationCreated": 31,
+        "historicalNoticeOnly": 12,
+        "addedByThisDesign": 6
+      },
+      "exactTuples": [
+        {
+          "kind": "foreign_key",
+          "identity": "group_positions_group_id_fkey",
+          "from": "public.group_positions",
+          "to": "public.groups",
+          "historicalNoticeOnly": true
+        },
+        {
+          "kind": "foreign_key",
+          "identity": "groups_organization_id_fkey",
+          "from": "public.groups",
+          "to": "public.organizations",
+          "historicalNoticeOnly": true
+        },
+        {
+          "kind": "foreign_key",
+          "identity": "memberships_user_id_fkey",
+          "from": "public.memberships",
+          "to": "public.profiles",
+          "historicalNoticeOnly": true
+        },
+        {
+          "kind": "foreign_key",
+          "identity": "notification_policy_occurrences_superseded_by_fkey",
+          "from": "public.notification_policy_occurrences",
+          "to": "public.notification_policy_occurrences",
+          "historicalNoticeOnly": true,
+          "selfReference": true
+        },
+        {
+          "kind": "foreign_key",
+          "identity": "position_assignments_position_id_fkey",
+          "from": "public.position_assignments",
+          "to": "public.group_positions",
+          "historicalNoticeOnly": true
+        },
+        {
+          "kind": "foreign_key",
+          "identity": "position_permissions_position_id_fkey",
+          "from": "public.position_permissions",
+          "to": "public.group_positions",
+          "historicalNoticeOnly": true
+        }
+      ],
+      "ddlProvenance": {
+        "files": [
+          "supabase/migrations/00001_core_tables.sql",
+          "supabase/migrations/00117_m2_notification_policy_foundation.sql"
+        ],
+        "functionalTip": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2"
+      },
+      "founderBullets": [
+        "Add exact six tuples as historicalNoticeOnly",
+        "Intended 43 = 31 migration-created + 12 historical",
+        "Pinned DDL 00001 / 00117 @ dfbeb11",
+        "No new table-deletion authority; no CASCADE",
+        "Preserve captured-set/T3 validation, ordering, self-reference handling"
+      ],
+      "qa": "ACCEPT if tuples match exactly and destructive scope is unchanged"
+    },
+    {
+      "id": "F20-R7",
+      "title": "Scope/auth/runtime-closure binding",
+      "sections": [
+        "CORRECTED_DESIGN.md#f20-r7--scope--authorization--runtime-closure-binding"
+      ],
+      "founderBullets": [
+        "New capture schema version + membership policy bind into scopeSqlIdentity / founder-auth / runtime closure so stale records fail closed"
+      ],
+      "failClosedCodes": [
+        "F13_FOUNDER_AUTH_MISMATCH",
+        "F13_FOUNDER_AUTH_STALE",
+        "F13_INVENTORY_CAPTURE_INCOMPLETE"
+      ],
+      "qa": "ACCEPT if digest inputs include schema constants + membership policy + 43-tuple allowlist"
+    },
+    {
+      "id": "F20-R8",
+      "title": "Implementation scope preview (identify only)",
+      "sections": [
+        "CORRECTED_DESIGN.md#f20-r8--implementation-scope-preview-do-not-implement-now"
+      ],
+      "intendedFiles": [
+        "scripts/lib/f3-db-push-inventory.mjs",
+        "scripts/lib/f3-db-push-qualification-reset-design.mjs",
+        "scripts/lib/f3-db-push-qualification-reset.mjs",
+        "scripts/test-f3-qualification-reset-design.mjs",
+        "scripts/test-f3-qualification-reset.mjs",
+        "scripts/prove-f3-qualification-reset-local.mjs"
+      ],
+      "additionalPathsIdentifyOnly": [
+        "scripts/qualify-f3-db-push-disposable.mjs",
+        "scripts/test-f3-db-push-harness.mjs",
+        "scripts/lib/f3-db-push-repair-safety-gate.mjs"
+      ],
+      "founderBullets": [
+        "List intended edits limited to the six named files",
+        "Flag any additional executable path that would be necessary (identify only)"
+      ],
+      "qa": "ACCEPT if no implementation is in this commit and extra paths are identified only"
+    },
+    {
+      "id": "F20-R9",
+      "title": "Verification matrix",
+      "sections": [
+        "CORRECTED_DESIGN.md#f20-r9--verification-matrix-design-level-qa-acceptance"
+      ],
+      "founderBullets": [
+        "Map founder verification bullets to design requirement IDs"
+      ],
+      "qa": "This file plus CORRECTED_DESIGN.md F20-R9 table are the mapping"
+    }
+  ]
+}

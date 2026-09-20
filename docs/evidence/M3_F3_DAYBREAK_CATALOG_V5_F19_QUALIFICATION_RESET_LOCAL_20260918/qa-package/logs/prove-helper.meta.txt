@@ -1,0 +1,17 @@
+helper=scripts/prove-f3-qualification-reset-local.mjs
+executableCommit=dfbeb11b49f7e9b061a4c700e0335d125ac669e2
+classification=MUST_LOCAL
+localPgAvailable=false
+reason=psql binary not present
+checks=24
+scenarios=9
+executedTransactions=0
+passCount=33
+failCount=0
+overallOk=true
+hostedIdentityProof=false
+disposableContact=false
+productionContact=false
+wipeRejectionCode=F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH
+pgConcurrencyReRun=false
+f18Concurrency=INHERITED PASSED — not re-run

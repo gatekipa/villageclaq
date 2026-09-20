@@ -1,0 +1,25 @@
+{
+  "attempt": "ATTEMPT_2",
+  "functionalCandidateSha": "66be2b4797515975d737a0fd66656bc4c0de2145",
+  "previousStoppedAttemptEvidenceHead": "1d340b40b318a52abd7f14d5496634ad5d7637ac",
+  "planPath": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_PROPOSED_HOSTED_REQUAL_PLAN_20260920/PROPOSED_HOSTED_REQUAL_PLAN.md",
+  "planSha256": "bf9ca7b6c408d72b9f1231f223628a41e77fe275132acf273cd5386dd8c3b138",
+  "closureDigest": "b276d0cb9b39efd10f67422948b4cf9a6353359c116ab657d379c7c7f467a211",
+  "scopeSqlIdentitySha256": "d95d96e02a3a1844977d852fa23a64f742b79b5f767984b6a2d4512cbe02632f",
+  "cli": "2.117.0",
+  "psql": "psql (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+  "psqlSource": "Debian official http://deb.debian.org/debian trixie/main",
+  "targetRef": "jkorwnwwmdeflfntxntl",
+  "forbidProduction": "llbnliixczcqfftxpsmb",
+  "rejectPort": 6543,
+  "policySuccessIdentity": "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+  "verificationMode": "fault-injection",
+  "sharedBranch": "feat/m3-f3-01-05-forward-foundation-9b17",
+  "prs": {
+    "authoritative": 84,
+    "aligned": [
+      85,
+      86
+    ]
+  }
+}

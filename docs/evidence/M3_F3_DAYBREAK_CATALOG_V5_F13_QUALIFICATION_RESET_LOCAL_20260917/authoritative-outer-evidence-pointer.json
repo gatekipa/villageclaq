@@ -1,0 +1,11 @@
+{
+  "authoritative": false,
+  "schema": "f3-non-authoritative-outer-pointer-v1",
+  "package": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F13_QUALIFICATION_RESET_LOCAL_20260917",
+  "tip": "51cc864d1efbefc1398ad3fd1895360c95474a57",
+  "see": [
+    "evidence-index.json",
+    "closure/F13_LOCAL_CLOSURE.json",
+    "PROVENANCE.json"
+  ]
+}

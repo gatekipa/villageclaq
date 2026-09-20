@@ -1,0 +1,15 @@
+{
+  "name": "test-f3-local-safety",
+  "command": "npm run test:f3-local-safety",
+  "startedAt": "2026-09-14T21:32:11Z",
+  "endedAt": "2026-09-14T21:32:12Z",
+  "exit": 0,
+  "pass": 45,
+  "fail": 0,
+  "skip": 0,
+  "tap_ok": 45,
+  "tap_not_ok": 0,
+  "log": "<redacted-path>",
+  "sha256": "abda47160835737841a0e9a63d50ab050ac675ac89e2508023e43504568d5baf",
+  "bytes": 9704
+}

@@ -1,5 +1,7 @@
 # VillageClaq - Development Conventions
 
+**Working rules (agents, coordinators, Chief, reviewers):** see **[AGENTS.md](./AGENTS.md)**. That file is the process contract: acceptance, review budgets, closed findings, test anchors, handoffs, SCOPE_STOP, and git/deploy authorization. Product conventions below remain in force.
+
 ## Project Overview
 Multi-tenant SaaS platform for African community groups (njangis, alumni unions, village associations, church groups). One account, many groups model.
 
@@ -229,7 +231,10 @@ Proxy members represent people without smartphones/accounts (elderly members, no
 - `useGroup()` hook provides: `groupId`, `currentGroup`, `currentMembership`, `user`, `isAdmin`
 - Position-based permissions (group_positions → position_permissions)
 
-## Git Workflow
-- Push to `origin/main` — Vercel auto-deploys
+## Git / deploy authorization
+Vercel auto-deploys from `origin/main` when that branch moves. That is a platform fact, not standing authorization.
+
+- Agents must **not** push to `origin/main`, merge, or deploy unless Jude explicitly authorizes that action for the current outcome. See [AGENTS.md](./AGENTS.md).
+- Daybreak/F3 work stays on the authorized OPEN DRAFT UNMERGED branches (#84 authoritative; #85/#86 aligned; #126/#127 non-authoritative). Do not create sibling PRs for the same shared head.
 - Commit messages follow conventional commits: `feat:`, `fix:`, `chore:`, `refactor:`
 - Co-authored commits with Claude include the `Co-Authored-By` trailer

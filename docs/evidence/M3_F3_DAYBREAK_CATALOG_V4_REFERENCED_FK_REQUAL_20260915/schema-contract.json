@@ -1,0 +1,18 @@
+{
+  "schema_version": "f3-full-catalog-v4",
+  "independent_module_sha": "d96554569cb8b452445c7f14faa6218845d34a1812aba97c8abf196f0834cc57",
+  "envelope_digest": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "envelope_bytes": 10222,
+  "recognition": [
+    "manual_income"
+  ],
+  "referenced_side_required": [
+    "public.profiles",
+    "public.groups",
+    "public.organizations"
+  ],
+  "per_trigger_flags": [
+    "tgdeferrable",
+    "tginitdeferred"
+  ]
+}

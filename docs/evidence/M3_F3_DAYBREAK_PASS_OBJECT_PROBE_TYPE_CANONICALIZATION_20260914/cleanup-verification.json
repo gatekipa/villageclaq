@@ -1,0 +1,15 @@
+{
+  "artifact": "cleanup-verification",
+  "functional_sha": "7d18aacaa163f9738be16be80489654b048e2150",
+  "poison_absent_after_sequence": true,
+  "poison_eval": {
+    "ok": true,
+    "absent": true,
+    "row": {
+      "function_present": false,
+      "trigger_present": false
+    }
+  },
+  "history_inject_triggers_absent": true,
+  "note": "POISON_ABSENT_PROBE after full six-migration sequence"
+}

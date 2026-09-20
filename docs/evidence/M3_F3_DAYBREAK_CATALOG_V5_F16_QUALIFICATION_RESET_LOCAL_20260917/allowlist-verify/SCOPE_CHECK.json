@@ -1,0 +1,20 @@
+{
+  "startingRef": "1fe866ff93af77dfba55437888d3315804507222",
+  "functionalTip": "b74c6854869acf0e826446ea0488c42469621a3b",
+  "authorized": [
+    "scripts/lib/f3-db-push-inventory.mjs",
+    "scripts/lib/f3-db-push-qualification-reset-design.mjs",
+    "scripts/lib/f3-db-push-qualification-reset.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/prove-f3-qualification-reset-local.mjs",
+    "scripts/test-f3-qualification-reset-design.mjs",
+    "scripts/test-f3-qualification-reset.mjs",
+    "scripts/test-f3-db-push-harness.mjs",
+    "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F16_QUALIFICATION_RESET_LOCAL_20260917/",
+    "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F16_QUALIFICATION_RESET_PROPOSED_PLAN_20260917/"
+  ],
+  "unauthorized": [],
+  "migrations00118to00123Changed": false,
+  "wipeCode": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
+  "scopeOk": true
+}

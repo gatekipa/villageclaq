@@ -1,0 +1,40 @@
+  type: 'test'
+  ...
+# Subtest: STUB_CORE_SQL creates auth.uid/auth.jwt only when missing and soft-fails auth GRANTs
+ok 115 - STUB_CORE_SQL creates auth.uid/auth.jwt only when missing and soft-fails auth GRANTs
+  ---
+  duration_ms: 0.304944
+  type: 'test'
+  ...
+# Subtest: floorApplyOk uses ERROR lines only; NOTICE already-exists cannot mask a real ERROR
+ok 116 - floorApplyOk uses ERROR lines only; NOTICE already-exists cannot mask a real ERROR
+  ---
+  duration_ms: 0.53231
+  type: 'test'
+  ...
+# Subtest: NOTICE already-exists plus auth ERROR fails stub floor and records stderrTail
+ok 117 - NOTICE already-exists plus auth ERROR fails stub floor and records stderrTail
+  ---
+  duration_ms: 5.330288
+  type: 'test'
+  ...
+# Subtest: success verdict is qualification-pass with superseded mechanics-pass and frozen F3 digests stay pinned
+ok 118 - success verdict is qualification-pass with superseded mechanics-pass and frozen F3 digests stay pinned
+  ---
+  duration_ms: 2.178808
+  type: 'test'
+  ...
+1..118
+# tests 118
+# suites 0
+# pass 117
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 4241.78005
+npm notice
+npm notice New major version of npm available! 10.9.3 -> 12.0.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
+npm notice To update run: npm install -g npm@12.0.2
+npm notice

@@ -1,0 +1,164 @@
+{
+  "00118_f3_bounded_financial_epoch_foundation.sql": {
+    "equal": true,
+    "builder_sha256": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+    "primary_sha256": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+    "reference_sha256": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+    "seal_helper_sha256": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+    "tip_embedded_sha256": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+    "cloud_agent_v2_sha256": "903235f58c9b1b1ed8217edf3c23a3eea570230c614e45aab712989618a773bf",
+    "seal_equals_independent_reference": true,
+    "tip_equals_independent_reference": true,
+    "cloud_equals_independent_reference": true,
+    "structured_compare_ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "builder_error": null,
+    "field_diffs": [],
+    "recognition_builder": [
+      "manual_income"
+    ],
+    "recognition_reference": [
+      "manual_income"
+    ],
+    "schema_version_primary": "f3-full-catalog-v2",
+    "schema_version_independent": "f3-full-catalog-v2",
+    "migration_digest": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed"
+  },
+  "00119_f3_01_core_ledger_foundation.sql": {
+    "equal": true,
+    "builder_sha256": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+    "primary_sha256": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+    "reference_sha256": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+    "seal_helper_sha256": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+    "tip_embedded_sha256": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+    "cloud_agent_v2_sha256": "6dd0e4702cc824fa811fcac3d760583bdb810a04910b9d3d7bb098eaf0d2f6cd",
+    "seal_equals_independent_reference": true,
+    "tip_equals_independent_reference": true,
+    "cloud_equals_independent_reference": true,
+    "structured_compare_ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "builder_error": null,
+    "field_diffs": [],
+    "recognition_builder": [
+      "manual_income"
+    ],
+    "recognition_reference": [
+      "manual_income"
+    ],
+    "schema_version_primary": "f3-full-catalog-v2",
+    "schema_version_independent": "f3-full-catalog-v2",
+    "migration_digest": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11"
+  },
+  "00120_f3_02_secure_posting_idempotency.sql": {
+    "equal": true,
+    "builder_sha256": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+    "primary_sha256": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+    "reference_sha256": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+    "seal_helper_sha256": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+    "tip_embedded_sha256": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+    "cloud_agent_v2_sha256": "d94a0a091f5a177fb0bcc00a1e47945e771c8f33c89d9560d60784a3cc0d08c2",
+    "seal_equals_independent_reference": true,
+    "tip_equals_independent_reference": true,
+    "cloud_equals_independent_reference": true,
+    "structured_compare_ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "builder_error": null,
+    "field_diffs": [],
+    "recognition_builder": [
+      "manual_income"
+    ],
+    "recognition_reference": [
+      "manual_income"
+    ],
+    "schema_version_primary": "f3-full-catalog-v2",
+    "schema_version_independent": "f3-full-catalog-v2",
+    "migration_digest": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60"
+  },
+  "00121_f3_03_projection_read_proof.sql": {
+    "equal": true,
+    "builder_sha256": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+    "primary_sha256": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+    "reference_sha256": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+    "seal_helper_sha256": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+    "tip_embedded_sha256": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+    "cloud_agent_v2_sha256": "aa0dcf787befffd5ef3a3ee6a2a7271c9fce31610b34d9000f698fe82c9b8f9c",
+    "seal_equals_independent_reference": true,
+    "tip_equals_independent_reference": true,
+    "cloud_equals_independent_reference": true,
+    "structured_compare_ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "builder_error": null,
+    "field_diffs": [],
+    "recognition_builder": [
+      "manual_income"
+    ],
+    "recognition_reference": [
+      "manual_income"
+    ],
+    "schema_version_primary": "f3-full-catalog-v2",
+    "schema_version_independent": "f3-full-catalog-v2",
+    "migration_digest": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce"
+  },
+  "00122_f3_04_correction_reversal.sql": {
+    "equal": true,
+    "builder_sha256": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+    "primary_sha256": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+    "reference_sha256": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+    "seal_helper_sha256": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+    "tip_embedded_sha256": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+    "cloud_agent_v2_sha256": "80c1b264c3b50dd3fbc5f7c21145fe96cd9cf099415d9ae7ce3210ed087219be",
+    "seal_equals_independent_reference": true,
+    "tip_equals_independent_reference": true,
+    "cloud_equals_independent_reference": true,
+    "structured_compare_ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "builder_error": null,
+    "field_diffs": [],
+    "recognition_builder": [
+      "manual_income"
+    ],
+    "recognition_reference": [
+      "manual_income"
+    ],
+    "schema_version_primary": "f3-full-catalog-v2",
+    "schema_version_independent": "f3-full-catalog-v2",
+    "migration_digest": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3"
+  },
+  "00123_f3_05_opening_cash_command.sql": {
+    "equal": true,
+    "builder_sha256": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa",
+    "primary_sha256": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa",
+    "reference_sha256": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa",
+    "seal_helper_sha256": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa",
+    "tip_embedded_sha256": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa",
+    "cloud_agent_v2_sha256": "f287f559f875d64dd1856ac312214c08ad0438ff502f812b80c67c19fe982baa",
+    "seal_equals_independent_reference": true,
+    "tip_equals_independent_reference": true,
+    "cloud_equals_independent_reference": true,
+    "structured_compare_ok": true,
+    "missingKeys": [],
+    "extraKeys": [],
+    "unequalKeys": [],
+    "builder_error": null,
+    "field_diffs": [],
+    "recognition_builder": [
+      "manual_income"
+    ],
+    "recognition_reference": [
+      "manual_income"
+    ],
+    "schema_version_primary": "f3-full-catalog-v2",
+    "schema_version_independent": "f3-full-catalog-v2",
+    "migration_digest": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d"
+  }
+}

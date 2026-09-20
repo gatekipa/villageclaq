@@ -1,0 +1,8 @@
+{
+  "status": "NOT_RUN",
+  "reason": "Stopped after qualification-reset required checks failed (F13_RESET_SQL_FAILED). Per budget: no second reset; no qualification start without reset+gates pass.",
+  "resetCode": "F13_RESET_SQL_FAILED",
+  "resetCommitted": false,
+  "resetMutation": false,
+  "attempt": "ATTEMPT_2"
+}

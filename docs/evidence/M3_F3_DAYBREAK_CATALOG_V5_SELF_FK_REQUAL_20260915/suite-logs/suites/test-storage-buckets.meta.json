@@ -1,0 +1,11 @@
+{
+  "suite": "test-storage-buckets",
+  "exit_code": 0,
+  "classification": "PASS",
+  "tests": 11,
+  "pass": 11,
+  "fail": 0,
+  "skipped": 0,
+  "sha256": "7a9af322e991f63385c6da7c438e5a801c6e75b6b0c8810d526354da1d8295c2",
+  "bytes": 2426
+}

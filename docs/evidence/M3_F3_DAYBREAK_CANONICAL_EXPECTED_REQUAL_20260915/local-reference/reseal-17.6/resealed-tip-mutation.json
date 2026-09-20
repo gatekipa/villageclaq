@@ -1,0 +1,21 @@
+{
+  "mutated_any": false,
+  "files": {
+    "scripts/qualify-f3-db-push-disposable.mjs": {
+      "tip_sha256": "8bd9e5b03aec83cf5185d2a398298b15ed88203a226690d4a85392063fdf8e97",
+      "resealed_copy_sha256": "8bd9e5b03aec83cf5185d2a398298b15ed88203a226690d4a85392063fdf8e97",
+      "mutated": false
+    },
+    "scripts/test-f3-db-push-harness.mjs": {
+      "tip_sha256": "d3c08917af5b151d11e30bec4f3503c661d3e94f430ca7ffd91f6704c1265f2e",
+      "resealed_copy_sha256": "d3c08917af5b151d11e30bec4f3503c661d3e94f430ca7ffd91f6704c1265f2e",
+      "mutated": false
+    },
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs": {
+      "tip_sha256": "8d9a6182c214d111ca1cb5dc27cc071376b9c6e98b902f9fdc16fd83a3dd2258",
+      "resealed_copy_sha256": "8d9a6182c214d111ca1cb5dc27cc071376b9c6e98b902f9fdc16fd83a3dd2258",
+      "mutated": false
+    }
+  },
+  "reason": "17.6 seals identical to tip embedded cloud-agent-17.11 seals; no file content change required"
+}

@@ -1,0 +1,18 @@
+=== START test-f3-db-push ===
+=== START test-f3-local-safety ===
+=== START test-f3-mapi-harness ===
+=== START test-f3-oracles ===
+=== START test-f3-recognition ===
+=== START test-m2-static-security ===
+=== START test-m2 ===
+=== START test-s0-cut1 ===
+=== START test-s0-cut2 ===
+=== START test-storage-buckets ===
+=== START tsc-noEmit ===
+=== START next-build ===
+=== START test-f3-oracles (cwd=/workspace/f3-remediate-daybreak-20260915/tip-extract) ===
+=== START test-f3-recognition (cwd=/workspace/f3-remediate-daybreak-20260915/tip-extract) ===
+=== START test-m2-static-security (cwd=/workspace/f3-remediate-daybreak-20260915/tip-extract) ===
+=== START test-m2 (cwd=/workspace/f3-remediate-daybreak-20260915/tip-extract) ===
+=== START next-build (cwd=/workspace/f3-remediate-daybreak-20260915/tip-extract) ===
+=== START test-f3-db-push-rerun (cwd=/workspace/f3-remediate-daybreak-20260915/tip-extract) ===

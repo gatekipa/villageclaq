@@ -1,0 +1,78 @@
+{
+  "schema": "f13-finite-dependency-allowlist-v1",
+  "unexpected_blocks": true,
+  "dependencies": [
+    {
+      "id": "dep.groups.memberships_group_id_fkey",
+      "from": "public.memberships",
+      "to": "public.groups",
+      "kind": "foreign_key",
+      "identity": "memberships_group_id_fkey",
+      "handling": "drop public.memberships before public.groups; no CASCADE",
+      "historicalNoticeOnly": true
+    },
+    {
+      "id": "dep.groups.projects_group_id_fkey",
+      "from": "public.projects",
+      "to": "public.groups",
+      "kind": "foreign_key",
+      "identity": "projects_group_id_fkey",
+      "handling": "drop public.projects before public.groups; no CASCADE",
+      "historicalNoticeOnly": true
+    },
+    {
+      "id": "dep.groups.notification_policies_group_id_fkey",
+      "from": "public.notification_policies",
+      "to": "public.groups",
+      "kind": "foreign_key",
+      "identity": "notification_policies_group_id_fkey",
+      "handling": "drop public.notification_policies before public.groups; no CASCADE",
+      "historicalNoticeOnly": true
+    },
+    {
+      "id": "dep.groups.notification_policy_occurrences_group_id_fkey",
+      "from": "public.notification_policy_occurrences",
+      "to": "public.groups",
+      "kind": "foreign_key",
+      "identity": "notification_policy_occurrences_group_id_fkey",
+      "handling": "drop public.notification_policy_occurrences before public.groups; no CASCADE",
+      "historicalNoticeOnly": true
+    },
+    {
+      "id": "dep.memberships.position_assignments_membership_id_fkey",
+      "from": "public.position_assignments",
+      "to": "public.memberships",
+      "kind": "foreign_key",
+      "identity": "position_assignments_membership_id_fkey",
+      "handling": "drop public.position_assignments before public.memberships; no CASCADE",
+      "historicalNoticeOnly": true
+    },
+    {
+      "id": "dep.notification_policies.notification_policy_triggers_policy_id_fkey",
+      "from": "public.notification_policy_triggers",
+      "to": "public.notification_policies",
+      "kind": "foreign_key",
+      "identity": "notification_policy_triggers_policy_id_fkey",
+      "handling": "drop public.notification_policy_triggers before public.notification_policies; no CASCADE",
+      "historicalNoticeOnly": true
+    },
+    {
+      "id": "dep.financial_events.posting_command_payloads_event_id_fkey",
+      "from": "financial_core.posting_command_payloads",
+      "to": "public.financial_events",
+      "kind": "foreign_key",
+      "identity": "posting_command_payloads.event_id -> public.financial_events.id",
+      "handling": "drop financial_core.posting_command_payloads before public.financial_events; no CASCADE",
+      "historicalNoticeOnly": false
+    },
+    {
+      "id": "dep.financial_events.correction_command_payloads_fks",
+      "from": "financial_core.correction_command_payloads",
+      "to": "public.financial_events",
+      "kind": "foreign_key",
+      "identity": "correction_command_payloads target/reversal/replacement -> public.financial_events",
+      "handling": "drop financial_core.correction_command_payloads before public.financial_events; no CASCADE",
+      "historicalNoticeOnly": false
+    }
+  ]
+}

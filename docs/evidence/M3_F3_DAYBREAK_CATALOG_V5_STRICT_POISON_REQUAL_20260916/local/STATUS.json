@@ -1,0 +1,102 @@
+{
+  "phase": "local",
+  "verdict": "CONTINUE",
+  "captured_at_et": "2026-09-16 11:04:02 EDT",
+  "tip_sha": "43ebd223b66edcd5581dc03f80110c3a39975f47",
+  "E51": "f8f04604199cc575c2134bac7b055c901f2207f7",
+  "F51_in_ancestry": "55995cf0ab5f89dd0b59775eb99a7f63a5e0d5b1",
+  "main_pin": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr83_pin": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "tip_vs_E51_files_only": [
+    "scripts/lib/f3-db-push-query-parse.mjs",
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/test-f3-db-push-harness.mjs"
+  ],
+  "tip_vs_E51_file_count": 4,
+  "independent_ref_blob": "09b6e97ee0605d4af81b027746e49a6e43ff6ff1",
+  "independent_ref_unchanged": true,
+  "schema_version": "f3-full-catalog-v5",
+  "v5_hashes_sealed_unchanged": true,
+  "envelope": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "cli": "2.117.0",
+  "suites": {
+    "test-f3-db-push": {
+      "tests": 126,
+      "pass": 125,
+      "fail": 0,
+      "skipped": 1
+    },
+    "test-f3-recognition": {
+      "tests": 40,
+      "pass": 40,
+      "fail": 0,
+      "skipped": 0
+    },
+    "test-f3-oracles": {
+      "tests": 577,
+      "pass": 577,
+      "fail": 0,
+      "skipped": 0
+    },
+    "test-f3-local-safety": {
+      "tests": 45,
+      "pass": 45,
+      "fail": 0,
+      "skipped": 0
+    },
+    "test-f3-mapi-harness": {
+      "tests": 22,
+      "pass": 22,
+      "fail": 0,
+      "skipped": 0
+    },
+    "test-m2": {
+      "tests": 111,
+      "pass": 111,
+      "fail": 0,
+      "skipped": 0
+    },
+    "test-m2-static-security": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "skipped": 0
+    },
+    "test-s0-cut1": {
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0
+    },
+    "test-s0-cut2": {
+      "classification": "ENV_DEPENDENT_FAIL",
+      "note": "disposablePrerequisiteError"
+    },
+    "test-storage-buckets": {
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0
+    },
+    "tsc-noEmit": "PASS",
+    "next-build": "PASS"
+  },
+  "actual_spy_negatives": {
+    "test": "Daybreak original-stdout poison + connection-bound target: ACTUAL spies, founder 1-34+",
+    "ok": true,
+    "case_count": 37,
+    "cases_F3_N01_to_N37": true
+  },
+  "recursive_closure": {
+    "closure_complete": true,
+    "git_verification": {
+      "ok": true
+    },
+    "hosted_tree_mismatches": 0,
+    "uncommitted_functional_diffs": 0
+  },
+  "secret_scan": "PASS (fixture URLs only; no live tokens)",
+  "hold_reason": null,
+  "next": "Part2 additive F6 onto #84/#85/#86 then Part3 disposable reset+hosted"
+}

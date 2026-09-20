@@ -1,0 +1,8 @@
+{
+  "freshlyExercised": "F22 fault-injection: induced history failure classified PRE_COMMIT_OR_ATOMIC_ROLLBACK; repair-safety gate refused repair; repairCalls=0",
+  "inheritedAcceptedEvidence": "F22 HOLD PACKAGE ACCEPT for F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED as historical authenticated negative test",
+  "unexercised": "post-commit filename-version repair after objects remain; hosted split where SQL commits and history INSERT fails",
+  "mandatoryUnderApprovedContract": true,
+  "promotedNotExercisedToPass": false,
+  "remainingFounderDecision": "Whether a hosted filename-version split (objects remain after inject) can be authorized. Local CLI atomic rollback cannot satisfy post-commit repair. Do not mark unapplied SQL applied or manufacture committed objects."
+}

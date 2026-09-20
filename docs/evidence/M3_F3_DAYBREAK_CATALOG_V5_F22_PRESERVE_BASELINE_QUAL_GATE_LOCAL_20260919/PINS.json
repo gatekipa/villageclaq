@@ -1,0 +1,22 @@
+{
+  "startingHead": "a38db9c1c0e122dcc5900e1bd41c3857ecca6bd5",
+  "f21Functional": "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+  "f21LocalEvidence": "964fe8431f7ca22534a4277246e8330732373f64",
+  "contract": "b7d16544cdbb86ce47baba329835bd93dcb16d6d",
+  "functionalTip": "f1d30b28830db902962467f801932254997e64c3",
+  "evidenceTip": "f18331337c36e7c50cd1323c0202a298a4704e03",
+  "ancestry": [
+    "f1d30b28830db902962467f801932254997e64c3",
+    "a38db9c1c0e122dcc5900e1bd41c3857ecca6bd5",
+    "964fe8431f7ca22534a4277246e8330732373f64",
+    "3fe7314ab7cfb2abbcd66d8eb09f26ba2ed0a9e0",
+    "b7d16544cdbb86ce47baba329835bd93dcb16d6d"
+  ],
+  "disposableOnly": "jkorwnwwmdeflfntxntl",
+  "productionRejected": "llbnliixczcqfftxpsmb",
+  "remainingHold": "F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
+  "proposedPlan": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919/PROPOSED_HOSTED_REQUAL_PLAN.md",
+  "qaReviewedEvidenceTip": "6d6bdd7591d738e593bc7290d5f60e4be0de88ec",
+  "qaVerdict": "F22 HOLD PACKAGE ACCEPT",
+  "notLocalCandidateReady": true
+}

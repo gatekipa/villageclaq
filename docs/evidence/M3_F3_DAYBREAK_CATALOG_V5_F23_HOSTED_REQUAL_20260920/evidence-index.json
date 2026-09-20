@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "exclusions": [
+    "evidence-index.json",
+    "evidence-index.sha256"
+  ],
+  "self_hash": false,
+  "detached_checksum": "evidence-index.sha256",
+  "package": "M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL_20260920",
+  "relatedLiveResetPath": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_HOSTED_REQUAL/hosted/qualification-reset/",
+  "artifacts": [
+    {
+      "path": "CHIEF_HANDOFF.md",
+      "sha256": "449acb80f0c4a90d68814091dc670f493a7421f3d60c5fbcacdde58fb13191ee",
+      "bytes": 2749
+    },
+    {
+      "path": "EXECUTION_REPORT.json",
+      "sha256": "4baacf8334e49673f5afecff7dfdafe17fc961d09a1ee11ba3a630c944f6d8e8",
+      "bytes": 3066
+    },
+    {
+      "path": "HOLD_SUMMARY.json",
+      "sha256": "9fadfc1e90f015e37bafa8ec7eb7310cd997d415226cdd881ee9373b6fce6a8b",
+      "bytes": 2846
+    },
+    {
+      "path": "PINS.json",
+      "sha256": "e0ded59291d6533c5423b540071812c00595ca8687c0bc046b03d0c517c5de7a",
+      "bytes": 1524
+    },
+    {
+      "path": "SUMMARY.md",
+      "sha256": "449acb80f0c4a90d68814091dc670f493a7421f3d60c5fbcacdde58fb13191ee",
+      "bytes": 2749
+    }
+  ]
+}

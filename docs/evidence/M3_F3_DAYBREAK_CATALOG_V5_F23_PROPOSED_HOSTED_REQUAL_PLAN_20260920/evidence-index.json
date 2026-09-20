@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "exclusions": [
+    "evidence-index.json",
+    "evidence-index.sha256"
+  ],
+  "self_hash": false,
+  "detached_checksum": "evidence-index.sha256",
+  "artifacts": [
+    {
+      "path": "CHIEF_HANDOFF.md",
+      "sha256": "5ee852f3a808b2de4b6a524e585037611669b65206441d41d9d7ebe69e6b8ee5",
+      "bytes": 6359
+    },
+    {
+      "path": "closure/DIGESTS.json",
+      "sha256": "acd311298a5abbef86613b0696b392c09f33d9263393c90ee6bbad54b927dfb9",
+      "bytes": 6748
+    },
+    {
+      "path": "PINS.json",
+      "sha256": "71ffc028f85831a16f9417221f8527e2b644235ff1f51b95d42d6e185aa49520",
+      "bytes": 3954
+    },
+    {
+      "path": "PROPOSED_HOSTED_REQUAL_PLAN.md",
+      "sha256": "bf9ca7b6c408d72b9f1231f223628a41e77fe275132acf273cd5386dd8c3b138",
+      "bytes": 20690
+    }
+  ]
+}

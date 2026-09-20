@@ -1,0 +1,3786 @@
+{
+  "00118_f3_bounded_financial_epoch_foundation.sql": {
+    "phase": "after_successful_normal_application",
+    "expectedSha256": "888c794355982346573a3353caa7fa74181bc0048cc95990de60416de893ab1d",
+    "observedSha256": "556e331d47842748e3dd612aa3d0d2e8ca6f59771c248f67a72e5bb23facfaff",
+    "fields": {
+      "relations": {
+        "expectedCount": 3,
+        "observedCount": 3,
+        "onlyInExpectedCount": 3,
+        "onlyInObservedCount": 3,
+        "pairs": [
+          {
+            "object": "financial_private.epoch_transitions",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": false,
+            "rls_enabled_observed": false,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.internal_financial_tenants",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_ledger_epochs",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "schema": {
+        "expectedCount": 1,
+        "observedCount": 1,
+        "onlyInExpectedCount": 1,
+        "onlyInObservedCount": 1,
+        "pairs": [
+          {
+            "object": "financial_private",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "schemas": {
+        "expectedCount": 1,
+        "observedCount": 1,
+        "onlyInExpectedCount": 1,
+        "onlyInObservedCount": 1,
+        "pairs": [
+          {
+            "object": "financial_private",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "types": {
+        "expectedCount": 3,
+        "observedCount": 3,
+        "onlyInExpectedCount": 3,
+        "onlyInObservedCount": 3,
+        "pairs": [
+          {
+            "object": "financial_private.epoch_transitions (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.internal_financial_tenants (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_ledger_epochs (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      }
+    }
+  },
+  "00119_f3_01_core_ledger_foundation.sql": {
+    "phase": "after_successful_normal_application",
+    "expectedSha256": "5e03111ffb34be3ed76a714370c93e70210a9741a25ac7b9158a9a9ad22f12f4",
+    "observedSha256": "0c6e11b4c6473472e58bb6ef1b6c265f2259115cc2d50ab430e10d8e2a6c19f4",
+    "fields": {
+      "function_owner": {
+        "expectedCount": 15,
+        "observedCount": 15,
+        "onlyInExpectedCount": 7,
+        "onlyInObservedCount": 7,
+        "pairs": [
+          {
+            "object": "financial_core.currency_scale(p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_account()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_category()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_event_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_fund()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_posting_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "relations": {
+        "expectedCount": 8,
+        "observedCount": 8,
+        "onlyInExpectedCount": 8,
+        "onlyInObservedCount": 8,
+        "pairs": [
+          {
+            "object": "financial_private.epoch_transitions",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": false,
+            "rls_enabled_observed": false,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.internal_financial_tenants",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_accounts",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_categories",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_events",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_funds",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_ledger_epochs",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_postings",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "routines": {
+        "expectedCount": 15,
+        "observedCount": 15,
+        "onlyInExpectedCount": 7,
+        "onlyInObservedCount": 7,
+        "pairs": [
+          {
+            "object": "financial_core.currency_scale(p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_account()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_category()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_event_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_fund()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_posting_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          }
+        ]
+      },
+      "schema": {
+        "expectedCount": 2,
+        "observedCount": 2,
+        "onlyInExpectedCount": 2,
+        "onlyInObservedCount": 2,
+        "pairs": [
+          {
+            "object": "financial_core",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "schemas": {
+        "expectedCount": 2,
+        "observedCount": 2,
+        "onlyInExpectedCount": 2,
+        "onlyInObservedCount": 2,
+        "pairs": [
+          {
+            "object": "financial_core",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "types": {
+        "expectedCount": 15,
+        "observedCount": 15,
+        "onlyInExpectedCount": 15,
+        "onlyInObservedCount": 15,
+        "pairs": [
+          {
+            "object": "financial_private.epoch_transitions (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.internal_financial_tenants (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_account_kind (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_account_status (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_accounts (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_categories (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_category_class (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_config_status (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_control_class (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_event_class (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_event_status (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_events (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_funds (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_ledger_epochs (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_postings (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      }
+    }
+  },
+  "00120_f3_02_secure_posting_idempotency.sql": {
+    "phase": "after_successful_normal_application",
+    "expectedSha256": "35eba6966d2c077a9467f09adc6c85306b951c9d8388ee758a60d924c05ae51a",
+    "observedSha256": "5b67f3ae0c5d37445d581e020be0cddeb3d9fc6827bb510f0915107b8bb36f5e",
+    "fields": {
+      "function_owner": {
+        "expectedCount": 28,
+        "observedCount": 28,
+        "onlyInExpectedCount": 16,
+        "onlyInObservedCount": 16,
+        "pairs": [
+          {
+            "object": "financial_core.currency_scale(p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_amount(p_value jsonb, p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_canonical(p_payload jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_currency(p_value jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_fingerprint(p_payload jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_timestamp(p_value jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_trim(p_text text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_uuid(p_value jsonb, p_optional boolean)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_f3_payload()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_account()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_category()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_event_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_fund()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_posting_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.lock_f3_identity(p_group uuid, p_request uuid, p_module text, p_source text, p_effect text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "relations": {
+        "expectedCount": 9,
+        "observedCount": 9,
+        "onlyInExpectedCount": 9,
+        "onlyInObservedCount": 9,
+        "pairs": [
+          {
+            "object": "financial_core.posting_command_payloads",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.epoch_transitions",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": false,
+            "rls_enabled_observed": false,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.internal_financial_tenants",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_accounts",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_categories",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_events",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_funds",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_ledger_epochs",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_postings",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "routines": {
+        "expectedCount": 28,
+        "observedCount": 28,
+        "onlyInExpectedCount": 16,
+        "onlyInObservedCount": 16,
+        "pairs": [
+          {
+            "object": "financial_core.currency_scale(p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_amount(p_value jsonb, p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_canonical(p_payload jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_currency(p_value jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_fingerprint(p_payload jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_timestamp(p_value jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_trim(p_text text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_uuid(p_value jsonb, p_optional boolean)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_f3_payload()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_account()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_category()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_event_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_fund()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_posting_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.lock_f3_identity(p_group uuid, p_request uuid, p_module text, p_source text, p_effect text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          }
+        ]
+      },
+      "schema": {
+        "expectedCount": 2,
+        "observedCount": 2,
+        "onlyInExpectedCount": 2,
+        "onlyInObservedCount": 2,
+        "pairs": [
+          {
+            "object": "financial_core",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "schemas": {
+        "expectedCount": 2,
+        "observedCount": 2,
+        "onlyInExpectedCount": 2,
+        "onlyInObservedCount": 2,
+        "pairs": [
+          {
+            "object": "financial_core",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "types": {
+        "expectedCount": 16,
+        "observedCount": 16,
+        "onlyInExpectedCount": 16,
+        "onlyInObservedCount": 16,
+        "pairs": [
+          {
+            "object": "financial_core.posting_command_payloads (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.epoch_transitions (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.internal_financial_tenants (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_account_kind (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_account_status (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_accounts (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_categories (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_category_class (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_config_status (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_control_class (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_event_class (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_event_status (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_events (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_funds (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_ledger_epochs (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_postings (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      }
+    }
+  },
+  "00121_f3_03_projection_read_proof.sql": {
+    "phase": "after_successful_normal_application",
+    "expectedSha256": "8f65797949d8c5afb7dfa99b8020da52385347099b2a5b9be5148b253e76bde6",
+    "observedSha256": "340f5746700d74a92ae66c65d95ed074ed2d330d7001405aa80670d7c5b06752",
+    "fields": {
+      "function_owner": {
+        "expectedCount": 32,
+        "observedCount": 32,
+        "onlyInExpectedCount": 18,
+        "onlyInObservedCount": 18,
+        "pairs": [
+          {
+            "object": "financial_core.currency_scale(p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_amount(p_value jsonb, p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_canonical(p_payload jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_currency(p_value jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_fingerprint(p_payload jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_timestamp(p_value jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_trim(p_text text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_uuid(p_value jsonb, p_optional boolean)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.format_projection_amount(p_amount numeric, p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_f3_payload()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_account()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_category()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_event_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_fund()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_posting_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.lock_f3_identity(p_group uuid, p_request uuid, p_module text, p_source text, p_effect text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.projection_cashbook_rows(p_group_id uuid, p_include_audit boolean)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "relations": {
+        "expectedCount": 9,
+        "observedCount": 9,
+        "onlyInExpectedCount": 9,
+        "onlyInObservedCount": 9,
+        "pairs": [
+          {
+            "object": "financial_core.posting_command_payloads",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.epoch_transitions",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": false,
+            "rls_enabled_observed": false,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.internal_financial_tenants",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_accounts",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_categories",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_events",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_funds",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_ledger_epochs",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_postings",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "routines": {
+        "expectedCount": 32,
+        "observedCount": 32,
+        "onlyInExpectedCount": 18,
+        "onlyInObservedCount": 18,
+        "pairs": [
+          {
+            "object": "financial_core.currency_scale(p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_amount(p_value jsonb, p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_canonical(p_payload jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_currency(p_value jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_fingerprint(p_payload jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_timestamp(p_value jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_trim(p_text text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_uuid(p_value jsonb, p_optional boolean)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.format_projection_amount(p_amount numeric, p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_f3_payload()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_account()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_category()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_event_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_fund()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_posting_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.lock_f3_identity(p_group uuid, p_request uuid, p_module text, p_source text, p_effect text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.projection_cashbook_rows(p_group_id uuid, p_include_audit boolean)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          }
+        ]
+      },
+      "schema": {
+        "expectedCount": 2,
+        "observedCount": 2,
+        "onlyInExpectedCount": 2,
+        "onlyInObservedCount": 2,
+        "pairs": [
+          {
+            "object": "financial_core",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "schemas": {
+        "expectedCount": 2,
+        "observedCount": 2,
+        "onlyInExpectedCount": 2,
+        "onlyInObservedCount": 2,
+        "pairs": [
+          {
+            "object": "financial_core",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "types": {
+        "expectedCount": 16,
+        "observedCount": 16,
+        "onlyInExpectedCount": 16,
+        "onlyInObservedCount": 16,
+        "pairs": [
+          {
+            "object": "financial_core.posting_command_payloads (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.epoch_transitions (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.internal_financial_tenants (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_account_kind (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_account_status (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_accounts (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_categories (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_category_class (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_config_status (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_control_class (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_event_class (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_event_status (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_events (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_funds (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_ledger_epochs (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_postings (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      }
+    }
+  },
+  "00122_f3_04_correction_reversal.sql": {
+    "phase": "after_successful_normal_application",
+    "expectedSha256": "6e3240759aec64d4692422aac006b4fb865e3039832be84efea86b39c0253175",
+    "observedSha256": "75c4f8b0c77d56955611fc9de57b2c817bcc85c02ded779a7f79e0f499e9fcbc",
+    "fields": {
+      "function_owner": {
+        "expectedCount": 46,
+        "observedCount": 46,
+        "onlyInExpectedCount": 26,
+        "onlyInObservedCount": 26,
+        "pairs": [
+          {
+            "object": "financial_core.currency_scale(p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_amount(p_value jsonb, p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_canonical(p_payload jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_correction_canonical(p jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_correction_child_id(g uuid, r uuid, role text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_correction_fingerprint(p jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_correction_posting_json(id uuid, event_id uuid, g uuid, epoch uuid, c text, occurred timestamp with time zone, amount numeric, control financial_control_class, account uuid, fund uuid, category uuid, cat_class financial_category_class, member uuid, project uuid)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_correction_reason(p jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_correction_signed_amount(p numeric, c text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_correction_timestamp(p timestamp with time zone)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_currency(p_value jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_fingerprint(p_payload jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_timestamp(p_value jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_trim(p_text text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_uuid(p_value jsonb, p_optional boolean)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.format_projection_amount(p_amount numeric, p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_f3_correction_payload()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_f3_payload()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_account()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_category()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_event_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_fund()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_posting_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.lock_f3_identity(p_group uuid, p_request uuid, p_module text, p_source text, p_effect text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.projection_cashbook_rows(p_group_id uuid, p_include_audit boolean)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "relations": {
+        "expectedCount": 10,
+        "observedCount": 10,
+        "onlyInExpectedCount": 10,
+        "onlyInObservedCount": 10,
+        "pairs": [
+          {
+            "object": "financial_core.correction_command_payloads",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.posting_command_payloads",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.epoch_transitions",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": false,
+            "rls_enabled_observed": false,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.internal_financial_tenants",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_accounts",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_categories",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_events",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_funds",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_ledger_epochs",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_postings",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "routines": {
+        "expectedCount": 46,
+        "observedCount": 46,
+        "onlyInExpectedCount": 26,
+        "onlyInObservedCount": 26,
+        "pairs": [
+          {
+            "object": "financial_core.currency_scale(p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_amount(p_value jsonb, p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_canonical(p_payload jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_correction_canonical(p jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_correction_child_id(g uuid, r uuid, role text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_correction_fingerprint(p jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_correction_posting_json(id uuid, event_id uuid, g uuid, epoch uuid, c text, occurred timestamp with time zone, amount numeric, control financial_control_class, account uuid, fund uuid, category uuid, cat_class financial_category_class, member uuid, project uuid)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_correction_reason(p jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_correction_signed_amount(p numeric, c text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_correction_timestamp(p timestamp with time zone)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_currency(p_value jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_fingerprint(p_payload jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_timestamp(p_value jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_trim(p_text text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_uuid(p_value jsonb, p_optional boolean)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.format_projection_amount(p_amount numeric, p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_f3_correction_payload()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_f3_payload()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_account()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_category()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_event_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_fund()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_posting_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.lock_f3_identity(p_group uuid, p_request uuid, p_module text, p_source text, p_effect text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.projection_cashbook_rows(p_group_id uuid, p_include_audit boolean)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          }
+        ]
+      },
+      "schema": {
+        "expectedCount": 2,
+        "observedCount": 2,
+        "onlyInExpectedCount": 2,
+        "onlyInObservedCount": 2,
+        "pairs": [
+          {
+            "object": "financial_core",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "schemas": {
+        "expectedCount": 2,
+        "observedCount": 2,
+        "onlyInExpectedCount": 2,
+        "onlyInObservedCount": 2,
+        "pairs": [
+          {
+            "object": "financial_core",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "types": {
+        "expectedCount": 17,
+        "observedCount": 17,
+        "onlyInExpectedCount": 17,
+        "onlyInObservedCount": 17,
+        "pairs": [
+          {
+            "object": "financial_core.correction_command_payloads (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.posting_command_payloads (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.epoch_transitions (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.internal_financial_tenants (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_account_kind (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_account_status (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_accounts (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_categories (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_category_class (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_config_status (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_control_class (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_event_class (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_event_status (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_events (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_funds (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_ledger_epochs (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_postings (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      }
+    }
+  },
+  "00123_f3_05_opening_cash_command.sql": {
+    "phase": "after_successful_normal_application",
+    "expectedSha256": "d5e50fd760a9629bf4e1574fd256ecf0d4a108df83dec27323a608e0466dcb34",
+    "observedSha256": "ba24bf71766a73f1e6132c5e92fbd4b97631a0137b501c287bffa92887fffadd",
+    "fields": {
+      "function_owner": {
+        "expectedCount": 50,
+        "observedCount": 50,
+        "onlyInExpectedCount": 28,
+        "onlyInObservedCount": 28,
+        "pairs": [
+          {
+            "object": "financial_core.currency_scale(p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_amount(p_value jsonb, p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_canonical(p_payload jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_correction_canonical(p jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_correction_child_id(g uuid, r uuid, role text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_correction_fingerprint(p jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_correction_posting_json(id uuid, event_id uuid, g uuid, epoch uuid, c text, occurred timestamp with time zone, amount numeric, control financial_control_class, account uuid, fund uuid, category uuid, cat_class financial_category_class, member uuid, project uuid)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_correction_reason(p jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_correction_signed_amount(p numeric, c text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_correction_timestamp(p timestamp with time zone)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_currency(p_value jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_fingerprint(p_payload jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_opening_safe_text(p_value text, p_max integer, p_required boolean)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_timestamp(p_value jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_trim(p_text text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.f3_uuid(p_value jsonb, p_optional boolean)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.format_projection_amount(p_amount numeric, p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_f3_correction_payload()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_f3_opening_provenance()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_f3_payload()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_account()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_category()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_event_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_fund()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.guard_financial_posting_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.lock_f3_identity(p_group uuid, p_request uuid, p_module text, p_source text, p_effect text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.projection_cashbook_rows(p_group_id uuid, p_include_audit boolean)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "relations": {
+        "expectedCount": 11,
+        "observedCount": 11,
+        "onlyInExpectedCount": 11,
+        "onlyInObservedCount": 11,
+        "pairs": [
+          {
+            "object": "financial_core.correction_command_payloads",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.opening_provenances",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.posting_command_payloads",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.epoch_transitions",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": false,
+            "rls_enabled_observed": false,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.internal_financial_tenants",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_accounts",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_categories",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_events",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_funds",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_ledger_epochs",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_postings",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": true,
+            "rls_enabled_observed": true,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "routines": {
+        "expectedCount": 50,
+        "observedCount": 50,
+        "onlyInExpectedCount": 28,
+        "onlyInObservedCount": 28,
+        "pairs": [
+          {
+            "object": "financial_core.currency_scale(p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_amount(p_value jsonb, p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_canonical(p_payload jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_correction_canonical(p jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_correction_child_id(g uuid, r uuid, role text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_correction_fingerprint(p jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_correction_posting_json(id uuid, event_id uuid, g uuid, epoch uuid, c text, occurred timestamp with time zone, amount numeric, control financial_control_class, account uuid, fund uuid, category uuid, cat_class financial_category_class, member uuid, project uuid)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_correction_reason(p jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_correction_signed_amount(p numeric, c text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_correction_timestamp(p timestamp with time zone)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_currency(p_value jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_fingerprint(p_payload jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_opening_safe_text(p_value text, p_max integer, p_required boolean)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_timestamp(p_value jsonb)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_trim(p_text text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.f3_uuid(p_value jsonb, p_optional boolean)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.format_projection_amount(p_amount numeric, p_currency text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_f3_correction_payload()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_f3_opening_provenance()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_f3_payload()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_account()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_category()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_event_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_fund()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.guard_financial_posting_history()",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.lock_f3_identity(p_group uuid, p_request uuid, p_module text, p_source text, p_effect text)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          },
+          {
+            "object": "financial_core.projection_cashbook_rows(p_group_id uuid, p_include_audit boolean)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": false,
+            "security_definer_observed": false,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": true
+          }
+        ]
+      },
+      "schema": {
+        "expectedCount": 2,
+        "observedCount": 2,
+        "onlyInExpectedCount": 2,
+        "onlyInObservedCount": 2,
+        "pairs": [
+          {
+            "object": "financial_core",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "schemas": {
+        "expectedCount": 2,
+        "observedCount": 2,
+        "onlyInExpectedCount": 2,
+        "onlyInObservedCount": 2,
+        "pairs": [
+          {
+            "object": "financial_core",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      },
+      "types": {
+        "expectedCount": 18,
+        "observedCount": 18,
+        "onlyInExpectedCount": 18,
+        "onlyInObservedCount": 18,
+        "pairs": [
+          {
+            "object": "financial_core.correction_command_payloads (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.opening_provenances (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_core.posting_command_payloads (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.epoch_transitions (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "financial_private.internal_financial_tenants (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_account_kind (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_account_status (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_accounts (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_categories (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_category_class (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_config_status (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_control_class (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_event_class (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_event_status (enum)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_events (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_funds (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_ledger_epochs (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          },
+          {
+            "object": "public.financial_postings (composite)",
+            "expected_owner": "postgres",
+            "observed_owner": "ubuntu",
+            "security_definer_expected": null,
+            "security_definer_observed": null,
+            "rls_enabled_expected": null,
+            "rls_enabled_observed": null,
+            "functiondef_equal": null
+          }
+        ]
+      }
+    }
+  }
+}

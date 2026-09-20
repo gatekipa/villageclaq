@@ -1,0 +1,158 @@
+{
+  "pathLeaks": 0,
+  "secrets": 0,
+  "fileCount": 30,
+  "files": [
+    {
+      "path": "ACCEPTANCE.json",
+      "sha256": "6b6d25ecac02f094f32bea83ce1b37d8f52012c5ccae6350d83e1484192a570a",
+      "bytes": 1001
+    },
+    {
+      "path": "CITATION.json",
+      "sha256": "99df4d73d0809438448da248b300f9f28cf361cf92c469e995c03108e7aebf24",
+      "bytes": 841
+    },
+    {
+      "path": "COMMANDS.md",
+      "sha256": "52319c745e5749024ff51e2885ab9f38c63fd8862870db6dd8405f88f1d82d7a",
+      "bytes": 1765
+    },
+    {
+      "path": "IDENTITY.json",
+      "sha256": "ab35447be2e68750f0d38ec147fc8ab58726b8b96f1a98295895a9da44148187",
+      "bytes": 1329
+    },
+    {
+      "path": "README.md",
+      "sha256": "2de4b014dab5441d81e2b07e3eea5e608c5bccb3d5d7fad490e619c8da8ee523",
+      "bytes": 953
+    },
+    {
+      "path": "SLOT.json",
+      "sha256": "5844384ac329d5c816d90f01788fcc28b942b711d91eb501f6e4cad9a0e07093",
+      "bytes": 679
+    },
+    {
+      "path": "environment/HOST.txt",
+      "sha256": "ff1c64c04ad690ee70c2c0797e1b7c43bb2c4bc6b64bbeaf4e1678167cec2a53",
+      "bytes": 451
+    },
+    {
+      "path": "environment/PINS.txt",
+      "sha256": "3374dc3e2cf41f30baec1259f81f32b22effd8612dc2dd8f1e21c9fc33065c16",
+      "bytes": 516
+    },
+    {
+      "path": "local-pg-proof/CONCURRENCY_INHERITED.json",
+      "sha256": "d566e8ec239934d6e61ebbcf0ee21ecadd6d9c22a69212fee42a801a81e3bf00",
+      "bytes": 420
+    },
+    {
+      "path": "local-pg-proof/RESULTS.md",
+      "sha256": "7047bf0d50ce5119e0887096663ff08982dd31863e9620b8b4f878c844edc270",
+      "bytes": 366
+    },
+    {
+      "path": "logs/GATE_COUNTS.txt",
+      "sha256": "c637bf54360121dfb94623360b52fa1a2e2e5555fc4f5dfbc8a605d1fcdebe5e",
+      "bytes": 265
+    },
+    {
+      "path": "logs/independent-harness.meta.txt",
+      "sha256": "bd29aa493feb41328f0ba1964f5e7798f7c592917c7def1263a116f7e5f80e21",
+      "bytes": 275
+    },
+    {
+      "path": "logs/prove-f3-qualification-reset-local.sanitized.json",
+      "sha256": "36d2ca48c37e8ed39abc64006e529ada0bb9daf420797ead777a9088412f2f44",
+      "bytes": 36104
+    },
+    {
+      "path": "logs/prove-helper.meta.txt",
+      "sha256": "bd761af4c2dcd32c045c6d459baef7f215b842d3310f73b993418979396063f6",
+      "bytes": 482
+    },
+    {
+      "path": "logs/prove-helper.out",
+      "sha256": "d9ac42d759a3b8b17007cd1de61cd7a2d04a86c2c8008e5a21162860a58d9881",
+      "bytes": 36108
+    },
+    {
+      "path": "logs/test-f3-db-push.meta.txt",
+      "sha256": "525852ae8dfece7ccb0325b36878e16d8778e0a6d13ce51def0185556d9fa0b3",
+      "bytes": 271
+    },
+    {
+      "path": "logs/test-f3-db-push.out",
+      "sha256": "024ce9cebc2265a9981a72bf6aa0d525b1a0ab280013b92233386e4219f92423",
+      "bytes": 212932
+    },
+    {
+      "path": "logs/test-f3-reset-design.meta.txt",
+      "sha256": "7ca3b691a50cad9b4653e9011b954cebe44c73018b20551c0b73c59cd79ac7e9",
+      "bytes": 163
+    },
+    {
+      "path": "logs/test-f3-reset-design.out",
+      "sha256": "ef65c330a5b5dfe5e85f40484580095a6bf9e4b4df36e7224bfb21c89aded9d2",
+      "bytes": 5839
+    },
+    {
+      "path": "logs/test-f3-reset.meta.txt",
+      "sha256": "d7902db1c998fadcd3468780ffca9a8e7ef92c3e572877eb931a6498cc5acd31",
+      "bytes": 266
+    },
+    {
+      "path": "logs/test-f3-reset.out",
+      "sha256": "2a4ac8e56d0fd9620d097cd3d1c5f6fab939537ed819d36a5bc2c1528602bfde",
+      "bytes": 13524
+    },
+    {
+      "path": "postconditions.json",
+      "sha256": "9041babff3c1744dcc5b8b22e0e1f1edfffafbbe030e53061532f07488318dce",
+      "bytes": 593
+    },
+    {
+      "path": "process-evidence/E2E_INDEPENDENT.json",
+      "sha256": "c8e81dffbb96f7450ebe19486941ee3b569e8e0c3570eaf9f9876c476299f6d4",
+      "bytes": 5555
+    },
+    {
+      "path": "process-evidence/F18_DEFECTS.json",
+      "sha256": "1724710d29ac81f32513f9b095e1618a39023c371497616a303b32d0641ed51b",
+      "bytes": 1293
+    },
+    {
+      "path": "process-evidence/PATH_REDACT.json",
+      "sha256": "089e51d9b1975095b512b3f245bed4d5e63875046ac6880969892debc7432238",
+      "bytes": 4961
+    },
+    {
+      "path": "process-evidence/SUCCESS.json",
+      "sha256": "637995b0157e66465443b13aec1964a878be8de53ea5e284024d47be1c9bf2ce",
+      "bytes": 7045
+    },
+    {
+      "path": "process-evidence/SUMMARY.json",
+      "sha256": "fb4872f5ad69dcf1c8ee70f443065c38c5daff84d186ceea08bcc836adb7a634",
+      "bytes": 486
+    },
+    {
+      "path": "process-evidence/THROWN_EACCES.json",
+      "sha256": "39508854a7beadbf0b465940d75900492926e061388e2103b3233e4fde84dbc5",
+      "bytes": 5309
+    },
+    {
+      "path": "process-evidence/THROWN_ONLY.json",
+      "sha256": "94aa6d7d9d1ba5a744083e3319965c8bbc4cb597bcf63f8122276ace3d599ea2",
+      "bytes": 1269
+    },
+    {
+      "path": "score.md",
+      "sha256": "96f5f0d98225c024479e0b49f2c764d2f5aca3ce0636154067abc58d786ae8e6",
+      "bytes": 9263
+    }
+  ],
+  "note": "QA-package self inventory. Builder pack-scan was not reused as proof."
+}

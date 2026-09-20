@@ -1,0 +1,52 @@
+{
+  "artifact": "expected-fingerprint-hashes-pre-post",
+  "functional_sha": "7d18aacaa163f9738be16be80489654b048e2150",
+  "immutable": true,
+  "pre_db": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+    "00119_f3_01_core_ledger_foundation.sql": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+    "00120_f3_02_secure_posting_idempotency.sql": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+    "00121_f3_03_projection_read_proof.sql": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+    "00122_f3_04_correction_reversal.sql": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+    "00123_f3_05_opening_cash_command.sql": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965"
+  },
+  "post_db_sealed_unchanged": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": {
+      "pre": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+      "post_sealed": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+      "recomputed": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+      "match": true
+    },
+    "00119_f3_01_core_ledger_foundation.sql": {
+      "pre": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+      "post_sealed": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+      "recomputed": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+      "match": true
+    },
+    "00120_f3_02_secure_posting_idempotency.sql": {
+      "pre": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+      "post_sealed": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+      "recomputed": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+      "match": true
+    },
+    "00121_f3_03_projection_read_proof.sql": {
+      "pre": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+      "post_sealed": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+      "recomputed": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+      "match": true
+    },
+    "00122_f3_04_correction_reversal.sql": {
+      "pre": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+      "post_sealed": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+      "recomputed": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+      "match": true
+    },
+    "00123_f3_05_opening_cash_command.sql": {
+      "pre": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
+      "post_sealed": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
+      "recomputed": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
+      "match": true
+    }
+  },
+  "all_match": true
+}

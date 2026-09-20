@@ -1,0 +1,10 @@
+# F13 local qualification-reset closure
+
+Fresh F13 closure — **not** the F12 digest and **not** an F12 package copy.
+
+- Digest: `16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d`
+- Tip: `51cc864d1efbefc1398ad3fd1895360c95474a57`
+- QA: IMPLEMENTATION ACCEPT
+- Local: LOCAL CANDIDATE READY
+- Overall: DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN
+- Floor: DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT

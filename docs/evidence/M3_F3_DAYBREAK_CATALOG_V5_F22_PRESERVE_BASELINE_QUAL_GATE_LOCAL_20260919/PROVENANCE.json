@@ -1,0 +1,24 @@
+{
+  "producedAtUtc": "2026-09-20T01:01:14.364Z",
+  "functionalTip": "f1d30b28830db902962467f801932254997e64c3",
+  "helper": "scripts/prove-f3-qualification-reset-local.mjs",
+  "sanitization": {
+    "finalizeBeforeHash": true,
+    "preserveRepoRelativePaths": true,
+    "preserveMigrationIdentities": true,
+    "preserveSqlstateAndErrorCodes": true,
+    "preserveCatalogTuples": true,
+    "redactSecretsAndAbsolutePaths": true,
+    "redactRunOwnedDbNamesOnly": "f3_<label>_<pid>_<ts> → f3_[RUN_OWNED_DB]",
+    "doNotRedactF3ErrorCodes": true
+  },
+  "rawGitByteAdjudicationAtA38db9c": {
+    "method": "git cat-file blob a38db9c:<path> | sha256; LF confirmed; no CRLF normalization",
+    "contractIndex": "2cfcc004dcda81e14d8bbdf21b475a502e88a2a3abaab8f24ff665a2e9c54bc5",
+    "localIndex": "5e709c37f89c17b06abbb6f7a1f3f5594124a05accc6a3b827bb93271b7129a9",
+    "planIndex": "b543d24840ddd0c4120b7acd3b6aff0ee3d81dae7ee7233437221f02a61dfa52",
+    "proposedPlanBytes": "94256d3d8f594e109cc3b1ae76a74c11405cc15f4bac3aa7c436a59404b86f93",
+    "independentlyVerified": true,
+    "allLf": true
+  }
+}

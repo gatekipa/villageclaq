@@ -22,15 +22,16 @@ DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN
 Any future execution procedure remains: PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE  
 DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT
 
-## Commit SHAs (filled after land)
+## Commit SHAs
 
 | Deliverable | Path | Commit |
 |-------------|------|--------|
-| Working rules | `AGENTS.md` | *(this closeout commit)* |
-| Authorization rules | `CLAUDE.md` (git/deploy; product conventions preserved) | *(this closeout commit)* |
-| Current-status record | `docs/BUILD_STATUS.md` | *(this closeout commit)* |
-| Fingerprint table | `fingerprint-diff/DIFFERENCE_TABLE.md` | *(this closeout commit)* |
-| Repair decision | `REPAIR_FEASIBILITY.md` | *(this closeout commit)* |
+| Working rules | `AGENTS.md` | `98c8c3d2d2164defef95b715e8f3258bad4e819d` |
+| Authorization rules | `CLAUDE.md` | `98c8c3d2d2164defef95b715e8f3258bad4e819d` |
+| Current-status record | `docs/BUILD_STATUS.md` | `98c8c3d2d2164defef95b715e8f3258bad4e819d` |
+| Fingerprint table | `fingerprint-diff/DIFFERENCE_TABLE.md` | `98c8c3d2d2164defef95b715e8f3258bad4e819d` |
+| Repair decision | `REPAIR_FEASIBILITY.md` | `98c8c3d2d2164defef95b715e8f3258bad4e819d` |
+| Capture retention (executable, separate) | `scripts/prove-f3-qualification-reset-local.mjs` | `8346c856b7ddbb75b7e4dbaf57a42fc14e6d8f78` |
 
 ## Fingerprint difference table + smallest recommendation
 

@@ -15,7 +15,13 @@ Authoritative expectation: `getFrozenExpectedFingerprint(file)` / `FROZEN_EXPECT
 
 **Disclosure:** F23 did not persist `qualify.sequence[].fingerprintAfterApply` / expected catalog / field diffs. The slogan “hosted ACL/owner versus local ubuntu” is not a substitute for those values.
 
-A fresh normal-application capture was **not** executed on this closeout host (no local PostgreSQL, no CLI 2.117.0). Instrumentation to retain diffs on the next authorized local run is a separate executable commit if landed.
+A fresh normal-application capture was **not** executed on this closeout host (no local PostgreSQL, no CLI 2.117.0).
+
+If a later authorized local run is needed, `scripts/prove-f3-qualification-reset-local.mjs` can retain field diffs without changing fingerprint acceptance:
+
+`node scripts/prove-f3-qualification-reset-local.mjs --normal-application-only --fingerprint-diff-out <path>`
+
+That command is **not** authorized by this closeout. Do not run fault injection or unrelated suites for this remainder.
 
 ## Difference table
 

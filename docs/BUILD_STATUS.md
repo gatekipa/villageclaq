@@ -25,6 +25,8 @@ Closest linked artifacts (none of these is that missing plan):
 |------|-------|
 | FUNCTIONAL_TIP | `77fd61dbf51652acabec0093d2a8549524b2dd75` |
 | F23 evidence / prior #84 head | `a41549e9f5463f02993be6e5e72ee8bde4852d80` |
+| Process/status closeout | `98c8c3d2d2164defef95b715e8f3258bad4e819d` |
+| Fingerprint-retention executable | `8346c856b7ddbb75b7e4dbaf57a42fc14e6d8f78` |
 | Authoritative PR | [#84](https://github.com/gatekipa/villageclaq/pull/84) OPEN DRAFT UNMERGED, title DAYBREAK HOLD |
 | Aligned PRs | #85 / #86 (same title, same head) |
 | Non-authoritative | #126 / #127 |

@@ -1,0 +1,22 @@
+{
+  "schema": "f23-local-acceptance-contract-pins-v1",
+  "profile": "LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1",
+  "startingHead": "b8bde21770b347b5dd6f0c4cc5f4fd3ae0f267ae",
+  "functionalTip": "66be2b4797515975d737a0fd66656bc4c0de2145",
+  "sharedBranch": "feat/m3-f3-01-05-forward-foundation-9b17",
+  "authoritativePr": 84,
+  "alignedPrs": [85, 86],
+  "nonAuthoritativePrs": [126, 127],
+  "prTitle": "DAYBREAK HOLD",
+  "prState": "OPEN DRAFT UNMERGED",
+  "retainedCapture": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/",
+  "sealedPlatformAclEnvelopeDigest": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  "rawHold": "F23_FINGERPRINT_MISMATCH",
+  "localAcceptance": "ACCEPTED under LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1",
+  "hostedRequalification": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "qaSlot": "empty — VillageClaq QA not requested this turn",
+  "astra": "UNAVAILABLE — NO VERDICT",
+  "databaseRuns": 0,
+  "repairExecution": false,
+  "siblingPr": false
+}

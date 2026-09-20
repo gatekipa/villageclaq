@@ -5,22 +5,22 @@
 **This file is the current remainder record.** Historical packages are linked, not copied.
 
 Working rules: [AGENTS.md](../AGENTS.md). Product conventions: [CLAUDE.md](../CLAUDE.md).  
-F23 closeout decision inputs: [docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_CLOSEOUT_DECISION_INPUTS_20260920/CHIEF_HANDOFF.md](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_CLOSEOUT_DECISION_INPUTS_20260920/CHIEF_HANDOFF.md).  
+Approved local comparison contract: [LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_LOCAL_ACCEPTANCE_CONTRACT_20260920/LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1.md).  
+Repair amendment: [REPAIR_AMENDMENT.md](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_LOCAL_ACCEPTANCE_CONTRACT_20260920/REPAIR_AMENDMENT.md).  
 Authorized local-capture record: [docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/CHIEF_HANDOFF.md](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/CHIEF_HANDOFF.md).
 
 ## Authorization (do not collapse these)
 
 | Action | Status |
 |--------|--------|
+| **Local fingerprint comparison profile `LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1`** | **Approved for local catalog comparison only.** Oracle `postgres` → local `ubuntu` in owner, grantor, and owner-self grantee only. Seven non-grantable `service_role` omissions on exactly `public.financial_ledger_epochs`, bound to sealed envelope `eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a`. Does **not** map `authenticated` or `service_role`. Does **not** authorize repair or hosted equality. |
+| **Local post-commit filename-version repair** | **Not mandatory** for local qualification. Atomic/pre-commit refusal remains fail-closed (`repairCalls=0`). Historical refusal not rerun. |
 | **Local fingerprint capture attempt 1** (CREATEDB-only `ubuntu`; one normal-application prove) | **Used.** Remaining hold `F3_DBPUSH_FLOOR_HOLD`. Six migrations not applied. Empty `files`. |
-| **Local fingerprint capture attempt 2** (one additional prove; `ubuntu` `SUPERUSER LOGIN`) | **Used.** Remaining hold `F23_FINGERPRINT_MISMATCH`. Six migrations applied. Field-level diffs retained. **No automatic rerun.** |
+| **Local fingerprint capture attempt 2** (one additional prove; `ubuntu` `SUPERUSER LOGIN`) | **Used.** Remaining raw hold `F23_FINGERPRINT_MISMATCH`. Six migrations applied. Field-level diffs retained. Offline profile reassessment is **derived**, not a fresh PostgreSQL execution. |
 | **Temporary PGDG PostgreSQL 17 + official CLI 2.117.0 install** | **Authorized for this fixture restore.** Isolated this-run `17/main`; cluster stopped and dropped after capture. Recipe: [SETUP_RECIPE.md](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/SETUP_RECIPE.md). |
 | **`ubuntu` `SUPERUSER LOGIN`** | **Authorized for attempt 2 only** (F18 recipe). Local-cluster privilege. Not restricted-role authorization or RLS proof. |
-| **Fingerprint mapping or waiver** | **Not approved.** Do not align roles, alter grants, normalize differences, or change fingerprint acceptance. |
 | **Hosted reset / hosted qualification / hosted or local repair experiments** | **Not authorized.** PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE. |
 | **Merge / deploy / `origin/main` / F3-06 / Daybreak–Astra contact** | **Not authorized.** |
-
-Owner remains **Jude Anyere** for the two contract decisions (fingerprint alignment vs mandatory equality; authorize existing CLI repair **or** amend the contract). Phase-matched fingerprint values **now exist** in [CAPTURE_ATTEMPT_2](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/). Carry [REPAIR_FEASIBILITY.md](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_CLOSEOUT_DECISION_INPUTS_20260920/REPAIR_FEASIBILITY.md) forward unchanged — do not run repair experiments or amend the repair requirement here.
 
 ## Authoritative build-plan reference — missing
 
@@ -31,6 +31,7 @@ Closest linked artifacts (none of these is that missing plan):
 | Artifact | Role |
 |----------|------|
 | [F21 preserve-baseline contract](evidence/M3_F3_DAYBREAK_CATALOG_V5_F21_PRESERVE_BASELINE_CONTRACT_20260919/) | Accepted contract for the preserve-`btree_gist` baseline |
+| [F23 local acceptance contract](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_LOCAL_ACCEPTANCE_CONTRACT_20260920/) | Approved local comparison profile + local repair amendment |
 | [F23 proposed hosted requal plan](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920/PROPOSED_HOSTED_REQUAL_PLAN.md) | **PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE** |
 | [F23 historical package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920/) | Authoritative local-application HOLD package |
 | [F23 capture 2026-09-20](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/) | Attempt 1 floor HOLD (preserved) + attempt 2 field diffs |
@@ -39,12 +40,12 @@ Closest linked artifacts (none of these is that missing plan):
 
 | Role | Value |
 |------|-------|
-| FUNCTIONAL_TIP | `77fd61dbf51652acabec0093d2a8549524b2dd75` |
-| F23 evidence / prior #84 head | `a41549e9f5463f02993be6e5e72ee8bde4852d80` |
+| FUNCTIONAL_TIP | `66be2b4797515975d737a0fd66656bc4c0de2145` |
+| Start of this contract implementation | `b8bde21770b347b5dd6f0c4cc5f4fd3ae0f267ae` |
+| F23 evidence / prior #84 head before this work | `a41549e9f5463f02993be6e5e72ee8bde4852d80` |
 | Process/status closeout | `98c8c3d2d2164defef95b715e8f3258bad4e819d` |
 | Fingerprint-retention executable | `8346c856b7ddbb75b7e4dbaf57a42fc14e6d8f78` |
-| Documentation/evidence head at attempt 2 start | `f65d1cec04450a017deec700d184aa9e82d4c6e7` |
-| Helper blob (unchanged) | `4099edd183a3ec0b73302b80ac7fd0f126d6f6de` (`scripts/prove-f3-qualification-reset-local.mjs`) |
+| Helper blob at capture | `4099edd183a3ec0b73302b80ac7fd0f126d6f6de` |
 | Authoritative PR | [#84](https://github.com/gatekipa/villageclaq/pull/84) OPEN DRAFT UNMERGED, title DAYBREAK HOLD |
 | Aligned PRs | #85 / #86 (same title, same head) |
 | Non-authoritative | #126 / #127 |
@@ -57,58 +58,47 @@ Local F23 normal application (historical package; HOLD-package integrity accepte
 - Six frozen migrations applied with exact identities: `20260913173000` / `f3_bounded_financial_epoch_foundation` … `20260913173005` / `f3_05_opening_cash_command`
 - `operationCounts`: calibrationProbes=6, migrationApplications=6, retries=0, repairs=0, historyInjects=0
 - Membership sets preserved: 264 `deptype=e` tuples; exact OID-bearing sets equal before reset / after reset / after qualification (counts alone insufficient)
-- Fault-injection (separate database): `PRE_COMMIT_OR_ATOMIC_ROLLBACK`; repair-safety gate refused; `repairCalls=0` — correct atomic-rollback repair refusal (`F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED`)
-- Independent QA: VillageClaq QA — **F23 HOLD PACKAGE ACCEPT** (HOLD-package integrity only)
+- Fault-injection (separate database): `PRE_COMMIT_OR_ATOMIC_ROLLBACK`; repair-safety gate refused; `repairCalls=0` — correct atomic-rollback repair refusal (`F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED`). **Carried forward; not rerun.**
+- Independent QA: VillageClaq QA — **F23 HOLD PACKAGE ACCEPT** (HOLD-package integrity only). This contract's QA slot is **empty**.
 - Combined `completeThrough00123 OR documentedAtomicRollbackHold` acceptance remains rejected
 - Six earlier successful migration applications remain credited.
 
-Attempt 1 (same helper blob; CREATEDB-only `ubuntu`):
+Attempt 2 raw capture remains `F23_FINGERPRINT_MISMATCH`. Offline derived reassessment of that capture is **ACCEPTED** under `LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1`. Raw identities and the original mismatch are preserved.
 
-- Preserve-reset + pre-floor `QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1`
-- `F3_DBPUSH_FLOOR_HOLD`; `floorInstalled=false`; `dbPushCalls=0`; `migrationApplications=0`
-- `files=[]` because `qualify.sequence` was empty — observed empty set, not equality
+Focused offline tests: 7/7 PASS (`node --test --test-name-pattern='F23 local|F23 hosted' scripts/test-f3-qualification-reset.mjs`). No database transport. No full prove.
 
-Attempt 2 (same helper blob; `ubuntu` `SUPERUSER LOGIN`):
-
-- Preserve-reset + pre-floor `QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1`
-- Floor installed; pre-db-push gates ok
-- Six identities applied; `operationCounts` calibrationProbes=6, migrationApplications=6, retries=0, repairs=0, historyInjects=0
-- Membership 264 exact-set preserved
-- `F23_FINGERPRINT_MISMATCH`; 347 non-ACL pairs are owner `postgres`→`ubuntu`; ACL remainder is `service_role` DML on `public.financial_ledger_epochs`
-
-Evidence: [F23 package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920/), [F22 package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919/), [capture package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/), [attempt 2](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/).
+Evidence: [F23 package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920/), [F22 package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919/), [capture package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/), [attempt 2](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/), [local acceptance contract](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_LOCAL_ACCEPTANCE_CONTRACT_20260920/).
 
 ## Incomplete requirements (why they matter)
 
-1. **Fingerprint qualification** — recaptured as `F23_FINGERPRINT_MISMATCH` with field values. QUALIFICATION PASS / `localApplicationComplete` remain false. Frozen SQL must not be patched to manufacture a match. Mapping and the `service_role` DML remainder are **proposals only**. See [attempt 2 DIFFERENCE_TABLE](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/DIFFERENCE_TABLE.md).
-2. **Mandatory positive repair** — post-commit filename-version repair after objects remain is unexercised. Local current inject was classified atomic rollback and correctly refused repair. The approved CLI path can still produce the committed-objects / missing-history state (in-file `COMMIT` then CLI history `INSERT`). See [repair feasibility](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_CLOSEOUT_DECISION_INPUTS_20260920/REPAIR_FEASIBILITY.md). **Do not re-execute repair.**
+1. **Hosted raw fingerprint equality** — local profile acceptance does not satisfy hosted equality. QUALIFICATION PASS / `localApplicationComplete` remain false. Frozen SQL must not be patched. See [attempt 2 DIFFERENCE_TABLE](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/DIFFERENCE_TABLE.md).
+2. **Hosted positive repair** — post-commit filename-version repair is not mandatory for local qualification. Before promotion beyond DAYBREAK HOLD, a separately authorized hosted qualification must demonstrate current-candidate `POST_COMMIT_HISTORY_FAILURE`, surviving intended objects, absent exact filename history, pass repair-safety and **raw** fingerprint gates, perform CLI 2.117.0 filename-version repair, and authenticate resulting history/catalog state. See [repair amendment](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_LOCAL_ACCEPTANCE_CONTRACT_20260920/REPAIR_AMENDMENT.md). **Do not execute repair.**
 3. **F3-06** — separate and unstarted.
 
 ## Local versus hosted / production
 
 | Surface | Status |
 |---------|--------|
-| Prior F23 prove host | PostgreSQL 17.11 + CLI 2.117.0; six applies credited; field diffs not retained; `ubuntu` was SUPERUSER (F18 recipe) |
-| Attempt 1 host (`bld-20260920-f00b54bc-98db-45ae-b093-2c8e3399ff71`) | Temporary PGDG 17.11 + CLI 2.117.0. `ubuntu` `LOGIN CREATEDB` only. `F3_DBPUSH_FLOOR_HOLD`. Cluster dropped. |
-| Attempt 2 host (same environment / new VM) | Packages reinstalled. Isolated this-run `17/main`. `ubuntu` `SUPERUSER LOGIN`. One prove: `F23_FINGERPRINT_MISMATCH` after six applies. Cluster dropped. |
+| Local profile | ACCEPTED under `LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1` (derived from retained capture) |
+| Raw local capture | `F23_FINGERPRINT_MISMATCH` unchanged |
 | Hosted disposable / production | **Not contacted.** DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN |
 | Production | Forever denied from this work |
+| Astra | UNAVAILABLE — NO VERDICT |
 
 ## Owner, next action, remaining review budget
 
 | Field | Value |
 |-------|-------|
-| Owner | Jude Anyere — two remaining contract decisions (fingerprint alignment; positive-repair authorization or amendment). Field-level diffs exist; mapping/waiver still not approved. |
-| Next bounded action | Review attempt-2 differences (owner `postgres`↔`ubuntu` plus `service_role` DML remainder on `public.financial_ledger_epochs`). Do not rerun capture. Do not execute mapping or grants. |
-| Permitted scope | Review this executed-capture addendum plus closeout decision inputs. No hosted/disposable/production contact. No merge. No deploy. No F3-06. No automatic further capture. |
-| Remaining acceptance | Fingerprint equality or an explicit founder waiver; authentic post-commit repair or an explicit founder amendment |
-| Review / run budget | Ordinary documentation: **zero** adversarial rounds. Both authorized complete local captures are **used**. Next Daybreak closeout of the two remaining issues is one risky-work round against the existing budget — renaming F-numbers does not restart it. |
-| Stop | Captured results returned. No further prove. No Daybreak/Astra contact. |
+| Owner | Jude Anyere / Chief — request the one independent VillageClaq QA against functional tip `66be2b4797515975d737a0fd66656bc4c0de2145`. Hosted requalification remains a separate authorization. |
+| Next bounded action | Independent VillageClaq QA of this local contract + implementation. Do not run hosted contact, repair, merge, deploy, or F3-06. |
+| Permitted scope | Review this contract package and functional tip. No hosted/disposable/production contact. No merge. No deploy. No F3-06. |
+| Remaining acceptance | Hosted raw fingerprint equality; hosted POST_COMMIT repair after raw/repair-safety gates; hosted requalification |
+| Review / run budget | Focused offline work used. One independent QA remains for Chief to request. Renaming F-numbers does not restart the budget. |
+| Stop | Functional tip frozen. QA slot empty. No automatic further cycle. |
 
-## Smallest proposed fixture correction (not applied)
+## Exact remaining hosted gate
 
-1. Reviewed compare-side map of catalog `postgres`↔`ubuntu` for owner/grantee/grantor after object identity matches. Local SUPERUSER is not hosted identity proof and is not a fingerprint waiver.
-2. Mapping (1) does **not** absorb `service_role` DELETE/INSERT/MAINTAIN/REFERENCES/TRIGGER/TRUNCATE/UPDATE on `public.financial_ledger_epochs`. Do not grant-align that remainder.
+Separately authorized hosted qualification must: demonstrate current-candidate `POST_COMMIT_HISTORY_FAILURE`; keep surviving intended objects; show absent exact filename history; pass existing repair-safety and **raw** fingerprint gates; perform supported CLI 2.117.0 filename-version repair; authenticate resulting history/catalog state.
 
 **PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE.**
 

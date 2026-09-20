@@ -16,6 +16,8 @@
 **LOCAL APPLICATION COMPLETE:** false  
 FUNCTIONAL_TIP: `77fd61dbf51652acabec0093d2a8549524b2dd75`  
 Starting evidence/head: `a41549e9f5463f02993be6e5e72ee8bde4852d80`  
+Process/status commit: `98c8c3d2d2164defef95b715e8f3258bad4e819d`  
+Executable retention commit: `8346c856b7ddbb75b7e4dbaf57a42fc14e6d8f78`  
 F23 historical base: `docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATION_LOCAL_20260920/`
 
 DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN  

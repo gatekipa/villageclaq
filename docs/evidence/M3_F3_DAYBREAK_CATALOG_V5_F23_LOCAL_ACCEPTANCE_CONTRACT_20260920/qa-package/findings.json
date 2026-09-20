@@ -1,0 +1,222 @@
+{
+  "schema": "villageclaq-qa-f23-local-acceptance-contract-v1",
+  "identity": "VillageClaq QA",
+  "completedAtLocal": "2026-09-20 03:17:00 EDT",
+  "pins": {
+    "repo": "gatekipa/villageclaq",
+    "functionalTip": "66be2b4797515975d737a0fd66656bc4c0de2145",
+    "functionalTipSubject": "fix(f3): add local fingerprint comparison profile without hosted waiver",
+    "evidenceTipPrHeads": "b71f6fa37ac27dd559d9af09aa5fb0f3d9e74367",
+    "evidenceTipPrHeadsSubject": "docs(evidence): bind F23 local-acceptance functional and evidence SHAs",
+    "packageEvidenceTipRecordedInPINS": "0eb84ac20169ecb9288c7747aea9c31a18cc8425",
+    "startingHead": "b8bde21770b347b5dd6f0c4cc5f4fd3ae0f267ae",
+    "sharedBranch": "feat/m3-f3-01-05-forward-foundation-9b17",
+    "authoritativePr": 84,
+    "alignedPrs": [
+      85,
+      86
+    ],
+    "package": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_LOCAL_ACCEPTANCE_CONTRACT_20260920/",
+    "profile": "LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1",
+    "sealedPlatformAclEnvelopeDigest": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+    "retainedCapture": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/",
+    "workspace": "/workspace/villageclaq-f23-contract-b71f6fa3/",
+    "ancestryOk": true,
+    "ancestryNote": "functionalTip is ancestor of evidenceTipPrHeads (0eb84ac then b71f6fa after functional)"
+  },
+  "constraintsObserved": {
+    "offlineOnly": true,
+    "databaseRuns": 0,
+    "noDaybreakAstraHostedDisposableProdContact": true,
+    "noProductCodeMutation": true,
+    "noMerge": true,
+    "noRepairExecution": true,
+    "astra": "UNAVAILABLE \u2014 NO VERDICT"
+  },
+  "checks": {
+    "1": {
+      "name": "Versioned local comparison contract matches Jude/Daybreak approval",
+      "ok": true,
+      "class": "ARTIFACT_INSPECTION+OFFLINE_DERIVED_REASSESSMENT",
+      "details": {
+        "profileModule": "scripts/lib/f3-local-fingerprint-comparison.mjs",
+        "contractDoc": "pkg/LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1.md",
+        "postgresToUbuntuOwnerGrantorOwnerSelfGranteeOnly": true,
+        "noAuthenticatedOrServiceRolePrincipalMapping": true,
+        "sevenServiceRoleDmlOmissionsOnPublicFinancialLedgerEpochs": [
+          "DELETE",
+          "INSERT",
+          "MAINTAIN",
+          "REFERENCES",
+          "TRIGGER",
+          "TRUNCATE",
+          "UPDATE"
+        ],
+        "omissionsBoundToEnvelopeDigest": "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+        "sealedDigestMatchGateConstant": true,
+        "rejectAllElsePreserveDefsSearchPathSecurityDefinerRlsPoliciesGrantOptions": true,
+        "derivedRetainedCapture": {
+          "rawEqualityOk": false,
+          "rawCode": "F23_FINGERPRINT_MISMATCH",
+          "localAcceptanceOk": true,
+          "recordedCanonicalDigestsMatch": true,
+          "derivedLabeled": true,
+          "notFreshPostgreSQLExecution": true,
+          "fileCount": 6,
+          "uniqueOmissionsPerFile": 7,
+          "rawOmissionEntriesPerFileNote": "21 nested ACL-walk duplicates of the same unique 7 \u2014 non-material reporting multiplicity"
+        }
+      },
+      "defects": []
+    },
+    "2": {
+      "name": "Executable surface limited; shared comparator/gate/hosted qualifier unchanged and isolated",
+      "ok": true,
+      "class": "DIFF_GREP_IMPORT_INSPECTION",
+      "details": {
+        "functionalCommitFiles": [
+          "scripts/lib/f3-local-fingerprint-comparison.mjs",
+          "scripts/prove-f3-qualification-reset-local.mjs",
+          "scripts/test-f3-qualification-reset.mjs"
+        ],
+        "importersOfLocalProfile": [
+          "scripts/prove-f3-qualification-reset-local.mjs",
+          "scripts/test-f3-qualification-reset.mjs"
+        ],
+        "optionalProfileModule": "scripts/lib/f3-local-fingerprint-comparison.mjs",
+        "sharedStrictComparator": "fingerprintCompleteAndExact in scripts/lib/f3-db-push-repair-safety-gate.mjs (export retained; imported by local profile)",
+        "hostedQualifierImportsLocalProfile": false,
+        "repairSafetyGateImportsLocalProfile": false,
+        "qualifyScriptsChecked": [
+          "scripts/qualify-f3-db-push-disposable.mjs",
+          "scripts/qualify-f3-management-api-disposable.mjs",
+          "scripts/lib/f3-db-push-qualification-reset.mjs"
+        ],
+        "log": "qa/logs/import-isolation.rg.txt"
+      },
+      "defects": []
+    },
+    "3": {
+      "name": "Reporting separates raw equality vs local acceptance vs hosted outstanding; raw F23_FINGERPRINT_MISMATCH preserved",
+      "ok": true,
+      "class": "CODE_INSPECTION+OFFLINE_DERIVED_REASSESSMENT",
+      "details": {
+        "reportSchema": "f23-local-fingerprint-qualification-report-v1",
+        "surfacesSeparated": [
+          "rawEquality",
+          "localAcceptance",
+          "hostedOutstanding"
+        ],
+        "rawCodePreserved": "F23_FINGERPRINT_MISMATCH",
+        "repairAuthorizedAlwaysFalse": true,
+        "hostedEqualityAlwaysFalse": true,
+        "proveHelperEmitsSeparatedFields": true,
+        "sources": [
+          "scripts/lib/f3-local-fingerprint-comparison.mjs#reportLocalFingerprintQualification",
+          "scripts/prove-f3-qualification-reset-local.mjs",
+          "qa/logs/derived-fingerprint-reassessment.json"
+        ]
+      },
+      "defects": []
+    },
+    "4": {
+      "name": "Repair amendment: local post-commit not mandatory; fail-closed atomic/pre-commit retained; hosted repair still required; no repair execution",
+      "ok": true,
+      "class": "ARTIFACT_INSPECTION+UNIT_TEST",
+      "details": {
+        "doc": "pkg/REPAIR_AMENDMENT.md",
+        "LOCAL_REPAIR_AMENDMENT": {
+          "localPostCommitFilenameVersionRepairMandatory": false,
+          "hostedPostCommitFilenameVersionRepairMandatory": true,
+          "failClosedWhenObjectsAbsentOrAtomicPreCommit": true,
+          "repairCallsRequiredOnAtomicOrAbsent": 0,
+          "promoteFailedApplicationToSuccess": false,
+          "authorizeRepairExecution": false
+        },
+        "repairExecutionPerformedByQa": false,
+        "offlineTest": "F23 local repair amendment keeps atomic refusal fail-closed and does not authorize repair \u2014 PASS"
+      },
+      "defects": []
+    },
+    "5": {
+      "name": "Offline tests pass; QA re-run on functional tip matches package; derived fingerprints labeled; Astra UNAVAILABLE",
+      "ok": true,
+      "class": "QA_EXECUTION",
+      "details": {
+        "packageClaim": "7/7 focused; 10/10 with mode/probe/history",
+        "qaRerunFocused": {
+          "pass": 7,
+          "fail": 0,
+          "exit": 0,
+          "log": "qa/logs/offline-test-rerun.stdout.txt"
+        },
+        "qaRerunExtended10": {
+          "pass": 10,
+          "fail": 0,
+          "exit": 0,
+          "log": "qa/logs/offline-test-rerun-10.stdout.txt"
+        },
+        "matchesOfflineTestResultMd": true,
+        "derivedFingerprintsLabeled": true,
+        "astra": "UNAVAILABLE \u2014 NO VERDICT",
+        "astraContactAttempted": false,
+        "commandFocused": "node --test --test-name-pattern='F23 local|F23 hosted' scripts/test-f3-qualification-reset.mjs",
+        "commandExtended": "node --test --test-name-pattern='F23 local|F23 hosted|F23 verification mode|F23 boolean object probe|F23 exact history' scripts/test-f3-qualification-reset.mjs",
+        "node": "/workspace/.node22/bin/node v22.19.0",
+        "cwd": "/workspace/villageclaq-f23-contract-b71f6fa3/repo @ 66be2b4797515975d737a0fd66656bc4c0de2145"
+      },
+      "defects": []
+    }
+  },
+  "materialOpenFindings": [],
+  "nonMaterialNotes": [
+    "recognizedOmissions array emits nested ACL-walk duplicates (21 raw / 7 unique per file); unique set is exactly the approved seven non-grantable service_role DML omissions on public.financial_ledger_epochs.",
+    "PINS.json evidenceTip field records 0eb84ac\u2026 (package body tip); user/QA evidence head for #84/#85/#86 is b71f6fa\u2026 which binds that field \u2014 both recorded under pins."
+  ],
+  "recommendedVerdict": "F23 LOCAL ACCEPTANCE CONTRACT ACCEPT",
+  "rationale": "All five offline scope checks passed on functional tip 66be2b4797515975d737a0fd66656bc4c0de2145 against package extracted from b71f6fa37ac27dd559d9af09aa5fb0f3d9e74367. LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1 implements postgres\u2192ubuntu only on owner/grantor/owner-self grantee, rejects authenticated/service_role remaps, binds the seven service_role DML omissions on public.financial_ledger_epochs to sealed envelope digest eb58900b\u2026, and preserves defs/search_path/SECURITY DEFINER/RLS/policies/grant options. Only prove-local + test (+ profile lib) import the local profile; hosted qualifier and repair-safety gate do not. Reporting keeps raw F23_FINGERPRINT_MISMATCH separate from local acceptance and hosted outstanding; repairAuthorized/hostedEquality stay false. Repair amendment matches docs/tests without executing repair. Offline re-run 7/7 and 10/10 PASS; derived retained-capture reassessment accepts locally with labeled derived digests matching CAPTURE_ATTEMPT_2. Astra UNAVAILABLE \u2014 NO VERDICT (not contacted). Hosted requalification remains DAYBREAK HOLD outstanding and is outside this contract verdict.",
+  "offlineTestRerun": {
+    "focused": {
+      "command": "node --test --test-name-pattern='F23 local|F23 hosted' scripts/test-f3-qualification-reset.mjs",
+      "pass": 7,
+      "fail": 0,
+      "exitCode": 0,
+      "stdout": "qa/logs/offline-test-rerun.stdout.txt",
+      "stderr": "qa/logs/offline-test-rerun.stderr.txt"
+    },
+    "extendedIncludingModeProbeHistory": {
+      "command": "node --test --test-name-pattern='F23 local|F23 hosted|F23 verification mode|F23 boolean object probe|F23 exact history' scripts/test-f3-qualification-reset.mjs",
+      "pass": 10,
+      "fail": 0,
+      "exitCode": 0,
+      "stdout": "qa/logs/offline-test-rerun-10.stdout.txt",
+      "stderr": "qa/logs/offline-test-rerun-10.stderr.txt"
+    },
+    "derivedReassessment": "qa/logs/derived-fingerprint-reassessment.json",
+    "packageOfflineTestResult": "pkg/OFFLINE_TEST_RESULT.md",
+    "matchesPackageClaim": true
+  },
+  "attributableProvenance": {
+    "identity": "VillageClaq QA",
+    "functionalSha": "66be2b4797515975d737a0fd66656bc4c0de2145",
+    "evidenceSha": "b71f6fa37ac27dd559d9af09aa5fb0f3d9e74367",
+    "commands": [
+      "git checkout --detach 66be2b4797515975d737a0fd66656bc4c0de2145",
+      "git archive b71f6fa37ac27dd559d9af09aa5fb0f3d9e74367 docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_LOCAL_ACCEPTANCE_CONTRACT_20260920/",
+      "rg f3-local-fingerprint-comparison scripts/",
+      "node --test --test-name-pattern='F23 local|F23 hosted' scripts/test-f3-qualification-reset.mjs",
+      "node --test --test-name-pattern='F23 local|F23 hosted|F23 verification mode|F23 boolean object probe|F23 exact history' scripts/test-f3-qualification-reset.mjs",
+      "node --input-type=module (reportRetainedCaptureLocalAcceptance)"
+    ],
+    "rawPaths": [
+      "qa/logs/provenance.txt",
+      "qa/logs/offline-test-rerun.stdout.txt",
+      "qa/logs/offline-test-rerun-10.stdout.txt",
+      "qa/logs/derived-fingerprint-reassessment.json",
+      "qa/logs/import-isolation.rg.txt",
+      "pkg/",
+      "repo/"
+    ],
+    "log": "qa/logs/provenance.txt"
+  }
+}

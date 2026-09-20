@@ -22,5 +22,5 @@ Result: **7/7 pass** (focused local-acceptance tests). Existing F23 mode/probe/h
 
 Derived observed fingerprints matched recorded CAPTURE_ATTEMPT_2 canonical digests.
 
-QA slot: empty — VillageClaq QA not requested this turn.  
+QA: VillageClaq QA — **F23 LOCAL ACCEPTANCE CONTRACT ACCEPT** (offline only; 7/7+10/10; material findings none). See `qa-package/QA_PROVENANCE.md`.  
 Astra: UNAVAILABLE — NO VERDICT.

@@ -42,6 +42,8 @@ Closest linked artifacts (none of these is that missing plan):
 |------|-------|
 | FUNCTIONAL_TIP | `66be2b4797515975d737a0fd66656bc4c0de2145` |
 | Evidence / status tip | `0eb84ac20169ecb9288c7747aea9c31a18cc8425` |
+| Evidence tip reviewed by QA / prior PR heads | `b71f6fa37ac27dd559d9af09aa5fb0f3d9e74367` |
+| QA verdict | VillageClaq QA — F23 LOCAL ACCEPTANCE CONTRACT ACCEPT |
 | Start of this contract implementation | `b8bde21770b347b5dd6f0c4cc5f4fd3ae0f267ae` |
 | F23 evidence / prior #84 head before this work | `a41549e9f5463f02993be6e5e72ee8bde4852d80` |
 | Process/status closeout | `98c8c3d2d2164defef95b715e8f3258bad4e819d` |
@@ -60,7 +62,8 @@ Local F23 normal application (historical package; HOLD-package integrity accepte
 - `operationCounts`: calibrationProbes=6, migrationApplications=6, retries=0, repairs=0, historyInjects=0
 - Membership sets preserved: 264 `deptype=e` tuples; exact OID-bearing sets equal before reset / after reset / after qualification (counts alone insufficient)
 - Fault-injection (separate database): `PRE_COMMIT_OR_ATOMIC_ROLLBACK`; repair-safety gate refused; `repairCalls=0` — correct atomic-rollback repair refusal (`F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED`). **Carried forward; not rerun.**
-- Independent QA: VillageClaq QA — **F23 HOLD PACKAGE ACCEPT** (HOLD-package integrity only). This contract's QA slot is **empty**.
+- Independent QA (historical HOLD package): VillageClaq QA — **F23 HOLD PACKAGE ACCEPT** (HOLD-package integrity only).
+- Independent QA (this local acceptance contract): VillageClaq QA — **F23 LOCAL ACCEPTANCE CONTRACT ACCEPT** (offline only; 7/7+10/10; Astra UNAVAILABLE — NO VERDICT; material findings none). See [qa-package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_LOCAL_ACCEPTANCE_CONTRACT_20260920/qa-package/QA_PROVENANCE.md).
 - Combined `completeThrough00123 OR documentedAtomicRollbackHold` acceptance remains rejected
 - Six earlier successful migration applications remain credited.
 
@@ -85,17 +88,18 @@ Evidence: [F23 package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_NORMAL_APPLICATIO
 | Hosted disposable / production | **Not contacted.** DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN |
 | Production | Forever denied from this work |
 | Astra | UNAVAILABLE — NO VERDICT |
+| QA (this contract) | VillageClaq QA — F23 LOCAL ACCEPTANCE CONTRACT ACCEPT (offline only; 7/7+10/10; material findings none) |
 
 ## Owner, next action, remaining review budget
 
 | Field | Value |
 |-------|-------|
-| Owner | Jude Anyere / Chief — request the one independent VillageClaq QA against functional tip `66be2b4797515975d737a0fd66656bc4c0de2145`. Hosted requalification remains a separate authorization. |
-| Next bounded action | Independent VillageClaq QA of this local contract + implementation. Do not run hosted contact, repair, merge, deploy, or F3-06. |
-| Permitted scope | Review this contract package and functional tip. No hosted/disposable/production contact. No merge. No deploy. No F3-06. |
+| Owner | Jude Anyere / Chief — PASS/HOLD on local-acceptance-contract ACCEPT. Hosted requalification remains a separate authorization. |
+| Next bounded action | Chief PASS/HOLD decision. Do not run hosted contact, repair, merge, deploy, or F3-06. Do not restart the review budget. |
+| Permitted scope | Recorded QA bind only. No hosted/disposable/production contact. No merge. No deploy. No F3-06. |
 | Remaining acceptance | Hosted raw fingerprint equality; hosted POST_COMMIT repair after raw/repair-safety gates; hosted requalification |
-| Review / run budget | Focused offline work used. One independent QA remains for Chief to request. Renaming F-numbers does not restart the budget. |
-| Stop | Functional tip frozen. QA slot empty. No automatic further cycle. |
+| Review / run budget | Focused offline work used. Independent VillageClaq QA used (ACCEPT; material findings none). Renaming F-numbers does not restart the budget. |
+| Stop | Functional tip frozen. QA recorded ACCEPT. No automatic further cycle. |
 
 ## Exact remaining hosted gate
 

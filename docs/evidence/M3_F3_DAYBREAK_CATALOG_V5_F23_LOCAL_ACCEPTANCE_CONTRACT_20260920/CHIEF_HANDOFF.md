@@ -2,11 +2,11 @@
 
 | Field | Value |
 |-------|-------|
-| Owner | Grok Bot Chief packages for Jude. VillageClaq QA slot left empty for Chief. |
-| Intended outcome | Persist approved local comparison contract; implement local-only profile; record repair amendment; offline tests |
-| Permitted scope | Focused offline implementation/tests. Zero database runs. No Daybreak/Astra panel, access retries, new F-number, or automatic review loop. |
+| Owner | VillageClaq QA recorded. Chief decides PASS/HOLD on this local-acceptance-contract ACCEPT. |
+| Intended outcome | Persist approved local comparison contract; implement local-only profile; record repair amendment; offline tests; record independent QA |
+| Permitted scope | Evidence-only QA bind. Zero database runs. No Daybreak/Astra panel, access retries, new F-number, or automatic review loop. |
 | Remaining acceptance | Hosted raw fingerprint equality; hosted POST_COMMIT repair after repair-safety + raw gates; hosted requalification |
-| Review / run budget | Focused offline work + one independent QA (Chief requests QA separately after functional tip freeze). Does **not** restart the review budget. |
+| Review / run budget | Focused offline work used. Independent VillageClaq QA used (ACCEPT; material findings none). Does **not** restart the review budget. |
 | Stop | Return this record. Do not launch another cycle automatically. |
 | Rules | [AGENTS.md](../../../AGENTS.md) |
 | Current status | [docs/BUILD_STATUS.md](../../../BUILD_STATUS.md) |
@@ -21,7 +21,7 @@ DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN
 PROPOSED ONLY — NOT AUTHORIZED — DO NOT EXECUTE  
 DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT  
 Astra: UNAVAILABLE — NO VERDICT  
-QA: empty — VillageClaq QA not requested this turn
+QA: VillageClaq QA — **F23 LOCAL ACCEPTANCE CONTRACT ACCEPT** (offline only; 7/7+10/10; material findings none)
 
 ## Pins
 
@@ -30,6 +30,7 @@ QA: empty — VillageClaq QA not requested this turn
 | Starting head | `b8bde21770b347b5dd6f0c4cc5f4fd3ae0f267ae` |
 | FUNCTIONAL_TIP | `66be2b4797515975d737a0fd66656bc4c0de2145` |
 | Evidence / status tip | `0eb84ac20169ecb9288c7747aea9c31a18cc8425` |
+| Evidence tip reviewed by QA / prior PR heads | `b71f6fa37ac27dd559d9af09aa5fb0f3d9e74367` |
 | Shared branch | `feat/m3-f3-01-05-forward-foundation-9b17` |
 | Authoritative PR | #84 OPEN DRAFT UNMERGED DAYBREAK HOLD |
 | Aligned PRs | #85 / #86 (same title, same head after FF) |
@@ -58,7 +59,7 @@ Migrations, frozen oracle, grants, and historical evidence bytes were not modifi
 | Hosted equality | false |
 | Repair authorized | false |
 | Offline tests | 7/7 focused PASS — no database, no full prove |
-| QA | empty for VillageClaq QA |
+| QA | VillageClaq QA — F23 LOCAL ACCEPTANCE CONTRACT ACCEPT (offline only; 7/7+10/10; material findings none) |
 | Astra | UNAVAILABLE — NO VERDICT |
 
 ## Remaining hosted requirements
@@ -72,6 +73,6 @@ Migrations, frozen oracle, grants, and historical evidence bytes were not modifi
 
 ## Single next recommended action
 
-Chief: request the one independent VillageClaq QA against the frozen functional tip `66be2b4797515975d737a0fd66656bc4c0de2145` and this contract package. Do not run hosted/disposable/production contact, reset, qualification, repair, merge, deploy, or F3-06.
+Chief: PASS/HOLD decision on this local-acceptance-contract ACCEPT. Do not run hosted/disposable/production contact, reset, qualification, repair, merge, deploy, or F3-06. Do not restart the review budget.
 
-If a material failure remains after QA, return its smallest correction; do not launch another cycle automatically.
+See `qa-package/QA_PROVENANCE.md`. If a material failure remains after this QA, return its smallest correction; do not launch another cycle automatically.

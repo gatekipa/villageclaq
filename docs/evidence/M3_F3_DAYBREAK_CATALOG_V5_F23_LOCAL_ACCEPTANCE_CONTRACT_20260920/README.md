@@ -9,6 +9,10 @@ Version identity: **LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1**
 | [OFFLINE_TEST_RESULT.md](OFFLINE_TEST_RESULT.md) | Focused offline tests |
 | [PINS.json](PINS.json) | Pins |
 | [CHIEF_HANDOFF.md](CHIEF_HANDOFF.md) | Return record |
+| [qa-package/QA_PROVENANCE.md](qa-package/QA_PROVENANCE.md) | VillageClaq QA provenance |
+| [qa-package/findings.json](qa-package/findings.json) | Attributable QA findings (machine) |
+| [qa-package/findings.md](qa-package/findings.md) | Attributable QA findings (human) |
+| [qa-package/score.md](qa-package/score.md) | QA score |
 
 Retained capture (unchanged bytes):  
 `docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FINGERPRINT_CAPTURE_LOCAL_20260920/CAPTURE_ATTEMPT_2/`

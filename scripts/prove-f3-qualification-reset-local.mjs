@@ -80,6 +80,12 @@ import {
   validateProposedQualificationResetHostedPlanOffline,
   verifyExactForwardHistoryIdentities,
 } from "./qualify-f3-db-push-disposable.mjs";
+import {
+  canonicalizeFingerprintForCompare,
+  expectedFingerprintSha256,
+  fingerprintCanonicalSha256,
+  getFrozenExpectedFingerprint,
+} from "./lib/f3-db-push-repair-safety-gate.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const HELPER_RELPATH = QUALIFICATION_RESET_LOCAL_PROOF_HELPER_RELPATH;
@@ -175,6 +181,118 @@ function record(id, kind, extra = {}) {
     passthrough[key] = value;
   }
   return { ...base, ...passthrough };
+}
+
+function stableJson(value) {
+  return JSON.stringify(value === undefined ? null : value);
+}
+
+function recordIdentityKey(record) {
+  if (record == null || typeof record !== "object") return stableJson(record);
+  const keys = Object.keys(record).sort();
+  return stableJson(Object.fromEntries(keys.map((key) => [key, record[key]])));
+}
+
+export function retainFingerprintFieldDiffs(expected, observed) {
+  const left = expected == null ? expected : canonicalizeFingerprintForCompare(expected);
+  const right = observed == null ? observed : canonicalizeFingerprintForCompare(observed);
+  const keys = [...new Set([
+    ...Object.keys(left && typeof left === "object" && !Array.isArray(left) ? left : {}),
+    ...Object.keys(right && typeof right === "object" && !Array.isArray(right) ? right : {}),
+  ])].sort();
+  const diffs = [];
+  for (const field of keys) {
+    const ev = left?.[field];
+    const ov = right?.[field];
+    if (stableJson(ev) === stableJson(ov)) continue;
+    if (Array.isArray(ev) || Array.isArray(ov)) {
+      const expectedRows = Array.isArray(ev) ? ev : [];
+      const observedRows = Array.isArray(ov) ? ov : [];
+      const expectedMap = new Map(expectedRows.map((row) => [recordIdentityKey(row), row]));
+      const observedMap = new Map(observedRows.map((row) => [recordIdentityKey(row), row]));
+      const onlyInExpected = [];
+      const onlyInObserved = [];
+      for (const [key, row] of expectedMap) {
+        if (!observedMap.has(key)) onlyInExpected.push(row);
+      }
+      for (const [key, row] of observedMap) {
+        if (!expectedMap.has(key)) onlyInObserved.push(row);
+      }
+      diffs.push({
+        field,
+        kind: "record_set",
+        expectedCount: expectedRows.length,
+        observedCount: observedRows.length,
+        onlyInExpectedCount: onlyInExpected.length,
+        onlyInObservedCount: onlyInObserved.length,
+        onlyInExpected,
+        onlyInObserved,
+      });
+      continue;
+    }
+    diffs.push({
+      field,
+      kind: "value",
+      expected: ev ?? null,
+      observed: ov ?? null,
+    });
+  }
+  return diffs;
+}
+
+export function retainQualifyFingerprintDiffs(qualify) {
+  const steps = Array.isArray(qualify?.sequence) ? qualify.sequence : [];
+  const files = [];
+  for (const step of steps) {
+    const file = step?.file;
+    if (!file) continue;
+    const captured = step.fingerprintAfterApply;
+    const observed = captured?.fingerprint && typeof captured.fingerprint === "object"
+      ? captured.fingerprint
+      : (captured && typeof captured === "object" && captured.schema_version ? captured : null);
+    let expected = null;
+    try {
+      expected = getFrozenExpectedFingerprint(file);
+    } catch {
+      expected = null;
+    }
+    let expectedSha256 = null;
+    let observedSha256 = null;
+    try {
+      expectedSha256 = expected ? fingerprintCanonicalSha256(expected) : expectedFingerprintSha256(file);
+    } catch {
+      expectedSha256 = null;
+    }
+    try {
+      observedSha256 = observed ? fingerprintCanonicalSha256(observed) : null;
+    } catch {
+      observedSha256 = null;
+    }
+    files.push({
+      file,
+      phase: captured?.phase || "after_successful_normal_application",
+      expectedSha256,
+      observedSha256,
+      exactOk: step.fingerprintExact?.ok === true,
+      exactReason: step.fingerprintExact?.reason || null,
+      observedRetained: observed != null,
+      diffs: expected && observed ? retainFingerprintFieldDiffs(expected, observed) : [],
+    });
+  }
+  return {
+    schema: "f23-fingerprint-field-diff-v1",
+    compareUnchanged: true,
+    fingerprintAcceptanceUnchanged: true,
+    files,
+  };
+}
+
+function parseHelperArgs(argv = process.argv.slice(2)) {
+  const outIdx = argv.indexOf("--fingerprint-diff-out");
+  return {
+    normalApplicationOnly: argv.includes("--normal-application-only"),
+    fingerprintDiffOut: outIdx >= 0 ? argv[outIdx + 1] : (process.env.F23_FINGERPRINT_DIFF_OUT || null),
+  };
 }
 
 export { completeCaptureBody, processEvidence, record, secretsRemoved };
@@ -1029,6 +1147,9 @@ async function runSharedLocalQualificationSequence({
       floorCalls: calls.floor || qualify.calls?.floor || 0,
       dbPushCalls: calls.dbPush || qualify.calls?.dbPush || 0,
       repairCalls: calls.repair || qualify.calls?.repair || 0,
+      fingerprintRetention: verificationMode === QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION
+        ? retainQualifyFingerprintDiffs(qualify)
+        : null,
       executedTransaction: true,
       substitutedInterfaces: adapters.substitutedInterfaces,
       hostedIdentityProof: false,
@@ -1506,7 +1627,7 @@ async function executeSharedReset(db, observed, {
   }
 }
 
-async function runLocalPgScenarios() {
+async function runLocalPgScenarios({ normalApplicationOnly = false } = {}) {
   const created = await maybeCreateLocalDb();
   if (!created.ok) {
     return {
@@ -1537,6 +1658,16 @@ async function runLocalPgScenarios() {
   let serverVersion = null;
   try {
     serverVersion = String(psql(db.url, "SHOW server_version;")).trim();
+    if (normalApplicationOnly) {
+      scenarios.push(await runSharedLocalQualificationSequence({
+        created,
+        psql,
+        verificationMode: QUALIFICATION_VERIFICATION_MODES.NORMAL_APPLICATION,
+        scenarioId: "F23_NORMAL_APPLICATION_LOCAL_QUALIFICATION",
+        dbLabel: "f23_normal_app",
+      }));
+      return { available: true, scenarios, serverVersion };
+    }
     psql(db.url, "CREATE SCHEMA IF NOT EXISTS supabase_migrations;");
     psql(db.url, `CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (
       version text PRIMARY KEY,
@@ -1952,11 +2083,14 @@ async function runLocalPgScenarios() {
   return { available: true, scenarios, serverVersion };
 }
 
-export async function proveQualificationResetLocal() {
+export async function proveQualificationResetLocal(options = {}) {
+  const helperArgs = { ...parseHelperArgs(), ...options };
   const checks = runOfflineChecks();
   const pgProbe = tryLocalPg();
   const pg = pgProbe.status === 0
-    ? await runLocalPgScenarios()
+    ? await runLocalPgScenarios({
+      normalApplicationOnly: helperArgs.normalApplicationOnly === true,
+    })
     : {
       available: false,
       reason: "psql binary not present",
@@ -2016,6 +2150,7 @@ export async function proveQualificationResetLocal() {
     faultInjectionHold: "F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
     remainingHold: localApplicationComplete ? null : (f23.remainingHold || f22.remainingHold || null),
     combinedAcceptanceRejected: true,
+    fingerprintRetention: f23.fingerprintRetention || null,
     repairCoverage: {
       freshlyExercised: documentedAtomicRollbackHold
         ? "F22 fault-injection: induced history failure classified PRE_COMMIT_OR_ATOMIC_ROLLBACK; repair-safety gate refused repair; repairCalls=0"
@@ -2090,6 +2225,17 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     });
   } else {
     proveQualificationResetLocal().then((result) => {
+      const helperArgs = parseHelperArgs();
+      if (helperArgs.fingerprintDiffOut) {
+        const payload = secretsRemoved(JSON.stringify({
+          schema: "f23-fingerprint-field-diff-v1",
+          capturedAt: new Date().toISOString(),
+          helper: HELPER_RELPATH,
+          remainingHold: result.applicationRemainingHold || result.remainingHold || null,
+          retention: result.fingerprintRetention || null,
+        }, null, 2));
+        fs.writeFileSync(helperArgs.fingerprintDiffOut, `${payload}\n`);
+      }
       console.log(JSON.stringify(result, null, 2));
       process.exit(result.overallOk ? 0 : 1);
     }).catch((err) => {

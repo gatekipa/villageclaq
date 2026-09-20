@@ -53,6 +53,7 @@ Closest linked artifacts (none of these is that missing plan):
 | Verification union | `b62c82e56072248cd08c56912d31304c1e31ee997b4613d411724ca90e45e19f` (49) |
 | Scope/SQL identity SHA-256 | `efd00f25ec108ba0e8041ae8890905cd347d925a750b77ed083dcccd40ee33a8` |
 | F24 proposed-plan SHA-256 | `5b9bf55dab0ff98a2c94b4aa87ceecc481b55fe21ce60945c1f026082a64fd97` (10542 bytes) |
+| F24 evidence / status tip (this plan bind) | `cf214d0fd9967792b06d2900959deec6e7d99de6` |
 | Consumed ATTEMPT_2 plan SHA-256 | `bf9ca7b6c408d72b9f1231f223628a41e77fe275132acf273cd5386dd8c3b138` |
 | Forbidden summary (unchanged; must stay unequal) | `16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d` |
 | Independent reference | `3742c0396903f3e91a779deec9b62d93a879f134c186f3b4b817a19c6ca99c91` |

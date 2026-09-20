@@ -1,0 +1,10 @@
+{
+  "suite": "test-f3-db-push",
+  "tests": 243,
+  "pass": 243,
+  "fail": 0,
+  "skipped": 0,
+  "executableCommit": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "platform": "linux",
+  "postgresServerVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)"
+}

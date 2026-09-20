@@ -1,0 +1,18 @@
+{
+  "suite": "test-f3-db-push",
+  "classification": "PASS_WITH_SKIPS",
+  "expect": {
+    "tests": 205,
+    "pass": 204,
+    "fail": 0,
+    "skipped": 1
+  },
+  "observed": {
+    "tests": 205,
+    "pass": 204,
+    "fail": 0,
+    "skipped": 1
+  },
+  "outSha256": "71314ecab80f055ff44a9bf40152ab76541bdff5959dcefb4df720ab347c7ba6",
+  "outBytes": 207463
+}

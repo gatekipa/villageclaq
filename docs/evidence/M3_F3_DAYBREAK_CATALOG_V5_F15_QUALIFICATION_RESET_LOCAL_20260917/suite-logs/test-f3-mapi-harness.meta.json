@@ -1,0 +1,18 @@
+{
+  "suite": "test-f3-mapi-harness",
+  "classification": "PASS",
+  "expect": {
+    "tests": 22,
+    "pass": 22,
+    "fail": 0,
+    "skipped": 0
+  },
+  "observed": {
+    "tests": 22,
+    "pass": 22,
+    "fail": 0,
+    "skipped": 0
+  },
+  "outSha256": "1d789aee6bd8ecbfe9b03aaf5778089c8509fe68ec7082f924761756cb36a73f",
+  "outBytes": 4555
+}

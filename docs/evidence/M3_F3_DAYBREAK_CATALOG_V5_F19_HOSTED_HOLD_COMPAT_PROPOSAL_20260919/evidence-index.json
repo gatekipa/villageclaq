@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "exclusions": [
+    "evidence-index.json",
+    "evidence-index.sha256"
+  ],
+  "self_hash": false,
+  "detached_checksum": "evidence-index.sha256",
+  "artifacts": [
+    {
+      "path": "CHIEF_HANDOFF.md",
+      "sha256": "dcda5b841e36d3dc43bae4b615677ed77b5963ac5bbcf4991a39dbeb84ff97bc",
+      "bytes": 1903
+    },
+    {
+      "path": "MISMATCH_ANALYSIS.json",
+      "sha256": "292ec318f2dc61bc68caac45bb92d3b9bffb234e9dbab7d97c7aab2dc95d9c75",
+      "bytes": 17604
+    },
+    {
+      "path": "MISMATCH_ANALYSIS.md",
+      "sha256": "8406780fec6b8aa26d2f7832d7dfe90ed9e3a308b53fc828378b044d2faab685",
+      "bytes": 5577
+    },
+    {
+      "path": "PINS.json",
+      "sha256": "b9e0eda69b6b616cfcfb3d8c6135187e3a0cc4fbf2f614338e7bee317c9a3d82",
+      "bytes": 708
+    },
+    {
+      "path": "PROPOSED_CATALOG_COMPATIBILITY.md",
+      "sha256": "ac24ec91cf34678df6f3e55a7047a16ab67b03180612112abc30c54fc7a3b103",
+      "bytes": 7273
+    },
+    {
+      "path": "STOPPED_ATTEMPT_RECORD.md",
+      "sha256": "473f4b2d92e32887a95bc5698322f2361a51e780081e24c7485279ada48621d6",
+      "bytes": 2309
+    }
+  ]
+}

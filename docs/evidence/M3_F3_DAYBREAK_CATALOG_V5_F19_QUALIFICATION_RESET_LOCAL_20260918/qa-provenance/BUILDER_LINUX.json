@@ -1,0 +1,42 @@
+{
+  "role": "VillageClaq Builder",
+  "os": "Linux",
+  "node": "v22.14.0",
+  "classification": "MUST_LOCAL",
+  "psqlPresent": false,
+  "concurrencyReRun": false,
+  "f19IndependentQa": "F19 ACCEPT",
+  "reviewerBcId": "bc-8c2797cf-e789-5ab9-afd1-ff9a47a05cfa",
+  "reviewedPin": "dfbeb11b49f7e9b061a4c700e0335d125ac669e2",
+  "f18IndependentQa": "INHERITED",
+  "f18ReviewerBcId": "bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
+  "gates": {
+    "resetDesign": {
+      "tests": 30,
+      "pass": 30,
+      "fail": 0,
+      "skipped": 0
+    },
+    "reset": {
+      "tests": 66,
+      "pass": 66,
+      "fail": 0,
+      "skipped": 0
+    },
+    "dbPush": {
+      "tests": 247,
+      "pass": 246,
+      "fail": 0,
+      "skipped": 1,
+      "skipId": "identity GET is skipped without token"
+    },
+    "helperOffline": {
+      "checks": 24,
+      "scenarios": 9,
+      "executedTransactions": 0,
+      "pass": 33,
+      "fail": 0,
+      "classification": "MUST_LOCAL"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "verdict": "F18 ACCEPT",
+  "kind": "independent-qa",
+  "tip": "ca2c0d536037da8c7f55627ac1694cacb932d1d7",
+  "builderEvidenceTip": "ba8fc0015337fd6aa854ccd0cc94a066e5c87166",
+  "startingRef": "3fcbcbc438ccc90faf7e87d06ba0d270e3d17598",
+  "bcId": "bc-49cebacf-a8b4-5f38-9609-95ffe86d6adf",
+  "postgresServerVersion": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+  "sourceLabel": "docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F18_QUALIFICATION_RESET_LOCAL_20260918/qa-package/score.md",
+  "note": "Independent Grok QA F18 ACCEPT on frozen functional pin ca2c0d5. LOCAL_PG_EXECUTED on this reviewer VM. Builder #116 and F17 #115 are non-authoritative and were not used as raw proof. Overall DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN."
+}

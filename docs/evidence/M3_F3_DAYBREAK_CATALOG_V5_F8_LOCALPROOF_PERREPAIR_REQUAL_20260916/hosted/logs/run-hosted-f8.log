@@ -1,0 +1,13 @@
+IDENTITY_OK jkorwnwwmdeflfntxntl
+PRE_RESET {"ambiguous":["financial_schemas","financial_public_tables","f3_history"],"pub":37,"hist":6}
+RESET_DONE
+PHASE_B_CONTINUE_CLEAN_BASELINE
+INVOKING_QUALIFY
+{
+  "process_exit": 0,
+  "verdict": "FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION",
+  "sequence_length": 6,
+  "hold_reason": null,
+  "poison_transport": "isolated-psql",
+  "final_poison_ok": true
+}

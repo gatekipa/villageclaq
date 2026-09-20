@@ -1,0 +1,15 @@
+{
+  "tip": "2d502a028b0d01808a871fb1d48d051813591ed2",
+  "parentEvidence": "137f1c825455c10bd7d974d3de7dcbdc610c9619",
+  "f13Functional": "51cc864d1efbefc1398ad3fd1895360c95474a57",
+  "f12FunctionalFrozen": "1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+  "designAccept": "a117d06fb202696944ae423d77336db0a48a8a13",
+  "docsHeadAncestor": "020bb9ef23d5e6a9f4b75e0fbb800acc24786300",
+  "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "runtimeClosureSha256": "f6205869b233eaccf375b299112f7b9c352d58c6f2659471e06d2ca7a241e31d",
+  "verificationUnionSha256": "f6ff6e42b4b5ec14b1a67fe88377d7deafe5f12f2c2c35c834e7c763711e7caa",
+  "forbiddenSummaryHash": "16e4757840aec5f4fb44504fbd33e8480de169553f9a1ccfb180dbde051cb66d",
+  "pr84_85_86_before": "137f1c825455c10bd7d974d3de7dcbdc610c9619",
+  "pr110": "unused as authority"
+}

@@ -1,0 +1,10 @@
+{
+  "hostedIdentityProof": false,
+  "localFixtureRoutingOnly": true,
+  "notProductionBypass": true,
+  "approvedDisposableRefCitedNotContacted": "jkorwnwwmdeflfntxntl",
+  "productionRejected": "llbnliixczcqfftxpsmb",
+  "localRoleSubstitution": "local CLI/psql as ubuntu; hosted-oracle fingerprints expect postgres/service_role/authenticated",
+  "hostedPoisonTargetBinding": "NOT AUTHENTICATED — local fixture substitution",
+  "verificationModeHostedAuthority": false
+}

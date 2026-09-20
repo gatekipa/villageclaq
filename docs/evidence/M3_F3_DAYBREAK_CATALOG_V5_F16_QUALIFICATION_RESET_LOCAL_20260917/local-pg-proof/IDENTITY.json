@@ -1,0 +1,17 @@
+{
+  "functionalTip": "b74c6854869acf0e826446ea0488c42469621a3b",
+  "startingRef": "1fe866ff93af77dfba55437888d3315804507222",
+  "f15FunctionalContentPin": "49a91169fbb53dba149f4e7bbcf3016f988f4922",
+  "f15PlanContentPin": "206dce13d424f5303520d2b63a43768a078dda35",
+  "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "f12": "1ec0e4da782ed7715a543be23f79bc0f10a28af2",
+  "pg": {
+    "product": "PostgreSQL",
+    "version": "17.11",
+    "endpoint": "unix:/var/run/postgresql",
+    "role": "ubuntu",
+    "fixture": "scripts/fixtures/disposable-postgres.mjs createDisposableDatabase(f15_qual_reset)"
+  },
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT"
+}

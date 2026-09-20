@@ -1,0 +1,12 @@
+{
+  "package": "M3_F3_DAYBREAK_CATALOG_V5_F22_PRESERVE_BASELINE_QUAL_GATE_LOCAL_20260919",
+  "localStatus": "HOLD: F22_LOCAL_CLI_ATOMIC_ROLLBACK_REPAIR_REFUSED",
+  "notLocalCandidateReady": true,
+  "classification": "LOCAL_PG_EXECUTED",
+  "functionalTip": "f1d30b28830db902962467f801932254997e64c3",
+  "policy": "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+  "floor": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "daybreak": "DAYBREAK HOLD — HOSTED REQUALIFICATION NOT RUN",
+  "qa": "F22 HOLD PACKAGE ACCEPT — VillageClaq QA (independent); not LOCAL CANDIDATE READY",
+  "astra": "both delegation attempts failed at service access; no Astra verdict"
+}

@@ -1,0 +1,35 @@
+{
+  "schema": "f3-f12-reset-proposal-historical-reconciliation-v1",
+  "identical_sql_bytes_f8_f9": true,
+  "sql_sha256": "0d3de029828173d5287694e61b4ca3394c4a57e81182cade059bf88d86515011",
+  "method": "proven_qualification_reset_sql",
+  "wipe_to_baseline_used": false,
+  "buildWipeSql_used": false,
+  "supports_f12_tip_as_supported_command": false,
+  "label_if_reproposed": "NEW and UNAPPROVED",
+  "f8_reset_plan": {
+    "reset_count": 1,
+    "method": "proven_qualification_reset_sql",
+    "restart_at": "00118"
+  },
+  "f9_reset_plan": {
+    "reset_count": 1,
+    "method": "proven_qualification_reset_sql",
+    "restart_at": "00118"
+  },
+  "f8_pre_classification": "NOT_CLEAN",
+  "f8_post_classification": "CLEAN_BASELINE",
+  "f8_pre_ambiguous": [
+    "financial_schemas",
+    "financial_public_tables",
+    "f3_history"
+  ],
+  "f8_pre_f3_history": [
+    "20260913173000",
+    "20260913173001",
+    "20260913173002",
+    "20260913173003",
+    "20260913173004",
+    "20260913173005"
+  ]
+}

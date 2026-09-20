@@ -1,0 +1,59 @@
+{
+  "artifact": "M3_F3_LOCAL_SAFETY_RESULTS_20260913",
+  "verdict": "BLOCKED_REMOTE_FIDELITY_LOCAL_SAFETY_REMEDIATED",
+  "evidence_tip": "9055a2b478f115602579547aeb14335436a5bd90",
+  "path_b_stamp": "3663e33b4dee8fbc97491f0dffe474c805c37113",
+  "path_b_confirmation": {
+    "founder_path": "B",
+    "remote_management_api": "BLOCKED \u2014 DISPOSABLE PROJECT AUTHORIZATION REQUIRED",
+    "remote_project_created_or_accessed": false,
+    "management_api_writes_attempted": false,
+    "rerun_at": "2026-09-13T15:53:29Z",
+    "daybreak_fidelity": "BLOCKED pending founder-approved disposable project"
+  },
+  "functional_sha": "1ca63d9fe0d82a74a761fb742be87642b55329d6",
+  "superseded_functional": "968660d4e079ceb6c8d081be9f985597eaed0465",
+  "superseded_tip": "3937b01bff0bc37ed4035e8f708cf10e355f3eae",
+  "recognition": [
+    "manual_income"
+  ],
+  "remote_management_api": "BLOCKED \u2014 DISPOSABLE PROJECT AUTHORIZATION REQUIRED",
+  "remote_tests_ran": false,
+  "local_safety": {
+    "suite": "scripts/test-f3-local-disposable-safety.mjs",
+    "pass": 45,
+    "fail": 0,
+    "zero_spawn_on_reject": true
+  },
+  "fresh_counts": {
+    "local_safety": "45/45",
+    "sql_precommit_atomicity": "14/14",
+    "local_two_phase_external_ledger_non_api": "9/9",
+    "recognition": "40/40",
+    "f3_01_db": "43/43",
+    "f3_02_db": "159/159",
+    "f3_02_astra": "169/169",
+    "f3_03_db": "25/25",
+    "f3_03_astra": "80/80",
+    "f3_04_db": "23/23",
+    "f3_04_astra": "170/170",
+    "f3_05_db": "31/31",
+    "f3_05_astra": "118/118",
+    "post_s0_regression": "14/14",
+    "test_f3": "940/940",
+    "test_m2": "111/111",
+    "m2_static": "9/9",
+    "cut1_static": "11/11",
+    "cut2_nonregression": "20/20",
+    "cut3_storage_buckets": "11/11",
+    "tsc": "PASS",
+    "build": "PASS"
+  },
+  "withdrawn": [
+    "local two-phase helper is Management API equivalent",
+    "apply-time clock may recover a repaired version",
+    "Management API skips a caller-controlled timestamp",
+    "VillageClaq skipIfPresent is Management API continuation"
+  ],
+  "path_b_confirmation_tip": "e58eecd1e90507c66428a6175f16b9bf1c1b3284"
+}

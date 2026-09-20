@@ -1,0 +1,35 @@
+{"phase":"start_seal","target":"127.0.0.1:55432","pg":"17.6"}
+{
+  "phase": "seal_complete",
+  "ok": true,
+  "status": "SEALED",
+  "reason": null,
+  "hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "8299680fd5b3def52a981ae8c8ee097f29f13507b91d4f0799557236f1b5001c",
+    "00119_f3_01_core_ledger_foundation.sql": "0ee6c447ac89510f381abd30908b7fb5ba304537e60c577d6eedcc7835a7ed43",
+    "00120_f3_02_secure_posting_idempotency.sql": "13234a1e57a8c181da1a356ba1f236efc919efb6edb642062239499ff10d0ce9",
+    "00121_f3_03_projection_read_proof.sql": "b1693eda6e5e3944db092d800e037e366c9fd8e18723db962493b502c539cb30",
+    "00122_f3_04_correction_reversal.sql": "9add78f222edc0f933512f726f08ed92feed94432b9a9234c32e6952a1dfc00c",
+    "00123_f3_05_opening_cash_command.sql": "0234d2bf2374c8a681d186b8d77364b4b4db02eac76cebf786173d4a835f9547"
+  },
+  "recognition": [
+    "manual_income"
+  ],
+  "provenance_method": "independent_local_pg17_CATALOG_FINGERPRINT_SQL",
+  "local_pg_claim": "PostgreSQL 17.x disposable (this agent sealed on 17.11); objects created as role postgres via SET ROLE"
+}
+{
+  "phase": "verify_complete",
+  "all_builder_eq_reference": true,
+  "all_seal_eq_independent": true,
+  "new_expected_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "8299680fd5b3def52a981ae8c8ee097f29f13507b91d4f0799557236f1b5001c",
+    "00119_f3_01_core_ledger_foundation.sql": "0ee6c447ac89510f381abd30908b7fb5ba304537e60c577d6eedcc7835a7ed43",
+    "00120_f3_02_secure_posting_idempotency.sql": "13234a1e57a8c181da1a356ba1f236efc919efb6edb642062239499ff10d0ce9",
+    "00121_f3_03_projection_read_proof.sql": "b1693eda6e5e3944db092d800e037e366c9fd8e18723db962493b502c539cb30",
+    "00122_f3_04_correction_reversal.sql": "9add78f222edc0f933512f726f08ed92feed94432b9a9234c32e6952a1dfc00c",
+    "00123_f3_05_opening_cash_command.sql": "0234d2bf2374c8a681d186b8d77364b4b4db02eac76cebf786173d4a835f9547"
+  },
+  "vs_cloud_identical": true,
+  "not_hosted_00118": true
+}

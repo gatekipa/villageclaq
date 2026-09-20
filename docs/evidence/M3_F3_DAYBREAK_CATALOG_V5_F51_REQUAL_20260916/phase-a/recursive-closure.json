@@ -1,0 +1,20 @@
+{
+  "built_summary": {
+    "closure_complete": true,
+    "missing": 0,
+    "unresolved": 0,
+    "unexplained_exclusions": 0,
+    "uncommitted_functional_diffs": 0,
+    "hosted_tree_mismatches": 0,
+    "runtime_read_missing": 0,
+    "file_count": 38
+  },
+  "gate": {
+    "ok": true,
+    "dbPushCalls": 0,
+    "repairCalls": 0,
+    "continuationCalls": 0
+  },
+  "static_closure_complete": true,
+  "verdict": "CONTINUE"
+}

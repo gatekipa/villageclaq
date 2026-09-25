@@ -66,7 +66,8 @@ import { useSubscription } from "@/lib/hooks/use-subscription";
 import { FeatureLock } from "@/components/ui/upgrade-prompt";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission } from "@/components/ui/permission-gate";
-
+import { useDisburseLoan, useRecordLoanRepayment, useApproveLoan, parseLoanRpcError } from "@/lib/hooks/use-loans-mutations";
+import { useFinancialAccounts } from "@/lib/hooks/use-financial-config";
 // ─── HOOKS ──────────────────────────────────────────────────────────────────
 
 function useLoanConfig() {
@@ -258,6 +259,12 @@ export default function LoansAdminPage() {
   const { data: loans, isLoading: loansLoading, error, refetch } = useLoansData();
   const { data: membersList } = useMembers();
 
+  // M8 Hooks
+  const disburseLoanHook = useDisburseLoan(groupId || "");
+  const recordRepaymentHook = useRecordLoanRepayment(groupId || "");
+  const approveLoanHook = useApproveLoan(groupId || "");
+  const { data: accounts } = useFinancialAccounts(groupId || null);
+
   const [activeTab, setActiveTab] = useState<"applications" | "active" | "history">("applications");
   const [search, setSearch] = useState("");
 
@@ -292,6 +299,8 @@ export default function LoansAdminPage() {
   // Disbursement
   const [disbMethod, setDisbMethod] = useState("cash");
   const [disbReference, setDisbReference] = useState("");
+  const [disbAccountId, setDisbAccountId] = useState("");
+  const [disbError, setDisbError] = useState<string | null>(null);
   const [disbSaving, setDisbSaving] = useState(false);
 
   // Repayment
@@ -300,8 +309,9 @@ export default function LoansAdminPage() {
   const [repayMethod, setRepayMethod] = useState("cash");
   const [repayReference, setRepayReference] = useState("");
   const [repayNotes, setRepayNotes] = useState("");
-  const [repaySaving, setRepaySaving] = useState(false);
+  const [repayAccountId, setRepayAccountId] = useState("");
   const [repayError, setRepayError] = useState<string | null>(null);
+  const [repaySaving, setRepaySaving] = useState(false);
 
   // Quick loan dialog
   const [quickLoanOpen, setQuickLoanOpen] = useState(false);
@@ -320,6 +330,29 @@ export default function LoansAdminPage() {
 
   // Status action
   const [actionSaving, setActionSaving] = useState(false);
+
+  // Tenant Boundary & State Sanitation
+  const prevGroupId = useRef(groupId);
+  useEffect(() => {
+    if (groupId !== prevGroupId.current) {
+      prevGroupId.current = groupId;
+      setConfigDialogOpen(false);
+      setReviewDialogOpen(false);
+      setDetailDialogOpen(false);
+      setRepayDialogOpen(false);
+      setQuickLoanOpen(false);
+      setDrillDown(null);
+      setSelectedLoan(null);
+      setDetailLoan(null);
+      setRepayAmount("");
+      setApproveAmount("");
+      setReviewError(null);
+      setRepayError(null);
+      setDisbError(null);
+      setDisbAccountId("");
+      setRepayAccountId("");
+    }
+  }, [groupId]);
 
   // Fix 2+5: Overdue auto-marking on page load
   const overdueChecked = useRef(false);
@@ -345,6 +378,14 @@ export default function LoansAdminPage() {
 
   const allLoans = loans || [];
   const isLoading = configLoading || loansLoading;
+
+  const getCustodyAccounts = (targetCurrency: string) =>
+    (accounts || []).filter(
+      (a) =>
+        a.status === "active" &&
+        ["bank", "cash", "mobile_money", "wallet"].includes(a.kind) &&
+        a.currency === targetCurrency
+    );
 
   // ─── Filtered lists ─────────────────────────────────────────────────────
   const applicationLoans = useMemo(() =>
@@ -464,32 +505,20 @@ export default function LoansAdminPage() {
     setReviewSaving(true);
     setReviewError(null);
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error(tc("error"));
       const amt = Number(approveAmount);
       const rate = config.interest_rate_percent || 0;
       const totalRepayable = amt + (amt * Number(rate) / 100);
-      // Status precondition: a concurrent second decision (two admins, two
-      // tabs) matches zero rows, and the bail-out below skips ALL
-      // notifications/audit so the borrower is never told "approved" when
-      // another admin already decided (possibly denied) the loan.
-      const { data: updatedRows, error: e } = await supabase.from("loans").update({
-        status: "approved",
-        amount_approved: amt,
-        interest_rate: rate,
-        total_repayable: totalRepayable,
-        reviewed_by: user.id,
-        reviewed_at: new Date().toISOString(),
-        review_notes: reviewNotes.trim() || null,
-      }).eq("id", selectedLoan.id as string).eq("status", "pending").select("id");
-      if (e) throw e;
-      if (!updatedRows || updatedRows.length === 0) {
-        setReviewError(t("alreadyDecided"));
-        await queryClient.invalidateQueries({ queryKey: ["loans-admin", groupId] });
-        return;
-      }
 
+      await approveLoanHook.mutateAsync({
+        loanId: selectedLoan.id as string,
+        groupId,
+        notes: reviewNotes.trim() || undefined,
+        amountApproved: amt,
+        interestRate: rate,
+        totalRepayable,
+      });
+
+      const supabase = createClient();
       // Notify borrower
       const membership = selectedLoan.membership as Record<string, unknown> | null;
       const borrowerUserId = membership?.user_id as string | null;
@@ -558,11 +587,10 @@ export default function LoansAdminPage() {
         });
       } catch { /* best-effort */ }
 
-      await queryClient.invalidateQueries({ queryKey: ["loans-admin", groupId] });
       setReviewDialogOpen(false);
       setSelectedLoan(null);
     } catch (err) {
-      setReviewError((err as Error).message);
+      setReviewError(parseLoanRpcError(err));
     } finally {
       setReviewSaving(false);
     }
@@ -729,42 +757,16 @@ export default function LoansAdminPage() {
   async function handleDisburse() {
     if (!detailLoan || !groupId || !config) return;
     setDisbSaving(true);
+    setDisbError(null);
     try {
-      const supabase = createClient();
-      const now = new Date();
       const loanId = detailLoan.id as string;
-      const totalRepayable = Number(detailLoan.total_repayable || 0);
-      const repayMonths = Number(config.max_repayment_months) || 12;
-      const installmentAmount = Math.ceil((totalRepayable / repayMonths) * 100) / 100;
+      await disburseLoanHook.mutateAsync({
+        loanId,
+        accountId: disbAccountId,
+        groupId,
+      });
 
-      // Update loan status
-      const { error: e } = await supabase.from("loans").update({
-        status: "repaying",
-        disbursed_at: now.toISOString(),
-        disbursement_method: disbMethod,
-        disbursement_reference: disbReference.trim() || null,
-      }).eq("id", loanId);
-      if (e) throw e;
-
-      // Generate schedule
-      const scheduleRows = [];
-      for (let i = 1; i <= repayMonths; i++) {
-        const dueDate = new Date(now);
-        dueDate.setMonth(dueDate.getMonth() + i);
-        const isLast = i === repayMonths;
-        const amt = isLast ? (totalRepayable - installmentAmount * (repayMonths - 1)) : installmentAmount;
-        scheduleRows.push({
-          loan_id: loanId,
-          installment_number: i,
-          due_date: dueDate.toISOString().split("T")[0],
-          amount_due: Math.max(0, amt),
-          amount_paid: 0,
-          status: "pending",
-        });
-      }
-      const { error: schedErr } = await supabase.from("loan_schedule").insert(scheduleRows);
-      if (schedErr) throw schedErr;
-
+      const supabase = createClient();
       // Notify borrower
       const membership = detailLoan.membership as Record<string, unknown> | null;
       const borrowerUserId = membership?.user_id as string | null;
@@ -796,12 +798,10 @@ export default function LoansAdminPage() {
         });
       } catch { /* best-effort */ }
 
-      await queryClient.invalidateQueries({ queryKey: ["loans-admin", groupId] });
-      await queryClient.invalidateQueries({ queryKey: ["loan-schedule", loanId] });
       setDetailDialogOpen(false);
       setDetailLoan(null);
-    } catch {
-      // Error is shown via failed mutation; user can retry
+    } catch (err) {
+      setDisbError(parseLoanRpcError(err));
     } finally {
       setDisbSaving(false);
     }
@@ -825,56 +825,24 @@ export default function LoansAdminPage() {
     setRepaySaving(true);
     setRepayError(null);
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error(tc("error"));
-      const loanId = detailLoan.id as string;
       const paymentAmount = Number(repayAmount);
       if (paymentAmount <= 0) throw new Error(t("invalidAmount"));
+      const loanId = detailLoan.id as string;
 
-      // Create repayment record
-      const { error: repErr } = await supabase.from("loan_repayments").insert({
-        loan_id: loanId,
+      await recordRepaymentHook.mutateAsync({
+        loanId,
+        accountId: repayAccountId,
         amount: paymentAmount,
-        payment_method: repayMethod,
-        reference_number: repayReference.trim() || null,
-        recorded_by: user.id,
-        notes: repayNotes.trim() || null,
+        groupId,
+        paymentMethod: repayMethod,
+        notes: repayNotes.trim() || undefined,
+        referenceNumber: repayReference.trim() || undefined,
       });
-      if (repErr) throw repErr;
 
-      // Update schedule installments
-      let remaining = paymentAmount;
-      const pendingInstallments = (schedule || [])
-        .filter((s: Record<string, unknown>) => s.status !== "paid")
-        .sort((a: Record<string, unknown>, b: Record<string, unknown>) =>
-          Number(a.installment_number) - Number(b.installment_number)
-        );
-
-      for (const inst of pendingInstallments) {
-        if (remaining <= 0) break;
-        const owed = Number(inst.amount_due) - Number(inst.amount_paid || 0);
-        const payment = Math.min(remaining, owed);
-        const newPaid = Number(inst.amount_paid || 0) + payment;
-        const newStatus = newPaid >= Number(inst.amount_due) ? "paid" : "partial";
-        await supabase.from("loan_schedule").update({
-          amount_paid: newPaid,
-          status: newStatus,
-        }).eq("id", inst.id as string);
-        remaining -= payment;
-      }
-
-      // Update loan total_repaid
+      const supabase = createClient();
       const newTotalRepaid = Number(detailLoan.total_repaid || 0) + paymentAmount;
       const totalRepayable = Number(detailLoan.total_repayable || 0);
       const isCompleted = newTotalRepaid >= totalRepayable;
-
-      const updateData: Record<string, unknown> = { total_repaid: newTotalRepaid };
-      if (isCompleted) {
-        updateData.status = "completed";
-        updateData.completed_at = new Date().toISOString();
-      }
-      await supabase.from("loans").update(updateData).eq("id", loanId);
 
       // Notify borrower
       const membership = detailLoan.membership as Record<string, unknown> | null;
@@ -911,12 +879,9 @@ export default function LoansAdminPage() {
         } catch { /* best-effort */ }
       }
 
-      await queryClient.invalidateQueries({ queryKey: ["loans-admin", groupId] });
-      await queryClient.invalidateQueries({ queryKey: ["loan-schedule", loanId] });
-      await queryClient.invalidateQueries({ queryKey: ["loan-repayments", loanId] });
       setRepayDialogOpen(false);
     } catch (err) {
-      setRepayError((err as Error).message);
+      setRepayError(parseLoanRpcError(err));
     } finally {
       setRepaySaving(false);
     }
@@ -1482,32 +1447,53 @@ export default function LoansAdminPage() {
                 </div>
 
                 {/* Disbursement (if approved, not yet disbursed) */}
-                {detailLoan.status === "approved" && (
+                {detailLoan.status === "approved" && (() => {
+                  const loanCurrency = String(detailLoan.currency || currency);
+                  const validCustodyAccounts = getCustodyAccounts(loanCurrency);
+                  return (
                   <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 p-4 space-y-3">
                     <h4 className="text-sm font-semibold">{t("recordDisbursement")}</h4>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>{t("disbursementMethod")}</Label>
-                        <Select value={disbMethod} onValueChange={(v) => v && setDisbMethod(v)}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="cash">{t("methodCash")}</SelectItem>
-                            <SelectItem value="mobile_money">{t("methodMobileMoney")}</SelectItem>
-                            <SelectItem value="bank_transfer">{t("methodBankTransfer")}</SelectItem>
-                          </SelectContent>
-                        </Select>
+                    {disbError && <div className="p-3 rounded-md bg-red-50 text-red-700 text-sm font-medium">{t(disbError)}</div>}
+                    {validCustodyAccounts.length === 0 ? (
+                      <div className="p-3 rounded-md bg-amber-50 text-amber-800 text-sm border border-amber-200">
+                        {t("noActiveCustodyAccounts")}
                       </div>
-                      <div className="space-y-2">
-                        <Label>{t("referenceNumber")}</Label>
-                        <Input placeholder={t("referencePlaceholder")} value={disbReference} onChange={(e) => setDisbReference(e.target.value)} />
+                    ) : (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>{t("disburseFromAccount")}</Label>
+                          <Select value={disbAccountId} onValueChange={(v) => v && setDisbAccountId(v)}>
+                            <SelectTrigger><SelectValue placeholder={t("selectAccount")} /></SelectTrigger>
+                            <SelectContent>
+                              {validCustodyAccounts.map((a) => (
+                                <SelectItem key={a.id as string} value={a.id as string}>{String(a.name)}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>{t("disbursementMethod")}</Label>
+                          <Select value={disbMethod} onValueChange={(v) => v && setDisbMethod(v)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="cash">{t("methodCash")}</SelectItem>
+                              <SelectItem value="mobile_money">{t("methodMobileMoney")}</SelectItem>
+                              <SelectItem value="bank_transfer">{t("methodBankTransfer")}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>{t("referenceNumber")}</Label>
+                          <Input placeholder={t("referencePlaceholder")} value={disbReference} onChange={(e) => setDisbReference(e.target.value)} />
+                        </div>
                       </div>
-                    </div>
-                    <Button onClick={handleDisburse} disabled={disbSaving} size="sm">
+                    )}
+                    <Button onClick={handleDisburse} disabled={disbSaving || !disbAccountId || validCustodyAccounts.length === 0} size="sm">
                       {disbSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       {t("recordDisbursement")}
                     </Button>
                   </div>
-                )}
+                )})()}
 
                 {/* Schedule */}
                 {(schedule || []).length > 0 && (
@@ -1598,44 +1584,75 @@ export default function LoansAdminPage() {
         )}
 
         {/* ─── Repayment Dialog ──────────────────────────────────────── */}
-        <Dialog open={repayDialogOpen} onOpenChange={setRepayDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader><DialogTitle>{t("recordRepayment")}</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>{t("amount")}</Label>
-                <Input type="number" value={repayAmount} onChange={(e) => setRepayAmount(e.target.value)} />
+        {(() => {
+          const loanCurrency = String(detailLoan?.currency || currency);
+          const validCustodyAccounts = getCustodyAccounts(loanCurrency);
+          const remainingBalance = detailLoan ? Number(detailLoan.total_repayable || 0) - Number(detailLoan.total_repaid || 0) : 0;
+          const parsedAmount = Number(repayAmount);
+          const isInvalidAmount = !repayAmount || isNaN(parsedAmount) || parsedAmount <= 0 || parsedAmount > remainingBalance;
+          return (
+          <Dialog open={repayDialogOpen} onOpenChange={setRepayDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader><DialogTitle>{t("recordRepayment")}</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                {validCustodyAccounts.length === 0 ? (
+                  <div className="p-3 rounded-md bg-amber-50 text-amber-800 text-sm border border-amber-200">
+                    {t("noActiveCustodyAccounts")}
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label>{t("receiveToAccount")}</Label>
+                      <Select value={repayAccountId} onValueChange={(v) => v && setRepayAccountId(v)}>
+                        <SelectTrigger><SelectValue placeholder={t("selectAccount")} /></SelectTrigger>
+                        <SelectContent>
+                          {validCustodyAccounts.map((a) => (
+                            <SelectItem key={a.id as string} value={a.id as string}>{String(a.name)}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t("amount")} (Max: {formatAmount(remainingBalance, loanCurrency)})</Label>
+                      <Input type="number" max={remainingBalance} value={repayAmount} onChange={(e) => {
+                        const val = Number(e.target.value);
+                        if (val > remainingBalance) setRepayAmount(String(remainingBalance));
+                        else setRepayAmount(e.target.value);
+                      }} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t("paymentMethod")}</Label>
+                      <Select value={repayMethod} onValueChange={(v) => v && setRepayMethod(v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">{t("methodCash")}</SelectItem>
+                          <SelectItem value="mobile_money">{t("methodMobileMoney")}</SelectItem>
+                          <SelectItem value="bank_transfer">{t("methodBankTransfer")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t("referenceNumber")}</Label>
+                      <Input placeholder={t("referencePlaceholder")} value={repayReference} onChange={(e) => setRepayReference(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t("notes")}</Label>
+                      <Textarea placeholder={t("notesPlaceholder")} value={repayNotes} onChange={(e) => setRepayNotes(e.target.value)} rows={2} />
+                    </div>
+                  </>
+                )}
+                {repayError && <p className="text-sm text-destructive">{repayError}</p>}
               </div>
-              <div className="space-y-2">
-                <Label>{t("paymentMethod")}</Label>
-                <Select value={repayMethod} onValueChange={(v) => v && setRepayMethod(v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">{t("methodCash")}</SelectItem>
-                    <SelectItem value="mobile_money">{t("methodMobileMoney")}</SelectItem>
-                    <SelectItem value="bank_transfer">{t("methodBankTransfer")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>{t("referenceNumber")}</Label>
-                <Input placeholder={t("referencePlaceholder")} value={repayReference} onChange={(e) => setRepayReference(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("notes")}</Label>
-                <Textarea placeholder={t("notesPlaceholder")} value={repayNotes} onChange={(e) => setRepayNotes(e.target.value)} rows={2} />
-              </div>
-              {repayError && <p className="text-sm text-destructive">{repayError}</p>}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setRepayDialogOpen(false)}>{tc("cancel")}</Button>
-              <Button onClick={handleRecordRepayment} disabled={repaySaving || !repayAmount}>
-                {repaySaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {t("recordRepayment")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setRepayDialogOpen(false)}>{tc("cancel")}</Button>
+                <Button onClick={handleRecordRepayment} disabled={repaySaving || isInvalidAmount || validCustodyAccounts.length === 0 || !repayAccountId}>
+                  {repaySaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {t("recordRepayment")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )})()}
 
         {/* ─── Drill-Down Dialogs ──────────────────────────────────── */}
 

@@ -25,7 +25,7 @@ Authorized local-capture record: [docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FI
 | **M3 Financial Foundation Status** | **COMPLETE / VERIFIED (F3-01 through F3-10).** All 10 slices of the F3 Canonical Financial Foundation under PRD Section 10 are fully built, typed, localized, and verified across all product money, dashboard, and adversarial audit suites. Ready for qualification sign-off. |
 | **M4 (Contributions & Dues Canonical Rebuild)** | **COMPLETE / VERIFIED.** Built canonical bridge schema (`00124_m4_01_dues_f3_bridge.sql`) linking payments to general ledger (`financial_event_id`, `financial_account_id` with `ON DELETE RESTRICT`) and `post_dues_payment_confirmation` RPC. Built atomic client mutation hooks (`src/lib/hooks/use-dues-posting.ts`). Integrated admin dues recording (`record/page.tsx`) with custody account selection and multi-tenant safety. Integrated payment confirmation review queue (`history/page.tsx`) with posted ledger badge and custody selection dialog. Validated bridge invariants and subledger reconciliation isolation via standalone adversarial harness (`scripts/test-m4-dues-bridge.mjs`). 100% EN/FR localization parity verified. |
 | **M5 (Membership, Identity & Role-Based Access Control Rebuild)** | **COMPLETE / VERIFIED.** Built migration `00125_m5_01_membership_rbac_canonical.sql` with preflight pins, partial unique index `idx_memberships_unique_active_owner`, hard-delete trigger prohibition (`trg_prevent_membership_hard_delete` with `ERRCODE = '55000'`), owner protection trigger (`enforce_owner_role_protection`), invitations RLS fortification, and 6 canonical RPCs (`create_group_invitation`, `update_membership_role`, `transfer_group_ownership`, `set_membership_lifecycle_status`, `update_member_display_name`). Built typed TanStack mutation hooks (`src/lib/hooks/use-membership-mutations.ts`) with tenant boundary assertion and multi-domain cache invalidation. Fortified client auth in `src/lib/group-context.tsx` and `src/lib/hooks/use-permissions.ts` (denies inactive memberships). Refactored Member Directory (`dashboard/members/page.tsx`) and Member Detail (`dashboard/members/[id]/page.tsx`) with distinct Lifecycle Status and Financial Standing visual badges, PII isolation (zero profile mutations), and dedicated ownership transfer dialog with `"TRANSFER"` confirmation prompt. Aligned Invitations (`dashboard/invitations/page.tsx`) and Role Matrix (`dashboard/roles/page.tsx`) with permission gating. Verified with adversarial harness (`scripts/test-m5-membership-rbac.mjs`, 18/18 tests passing), 100% EN/FR localization parity, clean ESLint, and clean TSC. |
-| **Next Master Milestone** | **M8 (Loans, Collateral & Repayment Engine Rebuild)** designated per PRD Section 10 and Section 26 sequence. Merge/deploy to `origin/main` remains separately founder-controlled. |
+| **Next Master Milestone** | **M9 (Events, Attendance, Calendar & Ticketing Ledger Rebuild)** designated per PRD Section 10 and Section 26 sequence. Merge/deploy to `origin/main` remains separately founder-controlled. |
 | **Merge / deploy to `origin/main`** | **Not authorized** without explicit founder sign-off for release. |
 
 ## Authoritative build-plan reference
@@ -105,7 +105,12 @@ Other linked artifacts:
     - Client Hooks: `src/lib/hooks/use-relief-mutations.ts` enforces multi-tenant safety (`staleTenantAborted`), correct currency locks, and calculates maturity periods.
     - UI Integration: Developed Plans Management View (`dashboard/relief/plans/page.tsx`) with dynamic active member enrollment. Developed Claims Review Queue (`dashboard/relief/claims/page.tsx`) with strict officer review gates and a custody-account locked disbursement checkpoint.
     - Verification: Adversarial test harness `scripts/test-m7-relief-payouts.mjs` confirms single-disbursement execution, idempotency, unapproved payout rejection, and currency locks.
-12. **Next Master Milestone: M8 (Loans, Collateral & Repayment Engine Rebuild)** — Designated as the next major work package per Master Rebuild PRD Section 10 and Section 26 sequence.
+12. **Milestone M8 Completion: Loans, Collateral & Repayment Engine Rebuild** — **COMPLETE / VERIFIED.**
+    - Schema & Canonical RPCs: `00129_m8_01_loans_canonical.sql` hardens the schema with strict principal and interest bounds. Integrates atomic double-entry F3 posting for disbursements and repayments. `trg_assert_loan_guarantor_eligibility` defends against self-guarantee and bad-standing guarantors.
+    - Client Hooks: `src/lib/hooks/use-loans-mutations.ts` abstracts UI mutation states into safe RPC calls with deterministic error mapping (`parseLoanRpcError`).
+    - UI Integration: Monolith refactor of `loans/page.tsx` introduces `getCustodyAccounts` resolver and strict Defensive Modal Gates protecting against currency mismatch, negative inputs, and overpayment.
+    - Verification: Adversarial test harness `scripts/test-m8-loans-engine.mjs` verifies double-entry split math, idempotent replay, guarantor rules, overpayment prevention, and auto-settlement transitions.
+13. **Next Master Milestone: M9 (Events, Attendance, Calendar & Ticketing Ledger Rebuild)** — Designated as the next major work package per Master Rebuild PRD Section 10 and Section 26 sequence.
 12. **Production migration release gate** — Production deployment remains separately founder-authorized.
 ## Local versus hosted / production
 
@@ -121,9 +126,9 @@ Other linked artifacts:
 | Field | Value |
 |-------|-------|
 | Owner | Jude Anyere |
-| Next bounded action | Advance to **M8 (Loans, Collateral & Repayment Engine Rebuild)** per PRD Section 10 and Section 26 sequence. |
-| Permitted scope | M8 loan offerings, collateral vault, loan issuance, repayment ledgers, and dynamic interest application. No direct mutation of production. |
-| Remaining acceptance | M8 loan principal tracking, subledger reconciliation, interest math invariants, and adversarial test suites. |
+| Next bounded action | Advance to **M9 (Events, Attendance, Calendar & Ticketing Ledger Rebuild)** per PRD Section 10 and Section 26 sequence. |
+| Permitted scope | M9 events module, calendar integration, ticketing issuance, and attendance tracking. No direct mutation of production. |
+| Remaining acceptance | M9 events tracking, ticket generation and revenue mapping, event capacity constraints, and adversarial test suites. |
 
 ---
 **QUALIFIED / PASS — F3 FOUNDATION HOSTED REQUALIFICATION COMPLETE**  

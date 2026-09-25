@@ -5793,7 +5793,19 @@
     "installmentNumber": "Échéance #",
     "daysOverdueLabel": "Jours de retard",
     "daysOverdueValue": "{days}j de retard",
-    "writtenOff": "Amorti"
+    "writtenOff": "Amorti",
+    "errors": {
+      "CANNOT_GUARANTEE_OWN_LOAN": "Vous ne pouvez pas garantir votre propre prêt.",
+      "GUARANTOR_NOT_IN_GOOD_STANDING": "Le garant n'est pas en règle.",
+      "GUARANTOR_HAS_DEFAULTED_LOANS": "Le garant a des prêts en défaut ou des versements en retard.",
+      "LOAN_NOT_APPROVED_FOR_DISBURSEMENT": "Le prêt n'est pas approuvé pour le décaissement.",
+      "LOANS_RECEIVABLE_ACCOUNT_NOT_CONFIGURED": "Compte de créances sur prêts non configuré. Veuillez créer un compte d'actif pour les créances.",
+      "LOAN_INTEREST_INCOME_ACCOUNT_NOT_CONFIGURED": "Compte de revenus d'intérêts sur prêts non configuré.",
+      "LOAN_NOT_IN_REPAYMENT": "Ce prêt n'est pas en phase de remboursement.",
+      "REPAYMENT_EXCEEDS_OUTSTANDING_BALANCE": "Le remboursement dépasse le solde restant dû.",
+      "CURRENCY_MISMATCH": "L'actif sélectionné ne correspond pas à la devise du prêt.",
+      "staleTenantAborted": "Contexte d'organisation obsolète. Veuillez rafraîchir la page."
+    }
   },
   "projects": {
     "title": "Suivi des Projets",

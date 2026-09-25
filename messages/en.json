@@ -5793,7 +5793,19 @@
     "installmentNumber": "Installment #",
     "daysOverdueLabel": "Days Overdue",
     "daysOverdueValue": "{days}d overdue",
-    "writtenOff": "Written Off"
+    "writtenOff": "Written Off",
+    "errors": {
+      "CANNOT_GUARANTEE_OWN_LOAN": "You cannot guarantee your own loan.",
+      "GUARANTOR_NOT_IN_GOOD_STANDING": "The guarantor is not in good standing.",
+      "GUARANTOR_HAS_DEFAULTED_LOANS": "The guarantor has defaulted loans or overdue installments.",
+      "LOAN_NOT_APPROVED_FOR_DISBURSEMENT": "The loan is not approved for disbursement.",
+      "LOANS_RECEIVABLE_ACCOUNT_NOT_CONFIGURED": "Loans receivable account not configured. Please create an asset account for receivables.",
+      "LOAN_INTEREST_INCOME_ACCOUNT_NOT_CONFIGURED": "Loan interest income account not configured.",
+      "LOAN_NOT_IN_REPAYMENT": "This loan is not in repayment phase.",
+      "REPAYMENT_EXCEEDS_OUTSTANDING_BALANCE": "Repayment exceeds the outstanding balance.",
+      "CURRENCY_MISMATCH": "The selected asset does not match the loan currency.",
+      "staleTenantAborted": "Stale organization context. Please refresh the page."
+    }
   },
   "projects": {
     "title": "Project Fund Tracker",

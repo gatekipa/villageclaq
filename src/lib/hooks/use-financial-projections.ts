@@ -321,27 +321,30 @@ export type DatePeriodPreset =
 
 export function getDateRangeForPreset(preset: DatePeriodPreset): { from: string; to: string } {
   const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
 
   switch (preset) {
     case "this_month": {
-      const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
-      const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0));
+      // Local calendar month boundary converted to exact UTC ISO timestamp
+      const from = new Date(year, month, 1, 0, 0, 0, 0);
+      const to = new Date(year, month + 1, 1, 0, 0, 0, 0);
       return { from: from.toISOString(), to: to.toISOString() };
     }
     case "last_month": {
-      const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1, 0, 0, 0, 0));
-      const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
+      const from = new Date(year, month - 1, 1, 0, 0, 0, 0);
+      const to = new Date(year, month, 1, 0, 0, 0, 0);
       return { from: from.toISOString(), to: to.toISOString() };
     }
     case "this_year": {
-      const from = new Date(Date.UTC(now.getUTCFullYear(), 0, 1, 0, 0, 0, 0));
-      const to = new Date(Date.UTC(now.getUTCFullYear() + 1, 0, 1, 0, 0, 0, 0));
+      const from = new Date(year, 0, 1, 0, 0, 0, 0);
+      const to = new Date(year + 1, 0, 1, 0, 0, 0, 0);
       return { from: from.toISOString(), to: to.toISOString() };
     }
     case "all_time":
     default: {
-      const from = new Date(Date.UTC(2020, 0, 1, 0, 0, 0, 0));
-      const to = new Date(Date.UTC(now.getUTCFullYear() + 2, 0, 1, 0, 0, 0, 0));
+      const from = new Date(2020, 0, 1, 0, 0, 0, 0);
+      const to = new Date(year + 2, 0, 1, 0, 0, 0, 0);
       return { from: from.toISOString(), to: to.toISOString() };
     }
   }

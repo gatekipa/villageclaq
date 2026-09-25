@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { exportCashbookToCsv, formatExactAmount } from "@/lib/export-financial-ledger";
 import {
@@ -68,6 +68,14 @@ export function GeneralLedgerCashbook({ groupId, initialRows }: GeneralLedgerCas
   const [searchQuery, setSearchQuery] = useState("");
   const [auditRow, setAuditRow] = useState<CashbookRow | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Prevent cross-tenant state leak: reset local filters and audit sheet on tenant switch
+  useEffect(() => {
+    setSelectedAccountId("all");
+    setSelectedCurrency("all");
+    setSearchQuery("");
+    setAuditRow(null);
+  }, [groupId]);
 
   // Compute date range based on preset
   const dateRange = useMemo(() => getDateRangeForPreset(preset), [preset]);

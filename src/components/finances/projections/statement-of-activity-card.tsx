@@ -86,7 +86,8 @@ export function StatementOfActivityCard({
                         <TrendingDown className="h-3.5 w-3.5 text-rose-500" />
                       </div>
                       <p className="text-lg font-bold font-mono text-rose-600 dark:text-rose-400 mt-2">
-                        -{formatExactAmount(soa.expense, soa.currency)}
+                        {soa.expense && !soa.expense.startsWith("0") && soa.expense !== "" ? "-" : ""}
+                        {formatExactAmount(soa.expense, soa.currency)}
                       </p>
                     </div>
 

@@ -9,14 +9,22 @@ export function formatExactAmount(
   amount: string | null | undefined,
   currencyCode: string
 ): string {
-  if (!amount) return `0 ${getCurrencySymbol(currencyCode)}`;
+  const symbol = getCurrencySymbol(currencyCode);
+  if (amount === null || amount === undefined || amount === "") {
+    return currencyCode === "XAF" || currencyCode === "XOF" ? `0 ${symbol}` : `${symbol}0`;
+  }
+
   const str = String(amount).trim();
-  const isNegative = str.startsWith("-");
-  const clean = isNegative ? str.slice(1) : str;
+  const rawIsNegative = str.startsWith("-");
+  const clean = rawIsNegative ? str.slice(1) : str;
   const [intPart, fracPart] = clean.split(".");
+
+  // Avoid negative zero ("-0" or "-0.00")
+  const isAllZeros = (intPart || "0").replace(/0/g, "") === "" && (!fracPart || fracPart.replace(/0/g, "") === "");
+  const isNegative = rawIsNegative && !isAllZeros;
+
   const formattedInt = (intPart || "0").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   const formattedNumber = fracPart !== undefined ? `${formattedInt}.${fracPart}` : formattedInt;
-  const symbol = getCurrencySymbol(currencyCode);
 
   if (currencyCode === "XAF" || currencyCode === "XOF") {
     return isNegative ? `-${formattedNumber} ${symbol}` : `${formattedNumber} ${symbol}`;

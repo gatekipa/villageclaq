@@ -559,17 +559,20 @@ export default function FinancesPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <AccountBalancesCard
+            key={`balances-${groupId || "none"}`}
             accountBalances={projectionBundle?.account_balances}
             fundCash={projectionBundle?.fund_cash}
             isLoading={bundleLoading}
           />
           <StatementOfActivityCard
+            key={`soa-${groupId || "none"}`}
             soaLite={projectionBundle?.soa_lite}
             isLoading={bundleLoading}
           />
         </div>
 
         <GeneralLedgerCashbook
+          key={`cashbook-${groupId || "none"}`}
           groupId={groupId}
           initialRows={projectionBundle?.cashbook}
         />

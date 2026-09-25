@@ -4580,7 +4580,8 @@ export async function runQualifyDisposablePath({
           postContinuationFingerprintEval: null,
         };
         const isLastFile = file === F3_FORWARD_FILES[F3_FORWARD_FILES.length - 1];
-        const orchestrated = await runHostedF10RepairRetryContinuation({
+        let orchestrated = null;
+        orchestrated = await runHostedF10RepairRetryContinuation({
           file,
           version,
           destA,
@@ -4719,8 +4720,8 @@ export async function runQualifyDisposablePath({
                 pending: retryPending,
               };
             },
-            buildPreContinuationRecord: ({ runnerCounters: snapCounters, eventStream }) => {
-              const retry = hostedStep.retry || {};
+            buildPreContinuationRecord: ({ runnerCounters: snapCounters, eventStream, repairOp, retryOp }) => {
+              const retry = hostedStep.retry || retryOp?.processResult || {};
               authRecord.retry = {
                 status: retry.status,
                 staged: hostedStep.retryStaged,
@@ -4748,11 +4749,11 @@ export async function runQualifyDisposablePath({
                 migrationSourceLabel: "F3_FORWARD",
                 repairProcessResult: {
                   commandIdentity: "supabase migration repair --status applied --db-url [REDACTED] --workdir [ISOLATED] --yes",
-                  ...(orchestrated?.repairOp?.processResult || decided?.repair || {}),
+                  ...(repairOp?.processResult || orchestrated?.repairOp?.processResult || decided?.repair || {}),
                 },
                 retryProcessResult: {
                   commandIdentity: "supabase db push --db-url [REDACTED] --workdir [ISOLATED] --yes --skip-vault",
-                  ...retry,
+                  ...(retryOp?.processResult || retry),
                 },
                 runnerCounters: snapCounters,
                 eventStream,

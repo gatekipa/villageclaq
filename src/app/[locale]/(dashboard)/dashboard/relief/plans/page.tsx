@@ -193,17 +193,25 @@ function CreatePlanDialog({ open, onOpenChange }: { open: boolean, onOpenChange:
         currency,
         waitingPeriodDays: parseInt(waitingPeriod, 10),
       });
-      onOpenChange(false);
-      setName("");
-      setDescription("");
-      setCoverageAmount("");
+      handleOpenChange(false);
     } catch (err: any) {
       setError(parseReliefRpcError(err));
     }
   };
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      setName("");
+      setDescription("");
+      setCoverageAmount("");
+      setWaitingPeriod("90");
+      setError(null);
+    }
+    onOpenChange(isOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("actions.createPlan")}</DialogTitle>
@@ -222,7 +230,7 @@ function CreatePlanDialog({ open, onOpenChange }: { open: boolean, onOpenChange:
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t("fields.coverageAmount")}</Label>
-              <Input type="number" step="0.01" required value={coverageAmount} onChange={e => setCoverageAmount(e.target.value)} />
+              <Input type="number" step="0.01" min="0.01" required value={coverageAmount} onChange={e => setCoverageAmount(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Currency</Label>
@@ -240,11 +248,11 @@ function CreatePlanDialog({ open, onOpenChange }: { open: boolean, onOpenChange:
           </div>
           <div className="space-y-2">
             <Label>{t("fields.waitingPeriod")}</Label>
-            <Input type="number" required value={waitingPeriod} onChange={e => setWaitingPeriod(e.target.value)} />
+            <Input type="number" min="0" required value={waitingPeriod} onChange={e => setWaitingPeriod(e.target.value)} />
           </div>
           
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
             <Button type="submit" disabled={createPlan.isPending}>
               {createPlan.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               {t("actions.createPlan")}

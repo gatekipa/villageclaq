@@ -117,6 +117,36 @@ CREATE TRIGGER trg_prevent_paid_claim_delete
   BEFORE DELETE ON public.relief_claims
   FOR EACH ROW EXECUTE FUNCTION public.prevent_paid_claim_delete();
 
+CREATE OR REPLACE FUNCTION public.verify_claim_maturity()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_enrollment public.relief_enrollments%ROWTYPE;
+BEGIN
+  SELECT * INTO v_enrollment
+  FROM public.relief_enrollments
+  WHERE plan_id = NEW.plan_id AND membership_id = NEW.claimant_membership_id AND status = 'active';
+
+  IF v_enrollment.id IS NULL THEN
+    RAISE EXCEPTION 'MEMBER_NOT_ENROLLED_IN_PLAN' USING ERRCODE = '23514';
+  END IF;
+
+  IF NEW.incident_date < v_enrollment.matures_at::date THEN
+    RAISE EXCEPTION 'WAITING_PERIOD_NOT_MET' USING ERRCODE = '23514';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_verify_claim_maturity ON public.relief_claims;
+CREATE TRIGGER trg_verify_claim_maturity
+  BEFORE INSERT ON public.relief_claims
+  FOR EACH ROW EXECUTE FUNCTION public.verify_claim_maturity();
+
 -- 4. Canonical Atomic Disbursement RPC
 CREATE OR REPLACE FUNCTION public.post_relief_claim_payout(p_command jsonb)
 RETURNS jsonb
@@ -140,8 +170,9 @@ BEGIN
   END IF;
 
   -- 1. Advisory Lock
-  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
-    pg_catalog.jsonb_build_array('relief-payout', v_claim_id)::text, 0));
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    hashtext('relief-payout'), hashtext(v_claim_id::text)
+  );
 
   -- 2. Lookup Claim
   SELECT * INTO v_claim FROM public.relief_claims WHERE id = v_claim_id FOR UPDATE;

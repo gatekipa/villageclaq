@@ -56,19 +56,30 @@ export interface DisburseReliefClaimInput {
 
 export function parseReliefRpcError(error: unknown): string {
   if (!error) return "Unknown Error";
-  const str = typeof error === "string" ? error : JSON.stringify(error);
+  let str = typeof error === "string" ? error : "";
+  if (error instanceof Error) str += error.message;
+  if (typeof error === "object" && error !== null) {
+    const errObj = error as Record<string, unknown>;
+    if ("message" in errObj && typeof errObj.message === "string") str += errObj.message;
+    if ("code" in errObj && typeof errObj.code === "string") str += errObj.code;
+    try { str += JSON.stringify(error); } catch {}
+  }
+  
   if (str.includes("staleTenantAborted") || str.includes("STALE_TENANT_ABORT")) return "staleTenantAborted";
   if (str.includes("CLAIM_NOT_APPROVED_FOR_PAYOUT")) return "CLAIM_NOT_APPROVED_FOR_PAYOUT";
   if (str.includes("CURRENCY_MISMATCH")) return "CURRENCY_MISMATCH";
   if (str.includes("NO_ACTIVE_EPOCH")) return "NO_ACTIVE_EPOCH";
   if (str.includes("ACCOUNT_NOT_FOUND_OR_INACTIVE") || str.includes("ACCOUNT_NOT_FOUND_OR_INVALID")) return "ACCOUNT_NOT_FOUND_OR_INACTIVE";
   if (str.includes("WAITING_PERIOD_NOT_MET")) return "WAITING_PERIOD_NOT_MET";
+  if (str.includes("MEMBER_NOT_ENROLLED_IN_PLAN")) return "MEMBER_NOT_ENROLLED_IN_PLAN";
   if (str.includes("MEMBER_NOT_GOOD_STANDING")) return "MEMBER_NOT_GOOD_STANDING";
   if (str.includes("PAID_CLAIM_IMMUTABLE")) return "Paid claim is immutable.";
   if (str.includes("CLAIM_NOT_FOUND")) return "Claim not found.";
   if (str.includes("UNAUTHORIZED")) return "Unauthorized.";
+  if (str.includes("23505") || str.includes("unique_violation")) return "MEMBER_ALREADY_ENROLLED";
   
   if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null && "message" in error) return String((error as Record<string, unknown>).message);
   return "An unexpected error occurred.";
 }
 

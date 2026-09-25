@@ -230,18 +230,25 @@ function SubmitClaimDialog({ open, onOpenChange, plans, members }: { open: boole
         amountRequested: parseFloat(amountRequested),
         currency: selectedPlan.currency,
       });
-      onOpenChange(false);
-      setPlanId("");
-      setClaimantId("");
-      setIncidentDate("");
-      setAmountRequested("");
+      handleOpenChange(false);
     } catch (err: any) {
       setError(parseReliefRpcError(err));
     }
   };
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      setPlanId("");
+      setClaimantId("");
+      setIncidentDate("");
+      setAmountRequested("");
+      setError(null);
+    }
+    onOpenChange(isOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader><DialogTitle>{t("actions.submitClaim")}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -276,13 +283,13 @@ function SubmitClaimDialog({ open, onOpenChange, plans, members }: { open: boole
               <Label>{t("fields.amountRequested")}</Label>
               <div className="flex gap-2 items-center">
                 <span className="text-muted-foreground text-sm">{selectedPlan?.currency || '---'}</span>
-                <Input type="number" step="0.01" required value={amountRequested} onChange={e => setAmountRequested(e.target.value)} />
+                <Input type="number" step="0.01" min="0.01" required value={amountRequested} onChange={e => setAmountRequested(e.target.value)} />
               </div>
             </div>
           </div>
           
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
             <Button type="submit" disabled={submitClaim.isPending}>
               {submitClaim.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               {t("actions.submitClaim")}
@@ -316,14 +323,24 @@ function ReviewClaimDialog({ open, onOpenChange, claim }: { open: boolean, onOpe
         amountApproved: status === 'approved' ? parseFloat(amountApproved) : undefined,
         reviewNotes
       });
-      onOpenChange(false);
+      handleOpenChange(false);
     } catch (err: any) {
       setError(parseReliefRpcError(err));
     }
   };
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      setStatus("approved");
+      setAmountApproved("");
+      setReviewNotes("");
+      setError(null);
+    }
+    onOpenChange(isOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader><DialogTitle>{t("actions.reviewClaim")}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -343,7 +360,7 @@ function ReviewClaimDialog({ open, onOpenChange, claim }: { open: boolean, onOpe
           {status === "approved" && (
             <div className="space-y-2">
               <Label>{t("fields.amountApproved")}</Label>
-              <Input type="number" step="0.01" required value={amountApproved} onChange={e => setAmountApproved(e.target.value)} />
+              <Input type="number" step="0.01" min="0.01" required value={amountApproved} onChange={e => setAmountApproved(e.target.value)} />
             </div>
           )}
 
@@ -353,7 +370,7 @@ function ReviewClaimDialog({ open, onOpenChange, claim }: { open: boolean, onOpe
           </div>
           
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
             <Button type="submit" disabled={reviewClaim.isPending}>
               {reviewClaim.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Confirm Decision
@@ -386,14 +403,22 @@ function DisburseClaimDialog({ open, onOpenChange, claim, plan, claimant }: { op
         claimId: claim.id,
         accountId
       });
-      onOpenChange(false);
+      handleOpenChange(false);
     } catch (err: any) {
       setError(parseReliefRpcError(err));
     }
   };
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      setAccountId("");
+      setError(null);
+    }
+    onOpenChange(isOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader><DialogTitle>{t("actions.disbursePayout")}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -423,7 +448,7 @@ function DisburseClaimDialog({ open, onOpenChange, claim, plan, claimant }: { op
           </div>
           
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
             <Button type="submit" disabled={disburseClaim.isPending || !accountId || accountId === 'none'}>
               {disburseClaim.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Disburse Now

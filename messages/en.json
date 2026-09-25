@@ -2177,6 +2177,18 @@
     "noJoinCodeDesc": "Generate a join code so people can join this group with a code, link, or QR code."
   },
   "events": {
+    "errors": {
+      "EVENT_NOT_FOUND": "Event not found.",
+      "TIER_NOT_FOUND": "Ticket tier not found.",
+      "MEMBER_NOT_FOUND": "Membership record not found.",
+      "TIER_SALES_CLOSED": "Ticket sales for this tier are closed.",
+      "TIER_SOLD_OUT": "This ticket tier is sold out.",
+      "EVENT_AT_CAPACITY": "This event has reached maximum capacity.",
+      "EVENT_TICKET_INCOME_ACCOUNT_NOT_CONFIGURED": "Ticket sales require an active Event Income account. Please configure one in Settings.",
+      "ACCOUNT_NOT_FOUND_OR_INACTIVE": "Selected payment account is invalid or inactive.",
+      "UNAUTHORIZED": "You are not authorized to perform this action.",
+      "staleTenantAborted": "Context changed. Please try again."
+    },
     "title": "Events",
     "subtitle": "Schedule and manage group events, meetings, and gatherings",
     "createEvent": "Create Event",

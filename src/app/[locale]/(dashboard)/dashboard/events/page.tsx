@@ -55,7 +55,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEvents, useCreateEvent } from "@/lib/hooks/use-supabase-query";
+import { useEvents } from "@/lib/hooks/use-supabase-query";
+import { useManageEvent, useDeleteEvent, useRecordRsvp, usePostTicketPurchase, parseEventRpcError } from "@/lib/hooks/use-events-mutations";
+import { useFinancialAccounts } from "@/lib/hooks/use-financial-config";
+import { useRef, useEffect } from "react";
 import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { PermissionGate } from "@/components/ui/permission-gate";
@@ -100,7 +103,11 @@ export default function EventsPage() {
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission } = usePermissions();
   const { data: events, isLoading, isError, error, refetch } = useEvents();
-  const createEvent = useCreateEvent();
+  const manageEvent = useManageEvent(groupId || "");
+  const deleteEvent = useDeleteEvent(groupId || "");
+  const recordRsvp = useRecordRsvp(groupId || "");
+  const postTicket = usePostTicketPurchase(groupId || "");
+  const { data: accounts } = useFinancialAccounts(groupId || "");
   const queryClient = useQueryClient();
 
   // RSVP: query current user's RSVPs for all events
@@ -148,27 +155,40 @@ export default function EventsPage() {
     if (!currentMembership?.id) return;
     setRsvpLoading(eventId);
     try {
-      const supabase = createClient();
-      const { error: err } = await supabase.from("event_rsvps").upsert(
-        { event_id: eventId, membership_id: currentMembership.id, response, responded_at: new Date().toISOString() },
-        { onConflict: "event_id,membership_id" }
-      );
-      if (err) throw err;
-      queryClient.invalidateQueries({ queryKey: ["my-rsvps"] });
-      queryClient.invalidateQueries({ queryKey: ["rsvp-counts"] });
+      await recordRsvp.mutateAsync({
+        groupId: groupId || "",
+        eventId,
+        membershipId: currentMembership.id,
+        response,
+      });
     } catch (err) {
       console.warn("[Events] RSVP update failed:", err);
-      showError(t("rsvpFailed"));
+      showError(t("rsvpFailed") || parseEventRpcError(err));
     } finally {
       setRsvpLoading(null);
     }
   }
 
+  const handlePurchaseTicket = async () => {
+    if (!purchaseEventId || !purchaseTierId || !purchaseAccountId || !currentMembership?.id) return;
+    try {
+      await postTicket.mutateAsync({
+        groupId: groupId || "",
+        eventId: purchaseEventId,
+        tierId: purchaseTierId,
+        membershipId: currentMembership.id,
+        accountId: purchaseAccountId,
+      });
+      setShowPurchaseDialog(false);
+      setPurchaseEventId(null);
+    } catch (err) {
+      console.warn("[Events] Ticket purchase failed:", err);
+      showError(parseEventRpcError(err));
+    }
+  };
+
   const [view, setView] = useState<"calendar" | "list">("list");
   const [editEventId, setEditEventId] = useState<string | null>(null);
-  // Original starts_at (datetime-local string) of the event being edited, so
-  // the no-past-date rule only fires when the start time actually CHANGED —
-  // admins can still fix typos on past events without touching the date.
   const [editOriginalStartsAt, setEditOriginalStartsAt] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
@@ -180,6 +200,7 @@ export default function EventsPage() {
 
   // Action error notification
   const [actionError, setActionError] = useState<string | null>(null);
+
   function showError(msg: string) {
     setActionError(msg);
     setTimeout(() => setActionError(null), 5000);
@@ -202,9 +223,28 @@ export default function EventsPage() {
   const [formMeetingLink, setFormMeetingLink] = useState("");
   const [formIsRecurring, setFormIsRecurring] = useState(false);
   const [formRecurrenceRule, setFormRecurrenceRule] = useState<string>("monthly");
+  const [formCapacity, setFormCapacity] = useState<string>("");
+  const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
+  const [purchaseEventId, setPurchaseEventId] = useState<string | null>(null);
+  const [purchaseTierId, setPurchaseTierId] = useState<string>("");
+  const [purchaseAccountId, setPurchaseAccountId] = useState<string>("");
   // Attendance is tracked for all events by default (no per-event toggle — no DB column exists)
   // RSVP is enabled by default for all upcoming events (no per-event toggle — no DB column exists)
   const [preFilledBanner, setPreFilledBanner] = useState<string | null>(null);
+
+  // Tenant Reset
+  const prevGroupId = useRef(groupId);
+  useEffect(() => {
+    if (groupId !== prevGroupId.current) {
+      prevGroupId.current = groupId;
+      setShowCreateDialog(false);
+      setEditEventId(null);
+      setShowPurchaseDialog(false);
+      setPurchaseEventId(null);
+      setFormCapacity("");
+      resetForm();
+    }
+  }, [groupId]);
 
   const year = calendarDate.getFullYear();
   const month = calendarDate.getMonth();
@@ -338,30 +378,29 @@ export default function EventsPage() {
 
   const handleCreateEvent = async () => {
     if (!formTitle || !formStartsAt || creating) return;
-    // Block past dates
     if (new Date(formStartsAt) < new Date()) {
       showError(t("pastDateError"));
       return;
     }
     setCreating(true);
     try {
-      await createEvent.mutateAsync({
-        title: formTitle,
-        title_fr: formTitleFr || null,
-        description: formDescription || null,
-        event_type: formEventType,
-        starts_at: new Date(formStartsAt).toISOString(),
-        ends_at: formEndsAt ? new Date(formEndsAt).toISOString() : null,
-        location: formLocation || null,
-        meeting_link: formMeetingLink || null,
-        is_recurring: formIsRecurring,
-        recurrence_rule: formIsRecurring ? formRecurrenceRule : null,
+      await manageEvent.mutateAsync({
+        groupId: groupId || "",
+        payload: {
+          title: formTitle,
+          description: formDescription || undefined,
+          event_type: formEventType,
+          starts_at: new Date(formStartsAt).toISOString(),
+          ends_at: formEndsAt ? new Date(formEndsAt).toISOString() : undefined,
+          location: formLocation || undefined,
+          capacity: formCapacity ? parseInt(formCapacity, 10) : undefined,
+        }
       });
       setShowCreateDialog(false);
       resetForm();
     } catch (err) {
       console.warn("[Events] create failed:", err);
-      showError(t("actionFailed"));
+      showError(parseEventRpcError(err));
     } finally {
       setCreating(false);
     }
@@ -393,8 +432,6 @@ export default function EventsPage() {
 
   async function handleEditEvent() {
     if (!editEventId || !formTitle || !formStartsAt) return;
-    // Only enforce the no-past-date rule when the start time actually CHANGED
-    // — editing other fields (typo fixes) on a past event must stay possible.
     const startsAtChanged = formStartsAt !== editOriginalStartsAt;
     if (startsAtChanged && new Date(formStartsAt) < new Date()) {
       showError(t("pastDateError"));
@@ -402,30 +439,25 @@ export default function EventsPage() {
     }
     setEditSaving(true);
     try {
-      const supabase = createClient();
-      const { error: updateError } = await supabase
-        .from("events")
-        .update({
+      await manageEvent.mutateAsync({
+        groupId: groupId || "",
+        eventId: editEventId,
+        payload: {
           title: formTitle,
-          title_fr: formTitleFr || null,
-          description: formDescription || null,
+          description: formDescription || undefined,
           event_type: formEventType,
           starts_at: new Date(formStartsAt).toISOString(),
-          ends_at: formEndsAt ? new Date(formEndsAt).toISOString() : null,
-          location: formLocation || null,
-          meeting_link: formMeetingLink || null,
-          is_recurring: formIsRecurring,
-          recurrence_rule: formIsRecurring ? formRecurrenceRule : null,
-        })
-        .eq("id", editEventId);
-      if (updateError) throw updateError;
-      await queryClient.invalidateQueries({ queryKey: ["events", groupId] });
+          ends_at: formEndsAt ? new Date(formEndsAt).toISOString() : undefined,
+          location: formLocation || undefined,
+          capacity: formCapacity ? parseInt(formCapacity, 10) : undefined,
+        }
+      });
       setShowCreateDialog(false);
       resetForm();
       setEditEventId(null);
     } catch (err) {
       console.warn("[Events] update failed:", err);
-      showError(t("actionFailed"));
+      showError(parseEventRpcError(err));
     } finally {
       setEditSaving(false);
     }
@@ -443,20 +475,22 @@ export default function EventsPage() {
     if (!ok) return;
     setCancellingId(eventId);
     try {
+      await manageEvent.mutateAsync({
+        groupId: groupId || "",
+        eventId,
+        payload: {
+          title: "",
+          event_type: "meeting",
+          starts_at: new Date().toISOString(),
+          status: "cancelled" as const
+        }
+      });
+      
+      // Best-effort notification logic remains here...
       const supabase = createClient();
-      const { error: err } = await supabase.from("events").update({ status: "cancelled" }).eq("id", eventId);
-      if (err) throw err;
-      await queryClient.invalidateQueries({ queryKey: ["events", groupId] });
-
-      // Bug #231: Send cancellation notification to ALL group members (not just RSVPd)
       try {
         const cancelledEvent = (events || []).find((e: Record<string, unknown>) => e.id === eventId);
         const eventTitle = (cancelledEvent?.title as string) || "";
-
-        // Notify all group members — most members never RSVP, so querying only
-        // event_rsvps would miss the majority of the group.
-        // notifications table requires: user_id (not membership_id), body (not message),
-        // and a valid notification_type enum value (use "system" for event cancellations).
         const { data: allMembers } = await supabase
           .from("memberships")
           .select("id, user_id")
@@ -477,13 +511,12 @@ export default function EventsPage() {
           );
         }
       } catch (notifErr) {
-        // Best-effort notification — never block the cancellation itself,
-        // but always log the failure (rule 11: no silent notification drops).
         console.warn("[Events] cancellation notification insert failed:", notifErr);
       }
+
     } catch (err) {
       console.warn("[Events] cancel failed:", err);
-      showError(t("actionFailed"));
+      showError(parseEventRpcError(err));
     } finally {
       setCancellingId(null);
     }
@@ -492,17 +525,13 @@ export default function EventsPage() {
   async function handleDeleteEvent(eventId: string) {
     setDeletingId(eventId);
     try {
-      const supabase = createClient();
-      const { error: err } = await supabase.from("events").delete().eq("id", eventId);
-      if (err) throw err;
-      await queryClient.invalidateQueries({ queryKey: ["events", groupId] });
-      await queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
+      await deleteEvent.mutateAsync({ groupId: groupId || "", eventId });
+      setShowDeleteConfirm(null);
     } catch (err) {
       console.warn("[Events] delete failed:", err);
-      showError(t("actionFailed"));
+      showError(parseEventRpcError(err));
     } finally {
       setDeletingId(null);
-      setShowDeleteConfirm(null);
     }
   }
 
@@ -524,7 +553,50 @@ export default function EventsPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
           <p className="text-muted-foreground">{t("subtitle")}</p>
-        </div>
+        
+      {/* Ticket Purchase Modal */}
+      <Dialog open={showPurchaseDialog} onOpenChange={setShowPurchaseDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{t("purchaseTicket") || "Purchase Ticket"}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Custody Account</Label>
+              <Select value={purchaseAccountId} onValueChange={(val) => setPurchaseAccountId(val || "")}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select account..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts?.filter(a => a.status === 'active' && a.currency === (currentGroup?.currency || 'USD')).map(a => (
+                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {accounts && accounts.filter(a => a.status === 'active' && a.currency === (currentGroup?.currency || 'USD')).length === 0 && (
+                <div className="flex items-center gap-2 mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-200 rounded-md text-sm border border-amber-200 dark:border-amber-800">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <p>No active custody accounts found in this currency. Please configure a matching bank or cash account in Settings.</p>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPurchaseDialog(false)} disabled={postTicket.isPending}>
+              {tc("cancel")}
+            </Button>
+            <Button 
+              onClick={handlePurchaseTicket} 
+              disabled={postTicket.isPending || !purchaseAccountId}
+            >
+              {postTicket.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("confirmPurchase") || "Confirm Purchase"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+</div>
         {hasPermission("events.manage") && (
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={handleRepeatLastMeeting} disabled={!events || events.length === 0}>
@@ -1076,9 +1148,9 @@ export default function EventsPage() {
             ) : (
               <Button
                 onClick={handleCreateEvent}
-                disabled={!formTitle || !formStartsAt || createEvent.isPending || creating}
+                disabled={!formTitle || !formStartsAt || manageEvent.isPending || creating}
               >
-                {(createEvent.isPending || creating) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {(manageEvent.isPending || creating) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {t("saveEvent")}
               </Button>
             )}

@@ -42,6 +42,7 @@ import {
   Search,
 } from "lucide-react";
 import { useEvents, useMembers } from "@/lib/hooks/use-supabase-query";
+import { useRecordAttendance, parseEventRpcError } from "@/lib/hooks/use-events-mutations";
 import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
@@ -119,6 +120,19 @@ export default function AttendancePage() {
     refetch: refetchEvents,
   } = useEvents();
   const { data: members, isLoading: membersLoading } = useMembers();
+  const recordAttendance = useRecordAttendance(groupId || "");
+  
+  // Tenant Reset
+  const prevGroupId = useRef(groupId);
+  useEffect(() => {
+    if (groupId !== prevGroupId.current) {
+      prevGroupId.current = groupId;
+      setShowDialog(false);
+      setDialogEventId("");
+      setMemberStatuses({});
+      setRollCallSearch("");
+    }
+  }, [groupId]);
 
   // Stats & past records
   const [allAttendance, setAllAttendance] = useState<AttendanceRecord[]>([]);

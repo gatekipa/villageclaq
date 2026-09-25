@@ -2177,6 +2177,18 @@
     "noJoinCodeDesc": "Générez un code d'adhésion pour que les gens puissent rejoindre ce groupe avec un code, un lien ou un code QR."
   },
   "events": {
+    "errors": {
+      "EVENT_NOT_FOUND": "Événement introuvable.",
+      "TIER_NOT_FOUND": "Niveau de billet introuvable.",
+      "MEMBER_NOT_FOUND": "Enregistrement de membre introuvable.",
+      "TIER_SALES_CLOSED": "Les ventes de billets pour ce niveau sont terminées.",
+      "TIER_SOLD_OUT": "Ce niveau de billet est épuisé.",
+      "EVENT_AT_CAPACITY": "Cet événement a atteint sa capacité maximale.",
+      "EVENT_TICKET_INCOME_ACCOUNT_NOT_CONFIGURED": "Les ventes de billets nécessitent un compte de revenus d'événements actif. Veuillez en configurer un dans les paramètres.",
+      "ACCOUNT_NOT_FOUND_OR_INACTIVE": "Le compte de paiement sélectionné est invalide ou inactif.",
+      "UNAUTHORIZED": "Vous n'êtes pas autorisé à effectuer cette action.",
+      "staleTenantAborted": "Le contexte a changé. Veuillez réessayer."
+    },
     "title": "Événements",
     "subtitle": "Planifiez et gérez les événements, réunions et rassemblements du groupe",
     "createEvent": "Créer un événement",

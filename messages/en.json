@@ -1846,6 +1846,90 @@
       "idempotentSuccess": "Transaction was already recorded (idempotent duplicate detected; no duplicate postings created)."
     }
   },
+  "financialProjections": {
+    "title": "General Ledger & Financial Projections",
+    "subtitle": "Authoritative read models, account registers, running balances, and fund allocation proofs",
+    "sections": {
+      "accountBalances": "Account Balances",
+      "accountBalancesDesc": "Real-time custody holdings verified against canonical postings",
+      "cashbook": "Cashbook Register",
+      "cashbookDesc": "Sequential register of custody movements with cumulative running balances",
+      "statementOfActivity": "Statement of Activity",
+      "statementOfActivityDesc": "Summary of operating revenues, expenditures, and net result",
+      "fundAllocation": "Fund Allocation",
+      "fundAllocationDesc": "Custody cash and net asset positions tracked by fund",
+      "auditTrail": "Audit Trace",
+      "auditTrailDesc": "Cryptographic request tokens, reversals, and provenance"
+    },
+    "periods": {
+      "presetLabel": "Period",
+      "thisMonth": "This Month",
+      "lastMonth": "Last Month",
+      "thisYear": "This Year",
+      "allTime": "All Time",
+      "custom": "Custom Range",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply"
+    },
+    "columns": {
+      "date": "Date & Time",
+      "account": "Account",
+      "movement": "Movement",
+      "description": "Description",
+      "attribution": "Attribution",
+      "inflow": "Inflow",
+      "outflow": "Outflow",
+      "balance": "Running Balance",
+      "actions": "Actions",
+      "fund": "Fund",
+      "category": "Category",
+      "currency": "Currency"
+    },
+    "movements": {
+      "operating_income": "Operating Income",
+      "operating_expense": "Operating Expense",
+      "internal_account_transfer": "Account Transfer",
+      "opening_position": "Opening Balance",
+      "receivable_movement": "Receivable",
+      "liability_movement": "Liability",
+      "unclassified_custody": "Custody Movement",
+      "mixed_non_custody": "Mixed Activity"
+    },
+    "audit": {
+      "title": "Posting Audit Detail",
+      "eventId": "Event ID",
+      "postingId": "Posting ID",
+      "requestId": "Request ID (Idempotency)",
+      "createdBy": "Posted By",
+      "reference": "Reference / Receipt",
+      "reversalOf": "Reversal of Event",
+      "replacementEvent": "Replaced by Event",
+      "correctedAt": "Corrected At",
+      "correctionReason": "Correction Reason",
+      "redactedNotice": "Detailed audit provenance is redacted for viewer permissions.",
+      "redactedBadge": "Redacted"
+    },
+    "actions": {
+      "exportCsv": "Export CSV",
+      "exporting": "Exporting...",
+      "noTransactions": "No transactions found in this period",
+      "noTransactionsDesc": "Try selecting a broader date range or recording a new transaction.",
+      "refresh": "Refresh Projections",
+      "viewAudit": "View Audit",
+      "filterAccount": "All Accounts",
+      "filterCurrency": "All Currencies"
+    },
+    "summary": {
+      "totalInflow": "Total Inflow",
+      "totalOutflow": "Total Outflow",
+      "netCashChange": "Net Cash Change",
+      "operatingResult": "Operating Result",
+      "totalCustody": "Total Custody",
+      "openingBalance": "Opening Balance",
+      "closingBalance": "Closing Balance"
+    }
+  },
   "invitations": {
     "title": "Invitations",
     "subtitle": "Invite new members to your group",

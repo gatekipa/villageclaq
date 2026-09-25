@@ -1846,6 +1846,90 @@
       "idempotentSuccess": "La transaction avait déjà été enregistrée (doublon idempotent détecté ; aucune écriture dupliquée créée)."
     }
   },
+  "financialProjections": {
+    "title": "Grand livre et projections financières",
+    "subtitle": "Modèles de lecture autorisés, registres de comptes, soldes progressifs et preuves de répartition des fonds",
+    "sections": {
+      "accountBalances": "Soldes des comptes",
+      "accountBalancesDesc": "Avoirs réels en garde vérifiés par rapport aux écritures canoniques",
+      "cashbook": "Livre de caisse (Journal)",
+      "cashbookDesc": "Registre séquentiel des mouvements de trésorerie avec soldes progressifs cumulés",
+      "statementOfActivity": "État de l'activité",
+      "statementOfActivityDesc": "Synthèse des recettes d'exploitation, des dépenses et du résultat net",
+      "fundAllocation": "Affectation des fonds",
+      "fundAllocationDesc": "Trésorerie et situation nette des actifs suivies par fonds",
+      "auditTrail": "Piste d'audit",
+      "auditTrailDesc": "Jetons cryptographiques de requête, contrepassations et provenance"
+    },
+    "periods": {
+      "presetLabel": "Période",
+      "thisMonth": "Ce mois-ci",
+      "lastMonth": "Le mois dernier",
+      "thisYear": "Cette année",
+      "allTime": "Tout l'historique",
+      "custom": "Période personnalisée",
+      "from": "Du",
+      "to": "Au",
+      "apply": "Appliquer"
+    },
+    "columns": {
+      "date": "Date et heure",
+      "account": "Compte",
+      "movement": "Mouvement",
+      "description": "Description",
+      "attribution": "Attribution",
+      "inflow": "Entrée",
+      "outflow": "Sortie",
+      "balance": "Solde progressif",
+      "actions": "Actions",
+      "fund": "Fonds",
+      "category": "Catégorie",
+      "currency": "Devise"
+    },
+    "movements": {
+      "operating_income": "Recette d'exploitation",
+      "operating_expense": "Dépense d'exploitation",
+      "internal_account_transfer": "Virement interne",
+      "opening_position": "Solde d'ouverture",
+      "receivable_movement": "Créance",
+      "liability_movement": "Dette",
+      "unclassified_custody": "Mouvement de garde",
+      "mixed_non_custody": "Activité mixte"
+    },
+    "audit": {
+      "title": "Détails d'audit de l'écriture",
+      "eventId": "ID d'événement",
+      "postingId": "ID d'écriture",
+      "requestId": "ID de requête (Idempotence)",
+      "createdBy": "Enregistré par",
+      "reference": "Référence / Reçu",
+      "reversalOf": "Contrepassation de l'événement",
+      "replacementEvent": "Remplacé par l'événement",
+      "correctedAt": "Corrigé le",
+      "correctionReason": "Motif de correction",
+      "redactedNotice": "La provenance détaillée d'audit est masquée pour les permissions de consultation.",
+      "redactedBadge": "Masqué"
+    },
+    "actions": {
+      "exportCsv": "Exporter CSV",
+      "exporting": "Exportation...",
+      "noTransactions": "Aucune transaction trouvée sur cette période",
+      "noTransactionsDesc": "Essayez d'élargir la plage de dates ou d'enregistrer une nouvelle transaction.",
+      "refresh": "Actualiser les projections",
+      "viewAudit": "Voir l'audit",
+      "filterAccount": "Tous les comptes",
+      "filterCurrency": "Toutes les devises"
+    },
+    "summary": {
+      "totalInflow": "Total des entrées",
+      "totalOutflow": "Total des sorties",
+      "netCashChange": "Variation nette de trésorerie",
+      "operatingResult": "Résultat d'exploitation",
+      "totalCustody": "Total en garde",
+      "openingBalance": "Solde d'ouverture",
+      "closingBalance": "Solde de clôture"
+    }
+  },
   "invitations": {
     "title": "Invitations",
     "subtitle": "Invitez de nouveaux membres dans votre groupe",

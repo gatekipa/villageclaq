@@ -40,11 +40,18 @@ const MonthlyTrendChart = dynamic(() => import("@/components/charts/monthly-tren
 import { useGroup } from "@/lib/group-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { DashboardSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission, PermissionGate } from "@/components/ui/permission-gate";
 import { getMemberName } from "@/lib/get-member-name";
 import { MoneyOverview } from "@/components/finances/money-overview";
 import { RecordTransactionDialog } from "@/components/finances/record-transaction-dialog";
+import { AccountBalancesCard } from "@/components/finances/projections/account-balances-card";
+import { StatementOfActivityCard } from "@/components/finances/projections/statement-of-activity-card";
+import { GeneralLedgerCashbook } from "@/components/finances/projections/general-ledger-cashbook";
+import {
+  useFinancialProjectionBundle,
+  getDateRangeForPreset,
+} from "@/lib/hooks/use-financial-projections";
 import {
   confirmedPaidByType,
   confirmedPaidByMember,
@@ -144,6 +151,12 @@ export default function FinancesPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
   const [recordTxOpen, setRecordTxOpen] = useState(false);
+
+  const currentMonthRange = useMemo(() => getDateRangeForPreset("this_month"), []);
+  const { data: projectionBundle, isLoading: bundleLoading } = useFinancialProjectionBundle(
+    groupId,
+    { from: currentMonthRange.from, to: currentMonthRange.to }
+  );
 
   const { data: allObligations, isLoading: oblLoading, isError: oblError, refetch: oblRefetch } = useObligations();
   const { data: allPayments, isLoading: payLoading, isError: payError } = usePayments(5000);
@@ -535,6 +548,31 @@ export default function FinancesPage() {
             <p className="mt-1 text-xs text-muted-foreground">{t("finances.transactions")}</p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Canonical Double-Entry Projections & General Ledger */}
+      <div className="space-y-6 pt-6 border-t">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight">{t("financialProjections.title")}</h2>
+          <p className="text-sm text-muted-foreground">{t("financialProjections.subtitle")}</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <AccountBalancesCard
+            accountBalances={projectionBundle?.account_balances}
+            fundCash={projectionBundle?.fund_cash}
+            isLoading={bundleLoading}
+          />
+          <StatementOfActivityCard
+            soaLite={projectionBundle?.soa_lite}
+            isLoading={bundleLoading}
+          />
+        </div>
+
+        <GeneralLedgerCashbook
+          groupId={groupId}
+          initialRows={projectionBundle?.cashbook}
+        />
       </div>
 
       {/* Chart + Top Overdue */}

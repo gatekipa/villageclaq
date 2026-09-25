@@ -1,6 +1,7 @@
 # VillageClaq Master Rebuild PRD v1.0
 
 **Status:** HARD FROZEN — IMPLEMENTATION AUTHORITY  
+**Post-rebuild planning amendment (2026-09-25):** Founder-requested M13–M15 growth outcomes are appended in §31; PLANNED / NOT STARTED. The frozen M0–M12 acceptance baseline is unchanged.  
 **Hard-freeze date:** 2026-09-10 (America/New_York)  
 **Hard-freeze lineage tip:** `a04cdc640234ef7db95e6da3bde8e7f4668062c6` (PR #71 Security Revision 2)  
 **Daybreak Blue final verdict:** PASS — MASTER REBUILD PRD V1 SAFE FOR HARD FREEZE (F4-002 PASS, FCG-1 PASS, P-003 PASS, build order PASS)  
@@ -233,6 +234,17 @@ Whole-system qualification, migration rehearsal, mobile/accessibility/scale/secu
 
 No stage is skipped because a downstream feature is visually ready.
 
+### M13 — Bring Another Group — PLANNED
+Voluntary cross-organization introduction using existing identity/onboarding. See [§31 / M13](#m13--bring-another-group); extends M4 and M11.
+
+### M14 — Share a Community Card or Achievement — PLANNED
+Opt-in public-safe sharing from existing cards/reports. See [§31 / M14](#m14--share-a-community-card-or-achievement); extends M9, M10 and M11.
+
+### M15 — Optional Public Organization Page — PLANNED
+Organization-controlled discovery and membership requests. See [§31 / M15](#m15--optional-public-organization-page); extends M4, M10 and M11.
+
+M13–M15 are later extensions, not additional prerequisites for the original M12 completion. Their numbering does not imply M12 has been completed.
+
 ---
 
 ## 8. S0 — Production Stabilization & Recovery Gate
@@ -401,6 +413,8 @@ Aggregate nodes may own reporting/governance scope but may not transact unless a
 
 ### H-006 — Multi-group identity
 One login can belong to multiple independent groups/organizations. Memberships remain independent entitlements.
+
+Later extension: [M13 — Bring Another Group](#m13--bring-another-group) reuses this identity boundary; [M15](#m15--optional-public-organization-page) adds optional public discovery. Neither adds requirements to H-006's original acceptance.
 
 ### H-007 — Route-authoritative tenant context
 Business-operation routes carry authoritative tenant/unit scope. localStorage stores only a default preference for unscoped entry. Tab A and Tab B may safely remain on different groups.
@@ -584,6 +598,8 @@ Do not expose/store application-accessible precise metadata that trivially corre
 ### E-009 — Result visibility
 No unauthorized live tally. Cancellation does not automatically reveal partial vote detail. Results require explicit authorized publication.
 
+Later extension: [M14 — Share a Community Card or Achievement](#m14--share-a-community-card-or-achievement) may share only a privacy-safe, explicitly published summary; it does not change E-009's acceptance or ballot secrecy.
+
 ### E-010 — Evidence retention
 Closing/cancelling/archiving may not destroy ballot/participation evidence required for history/audit.
 
@@ -630,6 +646,8 @@ Independent settings may enable continuous authorized read-only access to publis
 ### G-012 — Authoritative report observation
 Dashboards, Board Packet, exports, and AI consume a server-authorized observation containing scope, period, currency buckets, topology version, permission context, source version, and observation time. AI does not treat arbitrary caller-supplied/truncated report payload as canonical truth.
 
+Later extension: [M14](#m14--share-a-community-card-or-achievement) derives approved shareable summaries from this observation. [M15](#m15--optional-public-organization-page) reuses publication/access controls for a minimal public projection. Original M10 acceptance is unchanged.
+
 ---
 
 ## 18. M11 — Notification Domain Migration
@@ -647,6 +665,8 @@ Fixed live migration order:
 Each domain proves current-default parity, configurable schedules, stable occurrence identity, idempotent recipient/channel delivery, resolution/stop conditions, reschedule supersession, member preferences, quiet-hour defer, tenant-safe audience resolution, delivery evidence, and no false sent/delivered language.
 
 Announcement Build 8 remains dormant until atomic cutover is qualified: queue producer, drain, webhook reconciliation, direct-dispatch retirement, evidence rollup, batching, provider-policy behavior, rollback.
+
+Later growth extensions [M13](#m13--bring-another-group), [M14](#m14--share-a-community-card-or-achievement) and [M15](#m15--optional-public-organization-page) reuse appropriate sharing/communication surfaces without altering this domain migration order or authorizing automated sends.
 
 ---
 
@@ -882,6 +902,9 @@ Until explicitly changed by founder authorization:
 | M10 Records/Governance/Reporting | NOT STARTED |
 | M11 Notification Domain Migration | NOT STARTED |
 | M12 Mature-SaaS Acceptance/Cutover | NOT STARTED |
+| M13 Bring Another Group | PLANNED / NOT STARTED — extends M4, M11 |
+| M14 Share a Community Card or Achievement | PLANNED / NOT STARTED — extends M9, M10, M11 |
+| M15 Optional Public Organization Page | PLANNED / NOT STARTED — extends M4, M10, M11 |
 
 ---
 
@@ -890,3 +913,110 @@ Until explicitly changed by founder authorization:
 **Build to this PRD and its bounded Security Revision 2 amendment, not around them.**
 
 The rebuild is intended to finish VillageClaq into a coherent, secure, tenant-safe, financially reconcilable, mobile-ready, supportable mature SaaS product. Strong work is preserved. Weak boundaries are deliberately replaced. Every release is evidence-backed. Architecture stays stable unless Section 2 change control is met.
+
+---
+
+## 31. Post-rebuild product-led growth — M13–M15
+
+**Planning amendment:** 2026-09-25, requested by Jude.  
+**Owner:** Antigravity, temporary build lead.  
+**Status:** PLANNED — NOT IMPLEMENTED — NOT LIVE. This amendment records future work; it does not authorize implementation, migrations, messages, hosted qualification, merge or deployment.
+
+### 31.1 Sequence and scope
+
+M13–M15 follow the existing M0–M12 sequence. They extend earlier feature areas through the links below without changing those areas' accepted completion records. M12's original Definition of Done remains unchanged. Adding M13 does not claim M12 is complete or move the current F24 qualification work.
+
+Continue numbering after the highest assigned milestone for later additions. Keep each new outcome's requirements and acceptance here, with short cross-references in the original feature section. When a milestone is reached, extend the linked modules; do not create competing identity, invitation, report, or notification systems. Only an explicit founder decision or a demonstrated material defect may reopen an earlier acceptance contract.
+
+Growth priorities below describe product sequencing, not P0/P1 defect severity. Reuse the repository's bounded review rules. This documentation amendment gets factual checks, not a new adversarial review cycle.
+
+### 31.2 Existing foundations inspected
+
+At source commit `5cb034c4686f7d0f496e2c7754cf2398bed1d233`, the code already contains:
+
+| Existing surface | Inspected path | Reuse |
+|---|---|---|
+| Group switching and Create Group entry | `src/components/layout/group-switcher.tsx` | Place the new introduction action in the existing multi-group experience |
+| Group setup and existing-profile loading | `src/app/[locale]/(dashboard)/dashboard/onboarding/group/page.tsx` | Reuse account identity and onboarding; do not create a second registration system |
+| Invitations, copy-link, QR, WhatsApp/email/SMS share controls | `src/app/[locale]/(dashboard)/dashboard/invitations/page.tsx` | Reuse sharing patterns; retain the distinction between introducing a new organization and authorizing membership in an existing one |
+| Membership-card download/share/verification | `src/app/[locale]/(dashboard)/dashboard/membership-card/page.tsx` | Extend the existing card with an explicit public-safe publication contract |
+| Join-by-code flow | `src/app/[locale]/join/[code]/join-client.tsx` | Preserve the existing authorized join flow; a growth link must not bypass it |
+
+These are source observations, not new runtime or production-verification claims. The new outcomes below were not established as complete by this inspection. Recheck the implementation when starting each milestone and remove any work already delivered.
+
+### M13 — Bring Another Group
+
+**Outcome:** A member who values VillageClaq can introduce it to another independent association; its leader can create that organization and invite its members without duplicating an existing account.
+
+**Feature links:** [M4 / H-006 multi-group identity](#h-006--multi-group-identity), [H-007 tenant context](#h-007--route-authoritative-tenant-context), [M11 communications](#18-m11--notification-domain-migration), and [mobile deep-link authorization](#mob-007--deep-link-authorization).  
+**Priority:** First growth increment after M12; M4 identity/tenant protections must already hold.
+
+Requirements:
+
+- Add an optional “Bring another group” action beside the existing group-switch/create experience. It must be user-initiated, dismissible and usable without exposing the user's other memberships. No repeated modal, forced invitation or referral condition for ordinary app use.
+- Let the member copy an introduction link or open the device share/WhatsApp composer with editable text. No contact upload, automatic outbound send or provider activation in this increment.
+- Keep introduction links separate from membership-invitation credentials. A link may attribute an introduction but grants no organization access, membership, role or administrative authority.
+- Reuse the existing authenticated account and onboarding path for the recipient. Reuse permitted account-level profile fields with confirmation; never copy another organization's members, permissions, finances or private settings. New membership/admin status still follows the normal server-authorized flow.
+- Use an opaque, revocable introduction token with a defined lifetime. Keep attribution server-side and collect only what is needed; no member IDs, other-organization names or private membership graph in public URLs or recipient pages.
+- Show only aggregate growth reporting to authorized platform operators. Organization administrators must not gain visibility into a member's other organizations through referral analytics. Do not add rewards or a general analytics platform.
+
+Acceptance:
+
+1. A user can introduce a group, the recipient can reuse an existing account, and the new group's leader can complete ordinary setup/member invitations.
+2. Altered, revoked or expired tokens cannot grant access or produce trusted attribution. Repeated callbacks/replays do not count the same organization twice.
+3. Cross-tenant and two-tab checks demonstrate that roles, drafts and information stay within the selected organization; sign-out/account changes do not carry referral authority.
+4. “Activated referred organization” means setup completed, at least one distinct non-owner member accepted, and one existing core workflow successfully completed; exclude test records and duplicates. A click, share-composer open or raw signup is not activation or confirmed delivery.
+5. EN/FR, mobile and keyboard paths cover success, cancellation and failure. The initial metric is unique activated referred organizations and their activation rate, with a documented cohort/time window; no claim of proven virality before measurement.
+
+### M14 — Share a Community Card or Achievement
+
+**Outcome:** A member or authorized organization officer can choose a useful, privacy-safe card/report to share, with a discreet “Powered by VillageClaq” discovery link.
+
+**Feature links:** Existing membership-card surface above; [M10 / G-012 reporting](#g-012--authoritative-report-observation), [M9 / E-009 publication rules](#e-009--result-visibility), and [M11 communications](#18-m11--notification-domain-migration).  
+**Priority:** Second growth increment; use only an already qualified source workflow.
+
+Requirements:
+
+- Extend the existing membership card with a preview and explicit field selection/publication approval. An organization-approved impact or election-completion summary may reuse the same sharing component when its source module is qualified; do not build a new reporting engine.
+- Default to minimal non-sensitive information. Never include payment/dues/standing detail, contact information, internal identifiers or individual voting/participation information. Optional member name/photo requires that person's choice and the relevant organization publication rules.
+- Generate report values from the existing authorized observation, with truthful date/scope/currency labels. Do not aggregate incompatible currencies or turn pending activity into completed achievements.
+- A new public verification/share reference must reveal only the approved public projection, not the authenticated report or underlying private record. Preserve current membership verification behavior until a separately reviewed migration is needed; do not simply reuse internal IDs as the new public-sharing contract.
+- Provide user-controlled download/share actions and tasteful attribution. Revoking a hosted link must stop further access; explain that already downloaded images cannot be recalled.
+- Election summaries require explicit authorized publication and suppression of information that could reveal individuals or small-group voting behavior. If safe publication cannot be established, omit that summary instead of weakening election privacy.
+
+Acceptance: preview and generated output agree; unauthorized users cannot publish; hidden fields remain absent from image, link, page metadata and API response; revoked links fail; underlying tenant/RLS/election boundaries hold; outputs work in EN/FR and mobile. Sharing is optional, and opening a share composer is never reported as successful delivery.
+
+### M15 — Optional Public Organization Page
+
+**Outcome:** An organization that chooses public discovery can share a controlled introduction page where an interested person can request membership through the existing workflow.
+
+**Feature links:** [M4 identity/hierarchy](#11-m4--organization-hierarchy-20), [M10 publication/access controls](#17-m10--records-governance--reporting), and [M11 communications](#18-m11--notification-domain-migration).  
+**Priority:** Third growth increment; extend an existing suitable profile surface if one exists when implementation starts.
+
+Requirements:
+
+- Authorized organization administrators may publish a minimal page: chosen name/logo, mission/description, approved links and membership-request action. No automatically published leadership list, member directory, finances, internal events or activity.
+- Private is the default. Public means deliberately discoverable. If unlisted is offered, explain that anyone with its link can view the approved content; it is not an access-control boundary.
+- A membership request creates no membership or elevated role until the normal eligibility/approval flow succeeds. Reuse existing identity and invitation machinery; public contact options must not expose private email/phone fields.
+- Share only events already explicitly designated public by their owning workflow. Creating guest management, public polls or a new event engine is outside this milestone.
+- Allow review, unpublish and abuse reporting. Indexing metadata, previews, caches and APIs must respect publication state; explain any external search-cache limitation honestly. Rate-limit requests and prevent account/tenant enumeration.
+
+Acceptance: a private organization stays undiscoverable through the new surface; public fields match the approved preview; unpublish removes access under the defined cache policy; requests cannot bypass tenant/role checks; contact spam controls and EN/FR mobile accessibility work.
+
+### 31.3 Deferred ideas and measurement boundary
+
+| Idea | Disposition |
+|---|---|
+| Cash/subscription rewards, ambassador tiers, referral credits | Deferred until genuine activation and reward economics are understood; requires a separate future milestone and explicit billing/fraud scope |
+| Public polls, social feeds and automatic contact invitations | Excluded from M13–M15; they introduce separate governance/privacy or spam risks |
+| Organization templates | Deferred; do not clone an existing tenant's private data or encode unreviewed community assumptions |
+| Rebuilding existing QR, WhatsApp, group switching or member-card features | Reuse the existing capability; implement only the documented incremental gap |
+| Money leaderboards, forced referrals or ballot-participation marketing | Rejected; conflicts with trust, privacy or the product's purpose |
+
+The intended loop is useful organization workflows → voluntary introduction/sharing → another organization activates → its members receive value. These are planned product hypotheses, not guaranteed viral growth. Measure activation and retention before expanding scope.
+
+### 31.4 Tracking and authority
+
+Track M13, M14 and M15 as **PLANNED / NOT STARTED** in the same master-plan tracker Antigravity uses for the build. Carry their feature links and acceptance criteria into implementation tickets when each milestone is reached. Do not move F24 or another current task merely to start growth work.
+
+This amendment is documentation only. M0–M12, existing financial/security contracts, historical evidence and current hosted authorization budgets are unchanged. No new PR, application code, migration, messaging activation, reset, merge or deployment is implied.

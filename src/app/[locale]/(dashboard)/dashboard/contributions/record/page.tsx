@@ -187,12 +187,22 @@ export default function RecordPaymentPage() {
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [selectedAccountError, setSelectedAccountError] = useState<string | null>(null);
 
-  // Multi-tenant context safety: reset account selection on tenant switch
+  // Multi-tenant context safety: reset account selection and all form state on tenant switch
   const [prevGroupId, setPrevGroupId] = useState(groupId);
   if (groupId !== prevGroupId) {
     setPrevGroupId(groupId);
     setSelectedAccountId("");
     setSelectedAccountError(null);
+    setSelectedMembership(null);
+    setMemberSearch("");
+    setSelectedTypeId("");
+    setAmount("");
+    setSelectedReliefPlanId("");
+    setShowSuccess(false);
+    setLastSavedName("");
+    setLastSavedDetails(null);
+    setPaymentDateError(null);
+    setReceiptError(null);
   }
 
   // Pre-select primary/first active account matching the group's currency
@@ -334,12 +344,19 @@ export default function RecordPaymentPage() {
         }
       }
 
+      const targetAccount = custodyAccounts.find((a) => a.id === targetAccountId);
+      if (targetAccount && targetAccount.currency !== currency) {
+        setSelectedAccountError(t("contributions.duesPosting.currencyMismatch"));
+        return;
+      }
+
       const result = await recordAndPostDues.mutateAsync({
         groupId: groupId!,
         membershipId,
         contributionTypeId: typeId,
         amount: payAmount,
         currency,
+        accountCurrency: targetAccount?.currency,
         paymentMethod: payMethod,
         accountId: targetAccountId,
         referenceNumber: payRef || undefined,

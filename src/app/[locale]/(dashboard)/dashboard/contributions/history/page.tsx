@@ -138,6 +138,19 @@ export default function PaymentHistoryPage() {
   const [depositAccountError, setDepositAccountError] = useState<string | null>(null);
   const [postingError, setPostingError] = useState<string | null>(null);
 
+  // Edit payment state
+  const [editPayment, setEditPayment] = useState<NormalizedPayment | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editMethod, setEditMethod] = useState("cash");
+  const [editReference, setEditReference] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+
+  // Delete payment state
+  const [deletePayment, setDeletePayment] = useState<NormalizedPayment | null>(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
+
   // Multi-tenant context safety: reset account selection and modal states on tenant switch
   const [prevGroupId, setPrevGroupId] = useState(groupId);
   if (groupId !== prevGroupId) {
@@ -146,6 +159,10 @@ export default function PaymentHistoryPage() {
     setDepositAccountId("");
     setDepositAccountError(null);
     setPostingError(null);
+    setEditPayment(null);
+    setDeletePayment(null);
+    setActionError(null);
+    setRejectingId(null);
   }
 
   // Status filter — initial value comes from the ?status= deep-link (a sibling
@@ -192,19 +209,6 @@ export default function PaymentHistoryPage() {
       setActionError(t("contributions.receiptOpenFailed"));
     }
   }
-
-  // Edit payment state
-  const [editPayment, setEditPayment] = useState<NormalizedPayment | null>(null);
-  const [editAmount, setEditAmount] = useState("");
-  const [editMethod, setEditMethod] = useState("cash");
-  const [editReference, setEditReference] = useState("");
-  const [editNotes, setEditNotes] = useState("");
-  const [editDate, setEditDate] = useState("");
-  const [editSaving, setEditSaving] = useState(false);
-
-  // Delete payment state
-  const [deletePayment, setDeletePayment] = useState<NormalizedPayment | null>(null);
-  const [deleteSaving, setDeleteSaving] = useState(false);
 
   const currency = currentGroup?.currency || "XAF";
 
@@ -377,12 +381,20 @@ export default function PaymentHistoryPage() {
       return;
     }
 
+    const account = custodyAccounts.find((a) => a.id === depositAccountId);
+    if (account && confirmingPayment && account.currency !== confirmingPayment.currency) {
+      setDepositAccountError(t("contributions.duesPosting.currencyMismatch"));
+      return;
+    }
+
     setPostingError(null);
     try {
       await confirmDuesMutation.mutateAsync({
         groupId,
         paymentId: confirmingPayment.id,
         accountId: depositAccountId,
+        accountCurrency: account?.currency,
+        expectedCurrency: confirmingPayment.currency,
       });
 
       // Produce the receipt notifications server-side (fire-and-forget)

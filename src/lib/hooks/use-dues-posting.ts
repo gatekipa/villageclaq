@@ -18,6 +18,8 @@ export interface ConfirmDuesPaymentInput {
   groupId: string;
   paymentId: string;
   accountId: string;
+  accountCurrency?: string;
+  expectedCurrency?: string;
   categoryId?: string | null;
   fundId?: string | null;
   requestId?: string; // Optional client-supplied UUID idempotency token
@@ -30,6 +32,7 @@ export interface RecordAndPostDuesPaymentInput {
   currency: string;
   paymentMethod: string;
   accountId: string; // Custody account receiving payment
+  accountCurrency?: string;
   contributionTypeId?: string | null;
   obligationId?: string | null;
   referenceNumber?: string | null;
@@ -62,9 +65,11 @@ export function parseDuesPostingRpcError(error: unknown): Error {
   if (rawMessage.includes("PAYMENT_NOT_FOUND")) return new Error("PAYMENT_NOT_FOUND");
   if (rawMessage.includes("PAYMENT_ALREADY_REJECTED")) return new Error("PAYMENT_ALREADY_REJECTED");
   if (rawMessage.includes("INVALID_PAYMENT_STATUS")) return new Error("INVALID_PAYMENT_STATUS");
-  if (rawMessage.includes("ACCOUNT_NOT_FOUND") || rawMessage.includes("ACCOUNT_INACTIVE")) return new Error("ACCOUNT_NOT_FOUND_OR_INACTIVE");
+  if (rawMessage.includes("ACCOUNT_NOT_FOUND") || rawMessage.includes("ACCOUNT_INACTIVE") || rawMessage.includes("ACCOUNT_NOT_FOUND_OR_INACTIVE")) return new Error("ACCOUNT_NOT_FOUND_OR_INACTIVE");
   if (rawMessage.includes("ACCOUNT_KIND_NOT_ALLOWED") || rawMessage.includes("ACCOUNT_KIND_INVALID")) return new Error("ACCOUNT_KIND_INVALID");
   if (rawMessage.includes("CROSS_GROUP_DIMENSION")) return new Error("CROSS_GROUP_DIMENSION");
+  if (rawMessage.includes("CURRENCY_MISMATCH")) return new Error("CURRENCY_MISMATCH");
+  if (rawMessage.includes("AMOUNT_PRECISION")) return new Error("AMOUNT_PRECISION");
   if (rawMessage.includes("INCOME_CATEGORY_REQUIRED")) return new Error("INCOME_CATEGORY_REQUIRED");
   if (rawMessage.includes("EPOCH_NOT_FOUND") || rawMessage.includes("NO_ACTIVE_EPOCH")) return new Error("NO_ACTIVE_EPOCH");
   if (rawMessage.includes("ACCOUNT_REQUIRED")) return new Error("ACCOUNT_REQUIRED");
@@ -100,6 +105,9 @@ export function useConfirmDuesPayment() {
       }
       if (!input.paymentId || input.paymentId.trim() === "") {
         throw new Error("PAYMENT_NOT_FOUND");
+      }
+      if (input.expectedCurrency && input.accountCurrency && input.expectedCurrency !== input.accountCurrency) {
+        throw new Error("CURRENCY_MISMATCH");
       }
 
       const supabase = createClient();
@@ -187,6 +195,9 @@ export function useRecordAndPostDuesPayment() {
       if (!input.accountId || input.accountId.trim() === "") {
         throw new Error("ACCOUNT_REQUIRED");
       }
+      if (input.accountCurrency && input.accountCurrency !== input.currency) {
+        throw new Error("CURRENCY_MISMATCH");
+      }
 
       const numAmount = typeof input.amount === "string" ? Number(input.amount) : input.amount;
       if (isNaN(numAmount) || numAmount <= 0) {
@@ -239,6 +250,12 @@ export function useRecordAndPostDuesPayment() {
       });
 
       if (rpcError) {
+        // Rollback: clean up the orphaned pending payment so retry doesn't leave ghost records
+        try {
+          await supabase.from("payments").delete().eq("id", insertedPayment.id);
+        } catch {
+          // Ignore rollback failure
+        }
         throw parseDuesPostingRpcError(rpcError);
       }
 

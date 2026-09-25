@@ -98,6 +98,7 @@ DECLARE
   v_category_id uuid;
   v_fund_id uuid;
   v_payment public.payments%ROWTYPE;
+  v_account public.financial_accounts%ROWTYPE;
   v_contrib_type public.contribution_types%ROWTYPE;
   v_group_id uuid;
   v_scale integer;
@@ -126,11 +127,19 @@ BEGIN
   -- 3. Extract and parse parameters
   v_payment_id  := financial_core.f3_uuid(p_command->'payment_id');
   v_account_id  := financial_core.f3_uuid(p_command->'account_id');
-  v_request_id  := financial_core.f3_uuid(p_command->'request_id');
+  v_request_id  := financial_core.f3_uuid(p_command->'request_id', true);
   v_category_id := financial_core.f3_uuid(p_command->'category_id', true);
   v_fund_id     := financial_core.f3_uuid(p_command->'fund_id', true);
 
-  -- 4. Lock payment row
+  IF v_request_id IS NULL THEN
+    v_request_id := pg_catalog.gen_random_uuid();
+  END IF;
+
+  -- 4. Explicit advisory transaction lock to serialize concurrent confirmation attempts
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
+    pg_catalog.jsonb_build_array('dues-confirm', v_payment_id)::text, 0));
+
+  -- 5. Lock payment row
   SELECT * INTO v_payment
   FROM public.payments
   WHERE id = v_payment_id
@@ -142,14 +151,14 @@ BEGIN
 
   v_group_id := v_payment.group_id;
 
-  -- 5. Authorization: Caller must hold finances.manage permission for the group
+  -- 6. Authorization: Caller must hold finances.manage permission for the group
   BEGIN
     PERFORM financial_core.assert_finances_manage(v_group_id);
   EXCEPTION WHEN insufficient_privilege THEN
     RAISE EXCEPTION 'DENY' USING ERRCODE = '42501';
   END;
 
-  -- 6. Idempotency assertion: If payment is already bound to a canonical financial event, return existing state
+  -- 7. Idempotency assertion: If payment is already bound to a canonical financial event, return existing state
   IF v_payment.financial_event_id IS NOT NULL THEN
     RETURN pg_catalog.jsonb_build_object(
       'decision', 'IDEMPOTENT_RETURN_EXISTING',
@@ -159,7 +168,7 @@ BEGIN
     );
   END IF;
 
-  -- 7. Payment status assertion
+  -- 8. Payment status assertion
   IF v_payment.status = 'rejected' THEN
     RAISE EXCEPTION 'PAYMENT_ALREADY_REJECTED';
   END IF;
@@ -168,14 +177,36 @@ BEGIN
     RAISE EXCEPTION 'INVALID_PAYMENT_STATUS';
   END IF;
 
-  -- 8. Fetch contribution type details if linked
+  -- 9. Custody account assertion & tenant/currency invariant check
+  SELECT * INTO v_account
+  FROM public.financial_accounts
+  WHERE id = v_account_id
+  FOR SHARE;
+
+  IF v_account.id IS NULL OR v_account.status <> 'active' THEN
+    RAISE EXCEPTION 'ACCOUNT_NOT_FOUND_OR_INACTIVE';
+  END IF;
+
+  IF v_account.group_id <> v_group_id THEN
+    RAISE EXCEPTION 'CROSS_GROUP_DIMENSION';
+  END IF;
+
+  IF v_account.currency <> v_payment.currency THEN
+    RAISE EXCEPTION 'CURRENCY_MISMATCH';
+  END IF;
+
+  IF v_account.kind NOT IN ('bank', 'cash', 'mobile_money', 'wallet') THEN
+    RAISE EXCEPTION 'ACCOUNT_KIND_NOT_ALLOWED';
+  END IF;
+
+  -- 10. Fetch contribution type details if linked
   IF v_payment.contribution_type_id IS NOT NULL THEN
     SELECT * INTO v_contrib_type
     FROM public.contribution_types
     WHERE id = v_payment.contribution_type_id;
   END IF;
 
-  -- 9. Resolve category: caller explicit -> type default -> first active income category
+  -- 11. Resolve category: caller explicit -> type default -> first active income category
   IF v_category_id IS NULL AND v_contrib_type.id IS NOT NULL THEN
     v_category_id := v_contrib_type.default_category_id;
   END IF;
@@ -194,15 +225,23 @@ BEGIN
     RAISE EXCEPTION 'INCOME_CATEGORY_REQUIRED';
   END IF;
 
-  -- 10. Resolve fund: caller explicit -> type default -> NULL (post_f3_command auto-resolves general fund)
+  -- 12. Resolve fund: caller explicit -> type default -> NULL (post_f3_command auto-resolves general fund)
   IF v_fund_id IS NULL AND v_contrib_type.id IS NOT NULL THEN
     v_fund_id := v_contrib_type.default_fund_id;
   END IF;
 
-  -- 11. Format exact amount according to currency scale
+  -- 13. Exact amount & currency scale validation
+  IF v_payment.amount IS NULL OR v_payment.amount <= 0 THEN
+    RAISE EXCEPTION 'AMOUNT_NOT_POSITIVE';
+  END IF;
+
   v_scale := financial_core.currency_scale(v_payment.currency);
   IF v_scale IS NULL THEN
     RAISE EXCEPTION 'UNSUPPORTED_CURRENCY';
+  END IF;
+
+  IF v_payment.amount <> ROUND(v_payment.amount, v_scale) THEN
+    RAISE EXCEPTION 'AMOUNT_PRECISION';
   END IF;
 
   IF v_scale = 0 THEN

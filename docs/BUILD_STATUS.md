@@ -127,8 +127,14 @@ Other linked artifacts:
     - Tenant Isolation: `financial_core` execution strictly revoked from `public`/`anon`. RLS explicitly mandated on internal ledger tables (`epoch_transitions`).
     - Disaster Recovery: `src/lib/disaster-recovery/ledger-replay.ts` implements strict snapshot extraction and deterministic `rehydrateLedger()` calculation.
     - E2E Lifecycle: `test-m12-e2e-lifecycle.mjs` executes full tenant simulation covering Dues, Loans, Relief, Events, and Governance, proving global state invariant equilibrium.
-16. **Next Master Milestone: M13 (Platform Architecture)** — Designated as the next major work package.
-17. **Production migration release gate** — Production deployment remains separately founder-authorized.
+16. **Milestone M13 Completion: Group Referrals & Ingress Architecture** — **COMPLETE / VERIFIED.**
+    - Schema & Attribution: `00134_m13_01_referrals_and_ingress.sql` defines `organization_referrals` with strict `search_path = ''` canonical RPCs enforcing `issued` -> `claimed` -> `activated` transitions.
+    - Privacy Isolation: Referrals fully partitioned. Public tokens expose zero financial/PII data.
+    - Client Ingress & Hooks: `useGroupReferral` and `useReferralIngress` correctly buffer tokens in `sessionStorage` and claim atomically during organization provisioning.
+    - Edge Defenses: WhatsApp & SMS deep links gracefully strip injected query trackers and encode UTF-8 correctly.
+    - Verification: Full UI mock and API algorithmic simulations in `test-m13-client-ingress.mjs` and `test-m13-referrals-ingress.mjs` successfully executed.
+17. **Next Master Milestone: M14 (Share a Community Card or Achievement)** — Designated as the next major work package.
+18. **Production migration release gate** — Production deployment remains separately founder-authorized.
 ## Local versus hosted / production
 
 | Surface | Status |
@@ -143,12 +149,12 @@ Other linked artifacts:
 | Field | Value |
 |-------|-------|
 | Owner | Jude Anyere |
-| Next bounded action | Advance to **M13 (Platform Architecture)** per PRD Section 31 sequence. |
-| Permitted scope | Architecture, framework updates, and dependency management. No direct mutation of production. |
-| Remaining acceptance | M13 framework stability tests and platform migration checklist. |
+| Next bounded action | Advance to **M14 (Share a Community Card or Achievement)** per PRD Section 31 sequence. |
+| Permitted scope | Growth logic, social proof cards, and public URL rendering. No direct mutation of production. |
+| Remaining acceptance | M14 product execution and validation checklist. |
 
 ---
 **QUALIFIED / PASS — F3 FOUNDATION HOSTED REQUALIFICATION COMPLETE**  
 Candidate: `e0c10c04d4bdc287385ea1392e1aae97b458fe1c`  
 Floor: `DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT`  
-Next Milestone: `M13 (Platform Architecture)`
+Next Milestone: `M14 (Share a Community Card or Achievement)`

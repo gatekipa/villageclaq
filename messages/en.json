@@ -1930,6 +1930,70 @@
       "closingBalance": "Closing Balance"
     }
   },
+  "transactionCorrections": {
+    "title": "Reverse & Correct Transactions",
+    "reverseTitle": "Reverse Transaction",
+    "reverseSubtitle": "Void an erroneous transaction by posting an immutable inverse ledger entry",
+    "correctTitle": "Correct Transaction",
+    "correctSubtitle": "Atomically reverse the original transaction and post an updated replacement",
+    "notices": {
+      "doubleEntryNotice": "In compliance with double-entry accounting standards, transactions cannot be deleted. Reversing posts an exact inverse entry that offsets custody and activity balances.",
+      "epochWarning": "Corrections must remain within the original transaction's ledger epoch and currency.",
+      "destructiveWarning": "This operation will immediately adjust account balances and update the general ledger. It cannot be undone."
+    },
+    "originalSummary": {
+      "title": "Original Transaction",
+      "eventId": "Event ID",
+      "date": "Date & Time",
+      "movement": "Movement",
+      "account": "Account",
+      "fund": "Fund",
+      "amount": "Amount",
+      "memo": "Description / Memo",
+      "reference": "Reference"
+    },
+    "fields": {
+      "reason": "Audit Reason",
+      "reasonPlaceholder": "Explain the business reason for reversing or correcting this transaction (e.g., entered in error, incorrect account, duplicate payment)...",
+      "reasonHelp": "Mandatory audit record. Minimum 3 characters, maximum 1000 characters.",
+      "characterCount": "{count} / {max} characters",
+      "replacementDetails": "Replacement Details"
+    },
+    "actions": {
+      "reverse": "Reverse Transaction",
+      "confirmReverse": "Confirm Reversal",
+      "reversing": "Reversing...",
+      "correct": "Correct Transaction",
+      "confirmCorrect": "Confirm Correction",
+      "correcting": "Correcting...",
+      "cancel": "Cancel",
+      "close": "Close",
+      "successTitle": "Transaction Reversal Completed",
+      "successDesc": "Inverse entries have been posted to the general ledger and balances updated."
+    },
+    "errors": {
+      "reasonRequired": "An audit reason is required.",
+      "reasonLength": "Audit reason must be between 3 and 1000 characters.",
+      "invalidReason": "Reason contains invalid control characters.",
+      "targetAlreadyCorrected": "This transaction has already been reversed or corrected.",
+      "targetNotManual": "Only manual transactions (money in, money out, transfers) can be reversed.",
+      "reversalTargetProhibited": "Cannot reverse a reversal transaction.",
+      "targetNotFound": "Target transaction was not found.",
+      "crossEpochReplacement": "Corrections must remain within the target transaction's original ledger epoch.",
+      "crossCurrencyReplacement": "Corrections cannot change the currency of the transaction.",
+      "actionChangeProhibited": "Transaction action type (Money In / Money Out / Transfer) cannot be altered.",
+      "descriptionRequired": "A description is required for the replacement transaction.",
+      "accountRequired": "A custody account is required.",
+      "fundRequired": "A fund is required.",
+      "categoryRequired": "An accounting category is required.",
+      "destinationRequired": "A destination account is required for transfers.",
+      "sameAccount": "Source and destination accounts must be different.",
+      "permissionDenied": "You do not have permission to reverse or correct financial transactions.",
+      "conflict": "A conflicting correction request has already been recorded.",
+      "staleTenantAborted": "Operation aborted: active group changed. Please refresh and try again.",
+      "genericError": "Failed to complete transaction reversal. Please try again."
+    }
+  },
   "invitations": {
     "title": "Invitations",
     "subtitle": "Invite new members to your group",

@@ -10,6 +10,8 @@ import {
   useFinancialProjectionBundle,
 } from "@/lib/hooks/use-financial-projections";
 import { useFinancialAccounts } from "@/lib/hooks/use-financial-config";
+import { PermissionGate } from "@/components/ui/permission-gate";
+import { ReverseTransactionDialog } from "./reverse-transaction-dialog";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +61,7 @@ export interface GeneralLedgerCashbookProps {
 
 export function GeneralLedgerCashbook({ groupId, initialRows }: GeneralLedgerCashbookProps) {
   const t = useTranslations("financialProjections");
+  const tCorr = useTranslations("transactionCorrections");
   const locale = useLocale();
 
   // State
@@ -67,6 +70,7 @@ export function GeneralLedgerCashbook({ groupId, initialRows }: GeneralLedgerCas
   const [selectedCurrency, setSelectedCurrency] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [auditRow, setAuditRow] = useState<CashbookRow | null>(null);
+  const [reversingRow, setReversingRow] = useState<CashbookRow | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
   // Prevent cross-tenant state leak: reset local filters and audit sheet on tenant switch
@@ -75,7 +79,17 @@ export function GeneralLedgerCashbook({ groupId, initialRows }: GeneralLedgerCas
     setSelectedCurrency("all");
     setSearchQuery("");
     setAuditRow(null);
+    setReversingRow(null);
   }, [groupId]);
+
+  const isRowReversible = (row: CashbookRow | null): boolean => {
+    if (!row) return false;
+    if (Boolean(row.reversal_of_event_id)) return false;
+    if (row.movement_type === "opening_position") return false;
+    if (row.status === "reversed" || row.status === "corrected") return false;
+    if (row.effect_kind === "correction_reversal") return false;
+    return true;
+  };
 
   // Compute date range based on preset
   const dateRange = useMemo(() => getDateRangeForPreset(preset), [preset]);
@@ -380,7 +394,7 @@ export function GeneralLedgerCashbook({ groupId, initialRows }: GeneralLedgerCas
                   <TableHead className="text-right">{t("columns.inflow")}</TableHead>
                   <TableHead className="text-right">{t("columns.outflow")}</TableHead>
                   <TableHead className="text-right">{t("columns.balance")}</TableHead>
-                  <TableHead className="text-center w-[60px]">{t("columns.actions")}</TableHead>
+                  <TableHead className="text-center w-[80px]">{t("columns.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -425,15 +439,29 @@ export function GeneralLedgerCashbook({ groupId, initialRows }: GeneralLedgerCas
                         {formatExactAmount(row.running_balance, row.currency)}
                       </TableCell>
                       <TableCell className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setAuditRow(row)}
-                          className="h-7 w-7 p-0"
-                          title={t("actions.viewAudit")}
-                        >
-                          <Eye className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
-                        </Button>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setAuditRow(row)}
+                            className="h-7 w-7 p-0"
+                            title={t("actions.viewAudit")}
+                          >
+                            <Eye className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                          </Button>
+                          <PermissionGate permission="finances.manage">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setReversingRow(row)}
+                              disabled={!isRowReversible(row)}
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-30 disabled:pointer-events-none"
+                              title={tCorr("actions.reverse")}
+                            >
+                              <RotateCcw className="h-3.5 w-3.5" />
+                            </Button>
+                          </PermissionGate>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -572,14 +600,45 @@ export function GeneralLedgerCashbook({ groupId, initialRows }: GeneralLedgerCas
               )}
             </div>
 
-            <DialogFooter>
-              <Button onClick={() => setAuditRow(null)} size="sm" className="w-full sm:w-auto">
-                Close
+            <DialogFooter className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAuditRow(null)}
+                size="sm"
+                className="w-full sm:w-auto"
+              >
+                {tCorr("actions.close")}
               </Button>
+              {isRowReversible(auditRow) && (
+                <PermissionGate permission="finances.manage">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      const target = auditRow;
+                      setAuditRow(null);
+                      setReversingRow(target);
+                    }}
+                    className="w-full sm:w-auto gap-1.5"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    {tCorr("actions.reverse")}
+                  </Button>
+                </PermissionGate>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Reverse Transaction Modal */}
+      <ReverseTransactionDialog
+        open={!!reversingRow}
+        onOpenChange={(open) => !open && setReversingRow(null)}
+        row={reversingRow}
+      />
     </Card>
   );
 }

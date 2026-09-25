@@ -1930,6 +1930,70 @@
       "closingBalance": "Solde de clôture"
     }
   },
+  "transactionCorrections": {
+    "title": "Annulation & Correction d'Écritures",
+    "reverseTitle": "Contrepasser la Transaction",
+    "reverseSubtitle": "Annuler une transaction erronée en enregistrant une écriture inverse immuable",
+    "correctTitle": "Corriger la Transaction",
+    "correctSubtitle": "Contrepasser la transaction d'origine et enregistrer une écriture de remplacement",
+    "notices": {
+      "doubleEntryNotice": "Conformément aux normes de la comptabilité en partie double, les écritures ne peuvent pas être supprimées. La contrepassation enregistre une écriture inverse exacte qui neutralise les soldes.",
+      "epochWarning": "Les corrections doivent impérativement demeurer dans le même exercice comptable et la même devise.",
+      "destructiveWarning": "Cette opération modifiera immédiatement les soldes des comptes et mettra à jour le grand livre. Elle est irréversible."
+    },
+    "originalSummary": {
+      "title": "Transaction d'Origine",
+      "eventId": "Identifiant Événement",
+      "date": "Date & Heure",
+      "movement": "Mouvement",
+      "account": "Compte",
+      "fund": "Fonds",
+      "amount": "Montant",
+      "memo": "Description / Libellé",
+      "reference": "Référence"
+    },
+    "fields": {
+      "reason": "Motif d'Audit",
+      "reasonPlaceholder": "Expliquez la raison professionnelle justifiant cette contrepassation ou correction (ex. erreur de saisie, mauvais compte, paiement en double)...",
+      "reasonHelp": "Enregistrement d'audit obligatoire. Entre 3 et 1000 caractères.",
+      "characterCount": "{count} / {max} caractères",
+      "replacementDetails": "Détails de Remplacement"
+    },
+    "actions": {
+      "reverse": "Contrepasser",
+      "confirmReverse": "Confirmer la Contrepassation",
+      "reversing": "Contrepassation en cours...",
+      "correct": "Corriger",
+      "confirmCorrect": "Confirmer la Correction",
+      "correcting": "Correction en cours...",
+      "cancel": "Annuler",
+      "close": "Fermer",
+      "successTitle": "Contrepassation Effectuée",
+      "successDesc": "Les écritures inverses ont été enregistrées dans le grand livre et les soldes ont été mis à jour."
+    },
+    "errors": {
+      "reasonRequired": "Un motif d'audit est obligatoire.",
+      "reasonLength": "Le motif d'audit doit comporter entre 3 et 1000 caractères.",
+      "invalidReason": "Le motif contient des caractères de contrôle non autorisés.",
+      "targetAlreadyCorrected": "Cette transaction a déjà été contrepassée ou corrigée.",
+      "targetNotManual": "Seules les transactions manuelles (recettes, dépenses, virements) peuvent être contrepassées.",
+      "reversalTargetProhibited": "Impossible d'annuler une écriture de contrepassation.",
+      "targetNotFound": "La transaction cible est introuvable.",
+      "crossEpochReplacement": "La correction doit demeurer dans l'exercice comptable d'origine.",
+      "crossCurrencyReplacement": "La correction ne peut pas modifier la devise de la transaction.",
+      "actionChangeProhibited": "Le type d'action (Recette / Dépense / Virement) ne peut pas être modifié.",
+      "descriptionRequired": "Une description est obligatoire pour la transaction de remplacement.",
+      "accountRequired": "Un compte de trésorerie est obligatoire.",
+      "fundRequired": "Un fonds comptable est obligatoire.",
+      "categoryRequired": "Une catégorie comptable est obligatoire.",
+      "destinationRequired": "Un compte de destination est obligatoire pour les virements.",
+      "sameAccount": "Les comptes source et destination doivent être distincts.",
+      "permissionDenied": "Vous n'avez pas l'autorisation d'annuler ou de corriger des transactions financières.",
+      "conflict": "Une demande de correction conflictuelle a déjà été enregistrée.",
+      "staleTenantAborted": "Opération interrompue : le groupe actif a changé. Veuillez rafraîchir la page.",
+      "genericError": "Échec de la contrepassation de la transaction. Veuillez réessayer."
+    }
+  },
   "invitations": {
     "title": "Invitations",
     "subtitle": "Invitez de nouveaux membres dans votre groupe",

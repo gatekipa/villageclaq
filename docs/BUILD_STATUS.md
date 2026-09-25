@@ -95,9 +95,13 @@ Other linked artifacts:
    - Member Directory & Detail Integration: Integrated visual disambiguation of Lifecycle Status vs Financial Standing, PII isolation (tenant-scoped display names, zero mutations on `profiles.full_name` or `phone`), and dedicated Ownership Transfer modal with `"TRANSFER"` confirmation prompt.
    - Invitations & Roles Alignment: Gated invitation creation with `members.invite`, and guarded position assignments with `roles.manage` / owner while filtering inactive members.
    - Adversarial Verification: Implemented comprehensive test suite in `scripts/test-m5-membership-rbac.mjs` (18/18 tests passing) verifying all 7 invariants (privilege escalation, sole owner protection, atomic ownership transfer, hard-delete prohibition, inactive permission lock, PII isolation, and tenant boundaries).
-10. **Next Master Milestone: M6 (Governance, Assemblies & Polling Engine Rebuild)** — Designated as the next major work package per Master Rebuild PRD Section 10 and Section 26 sequence.
-11. **Production migration release gate** — Production deployment remains separately founder-authorized.
-
+10. **Milestone M6 Completion: Governance, Assemblies & Polling Engine Rebuild** — **COMPLETE / VERIFIED.**
+    - Schema & Canonical RPCs: Migrations `00126_m6_01_governance_canonical.sql` and `00127_m6_02_quorum_lifecycle_canonical.sql` define immutable governance ledgers, strict state transitions, double-voting race condition defense, and quorum snapshots.
+    - Client Hooks: `src/lib/hooks/use-governance-mutations.ts` enforces strict tenant boundary assertions.
+    - UI: Built Assembly Command Center and Resolution Registry featuring Live Quorum meters and sealed resolution badges.
+    - Verification: Adversarial test harness `scripts/test-m6-governance.mjs` confirms zero concurrency issues and exact quorum mathematics.
+11. **Next Master Milestone: M7 (Relief Plans, Payouts & Claims Ledger Rebuild)** — Designated as the next major work package per Master Rebuild PRD Section 10 and Section 26 sequence.
+12. **Production migration release gate** — Production deployment remains separately founder-authorized.
 ## Local versus hosted / production
 
 | Surface | Status |

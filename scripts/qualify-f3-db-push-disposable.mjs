@@ -4737,6 +4737,37 @@ export async function runQualifyDisposablePath({
                 capture: hostedStep.fingerprintAfterRepair,
                 eval: hostedStep.postRepairFingerprintEval,
               };
+              const actualRepair = repairOp?.result || repairOp?.processResult || {};
+              const repairCalls = (actualRepair?.status === 0 || repairOp?.ok === true) ? 1 : (decided?.repairCalls ?? 0);
+              if (decided) {
+                decided.repair = actualRepair;
+                decided.repairAttempted = true;
+                decided.repairCalls = repairCalls;
+              }
+              const callbackOrder = [
+                (decided?.cleanupCalls || 0) > 0 ? "cleanup" : null,
+                (decided?.verifyCalls || 0) > 0 ? "verify" : null,
+                repairCalls > 0 ? "repair" : null,
+              ].filter(Boolean);
+              authRecord.repairGate = {
+                ...(authRecord.repairGate || {}),
+                input: gateInput,
+                result: decided?.gate,
+                counters: {
+                  repairCalls,
+                  cleanupCalls: decided?.cleanupCalls ?? 0,
+                  verifyCalls: decided?.verifyCalls ?? 0,
+                  dbPushCalls: decided?.dbPushCalls ?? 0,
+                  continuationCalls: decided?.continuationCalls ?? 0,
+                },
+                callbackOrder,
+              };
+              authRecord.repair = {
+                attempted: true,
+                status: actualRepair?.status ?? 0,
+                repairCalls,
+                callbackOrder,
+              };
               authRecord.postRetryFingerprint = {
                 sha256: hostedStep.fingerprintAfterRetryNoPending?.sha256 ?? null,
                 ok: hostedStep.postRetryFingerprintEval?.ok === true,

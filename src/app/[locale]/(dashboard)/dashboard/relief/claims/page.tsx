@@ -1,474 +1,436 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 "use client";
 
-import { formatAmount } from "@/lib/currencies";
-import { useState } from "react";
-import { useTranslations, useLocale } from "next-intl";
-import { formatDateWithGroupFormat } from "@/lib/format";
-import { useQueryClient } from "@tanstack/react-query";
+import React, { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
+import { useQuery } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
+import { useGroup } from "@/lib/group-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Search,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  AlertCircle,
-  FileText,
-  Eye,
-  Loader2,
-} from "lucide-react";
-import { useGroup } from "@/lib/group-context";
-import { createClient } from "@/lib/supabase/client";
-import { useReliefClaims } from "@/lib/hooks/use-supabase-query";
-import { getMemberName } from "@/lib/get-member-name";
-import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
-import { AdminGuard } from "@/components/ui/admin-guard";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, Plus, CheckCircle2, FileText } from "lucide-react";
+import { useSubmitReliefClaim, useReviewReliefClaim, useDisburseReliefClaim, parseReliefRpcError } from "@/lib/hooks/use-relief-mutations";
+import { useMembers } from "@/lib/hooks/use-supabase-query";
+import { formatExactAmount as formatAmount } from "@/lib/export-financial-ledger";
 
+const supabase = createClient();
 
-type ClaimStatus = "submitted" | "reviewing" | "approved" | "denied";
+function useReliefPlans(groupId: string | null) {
+  return useQuery({
+    queryKey: ["relief-plans", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const { data, error } = await supabase.from("relief_plans").select("*").eq("group_id", groupId);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!groupId,
+  });
+}
 
-const claimStatusConfig: Record<ClaimStatus, { color: string; icon: typeof CheckCircle2 }> = {
-  submitted: { color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400", icon: Clock },
-  reviewing: { color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400", icon: AlertCircle },
-  approved: { color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400", icon: CheckCircle2 },
-  denied: { color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400", icon: XCircle },
-};
+function useReliefClaims(groupId: string | null) {
+  return useQuery({
+    queryKey: ["relief-claims", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const { data, error } = await supabase.from("relief_claims").select("*").eq("group_id", groupId).order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!groupId,
+  });
+}
+
+function useFinancialAccounts(groupId: string | null) {
+  return useQuery({
+    queryKey: ["financial-accounts", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const { data, error } = await supabase.from("financial_accounts").select("*").eq("group_id", groupId).eq("status", "active").in("kind", ["bank", "cash", "mobile_money", "wallet"]);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!groupId,
+  });
+}
 
 export default function ReliefClaimsPage() {
-  const t = useTranslations();
-  const locale = useLocale();
-  const { currentGroup, groupId } = useGroup();
-  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
-  const queryClient = useQueryClient();
-  const { data: claims, isLoading, error, refetch } = useReliefClaims();
+  const t = useTranslations("relief");
+  const { groupId, isAdmin, isOwner } = useGroup();
+  
+  const [prevGroupId, setPrevGroupId] = useState(groupId);
+  const [activeTab, setActiveTab] = useState("all");
+  
+  // Dialog states
+  const [submitClaimOpen, setSubmitClaimOpen] = useState(false);
+  const [reviewClaimId, setReviewClaimId] = useState<string | null>(null);
+  const [disburseClaimId, setDisburseClaimId] = useState<string | null>(null);
 
-  const [showReviewDialog, setShowReviewDialog] = useState(false);
-  const [selectedClaim, setSelectedClaim] = useState<Record<string, unknown> | null>(null);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [search, setSearch] = useState("");
+  const { data: claims = [], isLoading: claimsLoading } = useReliefClaims(groupId);
+  const { data: plans = [] } = useReliefPlans(groupId);
+  const { data: members = [] } = useMembers();
+  
+  const canManage = isAdmin || isOwner;
 
-  // Sort state
-  const [sortField, setSortField] = useState<"date" | "amount">("date");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-
-  // Review form state
-  const [reviewNotes, setReviewNotes] = useState("");
-  const [reviewLoading, setReviewLoading] = useState(false);
-  const [reviewError, setReviewError] = useState<string | null>(null);
-
-  function openReviewDialog(claim: Record<string, unknown>) {
-    setSelectedClaim(claim);
-    setReviewNotes((claim.review_notes as string) || "");
-    setReviewError(null);
-    setShowReviewDialog(true);
-  }
-
-  async function handleApproveClaim() {
-    if (!selectedClaim) return;
-    setReviewLoading(true);
-    setReviewError(null);
-    try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error(t("common.error"));
-
-      const { error: updateError } = await supabase
-        .from("relief_claims")
-        .update({
-          status: "approved",
-          reviewed_by: user.id,
-          review_notes: reviewNotes.trim() || null,
-          reviewed_at: new Date().toISOString(),
-        })
-        .eq("id", selectedClaim.id as string);
-      if (updateError) throw updateError;
-
-      // Notify claimant
-      const membership = selectedClaim.membership as Record<string, unknown> | null;
-      const claimantUserId = membership?.user_id as string | null;
-      if (claimantUserId && groupId) {
-        try { await supabase.from("notifications").insert({
-          user_id: claimantUserId,
-          group_id: groupId,
-          type: "system",
-          title: t("relief.claimApprovedNotifTitle"),
-          body: t("relief.claimApprovedNotifBody"),
-          is_read: false,
-          data: { link: "/dashboard/relief/claims" },
-        }); } catch { /* notification is best-effort */ }
-      }
-
-      // Email + SMS for relief claim approved (fire-and-forget). WhatsApp
-      // goes through the server-side queue-backed producer (exactly-once per
-      // claim decision, claimant-locale, DB-resolved variables). In-app is
-      // the direct insert above; notifyFromClient's typed insert is disabled
-      // — "relief" was never a valid notification_type enum value, so it
-      // always failed silently.
-      try {
-        const { notifyFromClient } = await import("@/lib/notify-client");
-        const privSettings = (membership?.privacy_settings as Record<string, unknown>) || null;
-        // profile.phone no longer in useMembers cache. /api/sms/send
-        // resolves real-member phone from user_id server-side. Only proxy
-        // phones flow client-side.
-        const phone = (privSettings?.proxy_phone as string) || null;
-        const amount = formatAmount(Number(selectedClaim.amount || 0), currentGroup?.currency || "XAF");
-        notifyFromClient({
-          recipientUserId: claimantUserId,
-          recipientPhone: phone,
-          groupId: groupId!,
-          title: t("relief.claimApprovedNotifTitle"),
-          body: t("relief.claimApprovedNotifBody"),
-          data: { amount, groupName: currentGroup?.name || "" },
-          emailTemplate: "notification",
-          smsTemplate: "relief-claim-approved",
-          inAppType: "relief",
-          locale,
-          channels: { inApp: false, email: true, sms: true, whatsapp: false },
-          prefType: "relief_updates",
-        }).catch((err) => {
-          console.warn("[ReliefClaims] email/SMS notification failed:", err instanceof Error ? err.message : err);
-        });
-        const { requestReliefClaimDecisionWhatsApp } = await import("@/lib/notify-money-path");
-        requestReliefClaimDecisionWhatsApp(supabase, selectedClaim.id as string, locale).catch((err) => {
-          console.warn("[ReliefClaims] WhatsApp producer trigger failed:", err instanceof Error ? err.message : err);
-        });
-      } catch (err) {
-        console.warn("[ReliefClaims] approval notification dispatch failed:", err instanceof Error ? err.message : err);
-      }
-
-      // Audit log
-      try {
-        const { logActivity } = await import("@/lib/audit-log");
-        await logActivity(supabase, {
-          groupId: groupId!,
-          action: "relief_claim.approved",
-          entityType: "relief",
-          entityId: selectedClaim.id as string,
-          description: `Relief claim approved`,
-          metadata: { claimId: selectedClaim.id },
-        });
-      } catch { /* best-effort */ }
-
-      await queryClient.invalidateQueries({ queryKey: ["relief-claims", groupId] });
-      setShowReviewDialog(false);
-      setSelectedClaim(null);
-    } catch (err) {
-      setReviewError((err as Error).message || t("common.error"));
-    } finally {
-      setReviewLoading(false);
+  useEffect(() => {
+    if (groupId !== prevGroupId) {
+      setPrevGroupId(groupId);
+      setSubmitClaimOpen(false);
+      setReviewClaimId(null);
+      setDisburseClaimId(null);
+      setActiveTab("all");
     }
-  }
+  }, [groupId, prevGroupId]);
 
-  async function handleDenyClaim() {
-    if (!selectedClaim) return;
-    if (!reviewNotes.trim()) {
-      setReviewError(t("relief.denyReasonRequired"));
-      return;
+  const filteredClaims = activeTab === "all" ? claims : claims.filter((c:any) => c.status === activeTab);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "submitted": return "bg-gray-100 text-gray-800";
+      case "under_review": return "bg-blue-100 text-blue-800";
+      case "approved": return "bg-green-100 text-green-800";
+      case "rejected": return "bg-red-100 text-red-800";
+      case "paid": return "bg-purple-100 text-purple-800";
+      default: return "bg-gray-100 text-gray-800";
     }
-    setReviewLoading(true);
-    setReviewError(null);
-    try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error(t("common.error"));
-
-      const { error: updateError } = await supabase
-        .from("relief_claims")
-        .update({
-          status: "denied",
-          reviewed_by: user.id,
-          review_notes: reviewNotes.trim(),
-          reviewed_at: new Date().toISOString(),
-        })
-        .eq("id", selectedClaim.id as string);
-      if (updateError) throw updateError;
-
-      // Notify claimant
-      const membership = selectedClaim.membership as Record<string, unknown> | null;
-      const claimantUserId = membership?.user_id as string | null;
-      if (claimantUserId && groupId) {
-        try { await supabase.from("notifications").insert({
-          user_id: claimantUserId,
-          group_id: groupId,
-          type: "system",
-          title: t("relief.claimDeniedNotifTitle"),
-          body: reviewNotes.trim(),
-          is_read: false,
-          data: { link: "/dashboard/relief/claims" },
-        }); } catch { /* notification is best-effort */ }
-      }
-
-      // Email + SMS for relief claim denied (fire-and-forget). WhatsApp goes
-      // through the server-side queue-backed producer (exactly-once per claim
-      // decision, claimant-locale, DB-resolved variables). In-app is the
-      // direct insert above; notifyFromClient's typed insert is disabled —
-      // "relief" was never a valid notification_type enum value, so it
-      // always failed silently.
-      try {
-        const { notifyFromClient } = await import("@/lib/notify-client");
-        const privSettings = (membership?.privacy_settings as Record<string, unknown>) || null;
-        // profile.phone no longer in useMembers cache. /api/sms/send
-        // resolves real-member phone from user_id server-side. Only proxy
-        // phones flow client-side.
-        const phone = (privSettings?.proxy_phone as string) || null;
-        notifyFromClient({
-          recipientUserId: claimantUserId,
-          recipientPhone: phone,
-          groupId: groupId!,
-          title: t("relief.claimDeniedNotifTitle"),
-          body: reviewNotes.trim(),
-          data: { reason: reviewNotes.trim(), groupName: currentGroup?.name || "" },
-          emailTemplate: "notification",
-          smsTemplate: "relief-claim-denied",
-          inAppType: "relief",
-          locale,
-          channels: { inApp: false, email: true, sms: true, whatsapp: false },
-          prefType: "relief_updates",
-        }).catch((err) => {
-          console.warn("[ReliefClaims] email/SMS notification failed:", err instanceof Error ? err.message : err);
-        });
-        const { requestReliefClaimDecisionWhatsApp } = await import("@/lib/notify-money-path");
-        requestReliefClaimDecisionWhatsApp(supabase, selectedClaim.id as string, locale).catch((err) => {
-          console.warn("[ReliefClaims] WhatsApp producer trigger failed:", err instanceof Error ? err.message : err);
-        });
-      } catch (err) {
-        console.warn("[ReliefClaims] denial notification dispatch failed:", err instanceof Error ? err.message : err);
-      }
-
-      // Audit log
-      try {
-        const { logActivity } = await import("@/lib/audit-log");
-        await logActivity(supabase, {
-          groupId: groupId!,
-          action: "relief_claim.denied",
-          entityType: "relief",
-          entityId: selectedClaim.id as string,
-          description: `Relief claim denied: ${reviewNotes.trim()}`,
-          metadata: { claimId: selectedClaim.id, reason: reviewNotes.trim() },
-        });
-      } catch { /* best-effort */ }
-
-      await queryClient.invalidateQueries({ queryKey: ["relief-claims", groupId] });
-      setShowReviewDialog(false);
-      setSelectedClaim(null);
-    } catch (err) {
-      setReviewError((err as Error).message || t("common.error"));
-    } finally {
-      setReviewLoading(false);
-    }
-  }
-
-  if (isLoading) return <AdminGuard><ListSkeleton rows={5} /></AdminGuard>;
-  if (error) return <AdminGuard><ErrorState message={error.message} onRetry={() => refetch()} /></AdminGuard>;
-
-  const claimsList = claims || [];
-  const filtered = claimsList.filter((c: Record<string, unknown>) => {
-    const status = c.status as string;
-    const membership = c.membership as Record<string, unknown> | null;
-    const memberName = membership ? getMemberName(membership) : "";
-    if (statusFilter !== "all" && status !== statusFilter) return false;
-    if (search && !memberName.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
-
-  const sortedFiltered = [...filtered].sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
-    if (sortField === "amount") {
-      const cmp = Number(a.payout_amount || a.amount || 0) - Number(b.payout_amount || b.amount || 0);
-      return sortDir === "asc" ? cmp : -cmp;
-    }
-    // date
-    const cmp = new Date(a.created_at as string).getTime() - new Date(b.created_at as string).getTime();
-    return sortDir === "asc" ? cmp : -cmp;
-  });
-
-  const currency = currentGroup?.currency || "XAF";
+  };
 
   return (
-    <AdminGuard><div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight sm:text-3xl">{t("relief.claims")}</h1>
-        <p className="text-muted-foreground">{t("relief.subtitle")}</p>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Relief Claims</h1>
+          <p className="text-muted-foreground">Manage and review member relief claims and payouts.</p>
+        </div>
+        <Button onClick={() => setSubmitClaimOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          {t("actions.submitClaim")}
+        </Button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder={t("members.searchMembers")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {(["all", "submitted", "reviewing", "approved", "denied"] as const).map((s) => (
-            <Button key={s} variant={statusFilter === s ? "default" : "outline"} size="sm" onClick={() => setStatusFilter(s)}>
-              {s === "all" ? t("common.all") : t(`relief.claimStatus.${s}`)}
-            </Button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">{t("relief.sortBy")}:</span>
-          <Button variant={sortField === "date" ? "default" : "outline"} size="sm" onClick={() => { if (sortField === "date") { setSortDir(d => d === "asc" ? "desc" : "asc"); } else { setSortField("date"); setSortDir("desc"); } }}>
-            {t("relief.sortDateFiled")} {sortField === "date" && (sortDir === "asc" ? "\u2191" : "\u2193")}
-          </Button>
-          <Button variant={sortField === "amount" ? "default" : "outline"} size="sm" onClick={() => { if (sortField === "amount") { setSortDir(d => d === "asc" ? "desc" : "asc"); } else { setSortField("amount"); setSortDir("desc"); } }}>
-            {t("relief.sortAmount")} {sortField === "amount" && (sortDir === "asc" ? "\u2191" : "\u2193")}
-          </Button>
-        </div>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="w-full sm:w-auto overflow-x-auto justify-start h-auto p-1 mb-4">
+          <TabsTrigger value="all">All</TabsTrigger>
+          <TabsTrigger value="submitted">{t("claimStatuses.submitted")}</TabsTrigger>
+          <TabsTrigger value="under_review">{t("claimStatuses.underReview")}</TabsTrigger>
+          <TabsTrigger value="approved">{t("claimStatuses.approved")}</TabsTrigger>
+          <TabsTrigger value="paid">{t("claimStatuses.paid")}</TabsTrigger>
+          <TabsTrigger value="rejected">{t("claimStatuses.rejected")}</TabsTrigger>
+        </TabsList>
 
-      {/* Claims List */}
-      <div className="space-y-3">
-        {sortedFiltered.length === 0 ? (
-          <EmptyState
-            icon={FileText}
-            title={t("relief.noClaims")}
-            description={t("relief.noClaimsDesc")}
-          />
+        {claimsLoading ? (
+          <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+        ) : filteredClaims.length === 0 ? (
+          <Card className="p-8 text-center bg-muted/50 border-dashed">
+            <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium">No Claims Found</h3>
+            <p className="text-muted-foreground">No claims match the selected status.</p>
+          </Card>
         ) : (
-          sortedFiltered.map((claim: Record<string, unknown>) => {
-            const status = (claim.status as ClaimStatus) || "submitted";
-            const config = claimStatusConfig[status] || claimStatusConfig.submitted;
-            const StatusIcon = config.icon;
-            const membership = claim.membership as Record<string, unknown> | null;
-            const memberName = membership ? getMemberName(membership) : t("common.unknown");
-            const plan = (claim.relief_plan as Record<string, unknown>) || {};
-            const planName = (plan.name as string) || "";
-            const amount = Number(claim.payout_amount || claim.amount || 0);
-            const eventType = (claim.event_type as string) || "other";
-            const description = (claim.description as string) || "";
-            const claimReviewNotes = (claim.review_notes as string) || "";
-            const createdAt = claim.created_at
-              ? formatDateWithGroupFormat(claim.created_at as string, groupDateFormat, locale)
-              : "";
-
-            return (
-              <Card key={claim.id as string} className="transition-shadow hover:shadow-md">
-                <CardContent className="p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-sm">{memberName}</h3>
-                        <Badge className={config.color}>
-                          <StatusIcon className="mr-1 h-3 w-3" />
-                          {t(`relief.claimStatus.${status}`)}
-                        </Badge>
+          <div className="grid gap-4">
+            {filteredClaims.map((claim: any) => {
+              const plan = plans.find((p:any) => p.id === claim.plan_id);
+              const claimant = members.find((m:any) => m.id === claim.claimant_membership_id) as any;
+              
+              return (
+                <Card key={claim.id}>
+                  <CardContent className="p-6">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-lg">{claimant?.display_name || claimant?.user_id || 'Unknown Member'}</h3>
+                          <Badge variant="outline" className={getStatusColor(claim.status)}>
+                            {t(`claimStatuses.${claim.status === 'under_review' ? 'underReview' : claim.status}`)}
+                          </Badge>
+                          {claim.financial_event_id && (
+                            <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+                              <CheckCircle2 className="w-3 h-3 mr-1" /> Posted to Ledger
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">{plan?.name} • Incident: {claim.incident_date}</p>
+                        <div className="mt-2 text-sm">
+                          <strong>{t("fields.amountRequested")}:</strong> {formatAmount(claim.amount_requested, claim.currency)}
+                          {claim.amount_approved && (
+                            <span className="ml-4"><strong>{t("fields.amountApproved")}:</strong> {formatAmount(claim.amount_approved, claim.currency)}</span>
+                          )}
+                        </div>
                       </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {t(`relief.eventTypes.${eventType}`)} · {planName} · {createdAt}
-                      </p>
-                      {description && (
-                        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-                      )}
-                      {claimReviewNotes && (
-                        <p className="mt-1 text-xs italic text-muted-foreground">
-                          {t("relief.reviewNotes")}: {claimReviewNotes}
-                        </p>
-                      )}
+                      
+                      <div className="flex gap-2">
+                        {canManage && (claim.status === "submitted" || claim.status === "under_review") && (
+                          <Button variant="outline" onClick={() => setReviewClaimId(claim.id)}>{t("actions.reviewClaim")}</Button>
+                        )}
+                        {canManage && claim.status === "approved" && !claim.financial_event_id && (
+                          <Button onClick={() => setDisburseClaimId(claim.id)}>{t("actions.disbursePayout")}</Button>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-lg font-bold text-primary">{formatAmount(amount, currency)}</span>
-                      {(status === "submitted" || status === "reviewing") && (
-                        <Button size="sm" variant="outline" onClick={() => openReviewDialog(claim)}>
-                          <Eye className="mr-1 h-3.5 w-3.5" />{t("relief.reviewClaim")}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         )}
-      </div>
+      </Tabs>
 
-      {/* Review Claim Dialog */}
-      {selectedClaim && (
-        <Dialog open={showReviewDialog} onOpenChange={(open) => { if (!open) { setShowReviewDialog(false); setSelectedClaim(null); } }}>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>{t("relief.reviewClaim")}</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div className="rounded-lg border p-3 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{t("contributions.member")}</span>
-                  <span className="font-medium">
-                    {selectedClaim.membership
-                      ? getMemberName(selectedClaim.membership as Record<string, unknown>)
-                      : t("common.unknown")}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{t("relief.whatHappened")}</span>
-                  <span className="font-medium">{t(`relief.eventTypes.${(selectedClaim.event_type as string) || "other"}`)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{t("relief.plans")}</span>
-                  <span className="font-medium">{String((selectedClaim.relief_plan as Record<string, unknown>)?.name || "")}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{t("relief.payoutAmount")}</span>
-                  <span className="font-bold text-primary">{formatAmount(Number(selectedClaim.payout_amount || selectedClaim.amount || 0), currency)}</span>
-                </div>
-                {!!selectedClaim.supporting_doc_url && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{t("relief.attachDocument")}</span>
-                    <a
-                      href={selectedClaim.supporting_doc_url as string}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary underline text-xs"
-                    >
-                      {t("relief.viewDocument")}
-                    </a>
-                  </div>
-                )}
-                {selectedClaim.description ? (
-                  <div className="pt-2 border-t">
-                    <p className="text-sm">{String(selectedClaim.description)}</p>
-                  </div>
-                ) : null}
-              </div>
-              <div className="space-y-2">
-                <Label>{t("relief.reviewNotes")}</Label>
-                <Textarea
-                  placeholder={t("relief.reviewNotesPlaceholder")}
-                  rows={3}
-                  value={reviewNotes}
-                  onChange={(e) => setReviewNotes(e.target.value)}
-                />
-              </div>
-              {reviewError && <p className="text-sm text-destructive">{reviewError}</p>}
-            </div>
-            <DialogFooter className="flex-col gap-2 sm:flex-row">
-              <Button
-                variant="destructive"
-                onClick={handleDenyClaim}
-                disabled={reviewLoading}
-                className="w-full sm:w-auto"
-              >
-                {reviewLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
-                {t("relief.denyClaim")}
-              </Button>
-              <Button
-                onClick={handleApproveClaim}
-                disabled={reviewLoading}
-                className="w-full sm:w-auto"
-              >
-                {reviewLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                {t("relief.approveClaim")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      <SubmitClaimDialog open={submitClaimOpen} onOpenChange={setSubmitClaimOpen} plans={plans} members={members} />
+      
+      {reviewClaimId && (
+        <ReviewClaimDialog 
+          open={!!reviewClaimId} 
+          onOpenChange={(open) => !open && setReviewClaimId(null)} 
+          claim={claims.find((c:any) => c.id === reviewClaimId)} 
+        />
       )}
-    </div></AdminGuard>
+
+      {disburseClaimId && (
+        <DisburseClaimDialog 
+          open={!!disburseClaimId} 
+          onOpenChange={(open) => !open && setDisburseClaimId(null)} 
+          claim={claims.find((c:any) => c.id === disburseClaimId)}
+          plan={plans.find((p:any) => p.id === claims.find((c:any) => c.id === disburseClaimId)?.plan_id)}
+          claimant={members.find((m:any) => m.id === claims.find((c:any) => c.id === disburseClaimId)?.claimant_membership_id)}
+        />
+      )}
+    </div>
+  );
+}
+
+function SubmitClaimDialog({ open, onOpenChange, plans, members }: { open: boolean, onOpenChange: (open: boolean) => void, plans: any[], members: any[] }) {
+  const t = useTranslations("relief");
+  const { groupId } = useGroup();
+  const submitClaim = useSubmitReliefClaim();
+
+  const [planId, setPlanId] = useState("");
+  const [claimantId, setClaimantId] = useState("");
+  const [incidentDate, setIncidentDate] = useState("");
+  const [amountRequested, setAmountRequested] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const selectedPlan = plans.find((p:any) => p.id === planId);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!groupId || !selectedPlan) return;
+    try {
+      await submitClaim.mutateAsync({
+        groupId,
+        planId,
+        claimantMembershipId: claimantId,
+        incidentDate,
+        amountRequested: parseFloat(amountRequested),
+        currency: selectedPlan.currency,
+      });
+      onOpenChange(false);
+      setPlanId("");
+      setClaimantId("");
+      setIncidentDate("");
+      setAmountRequested("");
+    } catch (err: any) {
+      setError(parseReliefRpcError(err));
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{t("actions.submitClaim")}</DialogTitle></DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && <div className="text-sm text-red-500 bg-red-50 p-2 rounded">{error}</div>}
+          
+          <div className="space-y-2">
+            <Label>{t("fields.planName")}</Label>
+            <Select required value={planId} onValueChange={(v: any) => setPlanId(v)}>
+              <SelectTrigger><SelectValue placeholder="Select plan..." /></SelectTrigger>
+              <SelectContent>
+                {plans.map((p:any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Claimant</Label>
+            <Select required value={claimantId} onValueChange={(v: any) => setClaimantId(v)}>
+              <SelectTrigger><SelectValue placeholder="Select member..." /></SelectTrigger>
+              <SelectContent>
+                {members.map((m:any) => <SelectItem key={m.id} value={m.id}>{m.display_name || m.user_id}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>{t("fields.incidentDate")}</Label>
+              <Input type="date" required value={incidentDate} onChange={e => setIncidentDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("fields.amountRequested")}</Label>
+              <div className="flex gap-2 items-center">
+                <span className="text-muted-foreground text-sm">{selectedPlan?.currency || '---'}</span>
+                <Input type="number" step="0.01" required value={amountRequested} onChange={e => setAmountRequested(e.target.value)} />
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit" disabled={submitClaim.isPending}>
+              {submitClaim.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              {t("actions.submitClaim")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ReviewClaimDialog({ open, onOpenChange, claim }: { open: boolean, onOpenChange: (open: boolean) => void, claim: any }) {
+  const t = useTranslations("relief");
+  const { groupId } = useGroup();
+  const reviewClaim = useReviewReliefClaim();
+
+  const [status, setStatus] = useState<"approved" | "rejected">("approved");
+  const [amountApproved, setAmountApproved] = useState(claim?.amount_requested || "");
+  const [reviewNotes, setReviewNotes] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!groupId || !claim) return;
+    try {
+      await reviewClaim.mutateAsync({
+        groupId,
+        claimId: claim.id,
+        status,
+        amountApproved: status === 'approved' ? parseFloat(amountApproved) : undefined,
+        reviewNotes
+      });
+      onOpenChange(false);
+    } catch (err: any) {
+      setError(parseReliefRpcError(err));
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{t("actions.reviewClaim")}</DialogTitle></DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && <div className="text-sm text-red-500 bg-red-50 p-2 rounded">{error}</div>}
+          
+          <div className="space-y-2">
+            <Label>Decision</Label>
+            <Select required value={status} onValueChange={(v:any) => setStatus(v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="approved">Approve</SelectItem>
+                <SelectItem value="rejected">Reject</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {status === "approved" && (
+            <div className="space-y-2">
+              <Label>{t("fields.amountApproved")}</Label>
+              <Input type="number" step="0.01" required value={amountApproved} onChange={e => setAmountApproved(e.target.value)} />
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label>{t("fields.reviewNotes")}</Label>
+            <Textarea value={reviewNotes} onChange={e => setReviewNotes(e.target.value)} />
+          </div>
+          
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit" disabled={reviewClaim.isPending}>
+              {reviewClaim.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Confirm Decision
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DisburseClaimDialog({ open, onOpenChange, claim, plan, claimant }: { open: boolean, onOpenChange: (open: boolean) => void, claim: any, plan: any, claimant: any }) {
+  const t = useTranslations("relief");
+  const { groupId } = useGroup();
+  const disburseClaim = useDisburseReliefClaim();
+  const { data: accounts = [], isLoading: accountsLoading } = useFinancialAccounts(groupId);
+
+  const [accountId, setAccountId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const matchingAccounts = accounts.filter((a:any) => a.currency === claim?.currency);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!groupId || !claim || !accountId) return;
+    try {
+      await disburseClaim.mutateAsync({
+        groupId,
+        claimId: claim.id,
+        accountId
+      });
+      onOpenChange(false);
+    } catch (err: any) {
+      setError(parseReliefRpcError(err));
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{t("actions.disbursePayout")}</DialogTitle></DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && <div className="text-sm text-red-500 bg-red-50 p-2 rounded">{error}</div>}
+          
+          <div className="bg-muted p-4 rounded-md space-y-1 text-sm">
+            <p><strong>Claimant:</strong> {claimant?.display_name || claimant?.user_id || 'Unknown'}</p>
+            <p><strong>Plan:</strong> {plan?.name || 'Unknown'}</p>
+            <p><strong>Approved Payout:</strong> <span className="font-bold text-green-700">{formatAmount(claim?.amount_approved, claim?.currency)}</span></p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>{t("fields.custodyAccount")}</Label>
+            <Select required value={accountId} onValueChange={(v: any) => setAccountId(v)} disabled={accountsLoading}>
+              <SelectTrigger>
+                <SelectValue placeholder={accountsLoading ? "Loading accounts..." : "Select account to draw from..."} />
+              </SelectTrigger>
+              <SelectContent>
+                {matchingAccounts.map((a:any) => (
+                  <SelectItem key={a.id} value={a.id}>{a.name} ({a.currency})</SelectItem>
+                ))}
+                {matchingAccounts.length === 0 && (
+                  <SelectItem value="none" disabled>No active {claim?.currency} accounts found.</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit" disabled={disburseClaim.isPending || !accountId || accountId === 'none'}>
+              {disburseClaim.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Disburse Now
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

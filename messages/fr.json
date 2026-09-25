@@ -1763,6 +1763,89 @@
       "categoryUpdated": "Catégorie financière mise à jour avec succès."
     }
   },
+  "transactionEntry": {
+    "title": "Enregistrer une transaction financière",
+    "subtitle": "Commandes du grand livre à partie double pour les encaissements, décaissements et virements manuels",
+    "actions": {
+      "record": "Enregistrer la transaction",
+      "recording": "Enregistrement...",
+      "cancel": "Annuler",
+      "success": "Transaction enregistrée",
+      "recordAnother": "Enregistrer une autre",
+      "close": "Fermer"
+    },
+    "tabs": {
+      "moneyIn": "Encaissement",
+      "moneyOut": "Décaissement",
+      "transfer": "Virement"
+    },
+    "headings": {
+      "moneyIn": "Enregistrer une rentrée d'argent (Revenu)",
+      "moneyOut": "Enregistrer une sortie d'argent (Dépense)",
+      "transfer": "Enregistrer un virement de compte à compte"
+    },
+    "subheadings": {
+      "moneyIn": "Débite le compte de garde, crédite la catégorie de revenu. Augmente les fonds en garde.",
+      "moneyOut": "Crédite le compte de garde, débite la catégorie de dépense. Diminue les fonds en garde.",
+      "transfer": "Déplace les fonds entre deux comptes du même groupe et de même devise sans modifier la valeur nette."
+    },
+    "fields": {
+      "sourceAccount": "Compte source",
+      "destinationAccount": "Compte de destination",
+      "account": "Compte",
+      "category": "Catégorie",
+      "fund": "Fonds comptable",
+      "amount": "Montant",
+      "currency": "Devise",
+      "occurredAt": "Date et heure",
+      "member": "Attribution au membre (Facultatif)",
+      "project": "Attribution au projet (Facultatif)",
+      "description": "Description",
+      "reference": "Référence / N° de reçu"
+    },
+    "placeholders": {
+      "selectSourceAccount": "Sélectionner le compte source...",
+      "selectDestinationAccount": "Sélectionner le compte de destination...",
+      "selectAccount": "Sélectionner le compte de garde...",
+      "selectCategory": "Sélectionner une catégorie...",
+      "selectFund": "Fonds général par défaut (ou choisir un fonds spécifique)...",
+      "selectMember": "Aucun (non attribué à un membre)...",
+      "selectProject": "Aucun (non attribué à un projet)...",
+      "amount": "0,00",
+      "description": "Précisez l'objet de cette transaction...",
+      "moneyOutDescription": "Obligatoire : décrivez ce que cette dépense a financé...",
+      "reference": "ex. Réf. bancaire, Reçu n° 1234, N° de chèque"
+    },
+    "help": {
+      "decimalGuidance": "Saisissez un montant décimal exact. La notation exponentielle (ex. 1e4) et les nombres négatifs sont rejetés.",
+      "sameCurrencyTransfer": "Les virements exigent que les comptes source et destination aient la même devise. Les virements multidevises nécessitent un règlement de change.",
+      "descriptionRequiredForExpense": "Les décaissements exigent une description explicite justifiant la finalité opérationnelle de la dépense.",
+      "fundDefault": "Si aucun fonds n'est sélectionné, la transaction sera automatiquement imputée au fonds d'exploitation par défaut du groupe.",
+      "idempotentSubmission": "Chaque transaction est protégée par un jeton de requête cryptographique unique. Une réexpédition ne créera jamais de doublon."
+    },
+    "validation": {
+      "invalidAmount": "Format de montant invalide. Veuillez saisir un nombre décimal positif valide.",
+      "amountNotPositive": "Le montant doit être strictement supérieur à zéro.",
+      "amountPrecision": "La précision du montant dépasse le nombre de décimales autorisées pour cette devise.",
+      "accountRequired": "Veuillez sélectionner un compte de garde.",
+      "destinationRequired": "Veuillez sélectionner un compte de destination pour le virement.",
+      "sameAccountTransfer": "Les comptes source et de destination doivent être distincts.",
+      "crossCurrencyTransfer": "Les virements multidevises ne sont pas autorisés. Les deux comptes doivent utiliser la même devise.",
+      "categoryRequired": "Veuillez sélectionner une catégorie comptable.",
+      "categoryClassMismatch": "La classe de la catégorie sélectionnée ne correspond pas à l'opération (catégories de revenu pour Encaissement, catégories de dépense pour Décaissement).",
+      "descriptionRequired": "Une description est strictement requise lors de l'enregistrement d'une dépense.",
+      "staleTenantAborted": "Opération interrompue : votre groupe actif a changé. Veuillez actualiser et réessayer.",
+      "noActiveEpoch": "Aucune époque de grand livre active trouvée pour cette date. Les transactions doivent s'inscrire dans une époque ouverte.",
+      "accountEpochIncompatible": "Le compte sélectionné a été ouvert après la date de la transaction ou appartient à une époque incompatible.",
+      "conflict": "Une transaction contradictoire portant cet identifiant de requête a déjà été enregistrée. Veuillez actualiser.",
+      "permissionDenied": "Vous n'avez pas la permission d'enregistrer des transactions financières.",
+      "genericError": "Échec de l'enregistrement de la transaction. Veuillez vérifier vos données et réessayer."
+    },
+    "notifications": {
+      "postedSuccess": "Transaction enregistrée avec succès dans le grand livre canonique.",
+      "idempotentSuccess": "La transaction avait déjà été enregistrée (doublon idempotent détecté ; aucune écriture dupliquée créée)."
+    }
+  },
   "invitations": {
     "title": "Invitations",
     "subtitle": "Invitez de nouveaux membres dans votre groupe",

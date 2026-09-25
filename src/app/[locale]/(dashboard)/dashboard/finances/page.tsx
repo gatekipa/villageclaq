@@ -26,6 +26,7 @@ import {
   Landmark,
   Banknote,
   SlidersHorizontal,
+  PlusCircle,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useObligations, usePayments, useContributionTypes } from "@/lib/hooks/use-supabase-query";
@@ -43,6 +44,7 @@ import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-
 import { RequirePermission, PermissionGate } from "@/components/ui/permission-gate";
 import { getMemberName } from "@/lib/get-member-name";
 import { MoneyOverview } from "@/components/finances/money-overview";
+import { RecordTransactionDialog } from "@/components/finances/record-transaction-dialog";
 import {
   confirmedPaidByType,
   confirmedPaidByMember,
@@ -141,6 +143,7 @@ export default function FinancesPage() {
   const currency = currentGroup?.currency || "XAF";
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
+  const [recordTxOpen, setRecordTxOpen] = useState(false);
 
   const { data: allObligations, isLoading: oblLoading, isError: oblError, refetch: oblRefetch } = useObligations();
   const { data: allPayments, isLoading: payLoading, isError: payError } = usePayments(5000);
@@ -412,12 +415,22 @@ export default function FinancesPage() {
           <p className="text-muted-foreground">{t("finances.subtitle")}</p>
         </div>
         <PermissionGate permission="finances.manage">
-          <Link href="/dashboard/finances/config">
-            <Button variant="outline" size="sm" className="gap-1.5 self-start sm:self-auto">
-              <SlidersHorizontal className="h-4 w-4" />
-              {t("financialConfig.title")}
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <Button
+              onClick={() => setRecordTxOpen(true)}
+              size="sm"
+              className="gap-1.5 shadow-sm"
+            >
+              <PlusCircle className="h-4 w-4" />
+              {t("transactionEntry.actions.record")}
             </Button>
-          </Link>
+            <Link href="/dashboard/finances/config">
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <SlidersHorizontal className="h-4 w-4" />
+                {t("financialConfig.title")}
+              </Button>
+            </Link>
+          </div>
         </PermissionGate>
       </div>
 
@@ -745,6 +758,12 @@ export default function FinancesPage() {
           </div>
         </>
       )}
+
+      <RecordTransactionDialog
+        open={recordTxOpen}
+        onOpenChange={setRecordTxOpen}
+        defaultAction="money_in"
+      />
     </div></RequirePermission>
   );
 }

@@ -1763,6 +1763,89 @@
       "categoryUpdated": "Financial category updated successfully."
     }
   },
+  "transactionEntry": {
+    "title": "Record Financial Transaction",
+    "subtitle": "Authoritative double-entry ledger commands for manual receipts, disbursements, and transfers",
+    "actions": {
+      "record": "Record Transaction",
+      "recording": "Recording...",
+      "cancel": "Cancel",
+      "success": "Transaction Recorded",
+      "recordAnother": "Record Another",
+      "close": "Close"
+    },
+    "tabs": {
+      "moneyIn": "Money In",
+      "moneyOut": "Money Out",
+      "transfer": "Transfer"
+    },
+    "headings": {
+      "moneyIn": "Record Money Received (Receipt)",
+      "moneyOut": "Record Money Disbursed (Expense)",
+      "transfer": "Record Account Transfer"
+    },
+    "subheadings": {
+      "moneyIn": "Debit custody account, credit income category. Increases ledger custody.",
+      "moneyOut": "Credit custody account, debit expense category. Decreases ledger custody.",
+      "transfer": "Move custody between two accounts in the same group and currency without altering net worth."
+    },
+    "fields": {
+      "sourceAccount": "Source Account",
+      "destinationAccount": "Destination Account",
+      "account": "Account",
+      "category": "Category",
+      "fund": "Accounting Fund",
+      "amount": "Amount",
+      "currency": "Currency",
+      "occurredAt": "Date & Time",
+      "member": "Member Attribution (Optional)",
+      "project": "Project Attribution (Optional)",
+      "description": "Description",
+      "reference": "Reference / Receipt #"
+    },
+    "placeholders": {
+      "selectSourceAccount": "Select source account...",
+      "selectDestinationAccount": "Select destination account...",
+      "selectAccount": "Select custody account...",
+      "selectCategory": "Select category...",
+      "selectFund": "Default general fund (or select specific fund)...",
+      "selectMember": "None (unattributed to a member)...",
+      "selectProject": "None (unattributed to a project)...",
+      "amount": "0.00",
+      "description": "State the purpose of this transaction...",
+      "moneyOutDescription": "Required: describe what this expenditure paid for...",
+      "reference": "e.g., Bank Ref #, Receipt #1234, Check #"
+    },
+    "help": {
+      "decimalGuidance": "Enter an exact decimal amount. Exponential notation (e.g., 1e4) and negative numbers are rejected.",
+      "sameCurrencyTransfer": "Transfers require both source and destination accounts to have the same currency. Cross-currency transfers require currency exchange settlement.",
+      "descriptionRequiredForExpense": "Expenditures require an explicit description explaining the business or operational purpose of the outflow.",
+      "fundDefault": "If no fund is selected, the transaction will automatically be recorded against the group's default operational fund.",
+      "idempotentSubmission": "Every transaction is protected by a unique cryptographic request token. Resubmitting will never create a duplicate entry."
+    },
+    "validation": {
+      "invalidAmount": "Invalid amount format. Please enter a valid positive decimal number.",
+      "amountNotPositive": "Amount must be strictly greater than zero.",
+      "amountPrecision": "Amount precision exceeds the supported decimal places for this currency.",
+      "accountRequired": "Please select a custody account.",
+      "destinationRequired": "Please select a destination account for the transfer.",
+      "sameAccountTransfer": "Source and destination accounts must be different.",
+      "crossCurrencyTransfer": "Cross-currency transfers are not permitted. Both accounts must use the same currency.",
+      "categoryRequired": "Please select an accounting category.",
+      "categoryClassMismatch": "The selected category class does not match the transaction action (income categories for Money In, expense categories for Money Out).",
+      "descriptionRequired": "A description is strictly required when recording an expense.",
+      "staleTenantAborted": "Operation aborted: your active group changed. Please refresh and try again.",
+      "noActiveEpoch": "No active ledger epoch found for this transaction date. Transactions must fall within an open financial epoch.",
+      "accountEpochIncompatible": "The selected account was opened after the transaction date or belongs to an incompatible ledger epoch.",
+      "conflict": "A conflicting transaction with this request identity has already been posted. Please refresh.",
+      "permissionDenied": "You do not have permission to record financial transactions.",
+      "genericError": "Failed to record transaction. Please verify your inputs and try again."
+    },
+    "notifications": {
+      "postedSuccess": "Transaction successfully posted to the canonical ledger.",
+      "idempotentSuccess": "Transaction was already recorded (idempotent duplicate detected; no duplicate postings created)."
+    }
+  },
   "invitations": {
     "title": "Invitations",
     "subtitle": "Invite new members to your group",

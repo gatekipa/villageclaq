@@ -1645,6 +1645,124 @@
       "viewAll": "View all"
     }
   },
+  "financialConfig": {
+    "title": "Financial Configuration",
+    "subtitle": "Manage double-entry ledger accounts, funds, and financial categories",
+    "tabs": {
+      "accounts": "Accounts",
+      "funds": "Funds",
+      "categories": "Categories"
+    },
+    "accounts": {
+      "title": "Financial Accounts",
+      "subtitle": "Ledger custody accounts tracking cash, bank balances, and mobile money wallets",
+      "createAccount": "Create Account",
+      "editAccount": "Edit Account",
+      "closeAccount": "Close Account",
+      "inactivateAccount": "Inactivate Account",
+      "name": "Account Name",
+      "namePlaceholder": "e.g., Main Checking, Cash Box, MTN MoMo",
+      "description": "Description",
+      "descriptionPlaceholder": "Optional account notes or purpose",
+      "kind": "Account Kind",
+      "currency": "Currency",
+      "status": "Status",
+      "openedAt": "Opened Date",
+      "closedAt": "Closed Date",
+      "emptyTitle": "No Financial Accounts",
+      "emptyDescription": "No financial accounts have been set up for this group yet.",
+      "kinds": {
+        "bank": "Bank Account",
+        "cash": "Cash in Hand",
+        "mobile_money": "Mobile Money",
+        "wallet": "Digital Wallet",
+        "other": "Other Custody"
+      },
+      "closeWarning": "Closing an account is permanent and requires a zero balance. This account will no longer accept new transactions.",
+      "inactivateWarning": "Inactivating an account prevents new transactions while preserving historical records."
+    },
+    "funds": {
+      "title": "Financial Funds",
+      "subtitle": "Accounting funds separating general operational balances from restricted or earmarked reserves",
+      "createFund": "Create Fund",
+      "editFund": "Edit Fund",
+      "inactivateFund": "Inactivate Fund",
+      "name": "Fund Name",
+      "namePlaceholder": "e.g., General Operating Fund, Building Reserve",
+      "description": "Description",
+      "descriptionPlaceholder": "Optional fund description",
+      "status": "Status",
+      "isDefault": "Default Fund",
+      "isRestricted": "Restricted Reserve",
+      "defaultBadge": "Default",
+      "restrictedBadge": "Restricted",
+      "unrestrictedBadge": "Unrestricted",
+      "emptyTitle": "No Financial Funds",
+      "emptyDescription": "No financial funds have been set up for this group yet.",
+      "defaultFundHelp": "The default general fund receives unassigned income and cannot be restricted or inactivated.",
+      "restrictedHelp": "Restricted funds hold money earmarked for specific covenants, bylaws, or projects."
+    },
+    "categories": {
+      "title": "Financial Categories",
+      "subtitle": "Chart of accounts classifying all money entering and leaving the organization",
+      "createCategory": "Create Category",
+      "editCategory": "Edit Category",
+      "inactivateCategory": "Inactivate Category",
+      "name": "Category Name",
+      "namePlaceholder": "e.g., Membership Dues, Hall Rental, Event Refreshments",
+      "description": "Description",
+      "descriptionPlaceholder": "Optional category description",
+      "class": "Category Class",
+      "status": "Status",
+      "isSystem": "System Category",
+      "systemBadge": "System",
+      "customBadge": "Custom",
+      "emptyTitle": "No Financial Categories",
+      "emptyDescription": "No financial categories have been set up for this group yet.",
+      "classes": {
+        "income": "Income",
+        "expense": "Expense"
+      },
+      "systemCategoryHelp": "System categories are required by the core ledger protocol and cannot be edited, reclassified, or deleted."
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "closed": "Closed"
+    },
+    "actions": {
+      "create": "Create",
+      "edit": "Edit",
+      "save": "Save Changes",
+      "cancel": "Cancel",
+      "inactivate": "Inactivate",
+      "close": "Close Account",
+      "saving": "Saving...",
+      "confirm": "Confirm"
+    },
+    "validation": {
+      "nameRequired": "Name is required (1–120 characters).",
+      "kindRequired": "Please select an account kind.",
+      "classRequired": "Please select a category class.",
+      "staleTenant": "Operation aborted: your active group changed. Please refresh and try again.",
+      "noActiveEpoch": "No active financial ledger epoch found for this group. An active epoch is required before creating accounts.",
+      "balancePreflightFailed": "Cannot close account: the account balance must be exactly zero before closing. Please transfer or reconcile remaining funds first.",
+      "balancePreflightChecking": "Verifying account balance preflight...",
+      "defaultFundInvariant": "A group must have exactly one active, unrestricted default fund. The default fund cannot be inactivated or restricted.",
+      "defaultFundAlreadyExists": "Another fund is already designated as the default fund. Unset it before setting a new default.",
+      "cannotInactivateDefaultFund": "The default fund cannot be inactivated. Designate another active, unrestricted fund as default first.",
+      "systemCategoryProtected": "System categories cannot be modified or inactivated.",
+      "invalidStatusTransition": "Invalid status transition. Status may only move forward (active → inactive → closed)."
+    },
+    "notifications": {
+      "accountCreated": "Financial account created successfully.",
+      "accountUpdated": "Financial account updated successfully.",
+      "fundCreated": "Financial fund created successfully.",
+      "fundUpdated": "Financial fund updated successfully.",
+      "categoryCreated": "Financial category created successfully.",
+      "categoryUpdated": "Financial category updated successfully."
+    }
+  },
   "invitations": {
     "title": "Invitations",
     "subtitle": "Invite new members to your group",

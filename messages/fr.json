@@ -1645,6 +1645,124 @@
       "viewAll": "Tout afficher"
     }
   },
+  "financialConfig": {
+    "title": "Configuration financière",
+    "subtitle": "Gérez les comptes du grand livre à partie double, les fonds et les catégories financières",
+    "tabs": {
+      "accounts": "Comptes",
+      "funds": "Fonds",
+      "categories": "Catégories"
+    },
+    "accounts": {
+      "title": "Comptes financiers",
+      "subtitle": "Comptes de garde du grand livre suivant les soldes bancaires, les espèces et les portefeuilles Mobile Money",
+      "createAccount": "Créer un compte",
+      "editAccount": "Modifier le compte",
+      "closeAccount": "Fermer le compte",
+      "inactivateAccount": "Désactiver le compte",
+      "name": "Nom du compte",
+      "namePlaceholder": "ex. Compte courant principal, Caisse espèces, MTN MoMo",
+      "description": "Description",
+      "descriptionPlaceholder": "Notes ou objet du compte facultatifs",
+      "kind": "Type de compte",
+      "currency": "Devise",
+      "status": "Statut",
+      "openedAt": "Date d'ouverture",
+      "closedAt": "Date de fermeture",
+      "emptyTitle": "Aucun compte financier",
+      "emptyDescription": "Aucun compte financier n'a encore été configuré pour ce groupe.",
+      "kinds": {
+        "bank": "Compte bancaire",
+        "cash": "Espèces en caisse",
+        "mobile_money": "Mobile Money",
+        "wallet": "Portefeuille numérique",
+        "other": "Autre garde"
+      },
+      "closeWarning": "La fermeture d'un compte est définitive et exige un solde nul. Ce compte n'acceptera plus aucune transaction.",
+      "inactivateWarning": "La désactivation d'un compte empêche toute nouvelle transaction tout en préservant l'historique comptable."
+    },
+    "funds": {
+      "title": "Fonds financiers",
+      "subtitle": "Fonds comptables séparant les soldes d'exploitation générale des réserves affectées ou restreintes",
+      "createFund": "Créer un fonds",
+      "editFund": "Modifier le fonds",
+      "inactivateFund": "Désactiver le fonds",
+      "name": "Nom du fonds",
+      "namePlaceholder": "ex. Fonds général d'exploitation, Réserve de construction",
+      "description": "Description",
+      "descriptionPlaceholder": "Description facultative du fonds",
+      "status": "Statut",
+      "isDefault": "Fonds par défaut",
+      "isRestricted": "Réserve restreinte",
+      "defaultBadge": "Par défaut",
+      "restrictedBadge": "Restreint",
+      "unrestrictedBadge": "Non restreint",
+      "emptyTitle": "Aucun fonds financier",
+      "emptyDescription": "Aucun fonds financier n'a encore été configuré pour ce groupe.",
+      "defaultFundHelp": "Le fonds général par défaut reçoit les revenus non affectés et ne peut être ni restreint ni désactivé.",
+      "restrictedHelp": "Les fonds restreints conservent l'argent affecté à des engagements, statuts ou projets spécifiques."
+    },
+    "categories": {
+      "title": "Catégories financières",
+      "subtitle": "Plan comptable catégorisant toutes les entrées et sorties de fonds de l'organisation",
+      "createCategory": "Créer une catégorie",
+      "editCategory": "Modifier la catégorie",
+      "inactivateCategory": "Désactiver la catégorie",
+      "name": "Nom de la catégorie",
+      "namePlaceholder": "ex. Cotisations des membres, Location de salle, Rafraîchissements d'événement",
+      "description": "Description",
+      "descriptionPlaceholder": "Description facultative de la catégorie",
+      "class": "Classe de catégorie",
+      "status": "Statut",
+      "isSystem": "Catégorie système",
+      "systemBadge": "Système",
+      "customBadge": "Personnalisée",
+      "emptyTitle": "Aucune catégorie financière",
+      "emptyDescription": "Aucune catégorie financière n'a encore été configurée pour ce groupe.",
+      "classes": {
+        "income": "Revenu",
+        "expense": "Dépense"
+      },
+      "systemCategoryHelp": "Les catégories système sont requises par le protocole comptable central et ne peuvent être ni modifiées, ni reclassées, ni supprimées."
+    },
+    "status": {
+      "active": "Actif",
+      "inactive": "Inactif",
+      "closed": "Fermé"
+    },
+    "actions": {
+      "create": "Créer",
+      "edit": "Modifier",
+      "save": "Enregistrer les modifications",
+      "cancel": "Annuler",
+      "inactivate": "Désactiver",
+      "close": "Fermer le compte",
+      "saving": "Enregistrement...",
+      "confirm": "Confirmer"
+    },
+    "validation": {
+      "nameRequired": "Le nom est obligatoire (1 à 120 caractères).",
+      "kindRequired": "Veuillez sélectionner un type de compte.",
+      "classRequired": "Veuillez sélectionner une classe de catégorie.",
+      "staleTenant": "Opération interrompue : votre groupe actif a changé. Veuillez actualiser et réessayer.",
+      "noActiveEpoch": "Aucune époque de grand livre active trouvée pour ce groupe. Une époque active est requise avant de créer des comptes.",
+      "balancePreflightFailed": "Impossible de fermer le compte : le solde du compte doit être exactement de zéro avant la fermeture. Veuillez transférer ou rapprocher les fonds restants.",
+      "balancePreflightChecking": "Vérification préalable du solde du compte...",
+      "defaultFundInvariant": "Un groupe doit avoir exactement un fonds par défaut actif et non restreint. Le fonds par défaut ne peut être ni désactivé ni restreint.",
+      "defaultFundAlreadyExists": "Un autre fonds est déjà désigné comme fonds par défaut. Désactivez-le avant d'en définir un nouveau.",
+      "cannotInactivateDefaultFund": "Le fonds par défaut ne peut pas être désactivé. Désignez d'abord un autre fonds actif et non restreint comme fonds par défaut.",
+      "systemCategoryProtected": "Les catégories système ne peuvent être ni modifiées ni désactivées.",
+      "invalidStatusTransition": "Transition de statut invalide. Le statut ne peut qu'avancer (actif → inactif → fermé)."
+    },
+    "notifications": {
+      "accountCreated": "Compte financier créé avec succès.",
+      "accountUpdated": "Compte financier mis à jour avec succès.",
+      "fundCreated": "Fonds financier créé avec succès.",
+      "fundUpdated": "Fonds financier mis à jour avec succès.",
+      "categoryCreated": "Catégorie financière créée avec succès.",
+      "categoryUpdated": "Catégorie financière mise à jour avec succès."
+    }
+  },
   "invitations": {
     "title": "Invitations",
     "subtitle": "Invitez de nouveaux membres dans votre groupe",

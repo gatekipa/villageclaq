@@ -25,6 +25,7 @@ import {
   Loader2,
   Landmark,
   Banknote,
+  SlidersHorizontal,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useObligations, usePayments, useContributionTypes } from "@/lib/hooks/use-supabase-query";
@@ -39,7 +40,7 @@ import { useGroup } from "@/lib/group-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
-import { RequirePermission } from "@/components/ui/permission-gate";
+import { RequirePermission, PermissionGate } from "@/components/ui/permission-gate";
 import { getMemberName } from "@/lib/get-member-name";
 import { MoneyOverview } from "@/components/finances/money-overview";
 import {
@@ -405,9 +406,19 @@ export default function FinancesPage() {
   return (
     <RequirePermission anyOf={["finances.manage", "finances.view"]}><div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">{t("finances.title")}</h1>
-        <p className="text-muted-foreground">{t("finances.subtitle")}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{t("finances.title")}</h1>
+          <p className="text-muted-foreground">{t("finances.subtitle")}</p>
+        </div>
+        <PermissionGate permission="finances.manage">
+          <Link href="/dashboard/finances/config">
+            <Button variant="outline" size="sm" className="gap-1.5 self-start sm:self-auto">
+              <SlidersHorizontal className="h-4 w-4" />
+              {t("financialConfig.title")}
+            </Button>
+          </Link>
+        </PermissionGate>
       </div>
 
       {/* Sub Navigation */}

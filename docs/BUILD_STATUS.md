@@ -18,7 +18,8 @@ Authorized local-capture record: [docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FI
 | **Local fingerprint comparison profile `LOCAL_FINGERPRINT_COMPARISON_PROFILE_V1`** | **Approved for local catalog comparison only.** Oracle `postgres` → local `ubuntu` in owner, grantor, and owner-self grantee only. Seven non-grantable `service_role` omissions on exactly `public.financial_ledger_epochs`, bound to sealed envelope `eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a`. Does **not** map `authenticated` or `service_role`. Does **not** authorize repair or hosted equality. |
 | **Local post-commit filename-version repair** | **Not mandatory** for local qualification. Atomic/pre-commit refusal remains fail-closed (`repairCalls=0`). Historical refusal not rerun. |
 | **Hosted reset / hosted qualification (F24 fault-injection qualification)** | **QUALIFIED / PASS.** Clean preserve-reset committed (`QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1`, `btree_gist` preserved, 0 history rows). Complete sequence 00118–00123 executed in `fault-injection` mode: all 15 safety gates passed, positive repair verified for all 6 migrations, retry verified with 0 pending, exact history identities recorded (6/6). Evidence: [F24 qualification package](evidence/M3_F3_DAYBREAK_CATALOG_V5_F24_HOSTED_REQUAL/hosted/qualify-from-00118/). |
-| **Next active slice** | **F3-06 (Financial Configuration UI: Accounts, Funds, and Categories)** designated per Master PRD sequence. Merge/deploy to `origin/main` remains separately founder-controlled. |
+| **F3-06 (Financial Configuration UI)** | **COMPLETE / VERIFIED.** Route `/dashboard/finances/config` created with tabbed panels (`AccountsTab`, `FundsTab`, `CategoriesTab`), `RequirePermission("finances.manage")` gating, `PermissionGate` entry point in finances header, TanStack Query/Mutation hooks in `src/lib/hooks/use-financial-config.ts` enforcing epoch binding, default fund invariants, system category protection, and balance preflight for account closure. EN/FR localization parity verified. |
+| **Next active slice** | **F3-07 (Transaction Entry & Journal Recording UI)** designated per Master PRD sequence. Merge/deploy to `origin/main` remains separately founder-controlled. |
 | **Merge / deploy to `origin/main`** | **Not authorized** without explicit founder sign-off for release. |
 
 ## Authoritative build-plan reference
@@ -71,8 +72,9 @@ Other linked artifacts:
 ## Incomplete requirements & next active slice
 
 1. **F3 foundation qualification (00118–00123)** — **CLOSED / QUALIFIED.** All 6 forward migrations applied, post-commit history failure injected, 15 safety gates passed, positive repair verified, staged retry verified, and catalog identities recorded in disposable database.
-2. **Next active slice: F3-06 (Financial Configuration UI: Accounts, Funds, and Categories)** — Designated as the active work item per Section 26 and Section 29 of the Master Rebuild PRD (`docs/VILLAGECLAQ_MASTER_REBUILD_PRD_V1.md`).
-3. **Production migration release gate** — Production application remains separately founder-authorized after completion of F3-06…F3-09.
+2. **F3-06 (Financial Configuration UI: Accounts, Funds, and Categories)** — **COMPLETE / VERIFIED.** Implemented route `src/app/[locale]/(dashboard)/dashboard/finances/config/page.tsx`, tab components `src/components/finances/config/{accounts-tab.tsx, funds-tab.tsx, categories-tab.tsx}`, hooks `src/lib/hooks/use-financial-config.ts`, entry point in `finances/page.tsx`, and complete EN/FR dictionary parity.
+3. **Next active slice: F3-07 (Transaction Entry & Journal Recording UI)** — Designated as the active work item per Section 10 and Section 26 of the Master Rebuild PRD (`docs/VILLAGECLAQ_MASTER_REBUILD_PRD_V1.md`).
+4. **Production migration release gate** — Production application remains separately founder-authorized after completion of F3-06…F3-09.
 
 ## Local versus hosted / production
 
@@ -88,12 +90,12 @@ Other linked artifacts:
 | Field | Value |
 |-------|-------|
 | Owner | Jude Anyere |
-| Next bounded action | Advance to **F3-06 (Financial Configuration UI: Accounts, Funds, and Categories)** per Master PRD sequence. |
-| Permitted scope | F3-06 implementation. No direct mutation of production. |
-| Remaining acceptance | F3-06 UI and configuration contracts. |
+| Next bounded action | Advance to **F3-07 (Transaction Entry & Journal Recording UI)** per Master PRD sequence. |
+| Permitted scope | F3-07 implementation. No direct mutation of production. |
+| Remaining acceptance | F3-07 transaction recording and journal UX contracts. |
 
 ---
 **QUALIFIED / PASS — F3 FOUNDATION HOSTED REQUALIFICATION COMPLETE**  
 Candidate: `e0c10c04d4bdc287385ea1392e1aae97b458fe1c`  
 Floor: `DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT`  
-Next Slice: `F3-06 (Financial Configuration UI: Accounts, Funds, and Categories)`
+Next Slice: `F3-07 (Transaction Entry & Journal Recording UI)`

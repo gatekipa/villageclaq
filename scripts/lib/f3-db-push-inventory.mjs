@@ -949,8 +949,10 @@ export function parseQualificationResetInventoryProcessResult(result) {
   if (!raw.length) {
     return captureFail("F13_INVENTORY_CAPTURE_INCOMPLETE", "Inventory capture stdout is empty; empty is not a complete empty universe");
   }
-  const trimmed = raw.endsWith("\n") && !raw.endsWith("\n\n") ? raw.slice(0, -1) : raw;
-  if (trimmed !== trimmed.trim() || trimmed.includes("\n")) {
+  const trimmed = raw.endsWith("\r\n") && !raw.endsWith("\r\n\r\n")
+    ? raw.slice(0, -2)
+    : (raw.endsWith("\n") && !raw.endsWith("\n\n") ? raw.slice(0, -1) : raw);
+  if (trimmed !== trimmed.trim() || /[\r\n]/.test(trimmed)) {
     return captureFail("F13_INVENTORY_CAPTURE_FRAMING", "Inventory capture stdout has unexpected prefix, suffix, or extra rows", {
       stdout: raw,
     });

@@ -16,6 +16,15 @@ interface CSVExportOptions {
   headerLabels?: Record<string, string>;
 }
 
+export async function generateStatementFingerprint(metadata: Record<string, unknown>, rows: Record<string, unknown>[]): Promise<string> {
+  const payload = JSON.stringify({ metadata, rows });
+  const encoder = new TextEncoder();
+  const data = encoder.encode(payload);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
 export function exportCSV(data: Record<string, unknown>[], filename: string, options?: CSVExportOptions) {
   if (!data.length) return;
   const headers = Object.keys(data[0]);
@@ -58,4 +67,28 @@ export function exportCSV(data: Record<string, unknown>[], filename: string, opt
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+export async function exportStatementToCsv(
+  data: Record<string, unknown>[], 
+  filename: string, 
+  metadata: { groupId: string; currency: string; title: string },
+  options?: CSVExportOptions
+) {
+  const hash = await generateStatementFingerprint(metadata, data);
+  
+  const headerRows = [
+    "VillageClaq Verified Financial Statement",
+    `Generated At: ${new Date().toISOString()}`,
+    `Group ID: ${metadata.groupId}`,
+    `Currency: ${metadata.currency}`,
+    `SHA-256 Fingerprint: ${hash}`,
+    "",
+    ...(options?.headerRows || [])
+  ];
+
+  exportCSV(data, filename, {
+    ...options,
+    headerRows,
+  });
 }

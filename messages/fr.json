@@ -3396,20 +3396,20 @@
       "executive": "Rapports exécutifs"
     },
     "report1": {
-      "name": "Qui n'a pas payé",
-      "desc": "Soldes impayés triés par montant dû"
+      "name": "Bilan (État de la situation financière)",
+      "desc": "Position des actifs, passifs et capitaux propres (F3 Canonique)."
     },
     "report2": {
-      "name": "Résumé annuel des cotisations",
-      "desc": "Cotisations collectées vs attendues, par type et mois avec comparaison annuelle"
+      "name": "Compte de Résultat (Pertes & Profits)",
+      "desc": "État des revenus et des dépenses (F3 Canonique)."
     },
     "report3": {
-      "name": "Grand livre des cotisations",
-      "desc": "Chaque paiement filtrable par date, membre, type, méthode"
+      "name": "Balance Générale",
+      "desc": "Balance générale à double entrée mathématiquement vérifiée."
     },
     "report4": {
-      "name": "Ancienneté des arriérés de cotisations",
-      "desc": "Soldes de cotisations en souffrance groupés par 30/60/90/120+ jours"
+      "name": "Relevé Financier du Membre",
+      "desc": "Grand livre personnel des paiements des membres."
     },
     "report5": {
       "name": "Rapport de cycle Njangi",
@@ -3651,7 +3651,19 @@
     "savingsCirclesLabel": "Cercles d'épargne",
     "openDisputes": "Différends ouverts",
     "pendingClaims": "Réclamations en attente",
-    "pct": "Pct"
+    "pct": "Pct",
+    "statements": {
+      "tamperProofHash": "Empreinte de vérification du document (SHA-256)",
+      "generatedAt": "Généré à (UTC)",
+      "balancedNotice": "Équilibre de l'état : Vérifié mathématiquement",
+      "unbalancedWarning": "Équilibre de l'état : Écart non équilibré détecté"
+    },
+    "errors": {
+      "INVALID_CURRENCY": "Devise spécifiée invalide ou non configurée.",
+      "INVALID_STATEMENT_TYPE": "Type de relevé financier demandé invalide.",
+      "UNAUTHORIZED": "Vous n'avez pas l'autorisation de consulter les états financiers du groupe.",
+      "staleTenantAborted": "Contexte d'organisation obsolète. Veuillez rafraîchir la page."
+    }
   },
   "enterprise": {
     "title": "Tableau de bord entreprise",

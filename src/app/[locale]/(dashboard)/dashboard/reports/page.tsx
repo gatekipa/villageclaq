@@ -54,10 +54,10 @@ interface ReportDef {
 
 const reports: ReportDef[] = [
   // Financial
-  { id: "1", key: "report1", icon: DollarSign, category: "financial" },
-  { id: "2", key: "report2", icon: BarChart3, category: "financial" },
+  { id: "1", key: "report1", icon: Landmark, category: "financial" },
+  { id: "2", key: "report2", icon: TrendingUp, category: "financial" },
   { id: "3", key: "report3", icon: FileText, category: "financial" },
-  { id: "4", key: "report4", icon: TrendingUp, category: "financial" },
+  { id: "4", key: "report4", icon: Users, category: "financial" },
   { id: "5", key: "report5", icon: PieChart, category: "financial" },
   // Membership
   { id: "6", key: "report6", icon: Shield, category: "membership" },

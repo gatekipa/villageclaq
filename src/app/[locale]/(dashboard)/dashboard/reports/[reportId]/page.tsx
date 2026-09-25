@@ -205,6 +205,7 @@ function engagementColor(level: string) {
 }
 
 import { getMemberName } from "@/lib/get-member-name";
+import { CanonicalReportRenderer } from "./canonical-statement";
 
 /**
  * Permission gate for the report detail route. The reports LIST page gates the
@@ -1302,6 +1303,26 @@ function ReportDetailContent() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  }
+
+
+  if (["1", "2", "3", "4"].includes(reportId)) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Link href="/dashboard/reports"><ArrowLeft className="h-4 w-4" /></Link>
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">{reportName}</h1>
+              <p className="text-sm text-muted-foreground">{reportDesc}</p>
+            </div>
+          </div>
+        </div>
+        <CanonicalReportRenderer reportId={reportId} groupId={groupId || ""} defaultCurrency={currency || "XAF"} />
+      </div>
+    );
   }
 
   return (

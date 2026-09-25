@@ -3396,20 +3396,20 @@
       "executive": "Executive Reports"
     },
     "report1": {
-      "name": "Who Hasn't Paid",
-      "desc": "Outstanding balances sorted by amount owed"
+      "name": "Balance Sheet (Statement of Financial Position)",
+      "desc": "Canonical F3 asset, liability, and equity position."
     },
     "report2": {
-      "name": "Annual Contributions Summary",
-      "desc": "Contribution collected vs expected, by type and month with YoY comparison"
+      "name": "Income Statement (Profit & Loss)",
+      "desc": "Canonical F3 revenue and expense statement."
     },
     "report3": {
-      "name": "Contribution Ledger",
-      "desc": "Every payment filterable by date, member, type, method"
+      "name": "Trial Balance",
+      "desc": "Mathematically verified double-entry trial balance."
     },
     "report4": {
-      "name": "Contribution Arrears Aging",
-      "desc": "Contribution arrears outstanding balances grouped by 30/60/90/120+ days"
+      "name": "Member Contribution Statement",
+      "desc": "Personal ledger of member payments."
     },
     "report5": {
       "name": "Njangi Cycle Report",
@@ -3651,7 +3651,19 @@
     "savingsCirclesLabel": "Savings Circles",
     "openDisputes": "Open Disputes",
     "pendingClaims": "Pending Claims",
-    "pct": "Pct"
+    "pct": "Pct",
+    "statements": {
+      "tamperProofHash": "Document Verification Fingerprint (SHA-256)",
+      "generatedAt": "Generated At (UTC)",
+      "balancedNotice": "Statement Equilibrium: Mathematically Verified",
+      "unbalancedWarning": "Statement Equilibrium: Unbalanced Discrepancy Detected"
+    },
+    "errors": {
+      "INVALID_CURRENCY": "Invalid or unconfigured currency specified.",
+      "INVALID_STATEMENT_TYPE": "Invalid financial statement type requested.",
+      "UNAUTHORIZED": "You do not have permission to view group financial statements.",
+      "staleTenantAborted": "Stale organization context. Please refresh the page."
+    }
   },
   "enterprise": {
     "title": "Enterprise Dashboard",

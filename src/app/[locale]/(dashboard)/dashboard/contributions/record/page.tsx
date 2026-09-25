@@ -42,10 +42,11 @@ import { createClient } from "@/lib/supabase/client";
 import {
   useMembers,
   useContributionTypes,
-  useRecordPayment,
   checkDuplicatePayment,
   type PaymentCascadeResult,
 } from "@/lib/hooks/use-supabase-query";
+import { useRecordAndPostDuesPayment } from "@/lib/hooks/use-dues-posting";
+import { useFinancialAccounts } from "@/lib/hooks/use-financial-config";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission } from "@/components/ui/permission-gate";
@@ -55,6 +56,7 @@ import { Shield } from "lucide-react";
 
 export default function RecordPaymentPage() {
   const t = useTranslations();
+  const tFinancial = useTranslations("financialConfig");
   const locale = useLocale();
   const { currentGroup, groupId, user: currentUser } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
@@ -62,7 +64,8 @@ export default function RecordPaymentPage() {
   const canRecord = hasPermission("finances.record") || hasPermission("finances.manage");
   const { data: members, isLoading: membersLoading, isError: membersError, refetch: refetchMembers } = useMembers();
   const { data: contributionTypes, isLoading: typesLoading, isError: typesError, refetch: refetchTypes } = useContributionTypes();
-  const recordPayment = useRecordPayment();
+  const { data: financialAccounts = [], isLoading: accountsLoading } = useFinancialAccounts(groupId);
+  const recordAndPostDues = useRecordAndPostDuesPayment();
   const queryClient = useQueryClient();
 
   const currency = currentGroup?.currency || "XAF";
@@ -174,6 +177,34 @@ export default function RecordPaymentPage() {
   const memberInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Active custody accounts
+  const custodyAccounts = useMemo(() => {
+    return (financialAccounts || []).filter(
+      (a) => a.status === "active" && ["bank", "cash", "mobile_money", "wallet"].includes(a.kind)
+    );
+  }, [financialAccounts]);
+
+  const [selectedAccountId, setSelectedAccountId] = useState("");
+  const [selectedAccountError, setSelectedAccountError] = useState<string | null>(null);
+
+  // Multi-tenant context safety: reset account selection on tenant switch
+  const [prevGroupId, setPrevGroupId] = useState(groupId);
+  if (groupId !== prevGroupId) {
+    setPrevGroupId(groupId);
+    setSelectedAccountId("");
+    setSelectedAccountError(null);
+  }
+
+  // Pre-select primary/first active account matching the group's currency
+  useEffect(() => {
+    if (!selectedAccountId && custodyAccounts.length > 0) {
+      const matching = custodyAccounts.find((a) => a.currency === currency) || custodyAccounts[0];
+      if (matching) {
+        setSelectedAccountId(matching.id);
+      }
+    }
+  }, [selectedAccountId, custodyAccounts, currency]);
+
   // ─── Duplicate Warning Dialog State ──────────────────────────────────
   const [dupDialogOpen, setDupDialogOpen] = useState(false);
   const [dupKeepType, setDupKeepType] = useState(false);
@@ -261,6 +292,11 @@ export default function RecordPaymentPage() {
   /** Core save logic, called after duplicate check passes or is bypassed */
   async function doSave(keepTypeAndMethod: boolean, skipDuplicateCheck: boolean) {
     if (!selectedMembership || !selectedTypeId || !amount || Number(amount) <= 0) return;
+    if (!selectedAccountId) {
+      setSelectedAccountError(t("contributions.duesPosting.accountRequired"));
+      return;
+    }
+    setSelectedAccountError(null);
 
     // Bug #124/#160: Validate payment date — no future dates
     setPaymentDateError(null);
@@ -278,29 +314,39 @@ export default function RecordPaymentPage() {
     const payMethod = method;
     const payRef = reference;
     const payDate = paymentDate;
+    const targetAccountId = selectedAccountId;
 
     try {
-      const result = await recordPayment.mutateAsync({
-        membership_id: selectedMembership.id,
-        contribution_type_id: selectedTypeId,
-        amount: Number(amount),
-        currency,
-        payment_method: method,
-        reference_number: reference || undefined,
-        // Bare object path — receipt viewers sign a fresh URL on demand
-        // via signedUrlFor(); stored signed URLs expire after an hour.
-        receipt_url: receiptUrl || undefined,
-        notes: notes || undefined,
-        payment_date: payDate,
-        skipDuplicateCheck,
-        ...(selectedReliefPlanId ? { relief_plan_id: selectedReliefPlanId } : {}),
-      });
-
-      // Show cascade info if payment was split across multiple obligations
-      if (result.appliedTo.length > 1 || result.creditRemaining > 0) {
-        setCascadeInfo(result);
-        setTimeout(() => setCascadeInfo(null), 8000); // longer display for cascade
+      // Duplicate payment check if not skipped
+      if (!skipDuplicateCheck && groupId) {
+        const isDup = await checkDuplicatePayment(
+          groupId,
+          membershipId,
+          typeId,
+          payAmount,
+          payDate,
+        );
+        if (isDup) {
+          setDupKeepType(keepTypeAndMethod);
+          setDupIsBulk(false);
+          setDupDialogOpen(true);
+          return;
+        }
       }
+
+      const result = await recordAndPostDues.mutateAsync({
+        groupId: groupId!,
+        membershipId,
+        contributionTypeId: typeId,
+        amount: payAmount,
+        currency,
+        paymentMethod: payMethod,
+        accountId: targetAccountId,
+        referenceNumber: payRef || undefined,
+        receiptUrl: receiptUrl || undefined,
+        notes: notes || undefined,
+        paymentDate: payDate,
+      });
 
       // ─── Produce payment receipt notifications ──────────────────────────
       await produceServerSideReceiptNotifications(result.payment?.id);
@@ -429,6 +475,10 @@ export default function RecordPaymentPage() {
 
   async function handleBulkSave(sendReceipts: boolean) {
     if (!bulkTypeId || !bulkAmount || Number(bulkAmount) <= 0 || bulkSelected.size === 0) return;
+    if (!selectedAccountId) {
+      setSelectedAccountError(t("contributions.duesPosting.accountRequired"));
+      return;
+    }
     setBulkSubmitting(true);
     let successCount = 0;
     let dupCount = 0;
@@ -454,14 +504,15 @@ export default function RecordPaymentPage() {
             continue; // Skip duplicates silently in bulk mode
           }
 
-          const result = await recordPayment.mutateAsync({
-            membership_id: memberId,
-            contribution_type_id: bulkTypeId,
+          const result = await recordAndPostDues.mutateAsync({
+            groupId: groupId!,
+            membershipId: memberId,
+            contributionTypeId: bulkTypeId,
             amount: Number(bulkAmount),
             currency,
-            payment_method: bulkMethod,
+            paymentMethod: bulkMethod,
+            accountId: selectedAccountId,
             notes: bulkNotes || undefined,
-            skipDuplicateCheck: true, // Already checked above
           });
           successCount++;
           const paymentId = result.payment?.id;
@@ -600,8 +651,8 @@ export default function RecordPaymentPage() {
     );
   }
 
-  const isBusy = recordPayment.isPending || savingMode !== null;
-  const canSubmit = !!selectedMembership && !!selectedTypeId && !!amount && !isBusy;
+  const isBusy = recordAndPostDues.isPending || savingMode !== null;
+  const canSubmit = !!selectedMembership && !!selectedTypeId && !!amount && Number(amount) > 0 && !!selectedAccountId && !isBusy;
 
   if (!canRecord) {
     return (
@@ -683,6 +734,11 @@ export default function RecordPaymentPage() {
                 {t("contributions.shareWhatsApp")}
               </Button>
             )}
+            <Link href="/dashboard/contributions/history">
+              <Button size="sm" variant="ghost" className="text-xs">
+                {t("contributions.history")}
+              </Button>
+            </Link>
             <Button
               size="sm"
               variant="ghost"
@@ -749,9 +805,9 @@ export default function RecordPaymentPage() {
               variant="default"
               className="bg-amber-600 hover:bg-amber-700 dark:bg-amber-600 dark:hover:bg-amber-700"
               onClick={handleDuplicateConfirm}
-              disabled={recordPayment.isPending}
+              disabled={recordAndPostDues.isPending}
             >
-              {recordPayment.isPending ? (
+              {recordAndPostDues.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
               {t("contributions.recordAnyway")}
@@ -909,6 +965,46 @@ export default function RecordPaymentPage() {
               </div>
             </div>
 
+            {/* Deposit Custody Account */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="deposit-account-record">
+                  {t("contributions.duesPosting.depositAccount")} <span className="text-destructive">*</span>
+                </Label>
+                {custodyAccounts.length === 0 && !accountsLoading && (
+                  <span className="text-xs text-destructive">
+                    {t("contributions.duesPosting.accountRequired")}
+                  </span>
+                )}
+              </div>
+              <select
+                id="deposit-account-record"
+                value={selectedAccountId}
+                onChange={(e) => {
+                  setSelectedAccountId(e.target.value);
+                  setSelectedAccountError(null);
+                }}
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={custodyAccounts.length === 0}
+              >
+                {custodyAccounts.length === 0 ? (
+                  <option value="">{t("contributions.duesPosting.errors.accountNotFoundOrInactive")}</option>
+                ) : (
+                  <>
+                    <option value="" disabled>{t("contributions.duesPosting.depositAccountPlaceholder")}</option>
+                    {custodyAccounts.map((acc) => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.name} ({acc.currency} • {tFinancial(`accounts.kinds.${acc.kind}`)})
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
+              {selectedAccountError && (
+                <p className="text-xs text-destructive">{selectedAccountError}</p>
+              )}
+            </div>
+
             {/* Reference + Receipt Row */}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -1006,9 +1102,15 @@ export default function RecordPaymentPage() {
             </div>
 
             {/* Error display — always translated, never raw DB text */}
-            {recordPayment.isError && (
+            {recordAndPostDues.isError && (
               <p className="text-sm text-destructive">
-                {(recordPayment.error as Error)?.message === "CONCURRENT_PAYMENT_CONFLICT"
+                {recordAndPostDues.error?.message === "ACCOUNT_REQUIRED"
+                  ? t("contributions.duesPosting.accountRequired")
+                  : recordAndPostDues.error?.message === "ACCOUNT_NOT_FOUND_OR_INACTIVE"
+                  ? t("contributions.duesPosting.errors.accountNotFoundOrInactive")
+                  : recordAndPostDues.error?.message === "NO_ACTIVE_EPOCH"
+                  ? t("contributions.duesPosting.errors.noActiveEpoch")
+                  : recordAndPostDues.error?.message === "CONCURRENT_PAYMENT_CONFLICT"
                   ? t("contributions.concurrentConflict")
                   : t("contributions.recordFailed")}
               </p>
@@ -1173,6 +1275,43 @@ export default function RecordPaymentPage() {
                 </div>
               </div>
 
+              {/* Deposit Custody Account */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="deposit-account-bulk">
+                    {t("contributions.duesPosting.depositAccount")} <span className="text-destructive">*</span>
+                  </Label>
+                  {custodyAccounts.length === 0 && !accountsLoading && (
+                    <span className="text-xs text-destructive">
+                      {t("contributions.duesPosting.accountRequired")}
+                    </span>
+                  )}
+                </div>
+                <select
+                  id="deposit-account-bulk"
+                  value={selectedAccountId}
+                  onChange={(e) => {
+                    setSelectedAccountId(e.target.value);
+                    setSelectedAccountError(null);
+                  }}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={custodyAccounts.length === 0}
+                >
+                  {custodyAccounts.length === 0 ? (
+                    <option value="">{t("contributions.duesPosting.errors.accountNotFoundOrInactive")}</option>
+                  ) : (
+                    <>
+                      <option value="" disabled>{t("contributions.duesPosting.depositAccountPlaceholder")}</option>
+                      {custodyAccounts.map((acc) => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.name} ({acc.currency} • {tFinancial(`accounts.kinds.${acc.kind}`)})
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+              </div>
+
               {/* Notes */}
               <div className="space-y-2">
                 <Label>{t("contributions.notes")}</Label>
@@ -1247,7 +1386,7 @@ export default function RecordPaymentPage() {
               </Button>
               <Button
                 onClick={() => { setBulkSendReceipts(false); setBulkReconfirm(false); setBulkConfirmOpen(true); }}
-                disabled={bulkSubmitting || !bulkTypeId || !bulkAmount || bulkSelected.size === 0}
+                disabled={bulkSubmitting || !bulkTypeId || !bulkAmount || bulkSelected.size === 0 || !selectedAccountId}
               >
                 <Check className="mr-2 h-4 w-4" />
                 {t("contributions.recordForSelected", { count: bulkSelected.size })}

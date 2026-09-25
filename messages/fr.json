@@ -1576,7 +1576,35 @@
     "confirmPaymentReviewAction": "Confirmer le paiement",
     "rejectPaymentReviewTitle": "Rejeter ce paiement ?",
     "rejectPaymentReviewDesc": "Le rejet marque {amount} de {member} comme non accepté. Aucun message n'est envoyé au membre.",
-    "rejectPaymentReviewAction": "Rejeter le paiement"
+    "rejectPaymentReviewAction": "Rejeter le paiement",
+    "duesPosting": {
+      "depositAccount": "Compte de dépôt",
+      "depositAccountPlaceholder": "Sélectionner le compte de garde recevant le paiement",
+      "accountRequired": "Le compte de dépôt est obligatoire pour enregistrer ce paiement dans le grand livre.",
+      "financialCategory": "Catégorie financière",
+      "financialCategoryPlaceholder": "Sélectionner la catégorie (par défaut Revenu des cotisations)",
+      "financialCategoryHelp": "Utilise par défaut la catégorie du type de cotisation ou la catégorie de revenu active.",
+      "designatedFund": "Fonds désigné",
+      "designatedFundPlaceholder": "Sélectionner le fonds (par défaut Fonds général)",
+      "designatedFundHelp": "Utilise par défaut le fonds général si non spécifié.",
+      "confirmAndPost": "Confirmer et enregistrer au grand livre",
+      "confirmNotice": "Confirmer ce paiement enregistre une entrée de trésorerie vérifiée dans le grand livre.",
+      "postedBadge": "Enregistré au grand livre",
+      "unpostedBadge": "Non enregistré",
+      "successTitle": "Paiement confirmé et enregistré",
+      "successDescription": "Le paiement a été confirmé et les écritures canoniques en partie double ont été enregistrées dans le grand livre.",
+      "errors": {
+        "paymentNotFound": "L'enregistrement du paiement demandé est introuvable.",
+        "paymentAlreadyRejected": "Impossible de confirmer un paiement qui a déjà été rejeté.",
+        "invalidPaymentStatus": "Ce paiement n'est pas dans un état confirmable.",
+        "accountNotFoundOrInactive": "Le compte de garde sélectionné est introuvable ou actuellement inactif.",
+        "accountKindInvalid": "Le compte de garde sélectionné doit être un compte bancaire ou une caisse de trésorerie.",
+        "crossGroupDimension": "Les dimensions financières (compte, fonds ou catégorie) doivent appartenir au groupe actif.",
+        "incomeCategoryRequired": "Une catégorie de revenu active est requise pour enregistrer les cotisations.",
+        "noActiveEpoch": "Aucune période comptable ouverte n'a été trouvée pour ce groupe.",
+        "postingFailed": "Échec de l'enregistrement du paiement de cotisation dans le grand livre financier."
+      }
+    }
   },
   "finances": {
     "title": "Tableau de bord financier",

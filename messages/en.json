@@ -1576,7 +1576,35 @@
     "confirmPaymentReviewAction": "Confirm payment",
     "rejectPaymentReviewTitle": "Reject this payment?",
     "rejectPaymentReviewDesc": "Rejecting marks {amount} from {member} as not accepted. The member is not sent anything.",
-    "rejectPaymentReviewAction": "Reject payment"
+    "rejectPaymentReviewAction": "Reject payment",
+    "duesPosting": {
+      "depositAccount": "Deposit Account",
+      "depositAccountPlaceholder": "Select custody account receiving payment",
+      "accountRequired": "Deposit account is required to post this payment to the ledger.",
+      "financialCategory": "Financial Category",
+      "financialCategoryPlaceholder": "Select category (defaults to Contribution Income)",
+      "financialCategoryHelp": "Defaults to the contribution type default or active income category.",
+      "designatedFund": "Designated Fund",
+      "designatedFundPlaceholder": "Select fund (defaults to General Fund)",
+      "designatedFundHelp": "Defaults to the general fund if unspecified.",
+      "confirmAndPost": "Confirm & Post to Ledger",
+      "confirmNotice": "Confirming this payment records a verified cash receipt in the general ledger.",
+      "postedBadge": "Posted to Ledger",
+      "unpostedBadge": "Unposted",
+      "successTitle": "Payment Confirmed & Posted",
+      "successDescription": "The payment has been confirmed and atomic double-entry postings have been recorded in the general ledger.",
+      "errors": {
+        "paymentNotFound": "The requested payment record could not be found.",
+        "paymentAlreadyRejected": "Cannot confirm a payment that has already been rejected.",
+        "invalidPaymentStatus": "This payment is not in a confirmable status.",
+        "accountNotFoundOrInactive": "The selected custody account was not found or is currently inactive.",
+        "accountKindInvalid": "The selected custody account must be a cash or bank custody account.",
+        "crossGroupDimension": "Financial dimensions (account, fund, or category) must belong to the active group.",
+        "incomeCategoryRequired": "An active income category is required to post contribution receipts.",
+        "noActiveEpoch": "No open financial ledger epoch was found for this group.",
+        "postingFailed": "Failed to post dues payment to the financial ledger."
+      }
+    }
   },
   "finances": {
     "title": "Financial Dashboard",

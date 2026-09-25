@@ -30,6 +30,8 @@ import { ContributionsSubNav } from "@/components/contributions/sub-nav";
 import { signedUrlFor } from "@/lib/storage-urls";
 import { useGroup } from "@/lib/group-context";
 import { usePayments } from "@/lib/hooks/use-supabase-query";
+import { useConfirmDuesPayment, parseDuesPostingRpcError } from "@/lib/hooks/use-dues-posting";
+import { useFinancialAccounts } from "@/lib/hooks/use-financial-config";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { normalizeSearch } from "@/lib/utils";
 import { RequirePermission } from "@/components/ui/permission-gate";
@@ -87,21 +89,64 @@ function formatTime(dateStr: string, dateLocale: string) {
   });
 }
 
+export interface NormalizedPayment {
+  id: string;
+  memberName: string;
+  membershipId: string;
+  contributionTypeName: string;
+  contributionTypeId: string;
+  obligationId: string;
+  amount: number;
+  currency: string;
+  paymentMethod: string;
+  referenceNumber?: string;
+  receiptUrl?: string;
+  recordedAt: string;
+  status: string;
+  financialEventId: string | null;
+  financialAccountId: string | null;
+}
+
 export default function PaymentHistoryPage() {
   const t = useTranslations();
   const tc = useTranslations("common");
+  const tFinancial = useTranslations("financialConfig");
   const locale = useLocale();
   const dateLocale = getDateLocale(locale);
   const { currentGroup, groupId } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const queryClient = useQueryClient();
   const { data: payments, isLoading, isError, refetch } = usePayments(100);
+  const { data: financialAccounts = [] } = useFinancialAccounts(groupId);
+  const confirmDuesMutation = useConfirmDuesPayment();
   const { hasPermission } = usePermissions();
   const canManage = hasPermission("finances.manage");
   const confirmDialog = useConfirmDialog();
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Custody accounts filter
+  const custodyAccounts = useMemo(() => {
+    return (financialAccounts || []).filter(
+      (a) => a.status === "active" && ["bank", "cash", "mobile_money", "wallet"].includes(a.kind)
+    );
+  }, [financialAccounts]);
+
+  // Confirmation modal state
+  const [confirmingPayment, setConfirmingPayment] = useState<NormalizedPayment | null>(null);
+  const [depositAccountId, setDepositAccountId] = useState("");
+  const [depositAccountError, setDepositAccountError] = useState<string | null>(null);
+  const [postingError, setPostingError] = useState<string | null>(null);
+
+  // Multi-tenant context safety: reset account selection and modal states on tenant switch
+  const [prevGroupId, setPrevGroupId] = useState(groupId);
+  if (groupId !== prevGroupId) {
+    setPrevGroupId(groupId);
+    setConfirmingPayment(null);
+    setDepositAccountId("");
+    setDepositAccountError(null);
+    setPostingError(null);
+  }
 
   // Status filter — initial value comes from the ?status= deep-link (a sibling
   // links here with ?status=pending_confirmation). useSearchParam returns a
@@ -149,7 +194,7 @@ export default function PaymentHistoryPage() {
   }
 
   // Edit payment state
-  const [editPayment, setEditPayment] = useState<typeof normalizedPayments[0] | null>(null);
+  const [editPayment, setEditPayment] = useState<NormalizedPayment | null>(null);
   const [editAmount, setEditAmount] = useState("");
   const [editMethod, setEditMethod] = useState("cash");
   const [editReference, setEditReference] = useState("");
@@ -158,7 +203,7 @@ export default function PaymentHistoryPage() {
   const [editSaving, setEditSaving] = useState(false);
 
   // Delete payment state
-  const [deletePayment, setDeletePayment] = useState<typeof normalizedPayments[0] | null>(null);
+  const [deletePayment, setDeletePayment] = useState<NormalizedPayment | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
 
   const currency = currentGroup?.currency || "XAF";
@@ -191,11 +236,9 @@ export default function PaymentHistoryPage() {
   }
 
   // Normalize payment data from Supabase joins
-  const normalizedPayments = useMemo(() => {
+  const normalizedPayments: NormalizedPayment[] = useMemo(() => {
     return (payments || []).map((p: Record<string, unknown>) => {
       const membership = p.membership as Record<string, unknown> | undefined;
-      const profile = membership?.profiles as { full_name?: string; avatar_url?: string } | undefined
-        ?? (membership as Record<string, unknown> | undefined)?.profile as { full_name?: string; avatar_url?: string } | undefined;
       const contributionType = p.contribution_type as { id?: string; name?: string; name_fr?: string } | undefined;
 
       return {
@@ -212,6 +255,8 @@ export default function PaymentHistoryPage() {
         receiptUrl: p.receipt_url as string | undefined,
         recordedAt: (p.recorded_at as string) || (p.created_at as string) || "",
         status: (p.status as string) || "confirmed",
+        financialEventId: (p.financial_event_id as string) || null,
+        financialAccountId: (p.financial_account_id as string) || null,
       };
     });
   }, [payments, currency]);
@@ -307,25 +352,42 @@ export default function PaymentHistoryPage() {
     });
   }
 
-  async function handleConfirmPayment(payment: typeof normalizedPayments[0]) {
-    setConfirmingId(payment.id);
-    try {
-      const supabase = createClient();
-      // Update payment status to confirmed
-      const { error: updateErr } = await supabase
-        .from("payments")
-        .update({ status: "confirmed" })
-        .eq("id", payment.id);
-      if (updateErr) throw updateErr;
+  function handleOpenConfirmModal(payment: NormalizedPayment) {
+    setConfirmingPayment(payment);
+    setDepositAccountError(null);
+    setPostingError(null);
+    const matching = custodyAccounts.find((a) => a.currency === payment.currency) || custodyAccounts[0];
+    setDepositAccountId(matching?.id || "");
+  }
 
-      // Produce the receipt notifications server-side (queue-backed WhatsApp,
-      // exactly-once per payment) now that the payment is confirmed. This is
-      // the receipt moment for member-submitted pay-now payments — their
-      // dialog intentionally sends no WhatsApp at submission time.
-      // Fire-and-forget: confirmation must never block on notifications.
-      // No locale in the body — the producer falls back to the recipient
-      // member's preferred_locale, not the confirming admin's UI locale.
+  // Legacy handler alias preserved for contract compatibility
+  async function handleConfirmPayment(payment: NormalizedPayment) {
+    handleOpenConfirmModal(payment);
+  }
+
+  // Review gate: wraps confirmation modal opening
+  async function confirmThenConfirmPayment(payment: NormalizedPayment) {
+    handleConfirmPayment(payment);
+  }
+
+  async function handleConfirmDuesPosting() {
+    if (!confirmingPayment || !groupId) return;
+    if (!depositAccountId) {
+      setDepositAccountError(t("contributions.duesPosting.accountRequired"));
+      return;
+    }
+
+    setPostingError(null);
+    try {
+      await confirmDuesMutation.mutateAsync({
+        groupId,
+        paymentId: confirmingPayment.id,
+        accountId: depositAccountId,
+      });
+
+      // Produce the receipt notifications server-side (fire-and-forget)
       try {
+        const supabase = createClient();
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.access_token) {
           fetch("/api/payments/receipt-notifications", {
@@ -334,85 +396,44 @@ export default function PaymentHistoryPage() {
               "Content-Type": "application/json",
               Authorization: `Bearer ${session.access_token}`,
             },
-            body: JSON.stringify({ paymentId: payment.id }),
+            body: JSON.stringify({ paymentId: confirmingPayment.id }),
             keepalive: true,
-          })
-            .then((res) => {
-              if (!res.ok) {
-                console.warn("[Notify] receipt production returned", res.status);
-              }
-            })
-            .catch((err) => {
-              console.warn("[Notify] receipt production request failed:", err);
-            });
+          }).catch((err) => {
+            console.warn("[Notify] receipt production request failed:", err);
+          });
         }
       } catch (err) {
         console.warn("[Notify] receipt production request failed:", err);
       }
 
-      // Recalculate obligation if linked — sum ALL confirmed payments (consistent with edit/delete)
-      if (payment.obligationId) {
-        const { data: allPayments } = await supabase
-          .from("payments")
-          .select("amount")
-          .eq("obligation_id", payment.obligationId)
-          .eq("status", "confirmed");
-
-        if (allPayments) {
-          const totalPaid = allPayments.reduce((s, p) => s + Number(p.amount), 0);
-          const { data: obl } = await supabase
-            .from("contribution_obligations")
-            .select("amount")
-            .eq("id", payment.obligationId)
-            .single();
-          if (obl) {
-            const newStatus = totalPaid >= Number(obl.amount) ? "paid" : totalPaid > 0 ? "partial" : "pending";
-            await supabase
-              .from("contribution_obligations")
-              .update({ amount_paid: totalPaid, status: newStatus })
-              .eq("id", payment.obligationId);
-          }
-        }
-      }
-
       // Recalculate standing for the affected member
-      if (payment.membershipId && groupId) {
+      if (confirmingPayment.membershipId && groupId) {
         try {
           const { calculateStanding } = await import("@/lib/calculate-standing");
-          await calculateStanding(payment.membershipId, groupId, { updateDb: true, currency });
+          await calculateStanding(confirmingPayment.membershipId, groupId, { updateDb: true, currency });
         } catch { /* non-critical */ }
       }
 
-      invalidateFinancialCaches(payment.membershipId);
+      invalidateFinancialCaches(confirmingPayment.membershipId);
+      setConfirmingPayment(null);
     } catch (err) {
-      console.warn("Confirm payment failed:", (err as Error).message);
-      setActionError(t("contributions.confirmFailed"));
-    } finally {
-      setConfirmingId(null);
+      const parsed = parseDuesPostingRpcError(err);
+      const errorKeyMap: Record<string, string> = {
+        ACCOUNT_REQUIRED: t("contributions.duesPosting.accountRequired"),
+        ACCOUNT_NOT_FOUND_OR_INACTIVE: t("contributions.duesPosting.errors.accountNotFoundOrInactive"),
+        ACCOUNT_KIND_INVALID: t("contributions.duesPosting.errors.accountKindInvalid"),
+        CROSS_GROUP_DIMENSION: t("contributions.duesPosting.errors.crossGroupDimension"),
+        INCOME_CATEGORY_REQUIRED: t("contributions.duesPosting.errors.incomeCategoryRequired"),
+        NO_ACTIVE_EPOCH: t("contributions.duesPosting.errors.noActiveEpoch"),
+        PAYMENT_NOT_FOUND: t("contributions.duesPosting.errors.paymentNotFound"),
+        PAYMENT_ALREADY_REJECTED: t("contributions.duesPosting.errors.paymentAlreadyRejected"),
+        INVALID_PAYMENT_STATUS: t("contributions.duesPosting.errors.invalidPaymentStatus"),
+      };
+      setPostingError(errorKeyMap[parsed.message] || t("contributions.duesPosting.errors.postingFailed"));
     }
   }
 
-  // ── Review gates ──────────────────────────────────────────────────────
-  // These wrap the existing confirm/reject handlers in a confirmation step so
-  // the admin knows, honestly, that confirming sends the member a receipt
-  // (in-app for members with an account; email/WhatsApp/text per their saved
-  // details and preferences) while rejecting sends nothing. The underlying
-  // handlers are unchanged — only gated.
-  async function confirmThenConfirmPayment(payment: typeof normalizedPayments[0]) {
-    const ok = await confirmDialog({
-      title: t("contributions.confirmPaymentReviewTitle"),
-      description: t("contributions.confirmPaymentReviewDesc", {
-        member: payment.memberName,
-        amount: formatAmount(payment.amount, payment.currency),
-      }),
-      confirmLabel: t("contributions.confirmPaymentReviewAction"),
-      cancelLabel: tc("cancel"),
-    });
-    if (!ok) return;
-    await handleConfirmPayment(payment);
-  }
-
-  async function confirmThenRejectPayment(payment: typeof normalizedPayments[0]) {
+  async function confirmThenRejectPayment(payment: NormalizedPayment) {
     const ok = await confirmDialog({
       title: t("contributions.rejectPaymentReviewTitle"),
       description: t("contributions.rejectPaymentReviewDesc", {
@@ -427,7 +448,7 @@ export default function PaymentHistoryPage() {
     await handleRejectPayment(payment);
   }
 
-  async function handleRejectPayment(payment: typeof normalizedPayments[0]) {
+  async function handleRejectPayment(payment: NormalizedPayment) {
     const paymentId = payment.id;
     setRejectingId(paymentId);
     try {
@@ -897,43 +918,51 @@ export default function PaymentHistoryPage() {
                             <Badge className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20 text-[10px]">
                               {t("contributions.pendingConfirmation")}
                             </Badge>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950"
-                              onClick={() => confirmThenConfirmPayment(payment)}
-                              disabled={confirmingId === payment.id || rejectingId === payment.id}
-                              aria-label={t("contributions.confirmPaymentReviewAction")}
-                            >
-                              {confirmingId === payment.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Check className="h-3.5 w-3.5" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-                              onClick={() => confirmThenRejectPayment(payment)}
-                              disabled={rejectingId === payment.id || confirmingId === payment.id}
-                              aria-label={t("contributions.rejectPaymentReviewAction")}
-                            >
-                              {rejectingId === payment.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <X className="h-3.5 w-3.5" />
-                              )}
-                            </Button>
+                            {canManage && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                                  onClick={() => confirmThenConfirmPayment(payment)}
+                                  disabled={confirmDuesMutation.isPending || rejectingId === payment.id}
+                                  aria-label={t("contributions.confirmPaymentReviewAction")}
+                                >
+                                  <Check className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                                  onClick={() => confirmThenRejectPayment(payment)}
+                                  disabled={rejectingId === payment.id || confirmDuesMutation.isPending}
+                                  aria-label={t("contributions.rejectPaymentReviewAction")}
+                                >
+                                  {rejectingId === payment.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <X className="h-3.5 w-3.5" />
+                                  )}
+                                </Button>
+                              </>
+                            )}
                           </div>
                         ) : payment.status === "rejected" ? (
                           <Badge className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20 text-[10px]">
                             {t("contributions.rejected")}
                           </Badge>
                         ) : (
-                          <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-[10px]">
-                            {t("contributions.confirmed")}
-                          </Badge>
+                          <div className="flex flex-col gap-1 items-start">
+                            <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-[10px]">
+                              {t("contributions.confirmed")}
+                            </Badge>
+                            {payment.financialEventId && (
+                              <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                                <Check className="h-3 w-3" />
+                                {t("contributions.duesPosting.postedBadge")}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </td>
                       {canManage && (
@@ -1005,6 +1034,161 @@ export default function PaymentHistoryPage() {
           </CardContent>
         </Card>
       )}
+      {/* ─── Confirm Payment & Post to Ledger Dialog ──────────── */}
+      <Dialog
+        open={!!confirmingPayment}
+        onOpenChange={(open) => {
+          if (!open && !confirmDuesMutation.isPending) {
+            setConfirmingPayment(null);
+            setDepositAccountError(null);
+            setPostingError(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Check className="h-5 w-5 text-emerald-600" />
+              {t("contributions.duesPosting.confirmAndPost")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("contributions.duesPosting.confirmNotice")}
+              {confirmingPayment && (
+                <span className="block mt-1 text-xs text-muted-foreground">
+                  {t("contributions.confirmPaymentReviewDesc", {
+                    member: confirmingPayment.memberName,
+                    amount: formatAmount(confirmingPayment.amount, confirmingPayment.currency),
+                  })}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {confirmingPayment && (
+            <div className="space-y-4 py-2">
+              {/* Payment Summary */}
+              <div className="rounded-lg border bg-muted/40 p-3 space-y-2.5 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">{t("contributions.member")}</span>
+                  <span className="font-semibold text-foreground">{confirmingPayment.memberName}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">{t("contributions.contributionType")}</span>
+                  <span className="font-medium">{confirmingPayment.contributionTypeName}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">{t("contributions.amount")}</span>
+                  <span className="font-bold text-base text-emerald-600 dark:text-emerald-400">
+                    {formatAmount(confirmingPayment.amount, confirmingPayment.currency)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">{t("contributions.method")}</span>
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${methodColors[confirmingPayment.paymentMethod] || ""}`}>
+                    {methodLabels[confirmingPayment.paymentMethod] || confirmingPayment.paymentMethod}
+                  </span>
+                </div>
+                {confirmingPayment.referenceNumber && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">{t("contributions.referenceNumber")}</span>
+                    <span className="font-mono text-xs">{confirmingPayment.referenceNumber}</span>
+                  </div>
+                )}
+                {confirmingPayment.receiptUrl && (
+                  <div className="flex justify-between items-center pt-1 border-t">
+                    <span className="text-muted-foreground">{t("contributions.receiptPhoto")}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1.5"
+                      onClick={() => openReceipt(confirmingPayment.receiptUrl)}
+                    >
+                      <FileImage className="h-3.5 w-3.5" />
+                      {t("contributions.viewProof")}
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Deposit Custody Account Selector */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="deposit-account-select" className="text-sm font-medium">
+                    {t("contributions.duesPosting.depositAccount")} <span className="text-destructive">*</span>
+                  </Label>
+                  {custodyAccounts.length === 0 && (
+                    <span className="text-xs text-destructive">
+                      {t("contributions.duesPosting.accountRequired")}
+                    </span>
+                  )}
+                </div>
+                <select
+                  id="deposit-account-select"
+                  value={depositAccountId}
+                  onChange={(e) => {
+                    setDepositAccountId(e.target.value);
+                    setDepositAccountError(null);
+                    setPostingError(null);
+                  }}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={confirmDuesMutation.isPending || custodyAccounts.length === 0}
+                >
+                  {custodyAccounts.length === 0 ? (
+                    <option value="">{t("contributions.duesPosting.errors.accountNotFoundOrInactive")}</option>
+                  ) : (
+                    <>
+                      <option value="" disabled>{t("contributions.duesPosting.depositAccountPlaceholder")}</option>
+                      {custodyAccounts.map((acc) => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.name} ({acc.currency} • {tFinancial(`accounts.kinds.${acc.kind}`)})
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+                {depositAccountError && (
+                  <p className="text-xs text-destructive">{depositAccountError}</p>
+                )}
+              </div>
+
+              {/* Error display */}
+              {postingError && (
+                <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
+                  {postingError}
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmingPayment(null)}
+              disabled={confirmDuesMutation.isPending}
+            >
+              {tc("cancel")}
+            </Button>
+            <Button
+              onClick={handleConfirmDuesPosting}
+              disabled={confirmDuesMutation.isPending || !depositAccountId || custodyAccounts.length === 0}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-600 dark:hover:bg-emerald-700"
+            >
+              {confirmDuesMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("contributions.duesPosting.confirmAndPost")}
+                </>
+              ) : (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  {t("contributions.duesPosting.confirmAndPost")}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ─── Edit Payment Dialog ──────────────────────────────── */}
       <Dialog open={!!editPayment} onOpenChange={(open) => { if (!open) setEditPayment(null); }}>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">

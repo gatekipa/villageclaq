@@ -55,6 +55,8 @@ interface GroupContextValue {
   groupId: string | null;
   /** Whether user is admin/owner in current group */
   isAdmin: boolean;
+  /** Whether user is the active owner in current group */
+  isOwner: boolean;
   /** Whether user is a platform staff member */
   isPlatformStaff: boolean;
   /** Platform staff role if applicable */
@@ -80,6 +82,7 @@ const GroupContext = createContext<GroupContextValue>({
   currentGroup: null,
   groupId: null,
   isAdmin: false,
+  isOwner: false,
   isPlatformStaff: false,
   platformRole: null,
   loading: true,
@@ -316,7 +319,9 @@ export function GroupProvider({ children }: { children: ReactNode }) {
 
   const currentMembership = memberships.find((m) => m.group_id === currentGroupId) || null;
   const currentGroup = currentMembership?.group || null;
-  const isAdmin = currentMembership?.role === "owner" || currentMembership?.role === "admin";
+  const isMemberActive = currentMembership?.membership_status === "active";
+  const isOwner = isMemberActive && currentMembership?.role === "owner";
+  const isAdmin = isMemberActive && (currentMembership?.role === "owner" || currentMembership?.role === "admin");
 
   return (
     <GroupContext.Provider
@@ -327,6 +332,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
         currentGroup,
         groupId: currentGroupId,
         isAdmin,
+        isOwner,
         isPlatformStaff,
         platformRole,
         loading,

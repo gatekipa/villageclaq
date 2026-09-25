@@ -47,12 +47,13 @@ export type PermissionKey = (typeof ALL_PERMISSION_KEYS)[number];
 export function usePermissions() {
   const { currentMembership, groupId, isAdmin } = useGroup();
   const membershipId = currentMembership?.id;
-  const isOwner = currentMembership?.role === "owner";
+  const isMemberActive = currentMembership?.membership_status === "active";
+  const isOwner = isMemberActive && currentMembership?.role === "owner";
 
   const { data: permissionsData = { permissions: [], hasAssignments: false }, isLoading } = useQuery({
     queryKey: ["user-permissions", groupId, membershipId],
     queryFn: async () => {
-      if (!groupId || !membershipId) return { permissions: [], hasAssignments: false };
+      if (!groupId || !membershipId || !isMemberActive) return { permissions: [], hasAssignments: false };
       if (isOwner) return { permissions: [], hasAssignments: false }; // Owner bypasses everything — no need to fetch
 
       // Get all active position assignments for this member (admins included)
@@ -80,7 +81,7 @@ export function usePermissions() {
         hasAssignments: true,
       };
     },
-    enabled: !!groupId && !!membershipId && !isOwner,
+    enabled: !!groupId && !!membershipId && isMemberActive && !isOwner,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -91,20 +92,23 @@ export function usePermissions() {
   const hasPositionAssignments = permissionsData.hasAssignments;
 
   // Effective permissions:
+  // - Non-active member: 0 permissions (returns false)
   // - Owner: full bypass
   // - Admin WITH position assignments: use those position permissions (Treasurer, Secretary, etc.)
   // - Admin WITHOUT position assignments: full access (general admin)
   // - Member/Moderator WITH position assignments: use those permissions
   // - Member/Moderator WITHOUT position assignments: no special access
-  const userPermissions = positionPermissions;
+  const userPermissions = isMemberActive ? positionPermissions : [];
 
   /**
    * Check if the current user has a specific permission.
+   * Inactive members always return false.
    * Owner always returns true.
    * Admin with position assignments: checks position permissions.
    * Admin without position assignments: returns true (general admin).
    */
   function hasPermission(permissionKey: string): boolean {
+    if (!isMemberActive) return false;
     if (isOwner) return true;
     if (isLoading) return false;
     // Admin without specific position assignments → full access (backward compatible)
@@ -115,8 +119,10 @@ export function usePermissions() {
 
   /**
    * Check if user has ANY of the listed permissions.
+   * Inactive members always return false.
    */
   function hasAnyPermission(...keys: string[]): boolean {
+    if (!isMemberActive) return false;
     if (isOwner) return true;
     if (isLoading) return false;
     if (isAdmin && !hasPositionAssignments) return true;

@@ -61,6 +61,8 @@ import { createClient } from "@/lib/supabase/client";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { getMemberName } from "@/lib/get-member-name";
+import { usePermissions } from "@/lib/hooks/use-permissions";
+import { cn } from "@/lib/utils";
 
 // ─── Permission Modules Definition ───────────────────────────────────────────
 
@@ -169,6 +171,8 @@ export default function RolesPage() {
   const tc = useTranslations("common");
   const { groupId, currentGroup } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
+  const { hasPermission, isOwner } = usePermissions();
+  const canManageRoles = hasPermission("roles.manage") || isOwner;
   const queryClient = useQueryClient();
   const { data: positions, isLoading, isError, error, refetch } = useGroupPositions();
   const { data: members } = useMembers();
@@ -350,7 +354,7 @@ export default function RolesPage() {
   const [unassignError, setUnassignError] = useState<string | null>(null);
 
   async function handleUnassignConfirmed() {
-    if (!unassignTarget) return;
+    if (!unassignTarget || !canManageRoles) return;
     setUnassigning(true);
     setUnassignError(null);
     try {
@@ -384,9 +388,14 @@ export default function RolesPage() {
 
   const filteredMembers = useMemo(() => {
     if (!members) return [];
-    if (!assignSearch.trim()) return members;
+    // Exclude inactive members from position assignment (must be membership_status === "active")
+    const activeOnly = members.filter((m: Record<string, unknown>) => {
+      const status = (m.membership_status as string) || "active";
+      return status === "active";
+    });
+    if (!assignSearch.trim()) return activeOnly;
     const q = assignSearch.toLowerCase();
-    return members.filter((m: Record<string, unknown>) => {
+    return activeOnly.filter((m: Record<string, unknown>) => {
       const profile = m.profile as { full_name?: string } | undefined;
       const displayName = (m.display_name as string) || "";
       const fullName = profile?.full_name || "";
@@ -395,7 +404,7 @@ export default function RolesPage() {
   }, [members, assignSearch]);
 
   async function handleToggleAssignment(membershipId: string, isAssigned: boolean) {
-    if (!assignPosition) return;
+    if (!assignPosition || !canManageRoles) return;
     setAssignSaving(membershipId);
     try {
       const supabase = createClient();
@@ -743,8 +752,11 @@ export default function RolesPage() {
                 return (
                   <div
                     key={mId}
-                    className="flex items-center justify-between rounded-lg border p-2 hover:bg-muted/50 cursor-pointer"
-                    onClick={() => !isSaving && handleToggleAssignment(mId, isAssigned)}
+                    className={cn(
+                      "flex items-center justify-between rounded-lg border p-2",
+                      canManageRoles ? "hover:bg-muted/50 cursor-pointer" : "opacity-60 cursor-not-allowed"
+                    )}
+                    onClick={() => !isSaving && canManageRoles && handleToggleAssignment(mId, isAssigned)}
                   >
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">

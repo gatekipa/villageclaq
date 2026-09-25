@@ -94,6 +94,14 @@ import { logActivity } from "@/lib/audit-log";
 import { useSubscription } from "@/lib/hooks/use-subscription";
 import { LimitPrompt } from "@/components/ui/upgrade-prompt";
 import { RefreshCw } from "lucide-react";
+import {
+  useUpdateMembershipRole,
+  useSetMembershipLifecycleStatus,
+  useCreateGroupInvitation,
+  useUpdateMemberDisplayName,
+  useTransferGroupOwnership,
+  parseMembershipRpcError,
+} from "@/lib/hooks/use-membership-mutations";
 
 /**
  * Detect network-level fetch errors (e.g. "TypeError: Failed to fetch").
@@ -212,6 +220,16 @@ const standingConfig: Record<Standing, { color: string; dotColor: string }> = {
   banned: { color: "bg-red-900/10 text-red-900 dark:text-red-300", dotColor: "bg-red-900" },
 };
 
+export type LifecycleStatus = "active" | "suspended" | "exited" | "archived" | "pending_approval";
+
+export const lifecycleConfig: Record<LifecycleStatus, { color: string; labelKey: string }> = {
+  active: { color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20", labelKey: "lifecycleActive" },
+  suspended: { color: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20", labelKey: "lifecycleSuspended" },
+  exited: { color: "bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20", labelKey: "lifecycleExited" },
+  archived: { color: "bg-slate-500/10 text-slate-500 dark:text-slate-400 border-slate-500/20", labelKey: "lifecycleArchived" },
+  pending_approval: { color: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20", labelKey: "lifecyclePendingApproval" },
+};
+
 const roleConfig: Record<string, { icon: typeof Shield; color: string }> = {
   owner: { icon: Crown, color: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20" },
   admin: { icon: ShieldCheck, color: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20" },
@@ -247,6 +265,13 @@ export default function MembersPage() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { data: members, isLoading, isError, error, refetch } = useMembers();
+
+  // Canonical mutation hooks
+  const updateRoleMutation = useUpdateMembershipRole();
+  const setMembershipStatusMutation = useSetMembershipLifecycleStatus();
+  const createInvitationMutation = useCreateGroupInvitation();
+  const updateDisplayNameMutation = useUpdateMemberDisplayName();
+  const transferOwnershipMutation = useTransferGroupOwnership();
   // Admin-authorised phone lookup. phone is no longer in the useMembers
   // cache (privacy). The RPC is gated by is_group_admin() server-side;
   // non-admins get a 42501 we swallow — the UI then shows no phones for
@@ -329,6 +354,8 @@ export default function MembersPage() {
   const [editPhone, setEditPhone] = useState("");
   const [editRole, setEditRole] = useState("");
   const [editOriginalRole, setEditOriginalRole] = useState("");
+  const [editOriginalDisplayName, setEditOriginalDisplayName] = useState("");
+  const [editOriginalStanding, setEditOriginalStanding] = useState("");
   const [editStanding, setEditStanding] = useState("");
   const [editIsProxy, setEditIsProxy] = useState(false);
   const [editUserId, setEditUserId] = useState<string | null>(null);
@@ -376,6 +403,40 @@ export default function MembersPage() {
   const [removeMemberTarget, setRemoveMemberTarget] = useState<Record<string, unknown> | null>(null);
   const [removeSaving, setRemoveSaving] = useState(false);
   const [removeError, setRemoveError] = useState<string | null>(null);
+
+  // Tenant Context Reset: ensure render-phase tenant tracking resets all active dialogs,
+  // selected members, search queries, and error banners when groupId changes.
+  const [prevGroupId, setPrevGroupId] = useState(groupId);
+  if (groupId !== prevGroupId) {
+    setPrevGroupId(groupId);
+    setSearch("");
+    setRoleFilter("all");
+    setStandingFilter("all");
+    setPositionFilter("all");
+    setPage(1);
+    setAddDialogOpen(false);
+    setAddError(null);
+    setTransferDialogOpen(false);
+    setTransferMember(null);
+    setTransferError(null);
+    setBulkDialogOpen(false);
+    setEditDialogOpen(false);
+    setEditMemberId(null);
+    setEditError(null);
+    setClaimDialogOpen(false);
+    setClaimMember(null);
+    setClaimError(null);
+    setBulkInviteOpen(false);
+    setBulkInviteError(null);
+    setOwnershipDialogOpen(false);
+    setOwnershipTarget(null);
+    setOwnershipError(null);
+    setLeaveDialogOpen(false);
+    setLeaveError(null);
+    setRemoveDialogOpen(false);
+    setRemoveMemberTarget(null);
+    setRemoveError(null);
+  }
 
   // Recalculate all standing state. Routes through the engine-owned
   // recalc mutation (explicit, admin-gated action) instead of calling the
@@ -535,48 +596,26 @@ export default function MembersPage() {
 
     let succeeded = 0;
     let failed = 0;
-    const supabase = createClient();
 
     for (const email of validEmails) {
       try {
-        const { data: insertedInvite, error: invErr } = await supabase.from("invitations").insert({
-          group_id: groupId,
+        await createInvitationMutation.mutateAsync({
+          groupId,
           email,
           role: "member",
-          status: "pending",
-          invited_by: user.id,
-        }).select("id").single();
-        if (invErr) {
-          // unique_violation from the invitations_group_*_active_unique
-          // partial indexes (00029 email / 00099 phone): this address
-          // already holds an active invite — surface the friendly message.
-          if (invErr.code === "23505") {
-            setBulkInviteError(tInv("duplicateInviteError"));
-          }
-          failed++;
-          continue;
-        }
-
-        try {
-          const { requestMemberInvitationWhatsApp } = await import("@/lib/notify-member-invitation");
-          requestMemberInvitationWhatsApp(supabase, insertedInvite?.id, locale).catch((err) => {
-            console.warn("[Members] invitation enqueue failed:", err instanceof Error ? err.message : err);
-          });
-        } catch (err) {
-          console.warn("[Members] invitation enqueue failed:", err instanceof Error ? err.message : err);
-        }
-
+        });
         succeeded++;
-      } catch {
+      } catch (invErr) {
+        const errKey = parseMembershipRpcError(invErr);
+        if (errKey === "staleTenantAborted") {
+          setBulkInviteError(t("errors.staleTenantAborted"));
+          break;
+        }
         failed++;
       }
     }
 
     setBulkInviteResult({ succeeded, failed });
-    if (succeeded > 0) {
-      await queryClient.invalidateQueries({ queryKey: ["invitations", groupId] });
-      await logActivity(supabase, { groupId, action: "invitations.bulk_sent", description: `Sent ${succeeded} bulk invitations` });
-    }
     setBulkInviteSending(false);
   }
 
@@ -598,47 +637,19 @@ export default function MembersPage() {
     setOwnershipSaving(true);
     setOwnershipError(null);
     try {
-      const supabase = createClient();
       const targetId = ownershipTarget.id as string;
-      const targetName = getMemberName(ownershipTarget);
-
-      const { data: result, error: rpcErr } = await supabase.rpc("transfer_group_ownership", {
-        p_group_id: groupId,
-        p_new_owner_membership_id: targetId,
-      });
-      if (rpcErr) throw rpcErr;
-      const parsed = typeof result === "string" ? JSON.parse(result) : result;
-      if (parsed?.status !== "success") {
-        throw new Error(t("transferOwnershipError"));
-      }
-
-      // Send notification to new owner
-      if ((ownershipTarget.user_id as string)) {
-        await supabase.from("notifications").insert({
-          user_id: ownershipTarget.user_id as string,
-          group_id: groupId,
-          type: "system",
-          title: t("ownershipTransferredNotifTitle"),
-          body: t("ownershipTransferredNotifBody", { groupName }),
-          data: { link: "/dashboard/members" },
-        });
-      }
-
-      await logActivity(supabase, {
+      await transferOwnershipMutation.mutateAsync({
         groupId,
-        action: "member.ownership_transferred",
-        entityType: "membership",
-        entityId: targetId,
-        description: `Ownership transferred to ${targetName}`,
+        newOwnerMembershipId: targetId,
       });
 
-      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
-      await queryClient.invalidateQueries({ queryKey: ["group"] });
       setOwnershipDialogOpen(false);
-      // Reload to reflect new role
+      // Reload to reflect new role and permissions
       window.location.reload();
     } catch (err) {
-      setOwnershipError((err as Error).message || t("transferOwnershipError"));
+      const errKey = parseMembershipRpcError(err);
+      const translated = t(`errors.${errKey}` as "errors.GENERIC_ERROR");
+      setOwnershipError(translated || (err as Error).message || t("transferOwnershipError"));
     } finally {
       setOwnershipSaving(false);
     }
@@ -650,44 +661,19 @@ export default function MembersPage() {
     setLeaveSaving(true);
     setLeaveError(null);
     try {
-      const supabase = createClient();
-
-      // Delete membership (preserves payments, attendance etc. since those reference membership_id but have ON DELETE CASCADE or standalone)
-      const { error: delErr } = await supabase
-        .from("memberships")
-        .delete()
-        .eq("id", currentMembership.id);
-      if (delErr) throw delErr;
-
-      // Notify group admins
-      if (members) {
-        const admins = members.filter((m: Record<string, unknown>) =>
-          (m.role === "owner" || m.role === "admin") && m.user_id
-        );
-        const memberName = user?.full_name || t("unnamed");
-        const notifications = admins.map((admin: Record<string, unknown>) => ({
-          user_id: admin.user_id as string,
-          group_id: groupId,
-          type: "member_left" as const,
-          title: t("memberLeftNotifTitle"),
-          body: t("memberLeftNotifBody", { memberName, groupName: currentGroup?.name || "" }),
-          data: { link: "/dashboard/members" },
-        }));
-        if (notifications.length > 0) {
-          await supabase.from("notifications").insert(notifications);
-        }
-      }
-
-      await logActivity(supabase, {
+      await setMembershipStatusMutation.mutateAsync({
         groupId,
-        action: "member.left_group",
-        description: `Member left the group`,
+        membershipId: currentMembership.id,
+        newStatus: "exited",
+        reason: "Voluntary exit by member",
       });
 
       // Redirect to group selection
       router.push("/dashboard");
     } catch (err) {
-      setLeaveError((err as Error).message || t("leaveGroupError"));
+      const errKey = parseMembershipRpcError(err);
+      const translated = t(`errors.${errKey}` as "errors.GENERIC_ERROR");
+      setLeaveError(translated || (err as Error).message || t("leaveGroupError"));
     } finally {
       setLeaveSaving(false);
     }
@@ -729,40 +715,29 @@ export default function MembersPage() {
 
   async function handleRemoveMember() {
     if (!removeMemberTarget || !groupId || removeSaving) return;
-    // Prevent removing the owner
-    if ((removeMemberTarget.role as string) === "owner") {
+    // Prevent removing the active owner
+    if ((removeMemberTarget.role as string) === "owner" && ((removeMemberTarget.membership_status as string) || "active") === "active") {
       setRemoveError(t("cannotRemoveOwner"));
       return;
     }
     setRemoveSaving(true);
     setRemoveError(null);
     try {
-      const supabase = createClient();
       const targetId = removeMemberTarget.id as string;
-      const targetName = getName(removeMemberTarget);
       const targetUserId = removeMemberTarget.user_id as string | null;
-      const hasRecords = removeRecordCounts && (removeRecordCounts.payments > 0 || removeRecordCounts.obligations > 0);
 
-      if (hasRecords) {
-        // Soft-delete: set standing to 'banned' to preserve financial records
-        const { error: softErr } = await supabase
-          .from("memberships")
-          .update({ standing: "banned" as const })
-          .eq("id", targetId);
-        if (softErr) throw softErr;
-      } else {
-        // Hard delete: no records to preserve
-        const { error: delErr, count } = await supabase
-          .from("memberships")
-          .delete({ count: "exact" })
-          .eq("id", targetId);
-        if (delErr) throw delErr;
-        if (count === 0) throw new Error(t("removeMemberFailed"));
-      }
+      // Invariant: replace hard/soft delete with canonical lifecycle exit
+      await setMembershipStatusMutation.mutateAsync({
+        groupId,
+        membershipId: targetId,
+        newStatus: "exited",
+        reason: "Removed by group admin",
+      });
 
       // Notify the removed member
       if (targetUserId) {
         try {
+          const supabase = createClient();
           await supabase.from("notifications").insert({
             user_id: targetUserId,
             group_id: groupId,
@@ -774,50 +749,35 @@ export default function MembersPage() {
         } catch { /* notification non-critical */ }
       }
 
-      await logActivity(supabase, {
-        groupId,
-        action: "member.removed",
-        entityType: "membership",
-        entityId: targetId,
-        description: `${targetName} was removed from the group`,
-      });
-
-      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
       setRemoveDialogOpen(false);
     } catch (err) {
-      setRemoveError((err as Error).message);
+      const errKey = parseMembershipRpcError(err);
+      const translated = t(`errors.${errKey}` as "errors.GENERIC_ERROR");
+      setRemoveError(translated || (err as Error).message);
     } finally {
       setRemoveSaving(false);
     }
   }
 
-  // ─── BUG F FIX: Deactivate/Activate Member ────────────────────────────────
+  // ─── BUG F FIX: Deactivate/Activate Member Access ─────────────────────────
   async function handleToggleActive(member: Record<string, unknown>) {
     const id = member.id as string;
-    if (togglingActiveId) return;
+    if (togglingActiveId || !groupId) return;
+    // Sole owner cannot be deactivated/suspended
+    if ((member.role as string) === "owner") return;
+
     setTogglingActiveId(id);
-    const standing = (member.standing as string) || "good";
-    const newStanding = standing === "suspended" ? "good" : "suspended";
+    const currentStatus = (member.membership_status as string) || "active";
+    const nextStatus = currentStatus === "suspended" ? "active" : "suspended";
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("memberships")
-        .update({ standing: newStanding })
-        .eq("id", id);
-      if (error) throw error;
-
-      const memberName = getName(member);
-      await logActivity(supabase, {
-        groupId: groupId!,
-        action: newStanding === "suspended" ? "member.deactivated" : "member.activated",
-        entityType: "membership",
-        entityId: id,
-        description: `${memberName} was ${newStanding === "suspended" ? "deactivated" : "activated"}`,
+      await setMembershipStatusMutation.mutateAsync({
+        groupId,
+        membershipId: id,
+        newStatus: nextStatus,
+        reason: nextStatus === "suspended" ? "Access suspended by admin" : "Access reactivated by admin",
       });
-
-      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
-    } catch {
-      // Silently fail — member list will refresh
+    } catch (err) {
+      console.warn("[Members] handleToggleActive failed:", err);
     } finally {
       setTogglingActiveId(null);
     }
@@ -825,18 +785,19 @@ export default function MembersPage() {
 
   async function handleApprove(member: Record<string, unknown>) {
     const id = member.id as string;
-    if (approvingId) return;
+    if (approvingId || !groupId) return;
     setApprovingId(id);
     try {
       const supabase = createClient();
-      const { error } = await supabase
-        .from("memberships")
-        .update({ membership_status: "active" })
-        .eq("id", id);
-      if (error) throw error;
+      await setMembershipStatusMutation.mutateAsync({
+        groupId,
+        membershipId: id,
+        newStatus: "active",
+        reason: "Join request approved by admin",
+      });
 
       // Auto-enroll in contribution types
-      await autoEnrollMember(supabase, groupId!, id);
+      await autoEnrollMember(supabase, groupId, id);
 
       // Notify the approved member
       const userId = member.user_id as string | null;
@@ -852,17 +813,6 @@ export default function MembersPage() {
           });
         } catch { /* non-critical */ }
       }
-
-      const memberName = getMemberName(member);
-      await logActivity(supabase, {
-        groupId: groupId!,
-        action: "member.approved",
-        entityType: "membership",
-        entityId: id,
-        description: `${memberName} was approved to join`,
-      });
-
-      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
     } catch {
       // Silently fail — list will refresh
     } finally {
@@ -872,12 +822,12 @@ export default function MembersPage() {
 
   async function handleReject(member: Record<string, unknown>) {
     const id = member.id as string;
-    if (rejectingId) return;
+    if (rejectingId || !groupId) return;
     setRejectingId(id);
     try {
       const supabase = createClient();
 
-      // Notify the rejected user first (before deleting)
+      // Notify the rejected user first (before exiting)
       const userId = member.user_id as string | null;
       if (userId) {
         try {
@@ -892,24 +842,13 @@ export default function MembersPage() {
         } catch { /* non-critical */ }
       }
 
-      // Hard delete the pending membership
-      const { error } = await supabase
-        .from("memberships")
-        .delete()
-        .eq("id", id)
-        .eq("membership_status", "pending_approval");
-      if (error) throw error;
-
-      const memberName = getMemberName(member);
-      await logActivity(supabase, {
-        groupId: groupId!,
-        action: "member.rejected",
-        entityType: "membership",
-        entityId: id,
-        description: `${memberName}'s join request was rejected`,
+      // Soft-exit the pending membership via canonical RPC
+      await setMembershipStatusMutation.mutateAsync({
+        groupId,
+        membershipId: id,
+        newStatus: "exited",
+        reason: "Join request rejected by admin",
       });
-
-      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
     } catch {
       // Silently fail
     } finally {
@@ -1002,6 +941,7 @@ export default function MembersPage() {
     // We store title in privacy_settings.proxy_name for proxy members, but there's no separate title field
     // So we just use the full display name
     setEditDisplayName(name);
+    setEditOriginalDisplayName(name);
     setEditTitle("");
     setEditEmail("");
     // Real-member phone for the edit form comes from the admin roster
@@ -1014,6 +954,7 @@ export default function MembersPage() {
     setEditRole((member.role as string) || "member");
     setEditOriginalRole((member.role as string) || "member");
     setEditStanding((member.standing as string) || "good");
+    setEditOriginalStanding((member.standing as string) || "good");
     setEditIsProxy(isProxy);
     setEditUserId(isProxy ? null : (profile?.id as string || null));
     setEditMemberId(member.id as string);
@@ -1022,9 +963,12 @@ export default function MembersPage() {
   }
 
   async function handleEditMember() {
-    if (!editMemberId || !editDisplayName.trim()) return;
-    // Block non-owners from assigning the "owner" role
-    if (editRole === "owner" && !isOwner) return;
+    if (!editMemberId || !editDisplayName.trim() || !groupId) return;
+    // Disallow assigning the owner role directly — must use Transfer Ownership
+    if (editRole === "owner") {
+      setEditError(t("transferPrompt"));
+      return;
+    }
     // Prevent demoting the owner — must transfer ownership first
     if (editOriginalRole === "owner" && editRole !== "owner") {
       setEditError(t("cannotDemoteOwner"));
@@ -1033,48 +977,57 @@ export default function MembersPage() {
     setEditSaving(true);
     setEditError(null);
     try {
-      const supabase = createClient();
-
-      // Update membership fields (role, standing, display_name)
-      const membershipUpdate: Record<string, unknown> = {
-        role: editRole,
-        standing: editStanding,
-        display_name: editDisplayName.trim(),
-      };
-
-      if (editIsProxy) {
-        // For proxy members, update phone in privacy_settings
-        membershipUpdate.privacy_settings = {
-          proxy_phone: editPhone || "",
-          proxy_name: editDisplayName.trim(),
-          show_phone: false,
-          show_email: false,
-        };
+      // 1. Role update if changed
+      if (editRole !== editOriginalRole && editOriginalRole !== "owner") {
+        await updateRoleMutation.mutateAsync({
+          groupId,
+          membershipId: editMemberId,
+          newRole: editRole as "admin" | "moderator" | "member",
+        });
       }
 
-      const { error: membershipErr } = await supabase
-        .from("memberships")
-        .update(membershipUpdate)
-        .eq("id", editMemberId);
-      if (membershipErr) throw new Error(membershipErr.message);
+      // 2. Display name update if changed (PII Isolation: strictly tenant-scoped memberships.display_name)
+      if (editDisplayName.trim() !== editOriginalDisplayName.trim()) {
+        await updateDisplayNameMutation.mutateAsync({
+          groupId,
+          membershipId: editMemberId,
+          displayName: editDisplayName.trim(),
+        });
+      }
 
-      // For real (non-proxy) members, also update profile
-      if (!editIsProxy && editUserId) {
-        const profileUpdate: Record<string, unknown> = {
-          full_name: editDisplayName.trim(),
-        };
-        if (editPhone !== undefined) profileUpdate.phone = editPhone || null;
-        const { error: profileErr } = await supabase
-          .from("profiles")
-          .update(profileUpdate)
-          .eq("id", editUserId);
-        if (profileErr) throw new Error(profileErr.message);
+      // 3. Standing update if changed
+      if (editStanding !== editOriginalStanding) {
+        const supabase = createClient();
+        const { error: standingErr } = await supabase
+          .from("memberships")
+          .update({ standing: editStanding })
+          .eq("id", editMemberId);
+        if (standingErr) throw standingErr;
+      }
+
+      // 4. For proxy members, update phone in privacy_settings if changed
+      if (editIsProxy) {
+        const supabase = createClient();
+        const { error: privErr } = await supabase
+          .from("memberships")
+          .update({
+            privacy_settings: {
+              proxy_phone: editPhone || "",
+              proxy_name: editDisplayName.trim(),
+              show_phone: false,
+              show_email: false,
+            },
+          })
+          .eq("id", editMemberId);
+        if (privErr) throw privErr;
       }
 
       await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
       setEditDialogOpen(false);
     } catch (err) {
-      setEditError((err as Error).message);
+      const errKey = parseMembershipRpcError(err);
+      const translated = t(`errors.${errKey}` as "errors.GENERIC_ERROR");
+      setEditError(translated || (err as Error).message);
     } finally {
       setEditSaving(false);
     }
@@ -1690,7 +1643,27 @@ export default function MembersPage() {
                     {sortField === "joined" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
                   </button>
                 </TableHead>
-                <TableHead>{t("columnStatus")}</TableHead>
+                <TableHead>
+                  <button
+                    onClick={() => handleSort("standing")}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    {t("financialStanding")}
+                    {sortField === "standing" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                  </button>
+                </TableHead>
+                <TableHead className="hidden lg:table-cell">{tr("position")}</TableHead>
+                <TableHead className="hidden md:table-cell">{t("phone")}</TableHead>
+                <TableHead className="hidden md:table-cell">
+                  <button
+                    onClick={() => handleSort("joined")}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    {t("joinedDate")}
+                    {sortField === "joined" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                  </button>
+                </TableHead>
+                <TableHead>{t("lifecycleStatus")}</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -1710,7 +1683,8 @@ export default function MembersPage() {
                 const phone = getPhone(member);
                 const isProxy = member.is_proxy as boolean;
                 const roleStyle = roleConfig[role] || roleConfig.member;
-                const isActive = standing === "good" || standing === "warning";
+                const lifecycleStatus = ((member.membership_status as string) || "active") as LifecycleStatus;
+                const lifecycleMeta = lifecycleConfig[lifecycleStatus] || lifecycleConfig.active;
 
                 return (
                   <TableRow
@@ -1766,12 +1740,9 @@ export default function MembersPage() {
                       {joinedAt ? formatDate(joinedAt) : "—"}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className={`h-2 w-2 rounded-full ${isActive ? "bg-emerald-500" : "bg-muted-foreground/40"}`} />
-                        <span className="text-xs text-muted-foreground">
-                          {isActive ? t("statusActive") : t("statusInactive")}
-                        </span>
-                      </div>
+                      <Badge variant="outline" className={`text-xs capitalize ${lifecycleMeta.color}`}>
+                        {t(lifecycleMeta.labelKey as "lifecycleActive")}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       {canManageMembers && (
@@ -1829,22 +1800,22 @@ export default function MembersPage() {
                                 <Crown className="h-4 w-4" /> {t("transferOwnership")}
                               </DropdownMenuItem>
                             )}
-                            {canManageMembers && standing !== "suspended" && role !== "owner" && (
+                            {canManageMembers && ((member.membership_status as string) || "active") !== "suspended" && role !== "owner" && (
                               <DropdownMenuItem
                                 className="flex items-center gap-2"
                                 disabled={togglingActiveId === (member.id as string)}
                                 onClick={(e) => { e.stopPropagation(); handleToggleActive(member); }}
                               >
-                                <ShieldAlert className="h-4 w-4" /> {t("deactivateMember")}
+                                <ShieldAlert className="h-4 w-4" /> {t("suspendAccess")}
                               </DropdownMenuItem>
                             )}
-                            {canManageMembers && standing === "suspended" && role !== "owner" && (
+                            {canManageMembers && ((member.membership_status as string) || "active") === "suspended" && role !== "owner" && (
                               <DropdownMenuItem
                                 className="flex items-center gap-2"
                                 disabled={togglingActiveId === (member.id as string)}
                                 onClick={(e) => { e.stopPropagation(); handleToggleActive(member); }}
                               >
-                                <ShieldCheck className="h-4 w-4" /> {t("activateMember")}
+                                <ShieldCheck className="h-4 w-4" /> {t("reactivateAccess")}
                               </DropdownMenuItem>
                             )}
                             {role !== "owner" && (
@@ -1888,6 +1859,8 @@ export default function MembersPage() {
             const standingStyle = standingConfig[standing] || standingConfig.good;
             const roleStyle = roleConfig[role] || roleConfig.member;
             const RoleIcon = roleStyle.icon;
+            const lifecycleStatus = ((member.membership_status as string) || "active") as LifecycleStatus;
+            const lifecycleMeta = lifecycleConfig[lifecycleStatus] || lifecycleConfig.active;
 
             return (
               <Card
@@ -1921,6 +1894,12 @@ export default function MembersPage() {
                           className={`text-[10px] px-1.5 py-0 capitalize ${roleStyle.color}`}
                         >
                           {role}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] px-1.5 py-0 capitalize ${lifecycleMeta.color}`}
+                        >
+                          {t(lifecycleMeta.labelKey as "lifecycleActive")}
                         </Badge>
                         <StandingBadge standing={standing} size="sm" />
                       </div>
@@ -2132,15 +2111,16 @@ export default function MembersPage() {
                 disabled={editOriginalRole === "owner"}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {/* Owner role option: only visible to owners. Prevents admins from assigning/stealing ownership. */}
-                {isOwner && <option value="owner">{tr("owner")}</option>}
+                {/* Invariant: Owner role cannot be assigned directly. Prompt ownership transfer. */}
                 <option value="admin">{tr("admin")}</option>
                 <option value="moderator">{tr("moderator")}</option>
                 <option value="member">{tr("member")}</option>
               </select>
-              {editOriginalRole === "owner" && (
-                <p className="text-xs text-muted-foreground">{t("ownerRoleProtected")}</p>
-              )}
+              {editOriginalRole === "owner" ? (
+                <p className="text-xs text-muted-foreground">{t("cannotDemoteOwner")}</p>
+              ) : isOwner ? (
+                <p className="text-xs text-muted-foreground">{t("transferPrompt")}</p>
+              ) : null}
             </div>
             <div className="space-y-2">
               <Label>{t("standing")}</Label>

@@ -82,6 +82,8 @@ import {
   Contact,
   Trash2,
   X,
+  Crown,
+  ShieldAlert,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -91,8 +93,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  useUpdateMembershipRole,
+  useSetMembershipLifecycleStatus,
+  useTransferGroupOwnership,
+  useUpdateMemberDisplayName,
+  parseMembershipRpcError,
+  type MembershipLifecycleStatus,
+} from "@/lib/hooks/use-membership-mutations";
 
 const supabase = createClient();
+
+type LifecycleStatus = "active" | "suspended" | "exited" | "archived" | "pending_approval";
+
+const lifecycleConfig: Record<LifecycleStatus, { color: string; labelKey: string }> = {
+  active: { color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20", labelKey: "lifecycleActive" },
+  suspended: { color: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20", labelKey: "lifecycleSuspended" },
+  exited: { color: "bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20", labelKey: "lifecycleExited" },
+  archived: { color: "bg-slate-500/10 text-slate-500 dark:text-slate-400 border-slate-500/20", labelKey: "lifecycleArchived" },
+  pending_approval: { color: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20", labelKey: "lifecyclePendingApproval" },
+};
 
 const standingStyles = {
   good: {
@@ -367,7 +387,7 @@ function MemberDetailContent() {
   const locale = useLocale();
   const params = useParams();
   const membershipId = params.id as string;
-  const { groupId, currentGroup, user } = useGroup();
+  const { groupId, currentGroup, user, currentMembership } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission, isOwner } = usePermissions();
   const currency = currentGroup?.currency || "XAF";
@@ -392,6 +412,19 @@ function MemberDetailContent() {
   const [unassigningSaving, setUnassigningSaving] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
 
+  // Ownership transfer state
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const [transferConfirmText, setTransferConfirmText] = useState("");
+  const [transferSaving, setTransferSaving] = useState(false);
+  const [transferError, setTransferError] = useState<string | null>(null);
+  const [lifecycleSaving, setLifecycleSaving] = useState(false);
+
+  // Canonical mutation hooks
+  const updateRoleMutation = useUpdateMembershipRole();
+  const setLifecycleStatusMutation = useSetMembershipLifecycleStatus();
+  const transferOwnershipMutation = useTransferGroupOwnership();
+  const updateDisplayNameMutation = useUpdateMemberDisplayName();
+
   // Family dialog state
   const [familyDialogOpen, setFamilyDialogOpen] = useState(false);
   const [editingFamily, setEditingFamily] = useState<{ id: string; name: string; relationship: string; date_of_birth: string | null; notes: string | null } | null>(null);
@@ -404,6 +437,9 @@ function MemberDetailContent() {
 
   // Edit form state
   const [editDisplayName, setEditDisplayName] = useState("");
+  const [editOriginalDisplayName, setEditOriginalDisplayName] = useState("");
+  const [editOriginalRole, setEditOriginalRole] = useState("");
+  const [editOriginalStanding, setEditOriginalStanding] = useState("");
   const [editTitle, setEditTitle] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
@@ -428,68 +464,113 @@ function MemberDetailContent() {
 
   // ─── Handlers ────────────────────────────────────────────────────────────
 
+  async function handleSetLifecycleStatus(newStatus: MembershipLifecycleStatus, reason?: string) {
+    if (!membershipId || !groupId || lifecycleSaving) return;
+    if ((member?.role as string) === "owner" && newStatus !== "active") {
+      showError(t("members.cannotModifyOwnerLifecycle"));
+      return;
+    }
+    setLifecycleSaving(true);
+    try {
+      await setLifecycleStatusMutation.mutateAsync({
+        groupId,
+        membershipId,
+        newStatus,
+        reason: reason || `Lifecycle status changed to ${newStatus} by admin`,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] });
+      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
+    } catch (err) {
+      const errKey = parseMembershipRpcError(err);
+      showError(t(`members.errors.${errKey}` as "members.errors.GENERIC_ERROR") || (err as Error).message);
+    } finally {
+      setLifecycleSaving(false);
+    }
+  }
+
   function openEditDialog() {
     if (!member) return;
     const prof = member.profile as Record<string, unknown> | undefined;
     const isProxy = member.is_proxy as boolean;
     const privSettings = member.privacy_settings as Record<string, unknown> | null;
-    setEditDisplayName((member.display_name as string) || (prof?.full_name as string) || "");
+    const name = (member.display_name as string) || (prof?.full_name as string) || "";
+    setEditDisplayName(name);
+    setEditOriginalDisplayName(name);
     setEditTitle("");
     setEditEmail("");
     setEditPhone(isProxy ? ((privSettings?.proxy_phone as string) || "") : ((prof?.phone as string) || ""));
     setEditRole((member.role as string) || "member");
+    setEditOriginalRole((member.role as string) || "member");
     setEditStanding((member.standing as string) || "good");
+    setEditOriginalStanding((member.standing as string) || "good");
     setEditError(null);
     setShowEditDialog(true);
   }
 
   async function handleEditMember() {
-    if (!member || !editDisplayName.trim()) return;
+    if (!member || !editDisplayName.trim() || !groupId) return;
+    if (editRole === "owner") {
+      setEditError(t("members.transferPrompt"));
+      return;
+    }
+    if (editOriginalRole === "owner" && editRole !== "owner") {
+      setEditError(t("members.cannotDemoteOwner"));
+      return;
+    }
     setActionSaving(true);
     setEditError(null);
     try {
       const isProxy = member.is_proxy as boolean;
-      const prof = member.profile as Record<string, unknown> | undefined;
-      const userId = prof?.id as string | undefined;
 
-      const membershipUpdate: Record<string, unknown> = {
-        role: editRole,
-        standing: editStanding,
-        display_name: editDisplayName.trim(),
-      };
-
-      if (isProxy) {
-        membershipUpdate.privacy_settings = {
-          proxy_phone: editPhone || "",
-          proxy_name: editDisplayName.trim(),
-          show_phone: false,
-          show_email: false,
-        };
+      // 1. Role update if changed
+      if (editRole !== editOriginalRole && editOriginalRole !== "owner") {
+        await updateRoleMutation.mutateAsync({
+          groupId,
+          membershipId,
+          newRole: editRole as "admin" | "moderator" | "member",
+        });
       }
 
-      const { error: membershipErr } = await supabase
-        .from("memberships")
-        .update(membershipUpdate)
-        .eq("id", membershipId);
-      if (membershipErr) throw new Error(membershipErr.message);
+      // 2. Display name update if changed (PII Isolation: strictly tenant-scoped)
+      if (editDisplayName.trim() !== editOriginalDisplayName.trim()) {
+        await updateDisplayNameMutation.mutateAsync({
+          groupId,
+          membershipId,
+          displayName: editDisplayName.trim(),
+        });
+      }
 
-      if (!isProxy && userId) {
-        const profileUpdate: Record<string, unknown> = {
-          full_name: editDisplayName.trim(),
-        };
-        if (editPhone !== undefined) profileUpdate.phone = editPhone || null;
-        const { error: profileErr } = await supabase
-          .from("profiles")
-          .update(profileUpdate)
-          .eq("id", userId);
-        if (profileErr) throw new Error(profileErr.message);
+      // 3. Standing update if changed
+      if (editStanding !== editOriginalStanding) {
+        const { error: standingErr } = await supabase
+          .from("memberships")
+          .update({ standing: editStanding })
+          .eq("id", membershipId);
+        if (standingErr) throw standingErr;
+      }
+
+      // 4. Proxy phone update if changed
+      if (isProxy) {
+        const { error: privErr } = await supabase
+          .from("memberships")
+          .update({
+            privacy_settings: {
+              proxy_phone: editPhone || "",
+              proxy_name: editDisplayName.trim(),
+              show_phone: false,
+              show_email: false,
+            },
+          })
+          .eq("id", membershipId);
+        if (privErr) throw privErr;
       }
 
       await queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] });
-      await queryClient.invalidateQueries({ queryKey: ["members"] });
+      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
       setShowEditDialog(false);
     } catch (err) {
-      setEditError((err as Error).message);
+      const errKey = parseMembershipRpcError(err);
+      setEditError(t(`members.errors.${errKey}` as "members.errors.GENERIC_ERROR") || (err as Error).message);
     } finally {
       setActionSaving(false);
     }
@@ -825,10 +906,112 @@ function MemberDetailContent() {
                 <DropdownMenuItem className="flex items-center gap-2" onClick={() => setShowPositionDialog(true)}>
                   <Shield className="h-4 w-4" /> {t("members.assignPosition")}
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="flex items-center gap-2 text-destructive" onClick={() => setShowRemoveDialog(true)}>
-                  <UserMinus className="h-4 w-4" /> {t("members.removeMember")}
-                </DropdownMenuItem>
+
+                {/* Explicit Lifecycle Actions */}
+                {(member?.role as string) !== "owner" && (
+                  <>
+                    <DropdownMenuSeparator />
+                    {((member.membership_status as string) || "active") === "active" && (
+                      <>
+                        <DropdownMenuItem
+                          className="flex items-center gap-2"
+                          disabled={lifecycleSaving}
+                          onClick={() => handleSetLifecycleStatus("suspended")}
+                        >
+                          <ShieldAlert className="h-4 w-4" /> {t("members.suspendAccess")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="flex items-center gap-2"
+                          disabled={lifecycleSaving}
+                          onClick={() => handleSetLifecycleStatus("exited")}
+                        >
+                          <UserMinus className="h-4 w-4" /> {t("members.markExited")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="flex items-center gap-2"
+                          disabled={lifecycleSaving}
+                          onClick={() => handleSetLifecycleStatus("archived")}
+                        >
+                          <History className="h-4 w-4" /> {t("members.archiveMember")}
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {((member.membership_status as string) || "active") === "suspended" && (
+                      <>
+                        <DropdownMenuItem
+                          className="flex items-center gap-2"
+                          disabled={lifecycleSaving}
+                          onClick={() => handleSetLifecycleStatus("active")}
+                        >
+                          <CheckCircle2 className="h-4 w-4" /> {t("members.reactivateAccess")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="flex items-center gap-2"
+                          disabled={lifecycleSaving}
+                          onClick={() => handleSetLifecycleStatus("exited")}
+                        >
+                          <UserMinus className="h-4 w-4" /> {t("members.markExited")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="flex items-center gap-2"
+                          disabled={lifecycleSaving}
+                          onClick={() => handleSetLifecycleStatus("archived")}
+                        >
+                          <History className="h-4 w-4" /> {t("members.archiveMember")}
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {((member.membership_status as string) || "active") === "exited" && (
+                      <>
+                        <DropdownMenuItem
+                          className="flex items-center gap-2"
+                          disabled={lifecycleSaving}
+                          onClick={() => handleSetLifecycleStatus("active")}
+                        >
+                          <CheckCircle2 className="h-4 w-4" /> {t("members.reactivateAccess")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="flex items-center gap-2"
+                          disabled={lifecycleSaving}
+                          onClick={() => handleSetLifecycleStatus("archived")}
+                        >
+                          <History className="h-4 w-4" /> {t("members.archiveMember")}
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {((member.membership_status as string) || "active") === "archived" && (
+                      <DropdownMenuItem
+                        className="flex items-center gap-2"
+                        disabled={lifecycleSaving}
+                        onClick={() => handleSetLifecycleStatus("active")}
+                      >
+                        <CheckCircle2 className="h-4 w-4" /> {t("members.reactivateAccess")}
+                      </DropdownMenuItem>
+                    )}
+                  </>
+                )}
+
+                {/* Ownership Transfer Dialog Action (Owner viewing another active member) */}
+                {isOwner && membershipId !== currentMembership?.id && ((member?.membership_status as string) || "active") === "active" && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="flex items-center gap-2 text-amber-600 dark:text-amber-400"
+                      onClick={() => { setTransferConfirmText(""); setTransferError(null); setShowTransferDialog(true); }}
+                    >
+                      <Crown className="h-4 w-4 text-amber-500" /> {t("members.transferOwnership")}
+                    </DropdownMenuItem>
+                  </>
+                )}
+
+                {(member?.role as string) !== "owner" && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="flex items-center gap-2 text-destructive" onClick={() => setShowRemoveDialog(true)}>
+                      <UserMinus className="h-4 w-4" /> {t("members.removeMember")}
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -873,6 +1056,15 @@ function MemberDetailContent() {
               )}
               <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                 <Badge variant="secondary">{t(`roles.${member.role}` as "roles.admin")}</Badge>
+                {(() => {
+                  const lStatus = ((member.membership_status as string) || "active") as LifecycleStatus;
+                  const lMeta = lifecycleConfig[lStatus] || lifecycleConfig.active;
+                  return (
+                    <Badge variant="outline" className={`text-xs capitalize ${lMeta.color}`}>
+                      {t(lMeta.labelKey as "members.lifecycleActive")}
+                    </Badge>
+                  );
+                })()}
                 <StandingBadge standing={standing} size="sm" />
                 {member.is_proxy && (
                   <Badge variant="outline" className="text-xs">{t("members.proxy")}</Badge>
@@ -1467,13 +1659,18 @@ function MemberDetailContent() {
               <select
                 value={editRole}
                 onChange={(e) => setEditRole(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                disabled={editOriginalRole === "owner"}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <option value="owner">{t("roles.owner")}</option>
                 <option value="admin">{t("roles.admin")}</option>
                 <option value="moderator">{t("roles.moderator")}</option>
                 <option value="member">{t("roles.member")}</option>
               </select>
+              {editOriginalRole === "owner" ? (
+                <p className="text-xs text-muted-foreground">{t("members.cannotDemoteOwner")}</p>
+              ) : isOwner ? (
+                <p className="text-xs text-muted-foreground">{t("members.transferPrompt")}</p>
+              ) : null}
             </div>
             {editError && <p className="text-sm text-destructive">{editError}</p>}
           </div>
@@ -1542,47 +1739,38 @@ function MemberDetailContent() {
                 <SelectValue placeholder={t("members.selectRole")} />
               </SelectTrigger>
               <SelectContent>
-                {(isOwner ? ["owner", "admin", "moderator", "member"] : ["admin", "moderator", "member"]).map((role) => (
+                {["admin", "moderator", "member"].map((role) => (
                   <SelectItem key={role} value={role}>{t(`roles.${role}` as "roles.admin")}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {isOwner && (
+              <p className="text-xs text-muted-foreground mt-2">{t("members.transferPrompt")}</p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRoleDialog(false)}>{t("common.cancel")}</Button>
             <Button
-              disabled={actionSaving}
+              disabled={actionSaving || !newRole || newRole === "owner"}
               onClick={async () => {
-                // Block non-owners from assigning "owner" role
-                if (newRole === "owner" && !isOwner) return;
-                // Prevent demoting the owner — must transfer ownership first
+                if (newRole === "owner") return;
                 if ((member?.role as string) === "owner" && newRole !== "owner") {
                   showError(t("members.cannotDemoteOwner"));
                   return;
                 }
                 setActionSaving(true);
                 try {
-                  const { error } = await supabase.from("memberships").update({ role: newRole }).eq("id", membershipId);
-                  if (error) throw error;
-                  // Audit log
-                  try {
-                    const { logActivity } = await import("@/lib/audit-log");
-                    await logActivity(supabase, {
-                      groupId: groupId!,
-                      action: "member.role_changed",
-                      entityType: "membership",
-                      entityId: membershipId,
-                      description: `${memberName} role changed to ${newRole}`,
-                      metadata: { newRole },
-                    });
-                  } catch { /* best-effort */ }
+                  await updateRoleMutation.mutateAsync({
+                    groupId: groupId!,
+                    membershipId,
+                    newRole: newRole as "admin" | "moderator" | "member",
+                  });
                   await queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] });
-                  // B11: refresh the members LIST role column (["members", groupId],
-                  // staleTime 5min) so the change shows immediately.
                   await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
                   setShowRoleDialog(false);
                 } catch (err) {
-                  showError((err as Error).message || t("common.error"));
+                  const errKey = parseMembershipRpcError(err);
+                  showError(t(`members.errors.${errKey}` as "members.errors.GENERIC_ERROR") || (err as Error).message);
                 } finally {
                   setActionSaving(false);
                 }
@@ -1718,10 +1906,15 @@ function MemberDetailContent() {
               variant="destructive"
               disabled={actionSaving}
               onClick={async () => {
+                if (!groupId || !membershipId) return;
                 setActionSaving(true);
                 try {
-                  const { error } = await supabase.from("memberships").delete().eq("id", membershipId);
-                  if (error) throw error;
+                  await setLifecycleStatusMutation.mutateAsync({
+                    groupId,
+                    membershipId,
+                    newStatus: "exited",
+                    reason: `Removed from group by admin: ${memberName}`,
+                  });
                   // Audit log
                   try {
                     const { logActivity } = await import("@/lib/audit-log");
@@ -1733,10 +1926,12 @@ function MemberDetailContent() {
                       description: `${memberName} was removed from the group`,
                     });
                   } catch { /* best-effort */ }
-                  await queryClient.invalidateQueries({ queryKey: ["members"] });
+                  await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
+                  await queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] });
                   router.push("/dashboard/members");
                 } catch (err) {
-                  showError((err as Error).message || t("common.error"));
+                  const errKey = parseMembershipRpcError(err);
+                  showError(t(`members.errors.${errKey}` as "members.errors.GENERIC_ERROR") || (err as Error).message);
                 } finally {
                   setActionSaving(false);
                 }
@@ -1744,6 +1939,71 @@ function MemberDetailContent() {
             >
               {actionSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("members.removeMember")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer Group Ownership Dialog */}
+      <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+              <Crown className="h-5 w-5" />
+              {t("members.transferOwnership")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              {t("members.transferOwnershipWarning")}
+            </p>
+            <div className="rounded-md border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
+              <span className="font-semibold">{memberName}</span> ({member?.display_name || profile?.full_name})
+            </div>
+            {transferError && (
+              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                {transferError}
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">
+                {t("members.transferOwnershipConfirmPrompt")}
+              </Label>
+              <Input
+                value={transferConfirmText}
+                onChange={(e) => setTransferConfirmText(e.target.value)}
+                placeholder="TRANSFER"
+                className="font-mono"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTransferDialog(false)}>{t("common.cancel")}</Button>
+            <Button
+              variant="destructive"
+              disabled={transferSaving || transferConfirmText !== "TRANSFER"}
+              onClick={async () => {
+                if (!groupId || !membershipId || transferConfirmText !== "TRANSFER") return;
+                setTransferSaving(true);
+                setTransferError(null);
+                try {
+                  await transferOwnershipMutation.mutateAsync({
+                    groupId,
+                    newOwnerMembershipId: membershipId,
+                  });
+                  await queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] });
+                  await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
+                  setShowTransferDialog(false);
+                } catch (err) {
+                  const errKey = parseMembershipRpcError(err);
+                  setTransferError(t(`members.errors.${errKey}` as "members.errors.GENERIC_ERROR") || (err as Error).message);
+                } finally {
+                  setTransferSaving(false);
+                }
+              }}
+            >
+              {transferSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("members.transferOwnership")}
             </Button>
           </DialogFooter>
         </DialogContent>

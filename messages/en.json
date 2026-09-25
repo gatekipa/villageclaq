@@ -1059,7 +1059,32 @@
     "joined": "Joined",
     "wrongGroupTitle": "This member isn't in your current group",
     "wrongGroupDesc": "You're viewing a different group right now, so this member's details aren't available here. Switch to their group, or go back to your current group's member list.",
-    "backToMembers": "Back to members"
+    "backToMembers": "Back to members",
+    "lifecycleStatus": "Lifecycle Status",
+    "lifecycleActive": "Active",
+    "lifecycleSuspended": "Suspended",
+    "lifecycleExited": "Exited",
+    "lifecycleArchived": "Archived",
+    "lifecyclePendingApproval": "Pending Approval",
+    "financialStanding": "Financial Standing",
+    "suspendAccess": "Suspend Access",
+    "reactivateAccess": "Reactivate Access",
+    "markExited": "Mark as Exited",
+    "archiveMember": "Archive Member",
+    "transferPrompt": "To promote a member to owner, use Transfer Ownership from member actions.",
+    "cannotModifyOwnerLifecycle": "The group owner cannot be deactivated or exited. Transfer ownership first.",
+    "transferOwnershipConfirmPrompt": "Type TRANSFER to confirm ownership transfer:",
+    "errors": {
+      "MEMBERSHIP_HARD_DELETE_PROHIBITED": "Memberships cannot be deleted to preserve financial audit integrity. Please deactivate or exit the member instead.",
+      "OWNER_INVITATION_PROHIBITED": "Group ownership cannot be granted via invitation. Use Transfer Ownership.",
+      "INSUFFICIENT_INVITE_PRIVILEGE": "You do not have permission to invite members with this role.",
+      "SOLE_OWNER_DEMOTION_PROHIBITED": "Cannot demote the group owner. Transfer group ownership first.",
+      "SOLE_OWNER_STATUS_LOCK": "The group owner cannot be deactivated, suspended, or exited. Transfer ownership first.",
+      "TRANSFER_TO_SELF_PROHIBITED": "Cannot transfer group ownership to yourself.",
+      "TARGET_NOT_ACTIVE_MEMBER": "Target member must be an active member to receive group ownership.",
+      "staleTenantAborted": "The operation was aborted because your active group changed. Please try again.",
+      "GENERIC_ERROR": "An unexpected error occurred while updating membership. Please try again."
+    }
   },
   "settings": {
     "title": "Group Settings",

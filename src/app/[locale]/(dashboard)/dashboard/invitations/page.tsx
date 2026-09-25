@@ -59,6 +59,11 @@ import { RequirePermission } from "@/components/ui/permission-gate";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { getMemberName } from "@/lib/get-member-name";
 import { SendReviewNotice } from "@/components/send-review-notice";
+import { usePermissions } from "@/lib/hooks/use-permissions";
+import {
+  useCreateGroupInvitation,
+  parseMembershipRpcError,
+} from "@/lib/hooks/use-membership-mutations";
 
 const statusStyles: Record<string, string> = {
   pending: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
@@ -89,6 +94,9 @@ export default function InvitationsPage() {
   const locale = useLocale();
   const { groupId, user, isAdmin, currentGroup, loading: groupLoading } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
+  const { hasPermission } = usePermissions();
+  const canInvite = hasPermission("members.invite");
+  const createInvitationMutation = useCreateGroupInvitation();
   const queryClient = useQueryClient();
 
   const {
@@ -273,7 +281,7 @@ export default function InvitationsPage() {
   }
 
   const handleSendInvitation = async () => {
-    if (!email || !groupId || !user) return;
+    if (!email || !groupId || !user || !canInvite) return;
     const trimmedEmail = email.trim().toLowerCase();
     setSendSuccess(false);
     setSendError(null);
@@ -287,96 +295,54 @@ export default function InvitationsPage() {
 
     setSending(true);
     try {
-      const supabase = createClient();
-
-      // Check for existing pending/accepted invitation to prevent duplicates
-      const { data: existing } = await supabase
-        .from("invitations")
-        .select("id, status")
-        .eq("group_id", groupId)
-        .eq("email", trimmedEmail)
-        .in("status", ["pending", "accepted"])
-        .limit(1)
-        .maybeSingle();
-
-      if (existing) {
-        setSendError(t("invitations.duplicateInvite"));
-        return;
-      }
-
-      // Also check if email is already a member
-      const { data: existingMember } = await supabase
-        .from("memberships")
-        .select("id, profiles!memberships_user_id_fkey(id)")
-        .eq("group_id", groupId)
-        .limit(100);
-
-      // Check via profiles table for email match
-      const { data: profileMatch } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("email", trimmedEmail)
-        .maybeSingle();
-
-      if (profileMatch && existingMember?.some((m: Record<string, unknown>) => {
-        const profile = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
-        return (profile as Record<string, unknown> | null)?.id === profileMatch.id;
-      })) {
-        setSendError(t("invitations.alreadyMember"));
-        return;
-      }
-
-      const { data: insertedInvite, error } = await supabase.from("invitations").insert({
-        group_id: groupId,
+      const result = await createInvitationMutation.mutateAsync({
+        groupId,
         email: trimmedEmail,
-        role,
-        invited_by: user.id,
-        status: "pending",
-      }).select("id").single();
+        role: role as "admin" | "moderator" | "member",
+      });
 
-      if (!error) {
-        let emailSent = false;
-        try {
-          emailSent = insertedInvite?.id
-            ? await enqueueInvitationNotice(insertedInvite.id)
-            : false;
-        } catch (err) {
-          console.warn("[Invitations] invitation enqueue failed:", err instanceof Error ? err.message : err);
-          emailSent = false;
-        }
-        // Audit log
-        try {
-          const { logActivity } = await import("@/lib/audit-log");
-          await logActivity(supabase, {
-            groupId,
-            action: "member.invited",
-            entityType: "membership",
-            description: `Invited ${trimmedEmail} as ${role}`,
-            metadata: { email: trimmedEmail, role },
-          });
-        } catch (err) {
-          console.warn("[Invitations] audit log failed:", err instanceof Error ? err.message : err);
-        }
-        if (emailSent) {
-          // Green success ONLY when the email actually went out.
-          setSendSuccess(true);
-          setTimeout(() => setSendSuccess(false), 3000);
-        } else {
-          // Row saved but the email failed — one amber notice (never a green
-          // success next to a red failure), pointing the admin at Resend.
-          setSendWarning(t("invitations.savedEmailFailed"));
-        }
-        setEmail("");
-        queryClient.invalidateQueries({ queryKey: ["invitations", groupId] });
-      } else if (error.code === "23505") {
-        // unique_violation from the invitations_group_*_active_unique partial
-        // indexes (00029 email / 00099 phone) — race-safe duplicate guard
-        // behind the pre-check above.
-        setSendError(t("invitations.duplicateInviteError"));
+      let emailSent = false;
+      try {
+        emailSent = result.invitation_id
+          ? await enqueueInvitationNotice(result.invitation_id)
+          : false;
+      } catch (err) {
+        console.warn("[Invitations] invitation enqueue failed:", err instanceof Error ? err.message : err);
+        emailSent = false;
+      }
+      // Audit log
+      try {
+        const supabase = createClient();
+        const { logActivity } = await import("@/lib/audit-log");
+        await logActivity(supabase, {
+          groupId,
+          action: "member.invited",
+          entityType: "membership",
+          description: `Invited ${trimmedEmail} as ${role}`,
+          metadata: { email: trimmedEmail, role },
+        });
+      } catch (err) {
+        console.warn("[Invitations] audit log failed:", err instanceof Error ? err.message : err);
+      }
+      if (emailSent) {
+        setSendSuccess(true);
+        setTimeout(() => setSendSuccess(false), 3000);
       } else {
-        // Friendly errors only — raw DB text goes to the console, not the UI.
-        console.warn("[Invitations] invitation insert failed:", error.message);
-        setSendError(t("invitations.sendFailed"));
+        setSendWarning(t("invitations.savedEmailFailed"));
+      }
+      setEmail("");
+      queryClient.invalidateQueries({ queryKey: ["invitations", groupId] });
+    } catch (err) {
+      const errKey = parseMembershipRpcError(err);
+      if (errKey !== "GENERIC_ERROR") {
+        setSendError(t(`members.errors.${errKey}` as "members.errors.GENERIC_ERROR"));
+      } else {
+        const msg = (err as Error).message || "";
+        if (msg.includes("23505")) {
+          setSendError(t("invitations.duplicateInviteError"));
+        } else {
+          setSendError(t("invitations.sendFailed"));
+        }
       }
     } finally {
       setSending(false);
@@ -641,9 +607,10 @@ export default function InvitationsPage() {
                 placeholder="member@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={!canInvite || sending}
                 className="flex-1"
               />
-              <Select value={role} onValueChange={(val) => setRole(val || "member")}>
+              <Select value={role} onValueChange={(val) => setRole(val || "member")} disabled={!canInvite || sending}>
                 <SelectTrigger className="w-full sm:w-32">
                   <SelectValue />
                 </SelectTrigger>
@@ -660,7 +627,7 @@ export default function InvitationsPage() {
               </Select>
               <Button
                 onClick={handleSendInvitation}
-                disabled={!email || sending}
+                disabled={!email || sending || !canInvite}
                 className="w-full sm:w-auto"
               >
                 {sending ? (
@@ -671,6 +638,11 @@ export default function InvitationsPage() {
                 {t("members.sendInvite")}
               </Button>
             </div>
+            {!canInvite && (
+              <p className="text-xs text-muted-foreground">
+                {t("members.errors.INSUFFICIENT_INVITE_PRIVILEGE")}
+              </p>
+            )}
           </div>
           {sendSuccess && (
             <p className="flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400">

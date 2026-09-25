@@ -1,0 +1,3531 @@
+{
+  "status": "OK",
+  "verdict": "QUALIFICATION_BASELINE_PRESERVE_BTREE_GIST_V1",
+  "ok": true,
+  "reason": "F19 LOCAL CORRECTION CANDIDATE — AWAITING QA / LOCAL TX PROOF",
+  "code": "F13_RESET_COMMITTED",
+  "label": "F19 LOCAL CORRECTION CANDIDATE — AWAITING QA / LOCAL TX PROOF",
+  "sharedOrchestration": "runQualificationReset",
+  "wipeToBaselineRejected": true,
+  "wipeRejectionCode": "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
+  "productionContacted": false,
+  "spies": {
+    "planCalls": 1,
+    "validateCalls": 1,
+    "captureCalls": 1,
+    "transportCalls": 1,
+    "applyCalls": 1,
+    "sqlCalls": 1,
+    "beginObserved": 1,
+    "mutateAttempted": 1,
+    "commitAttempted": 1,
+    "commitConfirmed": 1,
+    "rollbackObserved": 0,
+    "replayCalls": 0,
+    "committedEffects": 1,
+    "startedBeforeInvoke": true,
+    "completedAfterAwait": true
+  },
+  "executed": true,
+  "committed": true,
+  "mutation": true,
+  "alreadyClean": false,
+  "inventoryCaptured": true,
+  "captureSqlWired": true,
+  "observedFromCapture": {
+    "observedObjects": [
+      {
+        "kind": "extension",
+        "identity": "btree_gist"
+      },
+      {
+        "kind": "function",
+        "identity": "financial_private.guard_ledger_epoch()"
+      },
+      {
+        "kind": "function",
+        "identity": "public.cash_dist(money,money)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.cash_dist(money,money)",
+          "classid": "1255",
+          "objid": "55052",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.compute_member_standing(uuid)"
+      },
+      {
+        "kind": "function",
+        "identity": "public.date_dist(date,date)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.date_dist(date,date)",
+          "classid": "1255",
+          "objid": "55054",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.enqueue_outbound_notification(text,uuid,notification_channel,uuid,text)"
+      },
+      {
+        "kind": "function",
+        "identity": "public.execute_member_transfer(jsonb)"
+      },
+      {
+        "kind": "function",
+        "identity": "public.float4_dist(real,real)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.float4_dist(real,real)",
+          "classid": "1255",
+          "objid": "55056",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.float8_dist(double precision,double precision)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.float8_dist(double precision,double precision)",
+          "classid": "1255",
+          "objid": "55058",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bit_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bit_compress(internal)",
+          "classid": "1255",
+          "objid": "55512",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bit_consistent(internal,bit,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bit_consistent(internal,bit,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55511",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bit_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bit_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55513",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bit_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bit_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55514",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bit_same(gbtreekey_var,gbtreekey_var,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bit_same(gbtreekey_var,gbtreekey_var,internal)",
+          "classid": "1255",
+          "objid": "55516",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bit_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bit_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55515",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bool_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bool_compress(internal)",
+          "classid": "1255",
+          "objid": "55659",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bool_consistent(internal,boolean,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bool_consistent(internal,boolean,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55658",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bool_fetch(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bool_fetch(internal)",
+          "classid": "1255",
+          "objid": "55660",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bool_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bool_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55661",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bool_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bool_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55662",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bool_same(gbtreekey2,gbtreekey2,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bool_same(gbtreekey2,gbtreekey2,internal)",
+          "classid": "1255",
+          "objid": "55664",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bool_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bool_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55663",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bpchar_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bpchar_compress(internal)",
+          "classid": "1255",
+          "objid": "55430",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bpchar_consistent(internal,character,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bpchar_consistent(internal,character,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55428",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bytea_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bytea_compress(internal)",
+          "classid": "1255",
+          "objid": "55468",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bytea_consistent(internal,bytea,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bytea_consistent(internal,bytea,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55467",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bytea_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bytea_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55469",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bytea_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bytea_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55470",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bytea_same(gbtreekey_var,gbtreekey_var,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bytea_same(gbtreekey_var,gbtreekey_var,internal)",
+          "classid": "1255",
+          "objid": "55472",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_bytea_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_bytea_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55471",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_cash_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_cash_compress(internal)",
+          "classid": "1255",
+          "objid": "55380",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_cash_consistent(internal,money,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_cash_consistent(internal,money,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55378",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_cash_distance(internal,money,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_cash_distance(internal,money,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55379",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_cash_fetch(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_cash_fetch(internal)",
+          "classid": "1255",
+          "objid": "55381",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_cash_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_cash_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55382",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_cash_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_cash_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55383",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_cash_same(gbtreekey16,gbtreekey16,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_cash_same(gbtreekey16,gbtreekey16,internal)",
+          "classid": "1255",
+          "objid": "55385",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_cash_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_cash_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55384",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_date_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_date_compress(internal)",
+          "classid": "1255",
+          "objid": "55327",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_date_consistent(internal,date,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_date_consistent(internal,date,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55325",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_date_distance(internal,date,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_date_distance(internal,date,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55326",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_date_fetch(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_date_fetch(internal)",
+          "classid": "1255",
+          "objid": "55328",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_date_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_date_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55329",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_date_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_date_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55330",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_date_same(gbtreekey8,gbtreekey8,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_date_same(gbtreekey8,gbtreekey8,internal)",
+          "classid": "1255",
+          "objid": "55332",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_date_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_date_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55331",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_decompress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_decompress(internal)",
+          "classid": "1255",
+          "objid": "55080",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_enum_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_enum_compress(internal)",
+          "classid": "1255",
+          "objid": "55632",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_enum_consistent(internal,anyenum,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_enum_consistent(internal,anyenum,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55631",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_enum_fetch(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_enum_fetch(internal)",
+          "classid": "1255",
+          "objid": "55633",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_enum_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_enum_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55634",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_enum_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_enum_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55635",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_enum_same(gbtreekey8,gbtreekey8,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_enum_same(gbtreekey8,gbtreekey8,internal)",
+          "classid": "1255",
+          "objid": "55637",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_enum_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_enum_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55636",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_float4_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_float4_compress(internal)",
+          "classid": "1255",
+          "objid": "55185",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_float4_consistent(internal,real,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_float4_consistent(internal,real,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55183",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_float4_distance(internal,real,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_float4_distance(internal,real,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55184",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_float4_fetch(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_float4_fetch(internal)",
+          "classid": "1255",
+          "objid": "55186",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_float4_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_float4_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55187",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_float4_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_float4_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55188",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_float4_same(gbtreekey8,gbtreekey8,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_float4_same(gbtreekey8,gbtreekey8,internal)",
+          "classid": "1255",
+          "objid": "55190",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_float4_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_float4_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55189",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_float8_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_float8_compress(internal)",
+          "classid": "1255",
+          "objid": "55211",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_float8_consistent(internal,double precision,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_float8_consistent(internal,double precision,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55209",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_float8_distance(internal,double precision,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_float8_distance(internal,double precision,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55210",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_float8_fetch(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_float8_fetch(internal)",
+          "classid": "1255",
+          "objid": "55212",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_float8_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_float8_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55213",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_float8_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_float8_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55214",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_float8_same(gbtreekey16,gbtreekey16,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_float8_same(gbtreekey16,gbtreekey16,internal)",
+          "classid": "1255",
+          "objid": "55216",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_float8_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_float8_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55215",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_inet_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_inet_compress(internal)",
+          "classid": "1255",
+          "objid": "55550",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_inet_consistent(internal,inet,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_inet_consistent(internal,inet,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55549",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_inet_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_inet_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55551",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_inet_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_inet_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55552",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_inet_same(gbtreekey16,gbtreekey16,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_inet_same(gbtreekey16,gbtreekey16,internal)",
+          "classid": "1255",
+          "objid": "55554",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_inet_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_inet_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55553",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int2_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int2_compress(internal)",
+          "classid": "1255",
+          "objid": "55107",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int2_consistent(internal,smallint,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int2_consistent(internal,smallint,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55105",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int2_distance(internal,smallint,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int2_distance(internal,smallint,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55106",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int2_fetch(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int2_fetch(internal)",
+          "classid": "1255",
+          "objid": "55108",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int2_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int2_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55109",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int2_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int2_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55110",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int2_same(gbtreekey4,gbtreekey4,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int2_same(gbtreekey4,gbtreekey4,internal)",
+          "classid": "1255",
+          "objid": "55112",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int2_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int2_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55111",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int4_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int4_compress(internal)",
+          "classid": "1255",
+          "objid": "55133",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int4_consistent(internal,integer,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int4_consistent(internal,integer,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55131",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int4_distance(internal,integer,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int4_distance(internal,integer,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55132",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int4_fetch(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int4_fetch(internal)",
+          "classid": "1255",
+          "objid": "55134",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int4_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int4_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55135",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int4_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int4_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55136",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int4_same(gbtreekey8,gbtreekey8,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int4_same(gbtreekey8,gbtreekey8,internal)",
+          "classid": "1255",
+          "objid": "55138",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int4_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int4_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55137",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int8_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int8_compress(internal)",
+          "classid": "1255",
+          "objid": "55159",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int8_consistent(internal,bigint,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int8_consistent(internal,bigint,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55157",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int8_distance(internal,bigint,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int8_distance(internal,bigint,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55158",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int8_fetch(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int8_fetch(internal)",
+          "classid": "1255",
+          "objid": "55160",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int8_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int8_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55161",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int8_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int8_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55162",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int8_same(gbtreekey16,gbtreekey16,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int8_same(gbtreekey16,gbtreekey16,internal)",
+          "classid": "1255",
+          "objid": "55164",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_int8_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_int8_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55163",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_intv_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_intv_compress(internal)",
+          "classid": "1255",
+          "objid": "55353",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_intv_consistent(internal,interval,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_intv_consistent(internal,interval,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55351",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_intv_decompress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_intv_decompress(internal)",
+          "classid": "1255",
+          "objid": "55354",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_intv_distance(internal,interval,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_intv_distance(internal,interval,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55352",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_intv_fetch(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_intv_fetch(internal)",
+          "classid": "1255",
+          "objid": "55355",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_intv_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_intv_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55356",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_intv_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_intv_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55357",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_intv_same(gbtreekey32,gbtreekey32,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_intv_same(gbtreekey32,gbtreekey32,internal)",
+          "classid": "1255",
+          "objid": "55359",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_intv_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_intv_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55358",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_macad_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_macad_compress(internal)",
+          "classid": "1255",
+          "objid": "55405",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_macad_consistent(internal,macaddr,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_macad_consistent(internal,macaddr,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55404",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_macad_fetch(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_macad_fetch(internal)",
+          "classid": "1255",
+          "objid": "55406",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_macad_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_macad_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55407",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_macad_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_macad_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55408",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_macad_same(gbtreekey16,gbtreekey16,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_macad_same(gbtreekey16,gbtreekey16,internal)",
+          "classid": "1255",
+          "objid": "55410",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_macad_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_macad_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55409",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_macad8_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_macad8_compress(internal)",
+          "classid": "1255",
+          "objid": "55609",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_macad8_consistent(internal,macaddr8,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_macad8_consistent(internal,macaddr8,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55608",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_macad8_fetch(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_macad8_fetch(internal)",
+          "classid": "1255",
+          "objid": "55610",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_macad8_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_macad8_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55611",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_macad8_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_macad8_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55612",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_macad8_same(gbtreekey16,gbtreekey16,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_macad8_same(gbtreekey16,gbtreekey16,internal)",
+          "classid": "1255",
+          "objid": "55614",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_macad8_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_macad8_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55613",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_numeric_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_numeric_compress(internal)",
+          "classid": "1255",
+          "objid": "55490",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_numeric_consistent(internal,numeric,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_numeric_consistent(internal,numeric,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55489",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_numeric_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_numeric_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55491",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_numeric_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_numeric_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55492",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_numeric_same(gbtreekey_var,gbtreekey_var,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_numeric_same(gbtreekey_var,gbtreekey_var,internal)",
+          "classid": "1255",
+          "objid": "55494",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_numeric_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_numeric_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55493",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_oid_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_oid_compress(internal)",
+          "classid": "1255",
+          "objid": "55079",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_oid_consistent(internal,oid,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_oid_consistent(internal,oid,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55076",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_oid_distance(internal,oid,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_oid_distance(internal,oid,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55077",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_oid_fetch(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_oid_fetch(internal)",
+          "classid": "1255",
+          "objid": "55078",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_oid_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_oid_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55083",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_oid_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_oid_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55084",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_oid_same(gbtreekey8,gbtreekey8,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_oid_same(gbtreekey8,gbtreekey8,internal)",
+          "classid": "1255",
+          "objid": "55086",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_oid_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_oid_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55085",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_text_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_text_compress(internal)",
+          "classid": "1255",
+          "objid": "55429",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_text_consistent(internal,text,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_text_consistent(internal,text,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55427",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_text_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_text_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55431",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_text_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_text_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55432",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_text_same(gbtreekey_var,gbtreekey_var,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_text_same(gbtreekey_var,gbtreekey_var,internal)",
+          "classid": "1255",
+          "objid": "55434",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_text_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_text_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55433",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_time_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_time_compress(internal)",
+          "classid": "1255",
+          "objid": "55285",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_time_consistent(internal,time without time zone,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_time_consistent(internal,time without time zone,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55282",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_time_distance(internal,time without time zone,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_time_distance(internal,time without time zone,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55283",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_time_fetch(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_time_fetch(internal)",
+          "classid": "1255",
+          "objid": "55287",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_time_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_time_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55288",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_time_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_time_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55289",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_time_same(gbtreekey16,gbtreekey16,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_time_same(gbtreekey16,gbtreekey16,internal)",
+          "classid": "1255",
+          "objid": "55291",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_time_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_time_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55290",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_timetz_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_timetz_compress(internal)",
+          "classid": "1255",
+          "objid": "55286",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_timetz_consistent(internal,time with time zone,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_timetz_consistent(internal,time with time zone,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55284",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_ts_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_ts_compress(internal)",
+          "classid": "1255",
+          "objid": "55239",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_ts_consistent(internal,timestamp without time zone,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_ts_consistent(internal,timestamp without time zone,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55235",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_ts_distance(internal,timestamp without time zone,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_ts_distance(internal,timestamp without time zone,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55236",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_ts_fetch(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_ts_fetch(internal)",
+          "classid": "1255",
+          "objid": "55241",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_ts_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_ts_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55242",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_ts_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_ts_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55243",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_ts_same(gbtreekey16,gbtreekey16,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_ts_same(gbtreekey16,gbtreekey16,internal)",
+          "classid": "1255",
+          "objid": "55245",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_ts_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_ts_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55244",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_tstz_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_tstz_compress(internal)",
+          "classid": "1255",
+          "objid": "55240",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_tstz_consistent(internal,timestamp with time zone,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_tstz_consistent(internal,timestamp with time zone,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55237",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_tstz_distance(internal,timestamp with time zone,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_tstz_distance(internal,timestamp with time zone,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55238",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_uuid_compress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_uuid_compress(internal)",
+          "classid": "1255",
+          "objid": "55587",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_uuid_consistent(internal,uuid,smallint,oid,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_uuid_consistent(internal,uuid,smallint,oid,internal)",
+          "classid": "1255",
+          "objid": "55585",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_uuid_fetch(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_uuid_fetch(internal)",
+          "classid": "1255",
+          "objid": "55586",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_uuid_penalty(internal,internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_uuid_penalty(internal,internal,internal)",
+          "classid": "1255",
+          "objid": "55588",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_uuid_picksplit(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_uuid_picksplit(internal,internal)",
+          "classid": "1255",
+          "objid": "55589",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_uuid_same(gbtreekey32,gbtreekey32,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_uuid_same(gbtreekey32,gbtreekey32,internal)",
+          "classid": "1255",
+          "objid": "55591",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_uuid_union(internal,internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_uuid_union(internal,internal)",
+          "classid": "1255",
+          "objid": "55590",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_var_decompress(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_var_decompress(internal)",
+          "classid": "1255",
+          "objid": "55081",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbt_var_fetch(internal)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbt_var_fetch(internal)",
+          "classid": "1255",
+          "objid": "55082",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbtreekey_var_in(cstring)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbtreekey_var_in(cstring)",
+          "classid": "1255",
+          "objid": "55049",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbtreekey_var_out(gbtreekey_var)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbtreekey_var_out(gbtreekey_var)",
+          "classid": "1255",
+          "objid": "55050",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbtreekey16_in(cstring)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbtreekey16_in(cstring)",
+          "classid": "1255",
+          "objid": "55041",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbtreekey16_out(gbtreekey16)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbtreekey16_out(gbtreekey16)",
+          "classid": "1255",
+          "objid": "55042",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbtreekey2_in(cstring)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbtreekey2_in(cstring)",
+          "classid": "1255",
+          "objid": "55655",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbtreekey2_out(gbtreekey2)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbtreekey2_out(gbtreekey2)",
+          "classid": "1255",
+          "objid": "55656",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbtreekey32_in(cstring)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbtreekey32_in(cstring)",
+          "classid": "1255",
+          "objid": "55045",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbtreekey32_out(gbtreekey32)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbtreekey32_out(gbtreekey32)",
+          "classid": "1255",
+          "objid": "55046",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbtreekey4_in(cstring)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbtreekey4_in(cstring)",
+          "classid": "1255",
+          "objid": "55033",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbtreekey4_out(gbtreekey4)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbtreekey4_out(gbtreekey4)",
+          "classid": "1255",
+          "objid": "55034",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbtreekey8_in(cstring)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbtreekey8_in(cstring)",
+          "classid": "1255",
+          "objid": "55037",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.gbtreekey8_out(gbtreekey8)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.gbtreekey8_out(gbtreekey8)",
+          "classid": "1255",
+          "objid": "55038",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.has_group_permission(uuid,text,uuid)"
+      },
+      {
+        "kind": "function",
+        "identity": "public.int2_dist(smallint,smallint)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.int2_dist(smallint,smallint)",
+          "classid": "1255",
+          "objid": "55060",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.int4_dist(integer,integer)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.int4_dist(integer,integer)",
+          "classid": "1255",
+          "objid": "55062",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.int8_dist(bigint,bigint)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.int8_dist(bigint,bigint)",
+          "classid": "1255",
+          "objid": "55064",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.interval_dist(interval,interval)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.interval_dist(interval,interval)",
+          "classid": "1255",
+          "objid": "55066",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.m2_is_valid_iana_timezone(text)"
+      },
+      {
+        "kind": "function",
+        "identity": "public.notification_policy_set_updated_at()"
+      },
+      {
+        "kind": "function",
+        "identity": "public.oid_dist(oid,oid)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.oid_dist(oid,oid)",
+          "classid": "1255",
+          "objid": "55068",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.request_member_transfer(jsonb)"
+      },
+      {
+        "kind": "function",
+        "identity": "public.time_dist(time without time zone,time without time zone)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.time_dist(time without time zone,time without time zone)",
+          "classid": "1255",
+          "objid": "55070",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.ts_dist(timestamp without time zone,timestamp without time zone)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.ts_dist(timestamp without time zone,timestamp without time zone)",
+          "classid": "1255",
+          "objid": "55072",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.tstz_dist(timestamp with time zone,timestamp with time zone)",
+        "membership": {
+          "schema": "f21-qualification-reset-membership-v1",
+          "schemaVersion": 1,
+          "kind": "function",
+          "identity": "public.tstz_dist(timestamp with time zone,timestamp with time zone)",
+          "classid": "1255",
+          "objid": "55074",
+          "objsubid": 0,
+          "refclassid": "3079",
+          "refobjid": "55031",
+          "extname": "btree_gist",
+          "deptype": "e"
+        }
+      },
+      {
+        "kind": "function",
+        "identity": "public.uuid_generate_v5(uuid,text)"
+      },
+      {
+        "kind": "schema",
+        "identity": "financial_private"
+      },
+      {
+        "kind": "table",
+        "identity": "financial_private.epoch_transitions"
+      },
+      {
+        "kind": "table",
+        "identity": "financial_private.internal_financial_tenants"
+      },
+      {
+        "kind": "table",
+        "identity": "public.announcements"
+      },
+      {
+        "kind": "table",
+        "identity": "public.contribution_obligations"
+      },
+      {
+        "kind": "table",
+        "identity": "public.elections"
+      },
+      {
+        "kind": "table",
+        "identity": "public.events"
+      },
+      {
+        "kind": "table",
+        "identity": "public.financial_ledger_epochs"
+      },
+      {
+        "kind": "table",
+        "identity": "public.fines"
+      },
+      {
+        "kind": "table",
+        "identity": "public.group_positions"
+      },
+      {
+        "kind": "table",
+        "identity": "public.group_subscriptions"
+      },
+      {
+        "kind": "table",
+        "identity": "public.groups"
+      },
+      {
+        "kind": "table",
+        "identity": "public.hosting_assignments"
+      },
+      {
+        "kind": "table",
+        "identity": "public.hosting_rosters"
+      },
+      {
+        "kind": "table",
+        "identity": "public.hosting_swap_requests"
+      },
+      {
+        "kind": "table",
+        "identity": "public.invitations"
+      },
+      {
+        "kind": "table",
+        "identity": "public.loans"
+      },
+      {
+        "kind": "table",
+        "identity": "public.meeting_minutes"
+      },
+      {
+        "kind": "table",
+        "identity": "public.member_transfers"
+      },
+      {
+        "kind": "table",
+        "identity": "public.memberships"
+      },
+      {
+        "kind": "table",
+        "identity": "public.notification_policies"
+      },
+      {
+        "kind": "table",
+        "identity": "public.notification_policy_occurrences"
+      },
+      {
+        "kind": "table",
+        "identity": "public.notification_policy_triggers"
+      },
+      {
+        "kind": "table",
+        "identity": "public.notifications_queue"
+      },
+      {
+        "kind": "table",
+        "identity": "public.organizations"
+      },
+      {
+        "kind": "table",
+        "identity": "public.payment_obligation_applications"
+      },
+      {
+        "kind": "table",
+        "identity": "public.payments"
+      },
+      {
+        "kind": "table",
+        "identity": "public.position_assignments"
+      },
+      {
+        "kind": "table",
+        "identity": "public.position_permissions"
+      },
+      {
+        "kind": "table",
+        "identity": "public.profiles"
+      },
+      {
+        "kind": "table",
+        "identity": "public.projects"
+      },
+      {
+        "kind": "table",
+        "identity": "public.relief_claims"
+      },
+      {
+        "kind": "table",
+        "identity": "public.relief_enrollments"
+      },
+      {
+        "kind": "table",
+        "identity": "public.relief_plans"
+      },
+      {
+        "kind": "table",
+        "identity": "public.relief_remittances"
+      },
+      {
+        "kind": "type",
+        "identity": "public.notification_channel"
+      }
+    ],
+    "observedDependencies": [
+      {
+        "kind": "foreign_key",
+        "identity": "financial_ledger_epochs_approved_by_fkey",
+        "from": "public.financial_ledger_epochs",
+        "to": "public.profiles"
+      },
+      {
+        "kind": "foreign_key",
+        "identity": "financial_ledger_epochs_created_by_fkey",
+        "from": "public.financial_ledger_epochs",
+        "to": "public.profiles"
+      },
+      {
+        "kind": "foreign_key",
+        "identity": "financial_ledger_epochs_group_id_fkey",
+        "from": "public.financial_ledger_epochs",
+        "to": "public.groups"
+      },
+      {
+        "kind": "foreign_key",
+        "identity": "group_positions_group_id_fkey",
+        "from": "public.group_positions",
+        "to": "public.groups"
+      },
+      {
+        "kind": "foreign_key",
+        "identity": "groups_organization_id_fkey",
+        "from": "public.groups",
+        "to": "public.organizations"
+      },
+      {
+        "kind": "foreign_key",
+        "identity": "internal_financial_tenants_created_by_fkey",
+        "from": "financial_private.internal_financial_tenants",
+        "to": "public.profiles"
+      },
+      {
+        "kind": "foreign_key",
+        "identity": "internal_financial_tenants_organization_id_fkey",
+        "from": "financial_private.internal_financial_tenants",
+        "to": "public.organizations"
+      },
+      {
+        "kind": "foreign_key",
+        "identity": "memberships_group_id_fkey",
+        "from": "public.memberships",
+        "to": "public.groups"
+      },
+      {
+        "kind": "foreign_key",
+        "identity": "memberships_user_id_fkey",
+        "from": "public.memberships",
+        "to": "public.profiles"
+      },
+      {
+        "kind": "foreign_key",
+        "identity": "notification_policies_group_id_fkey",
+        "from": "public.notification_policies",
+        "to": "public.groups"
+      },
+      {
+        "kind": "foreign_key",
+        "identity": "notification_policy_occurrences_group_id_fkey",
+        "from": "public.notification_policy_occurrences",
+        "to": "public.groups"
+      },
+      {
+        "kind": "foreign_key",
+        "identity": "notification_policy_occurrences_superseded_by_fkey",
+        "from": "public.notification_policy_occurrences",
+        "to": "public.notification_policy_occurrences"
+      },
+      {
+        "kind": "foreign_key",
+        "identity": "notification_policy_triggers_policy_id_fkey",
+        "from": "public.notification_policy_triggers",
+        "to": "public.notification_policies"
+      },
+      {
+        "kind": "foreign_key",
+        "identity": "position_assignments_membership_id_fkey",
+        "from": "public.position_assignments",
+        "to": "public.memberships"
+      },
+      {
+        "kind": "foreign_key",
+        "identity": "position_assignments_position_id_fkey",
+        "from": "public.position_assignments",
+        "to": "public.group_positions"
+      },
+      {
+        "kind": "foreign_key",
+        "identity": "position_permissions_position_id_fkey",
+        "from": "public.position_permissions",
+        "to": "public.group_positions"
+      },
+      {
+        "kind": "foreign_key",
+        "identity": "projects_group_id_fkey",
+        "from": "public.projects",
+        "to": "public.groups"
+      }
+    ],
+    "observedHistoryRows": [
+      {
+        "version": "20260913173000",
+        "name": "f3_bounded_financial_epoch_foundation"
+      }
+    ]
+  },
+  "automaticReplay": false,
+  "fingerprint_exact": false
+}

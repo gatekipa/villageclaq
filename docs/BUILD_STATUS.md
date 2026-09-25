@@ -122,8 +122,13 @@ Other linked artifacts:
     - Client Hooks & UI Refactor: Replaced un-safe client-side mutations with canonical hooks in `src/lib/hooks/use-communications-mutations.ts`. Monolithically refactored `dashboard/announcements/page.tsx` eliminating raw `.insert()` calls, enforcing render-phase tenant cache hygiene.
     - Workers Fortification: Architected `drain-notification-queue` worker with leased batching, resilient mock-dispatch, settlement routines, and 5000ms Vercel timeout guards. Rebuilt `send-scheduled-announcements` to use atomic `UPDATE ... RETURNING` resolving race conditions.
     - Verification: Adversarial test harness `scripts/test-m11-communications.mjs` verifies zero-overlap locking, deduplication, stolen lease defense, exponential backoff, dead_letter transitions, anti-XSS escape logic, atomic claims, and cross-tenant isolation.
-15. **Next Master Milestone: M12 (Production Hardening, E2E Verification & Disaster Recovery)** — Designated as the next major work package.
-16. **Production migration release gate** — Production deployment remains separately founder-authorized.
+15. **Milestone M12 Completion: Production Hardening, E2E Verification & Disaster Recovery** — **COMPLETE / VERIFIED.**
+    - Security Posture: `00133_m12_01_security_hardening.sql` dynamically enforces `search_path = ''` on all `SECURITY DEFINER` RPCs across `public` and `financial_core`. 
+    - Tenant Isolation: `financial_core` execution strictly revoked from `public`/`anon`. RLS explicitly mandated on internal ledger tables (`epoch_transitions`).
+    - Disaster Recovery: `src/lib/disaster-recovery/ledger-replay.ts` implements strict snapshot extraction and deterministic `rehydrateLedger()` calculation.
+    - E2E Lifecycle: `test-m12-e2e-lifecycle.mjs` executes full tenant simulation covering Dues, Loans, Relief, Events, and Governance, proving global state invariant equilibrium.
+16. **Next Master Milestone: M13 (Platform Architecture)** — Designated as the next major work package.
+17. **Production migration release gate** — Production deployment remains separately founder-authorized.
 ## Local versus hosted / production
 
 | Surface | Status |
@@ -138,12 +143,12 @@ Other linked artifacts:
 | Field | Value |
 |-------|-------|
 | Owner | Jude Anyere |
-| Next bounded action | Advance to **M12 (Production Hardening, E2E Verification & Disaster Recovery)** per PRD Section 10 and Section 26 sequence. |
-| Permitted scope | M11 communications, notification delivery, and template management. No direct mutation of production. |
-| Remaining acceptance | M12 production readiness checklist, E2E product testing on live replicas, disaster recovery playbooks, and structural finalization. |
+| Next bounded action | Advance to **M13 (Platform Architecture)** per PRD Section 31 sequence. |
+| Permitted scope | Architecture, framework updates, and dependency management. No direct mutation of production. |
+| Remaining acceptance | M13 framework stability tests and platform migration checklist. |
 
 ---
 **QUALIFIED / PASS — F3 FOUNDATION HOSTED REQUALIFICATION COMPLETE**  
 Candidate: `e0c10c04d4bdc287385ea1392e1aae97b458fe1c`  
 Floor: `DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT`  
-Next Milestone: `M12 (Production Hardening, E2E Verification & Disaster Recovery)`
+Next Milestone: `M13 (Platform Architecture)`

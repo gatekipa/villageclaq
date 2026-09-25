@@ -71,6 +71,9 @@ export function parseReliefRpcError(error: unknown): string {
   if (str.includes("NO_ACTIVE_EPOCH")) return "NO_ACTIVE_EPOCH";
   if (str.includes("ACCOUNT_NOT_FOUND_OR_INACTIVE") || str.includes("ACCOUNT_NOT_FOUND_OR_INVALID")) return "ACCOUNT_NOT_FOUND_OR_INACTIVE";
   if (str.includes("WAITING_PERIOD_NOT_MET")) return "WAITING_PERIOD_NOT_MET";
+  if (str.includes("CLAIM_PREMATURE_WAITING_PERIOD_NOT_MET")) return "CLAIM_PREMATURE_WAITING_PERIOD_NOT_MET";
+  if (str.includes("RELIEF_EXPENSE_ACCOUNT_NOT_CONFIGURED")) return "RELIEF_EXPENSE_ACCOUNT_NOT_CONFIGURED";
+  if (str.includes("INSUFFICIENT_ACCOUNT_BALANCE")) return "INSUFFICIENT_ACCOUNT_BALANCE";
   if (str.includes("MEMBER_NOT_ENROLLED_IN_PLAN")) return "MEMBER_NOT_ENROLLED_IN_PLAN";
   if (str.includes("MEMBER_NOT_GOOD_STANDING")) return "MEMBER_NOT_GOOD_STANDING";
   if (str.includes("PAID_CLAIM_IMMUTABLE")) return "Paid claim is immutable.";
@@ -139,6 +142,16 @@ export function useEnrollMemberInPlan() {
         
       if (planError || !plan) throw planError || new Error("Plan not found");
 
+      // 1.5. Check for existing active enrollment
+      const { data: existing } = await supabase
+        .from("relief_enrollments")
+        .select("id")
+        .eq("plan_id", input.planId)
+        .eq("membership_id", input.membershipId)
+        .eq("status", "active")
+        .maybeSingle();
+      if (existing) throw new Error("MEMBER_ALREADY_ENROLLED");
+
       // 2. Compute matures_at
       const enrolledAt = new Date();
       const maturesAt = new Date(enrolledAt.getTime() + plan.waiting_period_days * 24 * 60 * 60 * 1000);
@@ -156,7 +169,10 @@ export function useEnrollMemberInPlan() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') throw new Error("MEMBER_ALREADY_ENROLLED");
+        throw error;
+      }
       return data;
     },
     onSuccess: (_, input) => {

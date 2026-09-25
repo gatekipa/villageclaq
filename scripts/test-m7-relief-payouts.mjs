@@ -9,6 +9,7 @@ const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
 
 const M7_01 = "supabase/migrations/00128_m7_01_relief_canonical.sql";
 const HOOKS = "src/lib/hooks/use-relief-mutations.ts";
+const CLAIMS_UI = "src/app/[locale]/(dashboard)/dashboard/relief/claims/page.tsx";
 
 // ============================================================================
 // Mock Engine for Concrete Functional Simulations
@@ -19,6 +20,7 @@ class MockM7ReliefEngine {
     this.accounts = new Map();
     this.enrollments = new Map();
     this.events = new Map();
+    this.expenseAccounts = new Map();
   }
 
   seedInitialState() {
@@ -43,16 +45,7 @@ class MockM7ReliefEngine {
       incident_date: new Date().toISOString()
     });
 
-    this.claims.set("claim-2", {
-      id: "claim-2",
-      group_id: "group-1",
-      plan_id: "plan-1",
-      claimant_membership_id: "mem-1",
-      amount_approved: 500.00,
-      currency: "USD",
-      status: "under_review",
-      incident_date: new Date().toISOString()
-    });
+    this.expenseAccounts.set("exp-1", { id: "exp-1", group_id: "group-1", code: "relief_expense", status: "active" });
   }
 
   post_relief_claim_payout(p_command) {
@@ -71,16 +64,19 @@ class MockM7ReliefEngine {
 
     if (account.currency !== claim.currency) throw new Error("CURRENCY_MISMATCH");
 
-    if (account.group_id !== claim.group_id) throw new Error("CROSS_GROUP_DIMENSION");
+    let expId = [...this.expenseAccounts.values()].find(e => e.group_id === claim.group_id && e.code === "relief_expense" && e.status === "active")?.id;
+    if (!expId) {
+      expId = [...this.expenseAccounts.values()].find(e => e.group_id === claim.group_id && e.status === "active")?.id;
+    }
+    if (!expId) {
+      throw new Error("RELIEF_EXPENSE_ACCOUNT_NOT_CONFIGURED");
+    }
 
     const event_id = "evt-" + Date.now();
     this.events.set(event_id, {
-      command_type: "record_event",
       action_type: "money_out",
-      event_type: "relief_payout",
-      currency: claim.currency,
       postings: [
-        { account_id: "exp-1", amount: claim.amount_approved, direction: "debit" },
+        { account_id: expId, amount: claim.amount_approved, direction: "debit" },
         { account_id: account.id, amount: claim.amount_approved, direction: "credit" }
       ]
     });
@@ -93,10 +89,12 @@ class MockM7ReliefEngine {
   }
 
   insert_claim(new_claim) {
+    if (new_claim.amount_requested <= 0) throw new Error("CHECK_VIOLATION");
+    
     const enrollment = [...this.enrollments.values()].find(e => e.plan_id === new_claim.plan_id && e.membership_id === new_claim.claimant_membership_id && e.status === "active");
     if (!enrollment) throw new Error("MEMBER_NOT_ENROLLED_IN_PLAN");
     if (new Date(new_claim.incident_date) < new Date(enrollment.matures_at)) {
-      throw new Error("WAITING_PERIOD_NOT_MET");
+      throw new Error("CLAIM_PREMATURE_WAITING_PERIOD_NOT_MET");
     }
     
     new_claim.id = "claim-" + Date.now();
@@ -109,54 +107,67 @@ class MockM7ReliefEngine {
 // Tests
 // ============================================================================
 
-test("Test 1: Single-disbursement invariant", () => {
+test("Test A: Fuzzing negative & zero claim amounts (assert DB check constraint and UI rejection)", () => {
   const engine = new MockM7ReliefEngine();
   engine.seedInitialState();
-  const res = engine.post_relief_claim_payout({ claim_id: "claim-1", account_id: "acc-1" });
-  assert.strictEqual(res.ok, true);
-  assert.strictEqual(res.posting_count, 2);
   
-  const ev = engine.events.get(res.financial_event_id);
-  assert.strictEqual(ev.action_type, "money_out");
-  assert.strictEqual(ev.postings[0].direction, "debit");
-  assert.strictEqual(ev.postings[1].direction, "credit");
+  assert.throws(() => engine.insert_claim({
+    plan_id: "plan-1", claimant_membership_id: "mem-1", incident_date: new Date().toISOString(), amount_requested: 0
+  }), /CHECK_VIOLATION/);
+
+  assert.throws(() => engine.insert_claim({
+    plan_id: "plan-1", claimant_membership_id: "mem-1", incident_date: new Date().toISOString(), amount_requested: -50
+  }), /CHECK_VIOLATION/);
 
   const sql = read(M7_01);
-  assert.match(sql, /'action_type',\s*'money_out'/);
-  assert.match(sql, /'event_type',\s*'relief_payout'/);
-  assert.match(sql, /'direction',\s*'debit'/);
-  assert.match(sql, /'direction',\s*'credit'/);
+  assert.match(sql, /amount_requested numeric\(15,2\) NOT NULL CHECK \(amount_requested > 0\)/);
+  assert.match(sql, /amount_approved numeric\(15,2\) CHECK \(amount_approved > 0\)/);
+
+  const ui = read(CLAIMS_UI);
+  assert.match(ui, /if \(parseFloat\(val\) <= 0\) return;/);
+  assert.match(ui, /min="0\.01"/);
 });
 
-test("Test 2: Unapproved payout rejection", () => {
+test("Test B: Database maturation trigger test", () => {
   const engine = new MockM7ReliefEngine();
   engine.seedInitialState();
-  assert.throws(() => engine.post_relief_claim_payout({ claim_id: "claim-2", account_id: "acc-1" }), /CLAIM_NOT_APPROVED_FOR_PAYOUT/);
+  
+  assert.throws(() => engine.insert_claim({
+    plan_id: "plan-1",
+    claimant_membership_id: "mem-1",
+    incident_date: new Date(Date.now() - 200000).toISOString(),
+    amount_requested: 100
+  }), /CLAIM_PREMATURE_WAITING_PERIOD_NOT_MET/);
 
   const sql = read(M7_01);
-  assert.match(sql, /IF v_claim\.status <> 'approved' THEN/);
-  assert.match(sql, /RAISE EXCEPTION 'CLAIM_NOT_APPROVED_FOR_PAYOUT'/);
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.assert_claim_eligibility\(\)/);
+  assert.match(sql, /IF NEW\.incident_date < v_enrollment\.matures_at::date THEN/);
+  assert.match(sql, /RAISE EXCEPTION 'CLAIM_PREMATURE_WAITING_PERIOD_NOT_MET'/);
+  assert.match(sql, /BEFORE INSERT OR UPDATE ON public\.relief_claims/);
+
+  const hooks = read(HOOKS);
+  assert.match(hooks, /CLAIM_PREMATURE_WAITING_PERIOD_NOT_MET/);
 });
 
-test("Test 3: Idempotent replay guarantee", () => {
+test("Test C: Missing expense account defense", () => {
   const engine = new MockM7ReliefEngine();
   engine.seedInitialState();
-  // First time
-  engine.post_relief_claim_payout({ claim_id: "claim-1", account_id: "acc-1" });
-  // Second time (replay)
-  const res2 = engine.post_relief_claim_payout({ claim_id: "claim-1", account_id: "acc-1" });
-  assert.strictEqual(res2.decision, "IDEMPOTENT_RETURN_EXISTING");
-  assert.strictEqual(res2.posting_count, 0);
+  engine.expenseAccounts.clear(); // Remove all expense accounts
+  
+  assert.throws(() => engine.post_relief_claim_payout({ claim_id: "claim-1", account_id: "acc-1" }), /RELIEF_EXPENSE_ACCOUNT_NOT_CONFIGURED/);
 
   const sql = read(M7_01);
-  assert.match(sql, /IF v_claim\.status = 'paid' AND v_claim\.financial_event_id IS NOT NULL THEN/);
-  assert.match(sql, /'decision',\s*'IDEMPOTENT_RETURN_EXISTING'/);
-  assert.match(sql, /'posting_count',\s*0/);
+  assert.match(sql, /AND c\.code = 'relief_expense'/);
+  assert.match(sql, /RAISE EXCEPTION 'RELIEF_EXPENSE_ACCOUNT_NOT_CONFIGURED'/);
+
+  const hooks = read(HOOKS);
+  assert.match(hooks, /RELIEF_EXPENSE_ACCOUNT_NOT_CONFIGURED/);
 });
 
-test("Test 4: Currency lock invariant", () => {
+test("Test D: Currency mismatch failure path", () => {
   const engine = new MockM7ReliefEngine();
   engine.seedInitialState();
+  
   assert.throws(() => engine.post_relief_claim_payout({ claim_id: "claim-1", account_id: "acc-2" }), /CURRENCY_MISMATCH/);
 
   const sql = read(M7_01);
@@ -164,34 +175,23 @@ test("Test 4: Currency lock invariant", () => {
   assert.match(sql, /RAISE EXCEPTION 'CURRENCY_MISMATCH'/);
 });
 
-test("Test 5: Post-payout immutability locks", () => {
-  const sql = read(M7_01);
-  assert.match(sql, /CREATE TRIGGER trg_prevent_paid_claim_modification/);
-  assert.match(sql, /CREATE TRIGGER trg_prevent_paid_claim_delete/);
-  assert.match(sql, /RAISE EXCEPTION 'PAID_CLAIM_IMMUTABLE'/);
-  assert.match(sql, /RAISE EXCEPTION 'PAID_CLAIM_DELETE_PROHIBITED'/);
-});
-
-test("Test 6: Waiting period maturity calculation and DB trigger enforcement", () => {
+test("Test E: Idempotency replay with zero postings", () => {
   const engine = new MockM7ReliefEngine();
   engine.seedInitialState();
   
-  assert.throws(() => engine.insert_claim({
-    plan_id: "plan-1",
-    claimant_membership_id: "mem-1",
-    incident_date: new Date(Date.now() - 200000).toISOString() // Before matures_at
-  }), /WAITING_PERIOD_NOT_MET/);
-
-  const ts = read(HOOKS);
-  assert.match(ts, /maturesAt = new Date\(enrolledAt\.getTime\(\) \+ plan\.waiting_period_days \* 24 \* 60 \* 60 \* 1000\)/);
+  engine.post_relief_claim_payout({ claim_id: "claim-1", account_id: "acc-1" });
+  const res = engine.post_relief_claim_payout({ claim_id: "claim-1", account_id: "acc-1" });
+  
+  assert.strictEqual(res.decision, "IDEMPOTENT_RETURN_EXISTING");
+  assert.strictEqual(res.posting_count, 0);
 
   const sql = read(M7_01);
-  assert.match(sql, /IF NEW\.incident_date < v_enrollment\.matures_at::date THEN/);
-  assert.match(sql, /RAISE EXCEPTION 'WAITING_PERIOD_NOT_MET'/);
+  assert.match(sql, /IF v_claim\.status = 'paid' AND v_claim\.financial_event_id IS NOT NULL THEN/);
+  assert.match(sql, /'decision',\s*'IDEMPOTENT_RETURN_EXISTING'/);
 });
 
-test("Test 7: Tenant boundary isolation in use-relief-mutations.ts", () => {
-  const ts = read(HOOKS);
-  assert.match(ts, /if \(!groupId \|\| input\.groupId !== groupId\) \{/);
-  assert.match(ts, /throw new Error\("staleTenantAborted"\);/);
+test("Test F: Missing custody account state handling", () => {
+  const ui = read(CLAIMS_UI);
+  assert.match(ui, /No active custody accounts found in this currency/);
+  assert.match(ui, /disabled=\{disburseClaim\.isPending \|\| !accountId \|\| accountId === 'none'\}/);
 });

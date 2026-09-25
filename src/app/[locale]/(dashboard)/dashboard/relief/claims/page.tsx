@@ -283,7 +283,11 @@ function SubmitClaimDialog({ open, onOpenChange, plans, members }: { open: boole
               <Label>{t("fields.amountRequested")}</Label>
               <div className="flex gap-2 items-center">
                 <span className="text-muted-foreground text-sm">{selectedPlan?.currency || '---'}</span>
-                <Input type="number" step="0.01" min="0.01" required value={amountRequested} onChange={e => setAmountRequested(e.target.value)} />
+                <Input type="number" step="any" min="0.01" required value={amountRequested} onChange={e => {
+                  const val = e.target.value;
+                  if (parseFloat(val) <= 0) return;
+                  setAmountRequested(val);
+                }} />
               </div>
             </div>
           </div>
@@ -360,7 +364,11 @@ function ReviewClaimDialog({ open, onOpenChange, claim }: { open: boolean, onOpe
           {status === "approved" && (
             <div className="space-y-2">
               <Label>{t("fields.amountApproved")}</Label>
-              <Input type="number" step="0.01" min="0.01" required value={amountApproved} onChange={e => setAmountApproved(e.target.value)} />
+              <Input type="number" step="any" min="0.01" required value={amountApproved} onChange={e => {
+                const val = e.target.value;
+                if (parseFloat(val) <= 0) return;
+                setAmountApproved(val);
+              }} />
             </div>
           )}
 
@@ -440,11 +448,13 @@ function DisburseClaimDialog({ open, onOpenChange, claim, plan, claimant }: { op
                 {matchingAccounts.map((a:any) => (
                   <SelectItem key={a.id} value={a.id}>{a.name} ({a.currency})</SelectItem>
                 ))}
-                {matchingAccounts.length === 0 && (
-                  <SelectItem value="none" disabled>No active {claim?.currency} accounts found.</SelectItem>
-                )}
               </SelectContent>
             </Select>
+            {matchingAccounts.length === 0 && !accountsLoading && (
+              <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded mt-2">
+                No active custody accounts found in this currency. Please configure a matching bank or cash account in Settings.
+              </div>
+            )}
           </div>
           
           <DialogFooter>

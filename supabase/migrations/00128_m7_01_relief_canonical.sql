@@ -117,7 +117,7 @@ CREATE TRIGGER trg_prevent_paid_claim_delete
   BEFORE DELETE ON public.relief_claims
   FOR EACH ROW EXECUTE FUNCTION public.prevent_paid_claim_delete();
 
-CREATE OR REPLACE FUNCTION public.verify_claim_maturity()
+CREATE OR REPLACE FUNCTION public.assert_claim_eligibility()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -135,17 +135,17 @@ BEGIN
   END IF;
 
   IF NEW.incident_date < v_enrollment.matures_at::date THEN
-    RAISE EXCEPTION 'WAITING_PERIOD_NOT_MET' USING ERRCODE = '23514';
+    RAISE EXCEPTION 'CLAIM_PREMATURE_WAITING_PERIOD_NOT_MET' USING ERRCODE = '23514';
   END IF;
 
   RETURN NEW;
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_verify_claim_maturity ON public.relief_claims;
-CREATE TRIGGER trg_verify_claim_maturity
-  BEFORE INSERT ON public.relief_claims
-  FOR EACH ROW EXECUTE FUNCTION public.verify_claim_maturity();
+DROP TRIGGER IF EXISTS trg_assert_claim_eligibility ON public.relief_claims;
+CREATE TRIGGER trg_assert_claim_eligibility
+  BEFORE INSERT OR UPDATE ON public.relief_claims
+  FOR EACH ROW EXECUTE FUNCTION public.assert_claim_eligibility();
 
 -- 4. Canonical Atomic Disbursement RPC
 CREATE OR REPLACE FUNCTION public.post_relief_claim_payout(p_command jsonb)
@@ -223,11 +223,21 @@ BEGIN
   WHERE c.group_id = v_claim.group_id
     AND c.category_class = 'expense'
     AND c.status = 'active'
-  ORDER BY (c.name ILIKE '%relief%' OR c.name ILIKE '%payout%') DESC, c.created_at ASC
+    AND c.code = 'relief_expense'
   LIMIT 1;
 
   IF v_expense_account_id IS NULL THEN
-    RAISE EXCEPTION 'EXPENSE_CATEGORY_REQUIRED';
+    SELECT c.id INTO v_expense_account_id
+    FROM public.financial_categories c
+    WHERE c.group_id = v_claim.group_id
+      AND c.category_class = 'expense'
+      AND c.status = 'active'
+    ORDER BY (c.name ILIKE '%relief%' OR c.name ILIKE '%payout%') DESC, c.created_at ASC
+    LIMIT 1;
+  END IF;
+
+  IF v_expense_account_id IS NULL THEN
+    RAISE EXCEPTION 'RELIEF_EXPENSE_ACCOUNT_NOT_CONFIGURED';
   END IF;
 
   -- 9. F3 Command Dispatch

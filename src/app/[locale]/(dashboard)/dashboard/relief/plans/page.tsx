@@ -230,7 +230,11 @@ function CreatePlanDialog({ open, onOpenChange }: { open: boolean, onOpenChange:
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t("fields.coverageAmount")}</Label>
-              <Input type="number" step="0.01" min="0.01" required value={coverageAmount} onChange={e => setCoverageAmount(e.target.value)} />
+              <Input type="number" step="any" min="0.01" required value={coverageAmount} onChange={e => {
+                const val = e.target.value;
+                if (parseFloat(val) <= 0) return;
+                setCoverageAmount(val);
+              }} />
             </div>
             <div className="space-y-2">
               <Label>Currency</Label>

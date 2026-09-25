@@ -12,17 +12,16 @@ import {
   Plus,
   Send,
   Clock,
-  Users,
   Megaphone,
   CalendarClock,
   FileText,
   Eye,
+  EyeOff,
   CheckCheck,
   Search,
   MoreVertical,
   Edit,
   Trash2,
-  EyeOff,
   AlertTriangle,
   Info,
 } from "lucide-react";
@@ -44,7 +43,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -58,9 +56,9 @@ import { Loader2 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
-import { requestAnnouncementEnqueue } from "@/lib/notify-announcement-enqueue";
 
 import { useAnnouncements, useMembers } from "@/lib/hooks/use-supabase-query";
+import { useCreateAnnouncement, parseCommunicationRpcError } from "@/lib/hooks/use-communications-mutations";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { normalizeSearch } from "@/lib/utils";
 import { getMemberName } from "@/lib/get-member-name";
@@ -162,6 +160,15 @@ export default function AnnouncementsPage() {
   const queryClient = useQueryClient();
   const { data: announcements, isLoading, error, refetch } = useAnnouncements();
   const { data: membersList } = useMembers();
+  const createAnnouncement = useCreateAnnouncement(groupId || "");
+  const [prevGroupId, setPrevGroupId] = useState<string | null>(null);
+
+  // Enforce render-phase state hygiene
+  if (groupId !== prevGroupId) {
+    setPrevGroupId(groupId);
+    resetForm();
+  }
+
   const [saving, setSaving] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
 
@@ -232,55 +239,34 @@ export default function AnnouncementsPage() {
     setSaving(true);
     setMutationError(null);
     try {
-      const supabase = createClient();
       const activeChannels = Object.entries(channels)
         .filter(([, v]) => v)
-        .map(([k]) => k);
-      const audienceData =
-        audience === "all"
-          ? { type: "all" }
-          : audience === "roles"
-          ? { type: "roles", roles: selectedRoles }
-          : { type: "members", members: selectedMembers };
-      const { data: inserted, error: insertError } = await supabase.from("announcements").insert({
-        group_id: groupId,
+        .map(([k]) => k) as ("in_app" | "email" | "sms" | "whatsapp")[];
+      
+      const audienceType = audience === "all" ? "all" : audience === "roles" ? "roles" : "specific";
+      
+      await createAnnouncement.mutateAsync({
+        groupId,
         title: titleEn,
-        title_fr: titleFr || null,
-        content: contentEn,
-        content_fr: contentFr || null,
+        titleFr: titleFr || undefined,
+        body: contentEn,
+        bodyFr: contentFr || undefined,
+        audienceType,
+        targetRoles: selectedRoles,
+        targetMemberIds: selectedMembers,
         channels: activeChannels,
-        audience: audienceData,
-        sent_at: asDraft ? null : schedule === "now" ? new Date().toISOString() : null,
-        scheduled_at: !asDraft && schedule === "later" && scheduledDate ? new Date(scheduledDate).toISOString() : null,
-        created_by: user.id,
-      }).select("id").single();
-      if (insertError) throw insertError;
-
-      // Dispatch notifications only when actually sending now — not for
-      // drafts or future-scheduled rows. The cron drain will handle the
-      // latter when scheduled_at is reached.
-      if (!asDraft && schedule === "now") {
-        await dispatchAnnouncementNotifications({
-          supabase,
-          audience,
-          selectedRoles,
-          selectedMembers,
-          activeChannels,
-          titleEn,
-          titleFr,
-          contentEn,
-          contentFr,
-        });
-        requestAnnouncementEnqueue(supabase, inserted?.id, locale);
-      }
+        scheduledAt: !asDraft && schedule === "later" && scheduledDate ? new Date(scheduledDate).toISOString() : undefined,
+        createdBy: user.id,
+        asDraft,
+      });
 
       // Audit log
       try {
+        const supabase = createClient();
         const { logActivity } = await import("@/lib/audit-log");
         const scheduledForLater = !asDraft && schedule === "later" && !!scheduledDate;
         await logActivity(supabase, {
           groupId,
-          // Honest action: created (draft) / scheduled (future) / sent (now).
           action: announcementAuditAction({ asDraft, scheduledForLater }),
           entityType: "announcement",
           description: `Announcement "${titleEn}" ${asDraft ? "saved as draft" : scheduledForLater ? "scheduled" : "published in-app (external channels best-effort)"}`,
@@ -290,108 +276,19 @@ export default function AnnouncementsPage() {
         console.warn("[Announcements:Audit] activity log failed:", err instanceof Error ? err.message : err);
       }
 
-      await queryClient.invalidateQueries({ queryKey: ["announcements", groupId] });
-      await queryClient.invalidateQueries({ queryKey: ["aggregated-feed", groupId] });
       setDialogOpen(false);
       resetForm();
+      if (!asDraft) {
+        // Success notification is often just a banner or redirect, no toast lib here.
+      }
       return true;
     } catch (err) {
-      setMutationError((err as Error).message);
+      const parsed = parseCommunicationRpcError(err);
+      const translated = tc(`errors.${parsed}`, { defaultValue: parsed });
+      setMutationError(translated);
       return false;
     } finally {
       setSaving(false);
-    }
-  }
-
-  // Dispatches the announcement blast. Recipients are computed from the
-  // audience field; external channels are restricted to the admin's
-  // selection (previously they were force-enabled regardless of the
-  // toggles in the form).
-  async function dispatchAnnouncementNotifications(args: {
-    supabase: ReturnType<typeof createClient>;
-    audience: AudienceType;
-    selectedRoles: string[];
-    selectedMembers: string[];
-    activeChannels: string[];
-    titleEn: string;
-    titleFr: string;
-    contentEn: string;
-    contentFr: string;
-  }): Promise<void> {
-    const { supabase, audience, selectedRoles, selectedMembers, activeChannels, titleEn, titleFr, contentEn, contentFr } = args;
-    if (!groupId || !user) return;
-
-    let query = supabase
-      .from("memberships")
-      // SMS/WA/email go through /api/announcements/enqueue (ids only).
-      // This helper only builds in-app recipients.
-      .select("id, user_id, role, display_name, is_proxy, standing, privacy_settings, profiles:profiles!memberships_user_id_fkey(full_name)")
-      .eq("group_id", groupId);
-
-    if (audience === "roles") {
-      if (selectedRoles.length === 0) return;
-      query = query.in("role", selectedRoles);
-    } else if (audience === "members") {
-      if (selectedMembers.length === 0) return;
-      query = query.in("id", selectedMembers);
-    }
-
-    const { data: rows, error } = await query;
-    if (error) {
-      console.warn("[Announcements:Notify] membership lookup failed:", error.message);
-      return;
-    }
-
-    const recipients = (rows || [])
-      .filter((m) => m.user_id && m.user_id !== user.id && m.standing !== "banned")
-      .map((m) => {
-        const privSettings = (m.privacy_settings as Record<string, unknown>) || null;
-        // In-app only here; queue channels enqueue server-side.
-        const phone = (privSettings?.proxy_phone as string) || null;
-        return { userId: m.user_id as string | null, phone };
-      });
-
-    if (recipients.length === 0) return;
-
-    const groupName = currentGroup?.name || "";
-    try {
-      const { notifyBulkFromClient } = await import("@/lib/notify-client");
-      // G6: per-recipient localization. The announcement title/body
-      // are user-authored (the admin writes both EN and FR). Each
-      // recipient sees the copy that matches their preferred_locale
-      // stored on profiles — no more "French secretary blasts English
-      // members with French copy".
-      notifyBulkFromClient(recipients, {
-        groupId: groupId!,
-        // Fallback static values — used only for rows with no user_id
-        // (won't happen for announcements; recipients are filtered to
-        // real users upstream).
-        title: titleEn,
-        body: (contentEn || "").slice(0, 200),
-        data: { groupName, title: titleEn, body: (contentEn || "").slice(0, 100) },
-        localize: (loc) => {
-          const title = (loc === "fr" && titleFr) ? titleFr : titleEn;
-          const body = (loc === "fr" && contentFr) ? contentFr : contentEn;
-          return {
-            title,
-            body: (body || "").slice(0, 200),
-            data: { title, body: (body || "").slice(0, 100) },
-          };
-        },
-        inAppType: "announcement",
-        locale,
-        channels: {
-          inApp: activeChannels.includes("in_app"),
-          email: false,
-          sms: false,
-          whatsapp: false,
-        },
-        prefType: "announcements",
-      }).catch((err) => {
-        console.warn("[Announcements:Notify] bulk dispatch failed:", err instanceof Error ? err.message : err);
-      });
-    } catch (err) {
-      console.warn("[Announcements:Notify] setup failed:", err instanceof Error ? err.message : err);
     }
   }
 
@@ -449,35 +346,7 @@ export default function AnnouncementsPage() {
         throw new Error(t("publishFailed"));
       }
 
-      // Dispatch the blast for the published draft using the row's
-      // persisted audience + channel selection (same logic as fresh
-      // send). Previously this path force-inserted in-app notifications
-      // to every group member and ignored audience + external channels.
-      try {
-        const ann = allAnnouncements.find((a: Record<string, unknown>) => (a.id as string) === annId) as Record<string, unknown> | undefined;
-        if (ann) {
-          const audienceJson = (ann.audience as Record<string, unknown>) || { type: "all" };
-          const atype = ((audienceJson.type as string) || "all") as AudienceType;
-          const aroles = Array.isArray(audienceJson.roles) ? (audienceJson.roles as string[]) : [];
-          const amembers = Array.isArray(audienceJson.members) ? (audienceJson.members as string[]) : [];
-          const achannels = Array.isArray(ann.channels) ? (ann.channels as string[]) : ["in_app"];
-          await dispatchAnnouncementNotifications({
-            supabase,
-            audience: atype,
-            selectedRoles: aroles,
-            selectedMembers: amembers,
-            activeChannels: achannels,
-            titleEn: (ann.title as string) || "",
-            titleFr: (ann.title_fr as string) || "",
-            contentEn: (ann.content as string) || "",
-            contentFr: (ann.content_fr as string) || "",
-          });
-          requestAnnouncementEnqueue(supabase, annId, locale);
-        }
-      } catch (nerr) {
-        console.warn("[Announcements:Publish] dispatch failed:", nerr instanceof Error ? nerr.message : nerr);
-      }
-
+      // Success handled
       await queryClient.invalidateQueries({ queryKey: ["announcements", groupId] });
     } catch (err) {
       setMutationError((err as Error).message || tc("error"));
@@ -559,7 +428,7 @@ export default function AnnouncementsPage() {
     return parts.join(", ");
   }, [channels, t]);
 
-  const allAnnouncements = announcements || [];
+  const allAnnouncements = useMemo(() => announcements || [], [announcements]);
 
   const [annSearch, setAnnSearch] = useState("");
   const [annStatusFilter, setAnnStatusFilter] = useState<"all" | "sent" | "scheduled" | "draft">("all");

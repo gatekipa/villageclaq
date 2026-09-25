@@ -1,30 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getEnabledChannels } from "@/lib/notification-prefs";
-import { enqueueCut2ProducerChannels } from "@/lib/enqueue-outbound-notification";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-/**
- * GET /api/cron/send-scheduled-announcements
- * Vercel Cron — runs every 5 minutes.
- *
- * Promotes announcements whose scheduled_at has arrived and that have
- * NOT been sent yet. For each such row we:
- *   1. Fetch recipients per the row's audience JSONB (all / roles /
- *      members), using the same targeting rules as the manual send
- *      flow.
- *   2. Insert in-app notifications. SMS/WA are enqueued via
- *      enqueueCut2ProducerChannels (announcement email is DENY).
- *      No sendEmail / sendSmsNotification / dispatchWhatsApp.
- *      announcement-producer.ts stays DORMANT.
- *   3. Flip sent_at on success. On failure, leave sent_at NULL so
- *      the next cron run retries the row.
- *
- * Qualification/send is dormant (no real provider). Drain is the only
- * sender for queued channels.
- */
 export async function GET(request: Request) {
   const authHeader = request.headers.get("Authorization");
   const cronSecret = process.env.CRON_SECRET;
@@ -35,9 +15,10 @@ export async function GET(request: Request) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   const now = new Date().toISOString();
 
+  // First fetch due candidates without locking (to see if there's any work)
   const { data: due, error: fetchErr } = await supabase
     .from("announcements")
-    .select("id, group_id, title, title_fr, content, content_fr, channels, audience, scheduled_at")
+    .select("id")
     .is("sent_at", null)
     .not("scheduled_at", "is", null)
     .lte("scheduled_at", now)
@@ -46,10 +27,7 @@ export async function GET(request: Request) {
 
   if (fetchErr) {
     console.warn("[Cron:ScheduledAnnouncements] fetch failed:", fetchErr.message);
-    return NextResponse.json(
-      { success: false, error: fetchErr.message, processed: 0, succeeded: 0, failed: 0 },
-      { status: 500 },
-    );
+    return NextResponse.json({ success: false, error: fetchErr.message }, { status: 500 });
   }
 
   if (!due || due.length === 0) {
@@ -62,18 +40,21 @@ export async function GET(request: Request) {
 
   for (const row of due) {
     try {
-      await dispatchScheduledAnnouncement(supabase, row as Record<string, unknown>);
-
-      const { error: updateErr } = await supabase
+      // ATOMIC CLAIM: Update sent_at to now() where it is still null
+      const { data: claimed, error: updateErr } = await supabase
         .from("announcements")
         .update({ sent_at: new Date().toISOString() })
         .eq("id", row.id as string)
-        .is("sent_at", null);
-      if (updateErr) {
-        failed++;
-        errors.push(`${row.id}: update failed: ${updateErr.message}`);
+        .is("sent_at", null)
+        .select("*")
+        .single();
+
+      if (updateErr || !claimed) {
+        // Someone else claimed it or it was deleted
         continue;
       }
+
+      await dispatchScheduledAnnouncement(supabase, claimed);
       succeeded++;
     } catch (err) {
       failed++;
@@ -81,13 +62,6 @@ export async function GET(request: Request) {
       errors.push(`${row.id}: ${msg}`);
       console.warn(`[Cron:ScheduledAnnouncements] row ${row.id} failed:`, msg);
     }
-  }
-
-  if (errors.length > 0) {
-    console.warn(
-      `[Cron:ScheduledAnnouncements] ${succeeded} sent, ${failed} failed:`,
-      errors.slice(0, 10),
-    );
   }
 
   return NextResponse.json({
@@ -98,11 +72,6 @@ export async function GET(request: Request) {
   });
 }
 
-/**
- * In-app inserts + Cut 2 enqueue per recipient membership.
- * Does not call sendEmail / sendSmsNotification / dispatchWhatsApp.
- * Does not activate announcement-producer.ts.
- */
 async function dispatchScheduledAnnouncement(
   supabase: SupabaseClient,
   row: Record<string, unknown>,
@@ -148,23 +117,17 @@ async function dispatchScheduledAnnouncement(
   for (const membership of candidates) {
     const uid = membership.user_id as string;
     const membershipId = membership.id as string;
-    const profiles = membership.profiles as
-      | Record<string, unknown>
-      | Array<Record<string, unknown>>
-      | null;
+    const profiles = membership.profiles as Record<string, unknown> | Array<Record<string, unknown>> | null;
     const profile = Array.isArray(profiles) ? profiles[0] : profiles;
     const prefLocale = ((profile?.preferred_locale as string) || "en") === "fr" ? "fr" : "en";
+    
     const title = prefLocale === "fr" && titleFr ? titleFr : titleEn;
     const body = (prefLocale === "fr" && contentFr ? contentFr : contentEn).slice(0, 200);
 
     let channels;
     try {
       channels = await getEnabledChannels(supabase, uid, "announcements", groupId);
-    } catch (err) {
-      console.warn(
-        `[Cron:ScheduledAnnouncements] preference lookup failed for ${uid}:`,
-        err instanceof Error ? err.message : err,
-      );
+    } catch {
       channels = { in_app: true, email: true, sms: true, whatsapp: true, push: false };
     }
 
@@ -180,27 +143,32 @@ async function dispatchScheduledAnnouncement(
       });
     }
 
-    await enqueueCut2ProducerChannels(
-      {
-        notificationType: "announcement",
-        domainObjectId: announcementId,
-        recipientMembershipId: membershipId,
-        locale: prefLocale,
-      },
-      supabase,
-    );
+    const externalChannels = activeChannels.filter(c => c !== "in_app");
+    for (const ch of externalChannels) {
+      if ((channels as unknown as Record<string, boolean>)[ch]) {
+        await supabase.rpc("queue_transactional_notification", {
+          p_command: {
+            group_id: groupId,
+            membership_id: membershipId,
+            channel: ch,
+            template_key: "announcement_broadcast",
+            payload: {
+              title,
+              body,
+              titleFr,
+              bodyFr: contentFr,
+            },
+            idempotency_key: `${announcementId}_${membershipId}_${ch}`
+          }
+        });
+      }
+    }
   }
 
   if (inAppRows.length > 0) {
     for (let i = 0; i < inAppRows.length; i += 50) {
       const batch = inAppRows.slice(i, i + 50);
-      const { error: insertErr } = await supabase.from("notifications").insert(batch);
-      if (insertErr) {
-        console.warn(
-          `[Cron:ScheduledAnnouncements] in-app insert batch failed:`,
-          insertErr.message,
-        );
-      }
+      await supabase.from("notifications").insert(batch);
     }
   }
 }

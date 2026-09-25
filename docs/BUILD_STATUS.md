@@ -26,7 +26,7 @@ Authorized local-capture record: [docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FI
 | **M4 (Contributions & Dues Canonical Rebuild)** | **COMPLETE / VERIFIED.** Built canonical bridge schema (`00124_m4_01_dues_f3_bridge.sql`) linking payments to general ledger (`financial_event_id`, `financial_account_id` with `ON DELETE RESTRICT`) and `post_dues_payment_confirmation` RPC. Built atomic client mutation hooks (`src/lib/hooks/use-dues-posting.ts`). Integrated admin dues recording (`record/page.tsx`) with custody account selection and multi-tenant safety. Integrated payment confirmation review queue (`history/page.tsx`) with posted ledger badge and custody selection dialog. Validated bridge invariants and subledger reconciliation isolation via standalone adversarial harness (`scripts/test-m4-dues-bridge.mjs`). 100% EN/FR localization parity verified. |
 | **M5 (Membership, Identity & Role-Based Access Control Rebuild)** | **COMPLETE / VERIFIED.** Built migration `00125_m5_01_membership_rbac_canonical.sql` with preflight pins, partial unique index `idx_memberships_unique_active_owner`, hard-delete trigger prohibition (`trg_prevent_membership_hard_delete` with `ERRCODE = '55000'`), owner protection trigger (`enforce_owner_role_protection`), invitations RLS fortification, and 6 canonical RPCs (`create_group_invitation`, `update_membership_role`, `transfer_group_ownership`, `set_membership_lifecycle_status`, `update_member_display_name`). Built typed TanStack mutation hooks (`src/lib/hooks/use-membership-mutations.ts`) with tenant boundary assertion and multi-domain cache invalidation. Fortified client auth in `src/lib/group-context.tsx` and `src/lib/hooks/use-permissions.ts` (denies inactive memberships). Refactored Member Directory (`dashboard/members/page.tsx`) and Member Detail (`dashboard/members/[id]/page.tsx`) with distinct Lifecycle Status and Financial Standing visual badges, PII isolation (zero profile mutations), and dedicated ownership transfer dialog with `"TRANSFER"` confirmation prompt. Aligned Invitations (`dashboard/invitations/page.tsx`) and Role Matrix (`dashboard/roles/page.tsx`) with permission gating. Verified with adversarial harness (`scripts/test-m5-membership-rbac.mjs`, 18/18 tests passing), 100% EN/FR localization parity, clean ESLint, and clean TSC. |
 | **M9 (Events, Attendance, Calendar & Ticketing Ledger Rebuild)** | **COMPLETE / VERIFIED.** Built migration `00130_m9_01_events_ticketing.sql` adding `ticket_tiers`, `ticket_purchases`, and canonical RPCs. Implemented F3-integrated financial flow for ticket purchases via `financial_core.post_f3_command` enforcing strict double-entry ledger parity, currency match, and active custody account existence. Built typed TanStack mutation hooks (`src/lib/hooks/use-events-mutations.ts`) wrapping all M9 canonical RPCs. Monolithically refactored `events/page.tsx` and `attendance/page.tsx` to strip thick-client mutations, wiring up canonical hooks and custody gates. Verified with standalone adversarial harness `test-m9-events-ticketing.mjs` ensuring idempotency, capacity enforcement, and ledger integrity. 100% EN/FR localization parity verified. |
-| **Next Master Milestone** | **M11 (Transactional Communications & Notification Delivery Engine Rebuild)** designated per PRD Section 10 and Section 26 sequence. Followed by M12, M13 (§31 Planned), M14 (§31 Planned), M15 (§31 Planned). Merge/deploy to `origin/main` remains separately founder-controlled. |
+| **Next Master Milestone** | **M12 (Production Hardening, E2E Verification & Disaster Recovery)** designated per PRD Section 10 and Section 26 sequence. Followed by M13 (§31 Planned), M14 (§31 Planned), M15 (§31 Planned). Merge/deploy to `origin/main` remains separately founder-controlled. |
 | **Merge / deploy to `origin/main`** | **Not authorized** without explicit founder sign-off for release. |
 
 ## Authoritative build-plan reference
@@ -116,8 +116,14 @@ Other linked artifacts:
     - Client Hooks & UI Refactor: `src/lib/hooks/use-reports-queries.ts` safely handles currency partitioning. `<CanonicalReportRenderer />` excises legacy `.reduce()` logic.
     - Auditing & Exports: Tamper-evident cryptographic fingerprint (SHA-256) pipeline is built into `export.ts` / `export-pdf.ts` locking statement validity.
     - Verification: Adversarial test harness `scripts/test-m10-financial-reports.mjs` verifies mathematical equilibrium, multi-currency isolation, temporal date constraints, and SHA-256 fingerprint determinism.
-14. **Next Master Milestone: M11 (Transactional Communications & Notification Delivery Engine Rebuild)** — Designated as the next major work package.
-15. **Production migration release gate** — Production deployment remains separately founder-authorized.
+14. **Milestone M11 Completion: Transactional Communications & Notification Delivery Engine Rebuild** — **COMPLETE / VERIFIED.**
+    - Schema & Transactional Outbox: Migration `00132_m11_01_communications_outbox.sql` fortifies the queue with leased locks, composite unique constraints (`group_id`, `idempotency_key`) for idempotency, and explicit `status` enums. Built canonical RPCs `queue_transactional_notification`, `claim_notification_batch` (using `FOR UPDATE SKIP LOCKED`), and `settle_notification_delivery` for transactional draining and exponential backoff.
+    - Template Engine & Sanitization: Built `src/lib/communications/template-engine.ts` establishing deterministic rendering for all event templates. Implemented strict Anti-XSS `escapeHtml` primitives and enforced `https://` only URL sanitization.
+    - Client Hooks & UI Refactor: Replaced un-safe client-side mutations with canonical hooks in `src/lib/hooks/use-communications-mutations.ts`. Monolithically refactored `dashboard/announcements/page.tsx` eliminating raw `.insert()` calls, enforcing render-phase tenant cache hygiene.
+    - Workers Fortification: Architected `drain-notification-queue` worker with leased batching, resilient mock-dispatch, settlement routines, and 5000ms Vercel timeout guards. Rebuilt `send-scheduled-announcements` to use atomic `UPDATE ... RETURNING` resolving race conditions.
+    - Verification: Adversarial test harness `scripts/test-m11-communications.mjs` verifies zero-overlap locking, deduplication, stolen lease defense, exponential backoff, dead_letter transitions, anti-XSS escape logic, atomic claims, and cross-tenant isolation.
+15. **Next Master Milestone: M12 (Production Hardening, E2E Verification & Disaster Recovery)** — Designated as the next major work package.
+16. **Production migration release gate** — Production deployment remains separately founder-authorized.
 ## Local versus hosted / production
 
 | Surface | Status |
@@ -132,13 +138,12 @@ Other linked artifacts:
 | Field | Value |
 |-------|-------|
 | Owner | Jude Anyere |
-| Next bounded action | Advance to **M11 (Transactional Communications & Notification Delivery Engine Rebuild)** per PRD Section 10 and Section 26 sequence. |
+| Next bounded action | Advance to **M12 (Production Hardening, E2E Verification & Disaster Recovery)** per PRD Section 10 and Section 26 sequence. |
 | Permitted scope | M11 communications, notification delivery, and template management. No direct mutation of production. |
-| Remaining acceptance | M11 transactional communication, audit trails, tenant segregation of notifications, and adversarial verification. |
+| Remaining acceptance | M12 production readiness checklist, E2E product testing on live replicas, disaster recovery playbooks, and structural finalization. |
 
 ---
 **QUALIFIED / PASS — F3 FOUNDATION HOSTED REQUALIFICATION COMPLETE**  
 Candidate: `e0c10c04d4bdc287385ea1392e1aae97b458fe1c`  
 Floor: `DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT`  
-Next Milestone: `M11 (Transactional Communications & Notification Delivery Engine Rebuild)`
-
+Next Milestone: `M12 (Production Hardening, E2E Verification & Disaster Recovery)`

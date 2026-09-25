@@ -4717,7 +4717,14 @@
       "newMemberJoined": "New member notification sent"
     },
     "typeTransferUpdates": "Member transfer updates",
-    "typeTransferUpdatesDesc": "Notifications about transfer requests, approvals, denials, and completions."
+    "typeTransferUpdatesDesc": "Notifications about transfer requests, approvals, denials, and completions.",
+    "errors": {
+      "UNAUTHORIZED": "You do not have permission to manage communications.",
+      "INVALID_AUDIENCE": "Invalid recipient audience specified.",
+      "INVALID_CHANNEL": "Selected delivery channel is unsupported.",
+      "EMPTY_MESSAGE": "Message subject and body cannot be empty.",
+      "staleTenantAborted": "Stale organization context. Please refresh the page."
+    }
   },
   "savingsCircle": {
     "title": "Savings Circle",
@@ -6797,5 +6804,10 @@
     "ruleUnanimous": "Unanimous",
     "immutabilityNotice": "This assembly has been adjourned; resolutions and attendance records are permanently sealed.",
     "newResolution": "New Resolution"
+  },
+  "announcements": {
+    "actions": {
+      "queuedSuccess": "Announcement successfully queued for dispatch."
+    }
   }
 }

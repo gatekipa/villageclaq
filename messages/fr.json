@@ -4717,7 +4717,14 @@
       "newMemberJoined": "Notification de nouveau membre envoyée"
     },
     "typeTransferUpdates": "Mises à jour des transferts de membres",
-    "typeTransferUpdatesDesc": "Notifications concernant les demandes de transfert, approbations, refus et finalisations."
+    "typeTransferUpdatesDesc": "Notifications concernant les demandes de transfert, approbations, refus et finalisations.",
+    "errors": {
+      "UNAUTHORIZED": "Vous n'avez pas la permission de gérer les communications.",
+      "INVALID_AUDIENCE": "Audience de destinataires spécifiée invalide.",
+      "INVALID_CHANNEL": "Le canal de distribution sélectionné n'est pas pris en charge.",
+      "EMPTY_MESSAGE": "Le sujet et le corps du message ne peuvent pas être vides.",
+      "staleTenantAborted": "Contexte d'organisation obsolète. Veuillez actualiser la page."
+    }
   },
   "savingsCircle": {
     "title": "Cercle d'épargne",
@@ -6797,5 +6804,10 @@
     "ruleUnanimous": "Unanimité",
     "immutabilityNotice": "Cette assemblée est close; les résolutions et les présences sont définitivement scellées.",
     "newResolution": "Nouvelle Résolution"
+  },
+  "announcements": {
+    "actions": {
+      "queuedSuccess": "Annonce mise en file d'attente avec succès pour expédition."
+    }
   }
 }

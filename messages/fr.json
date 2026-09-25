@@ -1994,6 +1994,63 @@
       "genericError": "Échec de la contrepassation de la transaction. Veuillez réessayer."
     }
   },
+  "openingBalances": {
+    "title": "Définir le solde d'ouverture",
+    "subtitle": "Enregistrez la position initiale de trésorerie pour ce compte.",
+    "notices": {
+      "doubleEntryNotice": "Conformément aux normes de la comptabilité en partie double, les soldes d'ouverture établissent la trésorerie initiale contrebalancée par les capitaux d'ouverture, sans fausser les recettes ou dépenses d'exploitation.",
+      "epochNotice": "La date d'effet doit se situer dans un exercice comptable actif et ne peut précéder la date d'ouverture du compte.",
+      "immutableWarning": "Une fois enregistré, le solde d'ouverture crée une piste d'audit immuable et ne peut pas être réécrit à plusieurs reprises."
+    },
+    "fields": {
+      "account": "Compte de trésorerie",
+      "amount": "Montant du solde d'ouverture",
+      "amountPlaceholder": "0,00",
+      "amountHelp": "Montant décimal exact représentant le solde initial vérifié.",
+      "fund": "Fonds comptable d'affectation",
+      "fundPlaceholder": "Sélectionner un fonds actif",
+      "fundHelp": "Attribue la trésorerie initiale à un fonds comptable actif (fonds général par défaut).",
+      "occurredAt": "Date et heure de référence",
+      "occurredAtHelp": "Date correspondant au relevé initial ou au point de migration.",
+      "sourceDescription": "Description de la source / Justificatif",
+      "sourceDescriptionPlaceholder": "ex. Rapprochement du relevé bancaire initial au 1er janvier 2026",
+      "sourceDescriptionHelp": "Enregistrement d'audit obligatoire. Expliquez la provenance de ce solde initial (3 à 1000 caractères).",
+      "reference": "Référence du relevé / Pièce justificative",
+      "referencePlaceholder": "ex. REL-2026-001 ou MIG-CPT-04",
+      "referenceHelp": "Référence facultative du document externe ou identifiant de migration."
+    },
+    "actions": {
+      "setOpeningBalance": "Définir le solde d'ouverture",
+      "record": "Enregistrer le solde d'ouverture",
+      "recording": "Enregistrement en cours...",
+      "cancel": "Annuler",
+      "close": "Fermer",
+      "success": "Solde d'ouverture enregistré",
+      "successDesc": "La position de trésorerie initiale et la contrepartie en capitaux propres ont été enregistrées dans le grand livre."
+    },
+    "status": {
+      "established": "Solde d'ouverture établi",
+      "notSet": "Aucun solde d'ouverture",
+      "ineligible": "Solde d'ouverture non applicable"
+    },
+    "errors": {
+      "ACCOUNT_KIND_NOT_ALLOWED": "Seuls les comptes bancaires et de caisse peuvent définir un solde d'ouverture.",
+      "ACCOUNT_INACTIVE": "Ce compte est inactif ou clôturé. Seuls les comptes actifs peuvent définir un solde d'ouverture.",
+      "DATE_BEFORE_ACCOUNT_OPENED": "La date du solde d'ouverture ne peut pas être antérieure à la date de création du compte.",
+      "FUND_REQUIRED": "Un fonds comptable actif est obligatoire.",
+      "FUND_INACTIVE": "Le fonds sélectionné est inactif.",
+      "PROVENANCE_REQUIRED": "Une description du relevé expliquant la provenance est obligatoire (minimum 3 caractères).",
+      "OPENING_BALANCE_ALREADY_SET": "Un solde d'ouverture a déjà été enregistré pour ce compte.",
+      "INVALID_AMOUNT": "Veuillez saisir un montant décimal positif valide.",
+      "AMOUNT_NOT_POSITIVE": "Le montant du solde d'ouverture doit être supérieur à zéro.",
+      "NO_ACTIVE_EPOCH": "Aucun exercice comptable actif ne couvre cette date. Veuillez vérifier votre configuration financière.",
+      "EPOCH_AMBIGUOUS": "Plusieurs exercices comptables couvrent cette date.",
+      "DENY": "Vous n'avez pas l'autorisation de gérer les soldes financiers d'ouverture.",
+      "CONFLICT": "Une écriture de solde d'ouverture conflictuelle a déjà été enregistrée.",
+      "staleTenantAborted": "Opération interrompue : le groupe actif a changé. Veuillez rafraîchir la page.",
+      "GENERIC_ERROR": "Échec de l'enregistrement du solde d'ouverture. Veuillez réessayer."
+    }
+  },
   "invitations": {
     "title": "Invitations",
     "subtitle": "Invitez de nouveaux membres dans votre groupe",

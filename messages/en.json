@@ -1994,6 +1994,63 @@
       "genericError": "Failed to complete transaction reversal. Please try again."
     }
   },
+  "openingBalances": {
+    "title": "Set Opening Balance",
+    "subtitle": "Record the initial cash position for this custody account.",
+    "notices": {
+      "doubleEntryNotice": "In accordance with double-entry accounting standards, opening balances establish the initial cash position balanced against opening capital equity, without distorting operating revenues or expenses.",
+      "epochNotice": "The effective date must fall within an active ledger epoch and cannot precede the account creation date.",
+      "immutableWarning": "Once established, the opening balance creates an immutable audit trail and cannot be repeatedly overwritten."
+    },
+    "fields": {
+      "account": "Custody Account",
+      "amount": "Opening Balance Amount",
+      "amountPlaceholder": "0.00",
+      "amountHelp": "Exact decimal amount representing the verified starting balance.",
+      "fund": "Target Fund Allocation",
+      "fundPlaceholder": "Select an active fund",
+      "fundHelp": "Allocates the starting cash to an active accounting fund (defaults to general fund).",
+      "occurredAt": "As-of Date & Time",
+      "occurredAtHelp": "Date corresponding to the initial statement or migration point.",
+      "sourceDescription": "Provenance / Statement Description",
+      "sourceDescriptionPlaceholder": "e.g., Opening bank statement reconciliation as of Jan 1, 2026",
+      "sourceDescriptionHelp": "Mandatory audit record. Explain the provenance of this opening position (3–1000 characters).",
+      "reference": "Statement / Audit Reference",
+      "referencePlaceholder": "e.g., STMT-2026-001 or MIG-ACT-04",
+      "referenceHelp": "Optional external document reference or migration identifier."
+    },
+    "actions": {
+      "setOpeningBalance": "Set Opening Balance",
+      "record": "Record Opening Balance",
+      "recording": "Recording...",
+      "cancel": "Cancel",
+      "close": "Close",
+      "success": "Opening Balance Recorded",
+      "successDesc": "The opening cash position and capital equity offset have been posted to the general ledger."
+    },
+    "status": {
+      "established": "Opening balance established",
+      "notSet": "No opening balance set",
+      "ineligible": "Opening balance not applicable"
+    },
+    "errors": {
+      "ACCOUNT_KIND_NOT_ALLOWED": "Only bank and cash accounts can establish opening balances.",
+      "ACCOUNT_INACTIVE": "This account is inactive or closed. Only active accounts can establish opening balances.",
+      "DATE_BEFORE_ACCOUNT_OPENED": "Opening balance date cannot precede the date the account was created.",
+      "FUND_REQUIRED": "An active accounting fund is required.",
+      "FUND_INACTIVE": "The selected fund is inactive.",
+      "PROVENANCE_REQUIRED": "A statement description explaining the provenance is required (minimum 3 characters).",
+      "OPENING_BALANCE_ALREADY_SET": "An opening balance has already been recorded for this account.",
+      "INVALID_AMOUNT": "Please enter a valid positive decimal amount.",
+      "AMOUNT_NOT_POSITIVE": "Opening balance amount must be greater than zero.",
+      "NO_ACTIVE_EPOCH": "No active ledger epoch covers this date. Please check your financial configuration.",
+      "EPOCH_AMBIGUOUS": "Multiple ledger epochs cover this date.",
+      "DENY": "You do not have permission to manage financial opening balances.",
+      "CONFLICT": "A conflicting opening cash entry has already been recorded.",
+      "staleTenantAborted": "Operation aborted: active group changed. Please refresh and try again.",
+      "GENERIC_ERROR": "Failed to record opening balance. Please try again."
+    }
+  },
   "invitations": {
     "title": "Invitations",
     "subtitle": "Invite new members to your group",

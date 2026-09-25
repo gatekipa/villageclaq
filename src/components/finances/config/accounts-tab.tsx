@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
+import { PermissionGate } from "@/components/ui/permission-gate";
+import { SetOpeningBalanceDialog } from "./set-opening-balance-dialog";
 import {
   useFinancialAccounts,
   useActiveLedgerEpoch,
@@ -63,10 +65,12 @@ import {
   Lock,
   Edit2,
   CheckCircle2,
+  Coins,
 } from "lucide-react";
 
 export function AccountsTab() {
   const t = useTranslations("financialConfig");
+  const tOpening = useTranslations("openingBalances");
   const { groupId } = useGroup();
 
   // Queries
@@ -81,6 +85,17 @@ export function AccountsTab() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<FinancialAccount | null>(null);
   const [closingAccount, setClosingAccount] = useState<FinancialAccount | null>(null);
+  const [openingBalanceAccount, setOpeningBalanceAccount] = useState<FinancialAccount | null>(null);
+
+  // Prevent cross-tenant state leak: reset modal states on tenant switch
+  const [prevGroupId, setPrevGroupId] = useState(groupId);
+  if (groupId !== prevGroupId) {
+    setPrevGroupId(groupId);
+    setIsCreateOpen(false);
+    setEditingAccount(null);
+    setClosingAccount(null);
+    setOpeningBalanceAccount(null);
+  }
 
   // Form states
   const [name, setName] = useState("");
@@ -334,6 +349,28 @@ export function AccountsTab() {
                             {t("actions.edit")}
                           </DropdownMenuItem>
 
+                          {/* Set Opening Balance */}
+                          <PermissionGate permission="finances.manage">
+                            {acc.status === "active" && (acc.kind === "bank" || acc.kind === "cash") ? (
+                              <DropdownMenuItem
+                                onClick={() => setOpeningBalanceAccount(acc)}
+                                className="gap-2 text-sm text-foreground focus:text-foreground"
+                              >
+                                <Coins className="h-3.5 w-3.5 text-primary" />
+                                {tOpening("actions.setOpeningBalance")}
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                disabled
+                                className="gap-2 text-sm opacity-50 cursor-not-allowed"
+                                title={tOpening("status.ineligible")}
+                              >
+                                <Coins className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className="text-muted-foreground">{tOpening("actions.setOpeningBalance")}</span>
+                              </DropdownMenuItem>
+                            )}
+                          </PermissionGate>
+
                           {acc.status === "active" && (
                             <DropdownMenuItem onClick={() => handleInactivate(acc)} className="gap-2 text-sm text-amber-600 focus:text-amber-700">
                               <Archive className="h-3.5 w-3.5" />
@@ -557,6 +594,13 @@ export function AccountsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Set Opening Balance Modal */}
+      <SetOpeningBalanceDialog
+        open={!!openingBalanceAccount}
+        onOpenChange={(open) => !open && setOpeningBalanceAccount(null)}
+        account={openingBalanceAccount}
+      />
     </div>
   );
 }

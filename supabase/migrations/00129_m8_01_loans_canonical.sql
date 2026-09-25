@@ -44,7 +44,11 @@ BEGIN
     FROM public.memberships
     WHERE id = NEW.guarantor_membership_id;
 
-    IF v_guarantor IS NULL OR v_guarantor.membership_status <> 'active' OR v_guarantor.standing <> 'good' THEN
+    IF v_guarantor IS NULL OR v_guarantor.membership_status <> 'active' THEN
+      RAISE EXCEPTION 'GUARANTOR_NOT_ACTIVE';
+    END IF;
+
+    IF v_guarantor.standing <> 'good' THEN
       RAISE EXCEPTION 'GUARANTOR_NOT_IN_GOOD_STANDING';
     END IF;
 
@@ -131,11 +135,6 @@ BEGIN
   SELECT id INTO v_receivable_account_id FROM financial_core.accounts 
   WHERE group_id = v_loan.group_id AND kind = 'asset' AND currency = v_loan.currency AND code = 'loans_receivable' AND status = 'active' LIMIT 1;
   
-  IF v_receivable_account_id IS NULL THEN
-    SELECT id INTO v_receivable_account_id FROM financial_core.accounts 
-    WHERE group_id = v_loan.group_id AND kind = 'asset' AND currency = v_loan.currency AND status = 'active' ORDER BY created_at LIMIT 1;
-  END IF;
-
   IF v_receivable_account_id IS NULL THEN
     RAISE EXCEPTION 'LOANS_RECEIVABLE_ACCOUNT_NOT_CONFIGURED';
   END IF;
@@ -248,27 +247,19 @@ BEGIN
   END IF;
 
   -- Math Split Principal/Interest (Simplified proportionality or remaining interest first)
-  -- If total_repayable is 110, approved is 100, interest is 10.
-  -- Here we will simply apply proportionally or apply principal first then interest?
-  -- Actually, the prompt states: Calculate remaining interest balance vs remaining principal.
-  -- For safety, we will just say: total interest = total_repayable - amount_approved.
-  -- The split will be: v_principal_portion = min(v_amount, amount_approved - principal_repaid) ... wait, we don't track principal_repaid.
-  -- Let's just track it via flat ratio for now, or just send everything to loans_receivable for simplicity if not possible.
-  -- Let's do: 
-  v_interest_portion := ROUND((v_amount * ((v_loan.total_repayable - v_loan.amount_approved) / v_loan.total_repayable))::numeric, 2);
-  v_principal_portion := v_amount - v_interest_portion;
+  IF (v_loan.total_repayable - v_loan.amount_approved) <= 0 THEN
+    v_interest_portion := 0;
+    v_principal_portion := v_amount;
+  ELSE
+    v_interest_portion := ROUND((v_amount * ((v_loan.total_repayable - v_loan.amount_approved) / v_loan.total_repayable))::numeric, 2);
+    v_principal_portion := v_amount - v_interest_portion;
+  END IF;
 
   -- Resolve receivable and income accounts
   SELECT id INTO v_receivable_account_id FROM financial_core.accounts WHERE group_id = v_loan.group_id AND kind = 'asset' AND currency = v_loan.currency AND code = 'loans_receivable' AND status = 'active' LIMIT 1;
-  IF v_receivable_account_id IS NULL THEN
-    SELECT id INTO v_receivable_account_id FROM financial_core.accounts WHERE group_id = v_loan.group_id AND kind = 'asset' AND currency = v_loan.currency AND status = 'active' ORDER BY created_at LIMIT 1;
-  END IF;
   IF v_receivable_account_id IS NULL THEN RAISE EXCEPTION 'LOANS_RECEIVABLE_ACCOUNT_NOT_CONFIGURED'; END IF;
 
   SELECT id INTO v_income_account_id FROM financial_core.accounts WHERE group_id = v_loan.group_id AND kind = 'revenue' AND currency = v_loan.currency AND code = 'loan_interest_income' AND status = 'active' LIMIT 1;
-  IF v_income_account_id IS NULL THEN
-    SELECT id INTO v_income_account_id FROM financial_core.accounts WHERE group_id = v_loan.group_id AND kind = 'revenue' AND currency = v_loan.currency AND status = 'active' ORDER BY created_at LIMIT 1;
-  END IF;
   IF v_income_account_id IS NULL AND v_interest_portion > 0 THEN RAISE EXCEPTION 'LOAN_INTEREST_INCOME_ACCOUNT_NOT_CONFIGURED'; END IF;
 
   v_event_id := 'evt_' || replace(gen_random_uuid()::text, '-', '');

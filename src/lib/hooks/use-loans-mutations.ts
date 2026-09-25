@@ -48,10 +48,20 @@ export interface ApproveLoanInput {
 // Error Parser
 // ============================================================================
 export function parseLoanRpcError(error: unknown): string {
-  const msg = error instanceof Error ? error.message : String(error);
+  let msg = "";
+  if (error instanceof Error) {
+    msg = error.message;
+  } else if (typeof error === "object" && error !== null) {
+    const err = error as Record<string, unknown>;
+    msg = String(err.message || err.details || err.hint || JSON.stringify(err));
+  } else {
+    msg = String(error);
+  }
+
   if (msg.includes("CANNOT_GUARANTEE_OWN_LOAN")) return "CANNOT_GUARANTEE_OWN_LOAN";
   if (msg.includes("GUARANTOR_NOT_IN_GOOD_STANDING")) return "GUARANTOR_NOT_IN_GOOD_STANDING";
   if (msg.includes("GUARANTOR_HAS_DEFAULTED_LOANS")) return "GUARANTOR_HAS_DEFAULTED_LOANS";
+  if (msg.includes("GUARANTOR_NOT_ACTIVE")) return "GUARANTOR_NOT_ACTIVE";
   if (msg.includes("LOAN_NOT_APPROVED_FOR_DISBURSEMENT")) return "LOAN_NOT_APPROVED_FOR_DISBURSEMENT";
   if (msg.includes("LOANS_RECEIVABLE_ACCOUNT_NOT_CONFIGURED")) return "LOANS_RECEIVABLE_ACCOUNT_NOT_CONFIGURED";
   if (msg.includes("LOAN_INTEREST_INCOME_ACCOUNT_NOT_CONFIGURED")) return "LOAN_INTEREST_INCOME_ACCOUNT_NOT_CONFIGURED";
@@ -62,7 +72,7 @@ export function parseLoanRpcError(error: unknown): string {
   if (msg.includes("ACCOUNT_NOT_FOUND_OR_INACTIVE")) return "ACCOUNT_NOT_FOUND_OR_INACTIVE";
   if (msg.includes("UNAUTHORIZED")) return "UNAUTHORIZED";
   if (msg.includes("staleTenantAborted")) return "staleTenantAborted";
-  return "UNKNOWN_ERROR";
+  return msg;
 }
 
 // ============================================================================

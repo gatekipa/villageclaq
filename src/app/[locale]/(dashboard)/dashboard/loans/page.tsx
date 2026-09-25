@@ -1402,7 +1402,16 @@ export default function LoansAdminPage() {
 
         {/* ─── Detail Dialog (Active) ────────────────────────────────── */}
         {detailLoan && (
-          <Dialog open={detailDialogOpen} onOpenChange={(open) => { if (!open) { setDetailDialogOpen(false); setDetailLoan(null); } }}>
+          <Dialog open={detailDialogOpen} onOpenChange={(open) => { 
+            if (!open) { 
+              setDetailDialogOpen(false); 
+              setDetailLoan(null); 
+              setDisbMethod("cash");
+              setDisbReference("");
+              setDisbAccountId("");
+              setDisbError(null);
+            } 
+          }}>
             <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{t("loanDetails")}</DialogTitle></DialogHeader>
               <div className="space-y-4">
@@ -1455,8 +1464,8 @@ export default function LoansAdminPage() {
                     <h4 className="text-sm font-semibold">{t("recordDisbursement")}</h4>
                     {disbError && <div className="p-3 rounded-md bg-red-50 text-red-700 text-sm font-medium">{t(disbError)}</div>}
                     {validCustodyAccounts.length === 0 ? (
-                      <div className="p-3 rounded-md bg-amber-50 text-amber-800 text-sm border border-amber-200">
-                        {t("noActiveCustodyAccounts")}
+                      <div className="p-3 rounded-md bg-amber-50 text-amber-800 text-sm border border-amber-200 font-medium">
+                        No active custody accounts found in this currency. Please configure a matching bank or cash account in Settings.
                       </div>
                     ) : (
                       <div className="grid gap-3 sm:grid-cols-2">
@@ -1591,7 +1600,16 @@ export default function LoansAdminPage() {
           const parsedAmount = Number(repayAmount);
           const isInvalidAmount = !repayAmount || isNaN(parsedAmount) || parsedAmount <= 0 || parsedAmount > remainingBalance;
           return (
-          <Dialog open={repayDialogOpen} onOpenChange={setRepayDialogOpen}>
+          <Dialog open={repayDialogOpen} onOpenChange={(open) => {
+            if (!open) {
+              setRepayDialogOpen(false);
+              setRepayAmount("");
+              setRepayAccountId("");
+              setRepayReference("");
+              setRepayNotes("");
+              setRepayError(null);
+            }
+          }}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader><DialogTitle>{t("recordRepayment")}</DialogTitle></DialogHeader>
               <div className="space-y-4">
@@ -1614,10 +1632,12 @@ export default function LoansAdminPage() {
                     </div>
                     <div className="space-y-2">
                       <Label>{t("amount")} (Max: {formatAmount(remainingBalance, loanCurrency)})</Label>
-                      <Input type="number" max={remainingBalance} value={repayAmount} onChange={(e) => {
-                        const val = Number(e.target.value);
+                      <Input type="number" min="0.01" step="any" max={remainingBalance} value={repayAmount} onChange={(e) => {
+                        let valStr = e.target.value;
+                        if (valStr.startsWith("-")) valStr = valStr.substring(1);
+                        const val = Number(valStr);
                         if (val > remainingBalance) setRepayAmount(String(remainingBalance));
-                        else setRepayAmount(e.target.value);
+                        else setRepayAmount(valStr);
                       }} />
                     </div>
                     <div className="space-y-2">

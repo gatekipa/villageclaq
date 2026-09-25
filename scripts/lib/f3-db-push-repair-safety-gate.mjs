@@ -8417,8 +8417,9 @@ function resolvePsqlBinaryDir() {
   for (const dir of search.split(path.delimiter)) {
     if (!dir) continue;
     const candidate = path.join(dir, "psql");
+    const candidateExe = path.join(dir, "psql.exe");
     try {
-      if (fs.existsSync(candidate)) return dir;
+      if (fs.existsSync(candidate) || fs.existsSync(candidateExe)) return dir;
     } catch {
       // continue
     }
@@ -8591,11 +8592,19 @@ export function runIsolatedPoisonPsqlQuery({ frozenTarget, sql } = {}) {
     const spawnError = child.error && child.error.code !== "ETIMEDOUT"
       ? child.error
       : null;
+    const rawStdout = child.stdout ?? "";
+    const stdout = process.platform === "win32"
+      ? rawStdout.replace(/\r\n/g, "\n")
+      : rawStdout;
+    const rawStderr = child.stderr ?? "";
+    const stderr = process.platform === "win32"
+      ? rawStderr.replace(/\r\n/g, "\n")
+      : rawStderr;
     return {
       status: child.status,
       signal: child.signal ?? child.signalCode ?? null,
-      stdout: child.stdout ?? "",
-      stderr: child.stderr ?? "",
+      stdout,
+      stderr,
       timeout,
       spawnError,
       killed: child.killed === true,

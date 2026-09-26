@@ -4,6 +4,7 @@
     "loading": "Chargement...",
     "groupUnavailable": "Ce groupe n’est pas disponible",
     "groupUnavailableDesc": "Votre accès actuel ne comprend pas le groupe indiqué dans ce lien. Choisissez un groupe disponible pour continuer.",
+    "invalidPhone": "Saisissez un numéro de téléphone complet ou laissez le champ vide.",
     "save": "Enregistrer",
     "method": "Méthode",
     "cancel": "Annuler",

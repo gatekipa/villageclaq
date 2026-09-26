@@ -27,7 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { PhoneInput, getDefaultCountryCode } from "@/components/ui/phone-input";
+import { PhoneInput, getDefaultCountryCode, isCompletePhoneNumber } from "@/components/ui/phone-input";
 import { cn } from "@/lib/utils";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
@@ -92,9 +92,7 @@ export default function MemberOnboardingPage() {
       newErrors.name = t("nameMin");
     }
 
-    // Extract digits from phone to validate
-    const phoneDigits = formData.phone.replace(/\D/g, "");
-    if (!formData.phone.trim() || phoneDigits.length < 7) {
+    if (!isCompletePhoneNumber(formData.phone)) {
       newErrors.phone = t("phoneRequired");
     }
 

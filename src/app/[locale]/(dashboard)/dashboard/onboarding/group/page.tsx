@@ -40,7 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { PhoneInput, getDefaultCountryCode } from "@/components/ui/phone-input";
+import { PhoneInput, getDefaultCountryCode, isCompletePhoneNumber } from "@/components/ui/phone-input";
 import { formatPhoneForWhatsApp } from "@/lib/format-phone-whatsapp";
 
 /* ───────────────────────── types ───────────────────────── */
@@ -128,6 +128,7 @@ const SAVINGS_SUGGESTIONS = [
 
 export default function GroupOnboardingPage() {
   const t = useTranslations("onboarding");
+  const tCommon = useTranslations("common");
   const tCountries = useTranslations("countries");
   const tJoin = useTranslations("join");
   const locale = useLocale();
@@ -228,7 +229,7 @@ export default function GroupOnboardingPage() {
         const updates: Record<string, unknown> = {};
         if (fullName.trim()) updates.full_name = fullName.trim();
         if (displayName.trim()) updates.display_name = displayName.trim();
-        if (phone.trim()) updates.phone = phone.trim();
+        if (phone.trim() && isCompletePhoneNumber(phone)) updates.phone = phone.trim();
         if (preferredLocale) updates.preferred_locale = preferredLocale;
         if (Object.keys(updates).length > 0) {
           await supabase.from("profiles").update(updates).eq("id", authUser.id);
@@ -387,6 +388,10 @@ export default function GroupOnboardingPage() {
 
   async function handleProfileSave() {
     if (profileSaving) return;
+    if (phone.trim() && !isCompletePhoneNumber(phone)) {
+      setProfileError(tCommon("invalidPhone"));
+      return;
+    }
     setProfileSaving(true);
     setProfileError(null);
     try {
@@ -460,7 +465,7 @@ export default function GroupOnboardingPage() {
         setError(t("invalidInviteEmail"));
         return;
       }
-      if (row.type === "phone" && formatPhoneForWhatsApp(value) === null) {
+      if (row.type === "phone" && (!isCompletePhoneNumber(value) || formatPhoneForWhatsApp(value) === null)) {
         setError(t("invalidInvitePhone"));
         return;
       }

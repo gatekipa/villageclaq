@@ -70,6 +70,18 @@ export function getDefaultCountryCode(currency?: string | null): string {
   return "+237";
 }
 
+/** Match the completion rule displayed by PhoneInput at every save boundary. */
+export function isCompletePhoneNumber(phone: string): boolean {
+  const value = phone.trim();
+  if (!value) return false;
+  const country = [...COUNTRY_CODES]
+    .sort((a, b) => b.code.length - a.code.length)
+    .find((entry) => value.startsWith(entry.code));
+  if (!country) return false;
+  const nationalNumber = value.slice(country.code.length);
+  return /^\d+$/.test(nationalNumber) && nationalNumber.length === country.digits;
+}
+
 /** Format digits into groups with spaces (or US/CA format with parens/dash) */
 function formatDigits(digits: string, country: CountryDef): string {
   if (!digits) return "";
@@ -188,6 +200,8 @@ export function PhoneInput({ value, onChange, defaultCountryCode = "+237", disab
   const isValid = isEmpty || isComplete;
 
   const handleCodeChange = (cc: CountryDef) => {
+    // Keep this user-selected code when clearing the old number through onChange.
+    setPrevValue("");
     setCountryCode(cc.code);
     setRawDigits("");
     onChange("");

@@ -35,7 +35,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { PhoneInput, getDefaultCountryCode } from "@/components/ui/phone-input";
+import { PhoneInput, getDefaultCountryCode, isCompletePhoneNumber } from "@/components/ui/phone-input";
 import { useMemberStandingDetailed, useRecalculateStanding } from "@/lib/hooks/use-member-standing";
 import { logActivity } from "@/lib/audit-log";
 import { cn } from "@/lib/utils";
@@ -509,6 +509,10 @@ function MemberDetailContent() {
 
   async function handleEditMember() {
     if (!member || !editDisplayName.trim() || !groupId) return;
+    if (member.is_proxy && editPhone && !isCompletePhoneNumber(editPhone)) {
+      setEditError(t("common.invalidPhone"));
+      return;
+    }
     if (editRole === "owner") {
       setEditError(t("members.transferPrompt"));
       return;

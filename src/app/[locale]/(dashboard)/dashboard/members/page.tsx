@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { PhoneInput, getDefaultCountryCode } from "@/components/ui/phone-input";
+import { PhoneInput, getDefaultCountryCode, isCompletePhoneNumber } from "@/components/ui/phone-input";
 import {
   Table,
   TableHeader,
@@ -964,6 +964,10 @@ export default function MembersPage() {
 
   async function handleEditMember() {
     if (!editMemberId || !editDisplayName.trim() || !groupId) return;
+    if (editIsProxy && editPhone && !isCompletePhoneNumber(editPhone)) {
+      setEditError(tCommon("invalidPhone"));
+      return;
+    }
     // Disallow assigning the owner role directly — must use Transfer Ownership
     if (editRole === "owner") {
       setEditError(t("transferPrompt"));
@@ -1174,6 +1178,10 @@ export default function MembersPage() {
 
   async function handleAddMember() {
     if (!newFullName.trim() || !groupId || !user) return;
+    if (newPhone && !isCompletePhoneNumber(newPhone)) {
+      setAddError(tCommon("invalidPhone"));
+      return;
+    }
     // Enforce member limit before creating
     if (memberLimit.atLimit) {
       setAddError(t("memberLimitReached"));

@@ -4,6 +4,7 @@
     "loading": "Loading...",
     "groupUnavailable": "This group is unavailable",
     "groupUnavailableDesc": "Your current access does not include the group in this link. Choose an available group to continue.",
+    "invalidPhone": "Enter a complete phone number or leave it blank.",
     "save": "Save",
     "method": "Method",
     "cancel": "Cancel",

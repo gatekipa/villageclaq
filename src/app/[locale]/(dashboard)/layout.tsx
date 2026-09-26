@@ -16,7 +16,7 @@ import { isZeroMembershipAllowedPath, logRedirectDecision } from "@/lib/auth-red
 import { acquireRedirectLock, resetRedirectLock } from "@/lib/redirect-lock";
 import { Clock, Archive, Phone, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PhoneInput } from "@/components/ui/phone-input";
+import { PhoneInput, isCompletePhoneNumber } from "@/components/ui/phone-input";
 import {
   Dialog,
   DialogContent,
@@ -219,7 +219,7 @@ function PhoneCollectionDialog({
   const [saveError, setSaveError] = useState<string | null>(null);
 
   async function handleSave() {
-    if (!phone.trim()) {
+    if (!isCompletePhoneNumber(phone)) {
       setSaveError(t("addPhone.invalid"));
       return;
     }

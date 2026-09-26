@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/page-skeleton";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
-import { PhoneInput } from "@/components/ui/phone-input";
+import { PhoneInput, isCompletePhoneNumber } from "@/components/ui/phone-input";
 import {
   Dialog,
   DialogContent,
@@ -72,6 +72,7 @@ export default function MyProfilePage() {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [nameError, setNameError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
 
   // Privacy state
   const [privacy, setPrivacy] = useState({
@@ -185,6 +186,11 @@ export default function MyProfilePage() {
       return;
     }
     setNameError("");
+    if (phone && !isCompletePhoneNumber(phone)) {
+      setPhoneError(tCommon("invalidPhone"));
+      return;
+    }
+    setPhoneError("");
 
     setSaving(true);
     setSaved(false);
@@ -497,8 +503,9 @@ export default function MyProfilePage() {
               <Label>{t("phone")}</Label>
               <PhoneInput
                 value={phone}
-                onChange={(p) => setPhone(p)}
+                onChange={(p) => { setPhone(p); setPhoneError(""); }}
               />
+              {phoneError && <p className="text-xs text-destructive">{phoneError}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">{t("email")}</Label>

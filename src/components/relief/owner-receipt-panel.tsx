@@ -18,6 +18,9 @@ type Receipt = { id: string; amount: number; currency: string; status: string;
 type Member = { id: string; display_name: string | null; membership_status: string;
   profiles: { full_name: string | null }[] };
 type Enrollment = { plan_id: string; membership_id: string };
+type AgencyReceipt = { payment_id: string; branch_group_id: string;
+  owner_event_id: string | null; amount: number; currency: string;
+  branch_audit_verified: boolean };
 
 const copy = {
   en: {
@@ -35,6 +38,9 @@ const copy = {
     unavailable: "Receipt history is unavailable. Refresh before recording another receipt.",
     required: "Select the plan, member, account, restricted fund, and valid amount.",
     noPlans: "An active owner plan and restricted fund are required.",
+    agencyTitle: "Branch receipts awaiting owner recognition",
+    agencyPending: "Awaiting owner recognition", agencyDone: "Owner income recognized",
+    agencyAccept: "Recognize owner income", agencyAudit: "Branch audit needs review",
   },
   fr: {
     title: "Cotisations de secours reçues par l’unité responsable", member: "Membre",
@@ -53,6 +59,9 @@ const copy = {
     unavailable: "L’historique des reçus est indisponible. Actualisez avant un nouvel enregistrement.",
     required: "Sélectionnez le plan, le membre, le compte, le fonds affecté et un montant valide.",
     noPlans: "Un plan actif et un fonds affecté sont requis.",
+    agencyTitle: "Reçus des antennes en attente de reconnaissance",
+    agencyPending: "En attente de reconnaissance", agencyDone: "Revenu reconnu par l’unité responsable",
+    agencyAccept: "Reconnaître le revenu", agencyAudit: "L’audit de l’antenne doit être vérifié",
   },
 };
 
@@ -109,6 +118,17 @@ export function OwnerReliefReceiptPanel({ groupId, userId, plans, currency }: {
       });
       if (error) throw error;
       return (data ?? []) as Receipt[];
+    },
+  });
+  const { data: agencyReceipts = [], refetch: refetchAgency,
+    isError: agencyError } = useQuery({
+    queryKey: ["relief-agency-owner-receipts", groupId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("list_pending_agency_relief_receipts", {
+        p_owner: groupId,
+      });
+      if (error) throw error;
+      return (data ?? []) as AgencyReceipt[];
     },
   });
 
@@ -170,6 +190,28 @@ export function OwnerReliefReceiptPanel({ groupId, userId, plans, currency }: {
     }
   }
 
+  async function acceptAgency(receipt: AgencyReceipt) {
+    if (agencyError || !receipt.branch_audit_verified || !fundId || !categoryId ||
+      new URL(window.location.href).searchParams.get("group") !== groupId) {
+      setMessage(t.failed); return;
+    }
+    setBusy(true); setMessage("");
+    try {
+      const { error } = await supabase.rpc("post_agency_owner_recognition", {
+        p_command: { payment_id: receipt.payment_id, fund_id: fundId,
+          category_id: categoryId },
+      });
+      if (error) throw error;
+      setMessage(t.success);
+    } catch { setMessage(t.failed); }
+    finally {
+      await queryClient.invalidateQueries({
+        queryKey: ["relief-agency-owner-receipts", groupId],
+      });
+      setBusy(false);
+    }
+  }
+
   const accountOptions = (catalog?.accounts ?? []).filter((account) =>
     account.currency === (ownerPlans.find((plan) => plan.id === planId)?.currency || currency)
     && ["bank", "cash", "mobile_money", "wallet"].includes(account.kind));
@@ -182,8 +224,8 @@ export function OwnerReliefReceiptPanel({ groupId, userId, plans, currency }: {
       <p className="text-sm text-muted-foreground">{t.recovery}</p>
       {(receiptsPending || receiptsError || catalogError) &&
         <p role="status">{t.unavailable}</p>}
-      {ownerPlans.length === 0 || (catalog?.funds.length ?? 0) === 0 ?
-        <p role="status">{t.noPlans}</p> : <>
+      {(ownerPlans.length === 0 || (catalog?.funds.length ?? 0) === 0) &&
+        <p role="status">{t.noPlans}</p>}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <label className="space-y-1 text-sm">{t.plan}
             <select className="w-full min-h-11 rounded border bg-background" value={planId}
@@ -229,20 +271,20 @@ export function OwnerReliefReceiptPanel({ groupId, userId, plans, currency }: {
               <option value="">—</option>{catalog?.funds.map((fund) =>
                 <option key={fund.id} value={fund.id}>{fund.name}</option>)}</select>
           </label>
-          {cashClass === "non_refundable" && <label className="space-y-1 text-sm">{t.category}
+          <label className="space-y-1 text-sm">{t.category}
             <select className="w-full min-h-11 rounded border bg-background" value={categoryId}
               onChange={(event) => setCategoryId(event.target.value)}>
               <option value="">—</option>{catalog?.categories.map((category) =>
                 <option key={category.id} value={category.id}>{category.name}</option>)}</select>
-          </label>}
+          </label>
         </div>
-        <Button disabled={busy || receiptsPending || receiptsError || catalogError}
+        <Button disabled={busy || receiptsPending || receiptsError || catalogError ||
+          ownerPlans.length === 0 || (catalog?.funds.length ?? 0) === 0}
           onClick={createReceipt}>{t.create}</Button>
-      </>}
       {message && <p role="status" className="text-sm">{message}</p>}
       <div className="space-y-2">
         <Button variant="outline" disabled={busy} onClick={() => refetch()}>{t.refresh}</Button>
-        {receipts.filter((receipt) => ownerPlans.some((plan) =>
+        {receipts.filter((receipt) => plans.some((plan) =>
           plan.id === receipt.relief_plan_id)).map((receipt) => <div key={receipt.id}
           className="flex flex-wrap items-center justify-between gap-2 rounded border p-3 text-sm">
           <span>{receipt.amount} {receipt.currency} · {receipt.id.slice(0, 8)} · {
@@ -251,6 +293,21 @@ export function OwnerReliefReceiptPanel({ groupId, userId, plans, currency }: {
           {receipt.status === "pending_confirmation" && !receipt.financial_event_id &&
             <Button variant="outline" disabled={busy} onClick={() => recover(receipt)}>
               {t.confirm}</Button>}
+        </div>)}
+      </div>
+      <div className="space-y-2 border-t pt-4">
+        <h3 className="font-semibold">{t.agencyTitle}</h3>
+        <Button variant="outline" disabled={busy} onClick={() => refetchAgency()}>
+          {t.refresh}</Button>
+        {agencyError && <p role="status">{t.unavailable}</p>}
+        {agencyReceipts.map((receipt) => <div key={receipt.payment_id}
+          className="flex flex-wrap items-center justify-between gap-2 rounded border p-3 text-sm">
+          <span>{receipt.amount} {receipt.currency} · {receipt.payment_id.slice(0, 8)} · {
+            !receipt.branch_audit_verified ? t.agencyAudit :
+              receipt.owner_event_id ? t.agencyDone : t.agencyPending}</span>
+          {!receipt.owner_event_id && receipt.branch_audit_verified &&
+            <Button variant="outline" disabled={busy || agencyError || !fundId || !categoryId}
+              onClick={() => acceptAgency(receipt)}>{t.agencyAccept}</Button>}
         </div>)}
       </div>
     </CardContent>

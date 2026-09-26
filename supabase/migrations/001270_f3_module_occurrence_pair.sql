@@ -25,7 +25,7 @@ DECLARE
   v_request_event uuid; v_source_event uuid; v_existing_payload jsonb;
 BEGIN
   IF p_group IS NULL OR p_module IS NULL OR p_source IS NULL OR p_effect IS NULL
-     OR p_account IS NULL OR p_occurred IS NULL OR p_amount IS NULL OR p_amount <= 0
+     OR p_occurred IS NULL OR p_amount IS NULL OR p_amount <= 0
      OR p_currency IS NULL OR p_currency <> pg_catalog.upper(p_currency)
      OR financial_core.currency_scale(p_currency) IS NULL
      OR pg_catalog.length(p_source) NOT BETWEEN 1 AND 256
@@ -39,6 +39,14 @@ BEGIN
       v_class := 'money_in'; v_first := 'custody'; v_second := 'income';
     WHEN 'relief:owner_conditional_receipt' THEN
       v_class := 'money_in'; v_first := 'custody'; v_second := 'liability';
+    WHEN 'relief:agency_receipt' THEN
+      v_class := 'money_in'; v_first := 'custody'; v_second := 'liability';
+    WHEN 'relief:agency_owner_recognition' THEN
+      v_class := 'money_in'; v_first := 'receivable'; v_second := 'income';
+    WHEN 'relief:agency_remittance_out' THEN
+      v_class := 'money_out'; v_first := 'liability'; v_second := 'custody';
+    WHEN 'relief:agency_remittance_in' THEN
+      v_class := 'money_in'; v_first := 'custody'; v_second := 'receivable';
     WHEN 'loan:principal_disbursement' THEN
       v_class := 'money_out'; v_first := 'receivable'; v_second := 'custody';
     WHEN 'loan:principal_repayment' THEN
@@ -57,6 +65,10 @@ BEGIN
       v_class := 'money_out'; v_first := 'liability'; v_second := 'custody';
     ELSE RAISE EXCEPTION 'MODULE_PAIR_EFFECT_NOT_ALLOWED';
   END CASE;
+  -- A noncash recognition may retain its source receipt account in the
+  -- canonical payload for lineage. Custody effects require an account.
+  IF (v_first='custody' OR v_second='custody') AND p_account IS NULL
+  THEN RAISE EXCEPTION 'MODULE_PAIR_ACCOUNT_CONTRACT'; END IF;
 
   BEGIN
     v_actor := financial_core.assert_finances_manage(p_group);
@@ -94,11 +106,13 @@ BEGIN
       OR v_existing.effect_kind IS DISTINCT FROM p_effect)
   THEN RAISE EXCEPTION 'OCCURRENCE_INTEGRITY'; END IF;
 
-  SELECT a.* INTO v_account FROM public.financial_accounts a WHERE a.id=p_account FOR SHARE;
-  IF v_account.id IS NULL OR v_account.group_id<>p_group OR v_account.currency<>p_currency
-  THEN RAISE EXCEPTION 'CROSS_GROUP_OR_CURRENCY_ACCOUNT'; END IF;
-  IF v_existing.id IS NULL AND v_account.status<>'active'
-  THEN RAISE EXCEPTION 'ACCOUNT_INACTIVE'; END IF;
+  IF p_account IS NOT NULL THEN
+    SELECT a.* INTO v_account FROM public.financial_accounts a WHERE a.id=p_account FOR SHARE;
+    IF v_account.id IS NULL OR v_account.group_id<>p_group OR v_account.currency<>p_currency
+    THEN RAISE EXCEPTION 'CROSS_GROUP_OR_CURRENCY_ACCOUNT'; END IF;
+    IF v_existing.id IS NULL AND v_account.status<>'active'
+    THEN RAISE EXCEPTION 'ACCOUNT_INACTIVE'; END IF;
+  END IF;
 
   IF p_member IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM public.memberships m WHERE m.id=p_member AND m.group_id=p_group

@@ -18,6 +18,7 @@ import { useCreateReliefPlan, useEnrollMemberInPlan, parseReliefRpcError } from 
 import { useMembers } from "@/lib/hooks/use-supabase-query";
 import { formatExactAmount as formatAmount } from "@/lib/export-financial-ledger";
 import { OwnerReliefReceiptPanel } from "@/components/relief/owner-receipt-panel";
+import { BranchReliefReceiptPanel } from "@/components/relief/branch-receipt-panel";
 
 const supabase = createClient();
 
@@ -155,9 +156,14 @@ export default function ReliefPlansPage() {
         </div>
       )}
 
-      {canManage && groupId && user && <OwnerReliefReceiptPanel
+      {canManage && groupId && user && plans.some((plan: any) =>
+        plan.group_id === groupId) && <OwnerReliefReceiptPanel
         key={groupId} groupId={groupId} userId={user.id}
         plans={plans} currency={currentGroup?.currency || "USD"} />}
+      {canManage && groupId && user && currentGroup?.organization_id &&
+        <BranchReliefReceiptPanel key={`${groupId}:agency`}
+          groupId={groupId} userId={user.id}
+          currency={currentGroup.currency || "USD"} />}
 
       <CreatePlanDialog open={createPlanOpen} onOpenChange={setCreatePlanOpen} />
       

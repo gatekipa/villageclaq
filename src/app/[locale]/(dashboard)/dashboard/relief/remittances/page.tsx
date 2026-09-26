@@ -48,6 +48,19 @@ const statusConfig: Record<RemittanceStatus, { color: string; icon: typeof Check
   disputed: { color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400", icon: XCircle },
 };
 
+const financeCopy = {
+  en: { account: "Custody account", fund: "Restricted fund",
+    reason: "Dispute reason", reasonRequired: "Enter a reason of at least four characters.",
+    pendingRecovery: "If the response was interrupted, refresh the history before creating another remittance.",
+    audit: "Ledger and audit recorded", legacy: "Requires legacy reconciliation",
+    select: "Select…" },
+  fr: { account: "Compte de dépôt", fund: "Fonds affecté",
+    reason: "Motif du litige", reasonRequired: "Saisissez un motif d’au moins quatre caractères.",
+    pendingRecovery: "Si la réponse a été interrompue, actualisez l’historique avant de créer une autre remise.",
+    audit: "Journal et audit enregistrés", legacy: "Rapprochement historique requis",
+    select: "Sélectionner…" },
+};
+
 export default function ReliefRemittancesPage() {
   const t = useTranslations("relief");
   const tc = useTranslations("common");
@@ -57,9 +70,16 @@ export default function ReliefRemittancesPage() {
   const { hasPermission } = usePermissions();
   const queryClient = useQueryClient();
   const currency = currentGroup?.currency || "XAF";
+  const fc = financeCopy[locale.startsWith("fr") ? "fr" : "en"];
   const isHq = currentGroup?.group_level === "hq";
   const isBranch = currentGroup?.group_level === "branch";
-  const canManage = hasPermission("relief.manage");
+  const canManage = hasPermission("relief.manage") &&
+    hasPermission("finances.manage");
+  const assertRouteGroup = () => {
+    if (!groupId || new URL(window.location.href).searchParams.get("group") !== groupId) {
+      throw new Error("staleTenantAborted");
+    }
+  };
 
   // Submit remittance dialog state
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
@@ -68,42 +88,51 @@ export default function ReliefRemittancesPage() {
   const [remitMethod, setRemitMethod] = useState<RemittanceMethod>("bank_transfer");
   const [remitReference, setRemitReference] = useState("");
   const [remitNotes, setRemitNotes] = useState("");
+  const [remitAccountId, setRemitAccountId] = useState("");
+  const [remitFundId, setRemitFundId] = useState("");
+  const [remitRequestId, setRemitRequestId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
   // Confirm/dispute state
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
+  const [ownerAccountId, setOwnerAccountId] = useState("");
+  const [ownerFundId, setOwnerFundId] = useState("");
+  const [disputeReason, setDisputeReason] = useState("");
 
-  // Fetch relief plans for the submit-remittance dropdown.
-  //
-  // This dropdown is only rendered for BRANCH groups submitting a remittance
-  // against an org-shared plan, so the only plans that ever belong here are
-  // active plans flagged shared_from_org=true. Previously this query selected
-  // ALL active plans (no org/group scope) and relied solely on RLS plus a JS
-  // filter — which meant a branch admin co-membered elsewhere could pull
-  // unrelated active plans into the in-memory result before the JS filter ran.
-  //
-  // We now push shared_from_org=true into the DB query itself (the tightest
-  // safe server-side scope) and keep the JS filter as defense-in-depth. We do
-  // NOT filter by group_id here: a shared plan's group_id is the HQ that owns
-  // it, not the submitting branch, so scoping by group_id would wrongly hide
-  // every shared plan from branches. RLS continues to gate which shared plans
-  // this group is actually allowed to see.
+  const { data: financeCatalog } = useQuery({
+    queryKey: ["relief-remittance-finance-catalog", groupId],
+    queryFn: async () => {
+      if (!groupId) return { accounts: [], funds: [] };
+      const supabase = createClient();
+      const [accounts, funds] = await Promise.all([
+        supabase.from("financial_accounts").select("id,name,currency,kind")
+          .eq("group_id", groupId).eq("status", "active").eq("currency", currency),
+        supabase.from("financial_funds").select("id,name")
+          .eq("group_id", groupId).eq("status", "active").eq("is_restricted", true),
+      ]);
+      if (accounts.error) throw accounts.error;
+      if (funds.error) throw funds.error;
+      return { accounts: (accounts.data || []).filter((a) =>
+        ["bank", "cash", "mobile_money", "wallet"].includes(a.kind)),
+        funds: funds.data || [] };
+    },
+    enabled: !!groupId && canManage,
+  });
+
+  // The server lists only plans in the branch's authorized owner subtree.
   const { data: reliefPlans = [] } = useQuery({
     queryKey: ["relief-plans-for-remittance", groupId],
     queryFn: async () => {
       if (!groupId) return [];
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("relief_plans")
-        .select("id, name, name_fr, shared_from_org")
-        .eq("is_active", true)
-        .eq("shared_from_org", true);
+      const { data, error } = await supabase.rpc("list_collectible_relief_plans", {
+        p_branch: groupId,
+      });
       if (error) throw error;
-      // Defense-in-depth: re-assert the shared-plan scope client-side.
-      return (data || []).filter((p: Record<string, unknown>) => p.shared_from_org === true);
+      return (data || []) as { id: string; name: string }[];
     },
-    enabled: !!groupId,
+    enabled: !!groupId && isBranch && canManage,
   });
 
   // Fetch remittances
@@ -120,6 +149,8 @@ export default function ReliefRemittancesPage() {
       // Branches see their own remittances; HQ sees all via RLS
       if (isBranch) {
         query = query.eq("branch_group_id", groupId);
+      } else if (isHq) {
+        query = query.eq("owner_group_id", groupId);
       }
       const { data, error } = await query;
       if (error) throw error;
@@ -134,29 +165,33 @@ export default function ReliefRemittancesPage() {
     setRemitMethod("bank_transfer");
     setRemitReference("");
     setRemitNotes("");
+    setRemitAccountId("");
+    setRemitFundId("");
+    setRemitRequestId("");
     setSubmitError("");
   };
 
   const handleSubmitRemittance = async () => {
-    if (!remitPlanId || !remitAmount || !groupId) {
+    if (!remitPlanId || !remitAmount || !remitAccountId || !remitFundId ||
+      !groupId || !isBranch || !canManage || Number(remitAmount) <= 0) {
       setSubmitError(tc("required"));
       return;
     }
     setIsSubmitting(true);
     setSubmitError("");
     try {
+      assertRouteGroup();
       const supabase = createClient();
-      const { error: insertErr } = await supabase.from("relief_remittances").insert({
-        branch_group_id: groupId,
-        relief_plan_id: remitPlanId,
-        amount: Number(remitAmount),
-        currency,
-        method: remitMethod,
-        reference: remitReference.trim() || null,
-        notes: remitNotes.trim() || null,
-        status: "pending",
+      const requestId = remitRequestId || crypto.randomUUID();
+      setRemitRequestId(requestId);
+      const { error: insertErr } = await supabase.rpc("submit_relief_remittance", {
+        p_command: { request_id: requestId, branch_group_id: groupId,
+          plan_id: remitPlanId, account_id: remitAccountId, fund_id: remitFundId,
+          amount: Number(remitAmount), currency, method: remitMethod,
+          reference: remitReference.trim(), notes: remitNotes.trim() },
       });
       if (insertErr) throw insertErr;
+      assertRouteGroup();
 
       queryClient.invalidateQueries({ queryKey: ["relief-remittances"] });
       queryClient.invalidateQueries({ queryKey: ["relief-branch-summary"] });
@@ -164,6 +199,7 @@ export default function ReliefRemittancesPage() {
       resetSubmitForm();
     } catch (err) {
       setSubmitError((err as Error).message);
+      queryClient.invalidateQueries({ queryKey: ["relief-remittances"] });
     } finally {
       setIsSubmitting(false);
     }
@@ -176,35 +212,36 @@ export default function ReliefRemittancesPage() {
     setIsUpdating(remittanceId);
     setUpdateError(null);
     try {
+      assertRouteGroup();
       const supabase = createClient();
-      const updatePayload: Record<string, unknown> = { status: newStatus };
-      if (newStatus === "confirmed") {
-        updatePayload.confirmed_by = user?.id;
-        updatePayload.confirmed_date = new Date().toISOString();
+      if (!groupId || !isHq || !canManage || !user?.id) {
+        throw new Error("staleTenantAborted");
       }
-      // Status precondition + bail-out: a concurrent second decision (two
-      // HQ admins, two tabs) matches zero rows and skips ALL notifications,
-      // so branch admins are never told "confirmed" after another admin
-      // already disputed (loans-approve precedent).
-      const { data: updatedRows, error: updateErr } = await supabase
-        .from("relief_remittances")
-        .update(updatePayload)
-        .eq("id", remittanceId)
-        .eq("status", "pending")
-        .select("id");
+      if (newStatus === "confirmed" && (!ownerAccountId || !ownerFundId)) {
+        throw new Error(tc("required"));
+      }
+      if (newStatus === "disputed" && disputeReason.trim().length < 4) {
+        throw new Error(fc.reasonRequired);
+      }
+      const { data: decision, error: updateErr } = newStatus === "confirmed"
+        ? await supabase.rpc("confirm_relief_remittance", { p_command: {
+            remittance_id: remittanceId, account_id: ownerAccountId,
+            fund_id: ownerFundId,
+          } })
+        : await supabase.rpc("dispute_relief_remittance", {
+            p_remittance: remittanceId, p_reason: disputeReason.trim(),
+          });
       if (updateErr) throw updateErr;
-      if (!updatedRows || updatedRows.length === 0) {
-        setUpdateError(t("remittanceAlreadyDecided"));
-        queryClient.invalidateQueries({ queryKey: ["relief-remittances"] });
-        queryClient.invalidateQueries({ queryKey: ["relief-branch-summary"] });
-        return;
-      }
+      assertRouteGroup();
+      const decisionCode = (decision as { decision?: string } | null)?.decision;
+      if (!decisionCode) throw new Error(tc("error"));
+      const newlyDecided = decisionCode !== "IDEMPOTENT_RETURN_EXISTING";
 
-      // Notify branch admins. In-app/email/SMS stay on the legacy client
+      // Notify only for a newly committed decision. In-app/email/SMS stay on the legacy client
       // path; WhatsApp goes through the server-side queue-backed producer
       // (per-recipient locale + prefs, exactly-once per remittance/decision/
       // admin, provider IDs tracked).
-      try {
+      if (newlyDecided) try {
         const remittance = remittances.find((r: Record<string, unknown>) => (r.id as string) === remittanceId) as Record<string, unknown> | undefined;
         const branchGroupId = (remittance?.branch_group_id as string) || "";
         // The remittance row's own currency (the branch's), matching the
@@ -252,6 +289,7 @@ export default function ReliefRemittancesPage() {
 
       queryClient.invalidateQueries({ queryKey: ["relief-remittances"] });
       queryClient.invalidateQueries({ queryKey: ["relief-branch-summary"] });
+      setDisputeReason("");
     } catch (err) {
       setUpdateError((err as Error).message || tc("error"));
     } finally {
@@ -298,6 +336,28 @@ export default function ReliefRemittancesPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
+            {canManage && <div className="grid gap-3 border-b p-4 sm:grid-cols-3">
+              <div className="space-y-1">
+                <Label>{fc.account}</Label>
+                <Select value={ownerAccountId} onValueChange={(v) => setOwnerAccountId(v || "") }>
+                  <SelectTrigger><SelectValue placeholder={fc.select} /></SelectTrigger>
+                  <SelectContent>{(financeCatalog?.accounts || []).map((account) =>
+                    <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>{fc.fund}</Label>
+                <Select value={ownerFundId} onValueChange={(v) => setOwnerFundId(v || "") }>
+                  <SelectTrigger><SelectValue placeholder={fc.select} /></SelectTrigger>
+                  <SelectContent>{(financeCatalog?.funds || []).map((fund) =>
+                    <SelectItem key={fund.id} value={fund.id}>{fund.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>{fc.reason}</Label>
+                <Input value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} />
+              </div>
+            </div>}
             <div className="divide-y">
               {pendingRemittances.map((rem: Record<string, unknown>) => {
                 const branch = rem.branch_group as Record<string, unknown> | null;
@@ -319,7 +379,10 @@ export default function ReliefRemittancesPage() {
                         <AlertCircle className="mr-1 h-3 w-3" />
                         {t("remittanceStatus.pending")}
                       </Badge>
-                      {canManage && (
+                      <span className="text-xs text-muted-foreground">
+                        {rem.branch_event_id ? fc.audit : fc.legacy}
+                      </span>
+                      {canManage && !!rem.branch_event_id && (
                         <div className="flex gap-1">
                           <Button
                             size="sm"
@@ -431,6 +494,22 @@ export default function ReliefRemittancesPage() {
               />
             </div>
             <div className="space-y-2">
+              <Label>{fc.account} *</Label>
+              <Select value={remitAccountId} onValueChange={(v) => setRemitAccountId(v || "") }>
+                <SelectTrigger><SelectValue placeholder={fc.select} /></SelectTrigger>
+                <SelectContent>{(financeCatalog?.accounts || []).map((account) =>
+                  <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{fc.fund} *</Label>
+              <Select value={remitFundId} onValueChange={(v) => setRemitFundId(v || "") }>
+                <SelectTrigger><SelectValue placeholder={fc.select} /></SelectTrigger>
+                <SelectContent>{(financeCatalog?.funds || []).map((fund) =>
+                  <SelectItem key={fund.id} value={fund.id}>{fund.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>{t("remittanceMethod")}</Label>
               <Select value={remitMethod} onValueChange={(v) => setRemitMethod((v || "bank_transfer") as RemittanceMethod)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -459,6 +538,7 @@ export default function ReliefRemittancesPage() {
               />
             </div>
             {submitError && <p className="text-sm text-destructive">{submitError}</p>}
+            <p className="text-xs text-muted-foreground">{fc.pendingRecovery}</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowSubmitDialog(false)}>{tc("cancel")}</Button>

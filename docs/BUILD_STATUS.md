@@ -30,6 +30,30 @@ Daybreak Blue executes and verifies; actual **GPT-6 Sol** performs one consolida
 
 ### VC finding tracker (same qualification outcome)
 
+**Incremental checkpoint, 2026-09-26 (`03f188cb5457befd7d143ef6694becb53c62e24f`).**
+Daybreak Blue added R-002/R-003 versioned Relief plan ownership/scope,
+frozen unit membership snapshots, topology-version checks, atomic scoped plan
+creation, and receipt binding to the effective version. The fresh production
+S0/M2 schema-only PostgreSQL 17.11 replay36 applied 41 repository migrations
+through `00154`; all five affected fictional rollback probes passed, including
+scope modes, cross-organization/revocation, recovery/payload conflict,
+topology staleness, claim-decision history rollback, agency accounting and
+audit retry. `tsc --noEmit` and targeted `eslint --quiet` pass. See the
+[scope evidence](evidence/QUALIFICATION_247C8881/relief-plan-scope-local-20260926.md).
+This is a local direct-SQL slice, not a history-accurate hosted rehearsal.
+R-002/R-003 review/payout/reporting authority enforcement and R-004/R-012
+remain open. The read-only production-record manifest and a further isolated
+branch reset each await their specific Jude authorization. VC-01/02 remain
+closed in their prior tested scope; actual Sol review has not run.
+
+**Incremental R-010 audience gate, 2026-09-26 (`bf3a6d7d767abf6fa9706388ce3ae36d9530609c`).**
+`00155` restricts the existing branch rollup for contracted plans to current
+topology, a frozen reporting audience, and an effective `reports.view` grant.
+The replay36 incremental probe proves authorized visibility, denied ungranted
+visibility, and denial after the audience narrows; the prior agency rollup
+still passes. The full management-only inter-unit elimination projection and
+legacy report cutover remain open under R-010/R-012.
+
 **Incremental checkpoint, 2026-09-26 (`938148b3a940a8cae9fef37f051096eef34b3612`).**
 The fresh S0/M2-compatible local replay34 applied 36 repository migrations
 through `00149` in order; a local-only auth trigger postlude restored a
@@ -149,14 +173,14 @@ Statuses here use **verified**, **implemented but untested**, **confirmed missin
 | F4-006 | **Verified locally for owner and non-refundable branch-agent receipts; broader contract open:** replay31 rejects direct confirmed Relief payments and posts the branch and owner effects separately through F3 with atomic audits. Conditional/refundable agency and correction/cutover remain unqualified. | Daybreak Blue: complete R-009/R-012 cash-state and cutover matrix, then hosted overlap and no-duplicate checks. |
 | F4-007 / FCG-1 | **Implemented but untested across all adapters:** local cash matrix and F3 audit path pass; cross-path source overlap/reporting remain. | Daybreak Blue: FCG-1 six cases and manual/module occurrence conflicts on isolated branch. |
 | R-001 | **Implemented but untested fully:** S0/M2 has plans, enrollments, claims and remittances; local `00128` and `00142` retain them. | Daybreak Blue: hosted CRUD and lifecycle with fictional users; preserve history. |
-| R-002 / R-003 | **Confirmed missing:** existing `collection_mode` and `claim_processing` do not authoritatively bind owning unit, participating subtree, financial owner and distinct authorities. | Daybreak Blue: add versioned server-side plan ownership/scope contract; prove local/regional/national/global decisions and cross-org denial. |
+| R-002 / R-003 | **Verified locally for new-plan and receipt scope; broader contract open:** `00151`–`00154` authoritatively version owner, participation, collection, review, payout and reporting dimensions with frozen unit membership and topology version; the plan create RPC and receipt guard bind new activity to a scope. Replay36 passes unit/subtree/organization, cross-org, retry/conflict, permission revocation, direct-bypass and stale topology probes. Existing plans are not guessed into a scope. | Daybreak Blue: enforce distinct review/payout/reporting authority at their affected commands, complete person-portable R-004 and legacy R-012 integration, then history-accurate hosted and candidate-bound browser acceptance. Evidence: [replay36](evidence/QUALIFICATION_247C8881/relief-plan-scope-local-20260926.md), commit `03f188cb5457befd7d143ef6694becb53c62e24f`. |
 | R-004 | **Confirmed missing:** enrollment remains membership-bound; no person-plus-plan portability across branch transfer is established. | Daybreak Blue: bind to verified person identity and test waiting-period preservation after transfer. |
 | R-005 | **Verified locally for the new claim-decision path; hosted/browser open:** `00148`/`00149` move reviewer decisions and claimant withdrawal to a current-authority RPC with expected version, request identity and immutable private history. Replay34 denies direct updates/deletes/history forgery and preapproved insert; valid submission, review, approval, withdrawal, retry, changed payload, stale version, revoked/cross-tenant denial and payout-history fault rollback/retry pass. Legacy pre-boundary decisions still need R-012 reconciliation. | Daybreak Blue: history-accurate hosted ACL and concurrency tests, candidate-bound EN/FR member/reviewer journeys, R-002/R-004 scope/portability integration. Evidence: [replay34](evidence/QUALIFICATION_247C8881/relief-claim-decisions-local-20260926.md), commit `938148b3a940a8cae9fef37f051096eef34b3612`. |
 | R-006 | **Implemented but untested against the final candidate:** `00128` posts claim payout through F3; full owner/delegated authority and current-plan contract remain open. | Daybreak Blue: local and hosted state, owner/custody/fund, retry, audit rollback, cross-tenant and delegated-branch tests. |
 | R-007 | **Verified locally for new remittances; hosted/browser untested:** `00144` revokes direct decision writes and requires server-authorized submit, distinct owner confirm/dispute, frozen owner lineage, F3 branch/owner settlement and atomic audits. Replay31 denies self-confirm, changed payload, revoked/cross-tenant replay and direct update; audit-fault retry is once-only. Historical rows remain unqualified. | Daybreak Blue: hosted effective grants, concurrent maker/checker, pending/recovery and EN/FR mobile browser behavior; reconcile legacy decisions under R-012. Evidence: [replay31](evidence/QUALIFICATION_247C8881/relief-agency-remittance-rollup-local-20260926.md), commit `59459fe304dd9e593adb8088f90c3c9105405130`. |
 | R-008 | **Verified locally for the shared-plan branch grain; hosted/browser untested:** `00145` pre-aggregates enrollment, qualified receipts and qualified remittances independently. The regression probe proves the old join's 4 rows/180/140 versus correct 1/90/70 and cross-org denial. | Daybreak Blue: hosted multi-branch and report-consumer totals, management projection separation. Evidence: [replay31](evidence/QUALIFICATION_247C8881/relief-agency-remittance-rollup-local-20260926.md), commit `59459fe304dd9e593adb8088f90c3c9105405130`. |
 | R-009 | **Verified locally for owner and non-refundable branch-agent slice; full contract open:** `00142`/`00143` post owner income or liability and branch custody/liability plus owner receivable/income once; `00144` settles reciprocal balances without second income. Four distinct events/audits pass retry and fault probes. Conditional/refundable agency, correction lineage, and R-012 cutover remain unqualified. | Daybreak Blue: complete remaining cash classes and correction/cutover, then hosted/browser once-only and accounting reconciliation. Evidence: [replay31](evidence/QUALIFICATION_247C8881/relief-agency-remittance-rollup-local-20260926.md), commit `59459fe304dd9e593adb8088f90c3c9105405130`. |
-| R-010 | **Confirmed missing:** no qualified hierarchy management-only inter-unit elimination projection is present. | Daybreak Blue: scoped projection with immutable local ledgers; cross-scope negative and reconciliation. |
+| R-010 | **Partial local audience gate; projection missing:** `00155` enforces frozen reporting audience plus current `reports.view` for contracted-plan branch rollups. Replay36 incremental probe checks owner/granted branch success and ungranted/out-of-audience denial. No qualified management-only inter-unit elimination projection exists; legacy plans retain prior report access pending R-012. | Daybreak Blue: implement and prove the scoped management projection with unchanged local ledgers, role/cross-scope negatives and reconciliation, then hosted/browser acceptance. Evidence: [scope replay36 + incremental 00155](evidence/QUALIFICATION_247C8881/relief-plan-scope-local-20260926.md); exact code commit `bf3a6d7d767abf6fa9706388ce3ae36d9530609c`. |
 | R-011 | **Local detail privacy repair verified; full contract open:** S0/M2 OR-combined SELECT policies exposed claimant details to suspended admin and unrelated platform support. `00146` requires claimant identity or current operational `relief.manage`; replay33 denies both unauthorized roles, retains claimant/reviewer SELECT and reviewer UPDATE, and denies cross-group read. Aggregate/default visibility and hosted all-role matrix remain unproven. | Daybreak Blue: run hosted role-by-role aggregate/detail and browser checks after history-accurate upgrade; close only with separate detail permission and current scope. Evidence: [before/after replay33](evidence/QUALIFICATION_247C8881/claim-detail-and-truncate-20260926.md), commit `24b3f653fae8e99dd8dbe07c7a09ed9cd778c5b8`. |
 | R-012 | **Confirmed missing:** the frozen PRD also requires a deterministic legacy Relief cutover. The schema-only S0/M2 extraction contains no production plan/receipt/settlement rows, so no economic ownership or opening balances have been reconciled. | Daybreak Blue: prepare an authorized read-only legacy manifest and quarantine ambiguous owner/status/currency/source rows before financial activation; prove pre-boundary, opening and post-boundary treatment without guessing or double posting. |
 | E-001 | **Verified locally only:** separate receipt, person claim and anonymous ballot persist; authenticated raw ballot SELECT denied. | Daybreak Blue: all application-role visibility and metadata checks on hosted catalog. |
@@ -347,3 +371,4 @@ Other linked artifacts:
 Candidate: `e0c10c04d4bdc287385ea1392e1aae97b458fe1c`  
 Floor: `DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT`  
 Next Milestone: `PROGRAM COMPLETE / SEALED`
+

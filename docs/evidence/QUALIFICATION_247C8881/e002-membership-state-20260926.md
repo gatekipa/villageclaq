@@ -1,0 +1,7 @@
+# E-002 current membership at ballot cast — 2026-09-26
+
+Executor: Daybreak Blue. Candidate application code `6966c818cb64d8873f716384eb586ab2da949d8d`, existing isolated Supabase branch `nisipxbuvndobyxqqglf` through migration 00181. [`scripts/test-election-membership-state.sql`](../../../scripts/test-election-membership-state.sql) ran as a rollback transaction on the real upgraded catalog with fictional actors.
+
+An authorized owner opened a local poll with a two-person frozen electorate. The second person was then changed in turn to `pending_approval`, `suspended`, `exited` and `archived` as a database fixture with no request actor. For each state, the `authenticated` voter call returned `not_eligible`; no ballot was inserted. Returning that membership to `active` allowed one vote, with exactly one private ballot and one receipt. The connector returned `E002_MEMBERSHIP_STATE_PASS`. A separate read found zero retained test groups or ballots after rollback.
+
+The first diagnostic attempt used a leftover owner/voter JWT claim during fixture updates and was rejected by the existing self-status-change trigger (`membership_status_change_requires_admin`). The probe was corrected to clear the claim for its fixture writes; it did not bypass or weaken that trigger. This demonstrates the current membership gate after the electorate was frozen. It does not test every mounted role/status display, branch transfer, or concurrent ballot attempts; those remain under E-002/E-003/E-005/VC-04.

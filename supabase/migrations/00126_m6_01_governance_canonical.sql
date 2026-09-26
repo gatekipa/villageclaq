@@ -361,6 +361,7 @@ BEGIN
   FROM memberships
   WHERE group_id = v_election_group
     AND user_id = v_user_id
+    AND membership_status = 'active'
   LIMIT 1;
 
   IF v_membership_id IS NULL THEN

@@ -46,6 +46,7 @@ import {
   type PaymentCascadeResult,
 } from "@/lib/hooks/use-supabase-query";
 import { useRecordAndPostDuesPayment } from "@/lib/hooks/use-dues-posting";
+import { DuesIntentRecovery } from "@/components/contributions/dues-intent-recovery";
 import { useFinancialAccounts } from "@/lib/hooks/use-financial-config";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
@@ -57,11 +58,12 @@ import { Shield } from "lucide-react";
 export default function RecordPaymentPage() {
   const t = useTranslations();
   const tFinancial = useTranslations("financialConfig");
+  const tDues = useTranslations("duesClassification");
   const locale = useLocale();
   const { currentGroup, groupId, user: currentUser } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission } = usePermissions();
-  const canRecord = hasPermission("finances.record") || hasPermission("finances.manage");
+  const canRecord = hasPermission("finances.manage");
   const { data: members, isLoading: membersLoading, isError: membersError, refetch: refetchMembers } = useMembers();
   const { data: contributionTypes, isLoading: typesLoading, isError: typesError, refetch: refetchTypes } = useContributionTypes();
   const { data: financialAccounts = [], isLoading: accountsLoading } = useFinancialAccounts(groupId);
@@ -163,6 +165,7 @@ export default function RecordPaymentPage() {
   const [selectedTypeId, setSelectedTypeId] = useState("");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("cash");
+  const [cashClass, setCashClass] = useState<"non_refundable" | "refundable" | "conditional">("non_refundable");
   const [reference, setReference] = useState("");
   const [receiptUrl, setReceiptUrl] = useState("");
   const [notes, setNotes] = useState("");
@@ -198,6 +201,7 @@ export default function RecordPaymentPage() {
     setSelectedTypeId("");
     setAmount("");
     setSelectedReliefPlanId("");
+    setCashClass("non_refundable");
     setShowSuccess(false);
     setLastSavedName("");
     setLastSavedDetails(null);
@@ -358,6 +362,7 @@ export default function RecordPaymentPage() {
         currency,
         accountCurrency: targetAccount?.currency,
         paymentMethod: payMethod,
+        cashClass,
         accountId: targetAccountId,
         referenceNumber: payRef || undefined,
         receiptUrl: receiptUrl || undefined,
@@ -444,6 +449,7 @@ export default function RecordPaymentPage() {
   const [bulkTypeId, setBulkTypeId] = useState("");
   const [bulkAmount, setBulkAmount] = useState("");
   const [bulkMethod, setBulkMethod] = useState("cash");
+  const [bulkCashClass, setBulkCashClass] = useState<"non_refundable" | "refundable" | "conditional">("non_refundable");
   const [bulkNotes, setBulkNotes] = useState("");
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   // P0 guard state: mandatory confirmation before a bulk record, with receipts
@@ -528,6 +534,7 @@ export default function RecordPaymentPage() {
             amount: Number(bulkAmount),
             currency,
             paymentMethod: bulkMethod,
+            cashClass: bulkCashClass,
             accountId: selectedAccountId,
             notes: bulkNotes || undefined,
           });
@@ -626,6 +633,7 @@ export default function RecordPaymentPage() {
       setBulkTypeId("");
       setBulkAmount("");
       setBulkMethod("cash");
+      setBulkCashClass("non_refundable");
       setBulkNotes("");
       setBulkSearch("");
       setBulkConfirmOpen(false);
@@ -688,7 +696,7 @@ export default function RecordPaymentPage() {
   }
 
   return (
-    <RequirePermission anyOf={["finances.record", "finances.manage"]}><div className="space-y-6">
+    <RequirePermission permission="finances.manage"><div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -708,6 +716,7 @@ export default function RecordPaymentPage() {
 
       {/* Sub Navigation */}
       <ContributionsSubNav active="record" />
+      <DuesIntentRecovery groupId={groupId} />
 
       {/* Success Card with WhatsApp Share */}
       {showSuccess && (
@@ -927,24 +936,22 @@ export default function RecordPaymentPage() {
               )}
             </div>
 
-            {/* Relief Plan (optional — links payment to a relief fund) */}
+            {/* Relief-owned receipts use their own authoritative adapter. */}
             {reliefPlansForPayment.length > 0 && (
-              <div className="space-y-2">
-                <Label>{t("relief.selectPlan")} <span className="text-xs text-muted-foreground">({t("common.none")})</span></Label>
-                <select
-                  value={selectedReliefPlanId}
-                  onChange={(e) => setSelectedReliefPlanId(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="">{t("common.none")}</option>
-                  {reliefPlansForPayment.map((plan: Record<string, unknown>) => (
-                    <option key={plan.id as string} value={plan.id as string}>
-                      {locale === "fr" && plan.name_fr ? (plan.name_fr as string) : (plan.name as string)}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <p className="text-sm text-muted-foreground">{tDues("reliefOwned")}</p>
             )}
+
+            <div className="space-y-2">
+              <Label htmlFor="dues-cash-class">{tDues("label")}</Label>
+              <select id="dues-cash-class" value={cashClass}
+                onChange={(e) => setCashClass(e.target.value as typeof cashClass)}
+                className="flex min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm">
+                <option value="non_refundable">{tDues("non_refundable")}</option>
+                <option value="refundable">{tDues("refundable")}</option>
+                <option value="conditional">{tDues("conditional")}</option>
+              </select>
+              <p className="text-xs text-muted-foreground">{tDues("explanation")}</p>
+            </div>
 
             {/* Amount + Method Row */}
             <div className="grid gap-4 sm:grid-cols-2">
@@ -1253,6 +1260,17 @@ export default function RecordPaymentPage() {
                       {(locale === "fr" && type.name_fr) ? (type.name_fr as string) : (type.name as string)} — {formatAmount(Number(type.amount), (type.currency as string) || currency)}
                     </option>
                   ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bulk-dues-cash-class">{tDues("label")}</Label>
+                <select id="bulk-dues-cash-class" value={bulkCashClass}
+                  onChange={(e) => setBulkCashClass(e.target.value as typeof bulkCashClass)}
+                  className="flex min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm">
+                  <option value="non_refundable">{tDues("non_refundable")}</option>
+                  <option value="refundable">{tDues("refundable")}</option>
+                  <option value="conditional">{tDues("conditional")}</option>
                 </select>
               </div>
 

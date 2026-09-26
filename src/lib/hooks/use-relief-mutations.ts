@@ -29,6 +29,7 @@ export interface SubmitReliefClaimInput {
   groupId: string;
   planId: string;
   claimantMembershipId: string;
+  eventType: "death" | "illness" | "wedding" | "childbirth" | "natural_disaster" | "other";
   incidentDate: string; // YYYY-MM-DD
   amountRequested: number;
   currency: string;
@@ -100,6 +101,8 @@ export function useCreateReliefPlan() {
         throw new Error("staleTenantAborted");
       }
       
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) throw new Error("Auth required");
       const { data, error } = await supabase
         .from("relief_plans")
         .insert({
@@ -109,6 +112,9 @@ export function useCreateReliefPlan() {
           coverage_amount: input.coverageAmount,
           currency: input.currency,
           waiting_period_days: input.waitingPeriodDays ?? 90,
+          created_by: userData.user.id,
+          is_active: true,
+          status: "active",
         })
         .select()
         .single();
@@ -165,6 +171,8 @@ export function useEnrollMemberInPlan() {
           membership_id: input.membershipId,
           enrolled_at: enrolledAt.toISOString(),
           matures_at: maturesAt.toISOString(),
+          is_active: true,
+          status: "active",
         })
         .select()
         .single();
@@ -197,8 +205,11 @@ export function useSubmitReliefClaim() {
           group_id: input.groupId,
           plan_id: input.planId,
           claimant_membership_id: input.claimantMembershipId,
+          membership_id: input.claimantMembershipId,
+          event_type: input.eventType,
           incident_date: input.incidentDate,
           amount_requested: input.amountRequested,
+          amount: input.amountRequested,
           currency: input.currency,
           document_urls: input.documentUrls || [],
           status: "submitted",
@@ -225,18 +236,8 @@ export function useReviewReliefClaim() {
         throw new Error("staleTenantAborted");
       }
 
-      // We need the current user's membership ID for reviewed_by.
       const { data: userData, error: userError } = await supabase.auth.getUser();
       if (userError || !userData?.user) throw new Error("Auth required");
-
-      const { data: memberData, error: memberError } = await supabase
-        .from("memberships")
-        .select("id")
-        .eq("group_id", input.groupId)
-        .eq("user_id", userData.user.id)
-        .single();
-      
-      if (memberError || !memberData) throw new Error("Membership not found for reviewer");
 
       const { data, error } = await supabase
         .from("relief_claims")
@@ -244,7 +245,7 @@ export function useReviewReliefClaim() {
           status: input.status,
           amount_approved: input.amountApproved,
           review_notes: input.reviewNotes,
-          reviewed_by: memberData.id,
+          reviewed_by: userData.user.id,
           reviewed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })

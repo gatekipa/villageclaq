@@ -1,9 +1,8 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
-import { logActivity } from "@/lib/audit-log";
 
 // ─── TYPES & INTERFACES ───────────────────────────────────────────────────────
 
@@ -23,6 +22,7 @@ export interface ConfirmDuesPaymentInput {
   categoryId?: string | null;
   fundId?: string | null;
   requestId?: string; // Optional client-supplied UUID idempotency token
+  cashClass?: "non_refundable" | "refundable" | "conditional";
 }
 
 export interface RecordAndPostDuesPaymentInput {
@@ -42,11 +42,25 @@ export interface RecordAndPostDuesPaymentInput {
   categoryId?: string | null;
   fundId?: string | null;
   requestId?: string;
+  cashClass?: "non_refundable" | "refundable" | "conditional";
 }
 
 export interface RecordAndPostDuesPaymentResult {
   payment: Record<string, unknown>;
   posting: DuesPostingResult;
+}
+
+export interface DuesRecordIntent {
+  request_id: string;
+  payment_id: string;
+  status: "prepared" | "posted";
+  created_at: string;
+  command: {
+    amount: string;
+    currency: string;
+    membership_id: string;
+    cash_class: string;
+  };
 }
 
 // ─── ERROR PARSER ─────────────────────────────────────────────────────────────
@@ -116,8 +130,6 @@ export function useConfirmDuesPayment() {
         throw new Error("DENY");
       }
 
-      const requestId = input.requestId || crypto.randomUUID();
-
       // 3. Invoke atomic bridge RPC
       const { data, error } = await supabase.rpc("post_dues_payment_confirmation", {
         p_command: {
@@ -125,7 +137,7 @@ export function useConfirmDuesPayment() {
           account_id: input.accountId,
           category_id: input.categoryId || null,
           fund_id: input.fundId || null,
-          request_id: requestId,
+          cash_class: input.cashClass || "non_refundable",
         },
       });
 
@@ -134,24 +146,6 @@ export function useConfirmDuesPayment() {
       }
 
       const result = data as DuesPostingResult;
-
-      // 4. Log activity
-      try {
-        await logActivity(supabase, {
-          groupId: input.groupId,
-          action: "finances.confirm_dues_payment",
-          entityType: "payment",
-          entityId: input.paymentId,
-          metadata: {
-            financial_event_id: result.financial_event_id,
-            account_id: input.accountId,
-            decision: result.decision,
-            posting_count: result.posting_count,
-          },
-        });
-      } catch {
-        // Non-blocking for audit logging
-      }
 
       return result;
     },
@@ -199,8 +193,8 @@ export function useRecordAndPostDuesPayment() {
         throw new Error("CURRENCY_MISMATCH");
       }
 
-      const numAmount = typeof input.amount === "string" ? Number(input.amount) : input.amount;
-      if (isNaN(numAmount) || numAmount <= 0) {
+      const exactAmount = String(input.amount);
+      if (!/^\d+(?:\.\d{1,2})?$/.test(exactAmount) || /^0+(?:\.0{1,2})?$/.test(exactAmount)) {
         throw new Error("AMOUNT_NOT_POSITIVE");
       }
 
@@ -210,77 +204,39 @@ export function useRecordAndPostDuesPayment() {
         throw new Error("DENY");
       }
 
-      // 3. Step 1: Insert payment in pending_confirmation state
-      const { data: insertedPayment, error: insertError } = await supabase
-        .from("payments")
-        .insert({
-          group_id: input.groupId,
-          membership_id: input.membershipId,
-          contribution_type_id: input.contributionTypeId || null,
-          obligation_id: input.obligationId || null,
-          amount: numAmount,
-          currency: input.currency,
-          payment_method: input.paymentMethod,
-          reference_number: input.referenceNumber || null,
-          receipt_url: input.receiptUrl || null,
-          notes: input.notes || null,
-          recorded_by: user.id,
-          recorded_at: input.paymentDate
-            ? `${input.paymentDate}T${new Date().toISOString().split("T")[1]}`
-            : new Date().toISOString(),
-          status: "pending_confirmation",
-        })
-        .select()
-        .single();
-
-      if (insertError) {
-        throw insertError;
-      }
-
-      // 4. Step 2: Atomically post to F3 ledger
       const requestId = input.requestId || crypto.randomUUID();
-      const { data: postingData, error: rpcError } = await supabase.rpc("post_dues_payment_confirmation", {
-        p_command: {
-          payment_id: insertedPayment.id,
-          account_id: input.accountId,
-          category_id: input.categoryId || null,
-          fund_id: input.fundId || null,
-          request_id: requestId,
-        },
+      const command = {
+        request_id: requestId,
+        group_id: input.groupId,
+        membership_id: input.membershipId,
+        contribution_type_id: input.contributionTypeId || null,
+        obligation_id: input.obligationId || null,
+        amount: exactAmount,
+        currency: input.currency,
+        payment_method: input.paymentMethod,
+        reference_number: input.referenceNumber || null,
+        receipt_url: input.receiptUrl || null,
+        notes: input.notes || null,
+        recorded_at: input.paymentDate
+          ? `${input.paymentDate}T${new Date().toISOString().split("T")[1]}`
+          : new Date().toISOString(),
+        cash_class: input.cashClass || "non_refundable",
+        account_id: input.accountId,
+        category_id: input.categoryId || null,
+        fund_id: input.fundId || null,
+      };
+      const { error: prepareError } = await supabase.rpc("prepare_dues_record_intent", {
+        p_command: command,
       });
-
-      if (rpcError) {
-        // Rollback: clean up the orphaned pending payment so retry doesn't leave ghost records
-        try {
-          await supabase.from("payments").delete().eq("id", insertedPayment.id);
-        } catch {
-          // Ignore rollback failure
-        }
-        throw parseDuesPostingRpcError(rpcError);
-      }
-
+      if (prepareError) throw parseDuesPostingRpcError(prepareError);
+      const { data: postingData, error: rpcError } = await supabase.rpc("post_dues_record_intent", {
+        p_request: requestId,
+      });
+      if (rpcError) throw parseDuesPostingRpcError(rpcError);
       const posting = postingData as DuesPostingResult;
 
-      // 5. Audit log
-      try {
-        await logActivity(supabase, {
-          groupId: input.groupId,
-          action: "finances.record_and_post_dues_payment",
-          entityType: "payment",
-          entityId: insertedPayment.id,
-          metadata: {
-            financial_event_id: posting.financial_event_id,
-            account_id: input.accountId,
-            amount: String(numAmount),
-            currency: input.currency,
-          },
-        });
-      } catch {
-        // Non-blocking
-      }
-
       return {
-        payment: insertedPayment as Record<string, unknown>,
+        payment: { id: posting.payment_id },
         posting,
       };
     },
@@ -301,6 +257,41 @@ export function useRecordAndPostDuesPayment() {
       queryClient.invalidateQueries({ queryKey: ["financial-cashbook", input.groupId] });
       queryClient.invalidateQueries({ queryKey: ["financial-accounts", input.groupId] });
       queryClient.invalidateQueries({ queryKey: ["account-balance", input.groupId] });
+    },
+  });
+}
+
+export function useDuesRecordIntents(groupId: string | null, enabled: boolean) {
+  return useQuery<DuesRecordIntent[]>({
+    queryKey: ["dues-record-intents", groupId],
+    enabled: enabled && !!groupId,
+    queryFn: async () => {
+      const { data, error } = await createClient().rpc("list_dues_record_intents", {
+        p_group: groupId,
+      });
+      if (error) throw parseDuesPostingRpcError(error);
+      return (data || []) as DuesRecordIntent[];
+    },
+  });
+}
+
+export function useRetryDuesRecordIntent(groupId: string | null) {
+  const queryClient = useQueryClient();
+  const { groupId: currentGroupId } = useGroup();
+  return useMutation<DuesPostingResult, Error, string>({
+    mutationFn: async (requestId) => {
+      if (!groupId || groupId !== currentGroupId) throw new Error("staleTenantAborted");
+      const { data, error } = await createClient().rpc("post_dues_record_intent", {
+        p_request: requestId,
+      });
+      if (error) throw parseDuesPostingRpcError(error);
+      return data as DuesPostingResult;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dues-record-intents", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["payments", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["financial-projection-bundle", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["financial-cashbook", groupId] });
     },
   });
 }

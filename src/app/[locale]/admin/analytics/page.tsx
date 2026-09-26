@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { Activity, Users, Info, Calendar, CreditCard, Heart, ClipboardList } from "lucide-react";
 import dynamic from "next/dynamic";
+import { createClient } from "@/lib/supabase/client";
+
+type ReferralActivationReport = {
+  issued: number;
+  claimed: number;
+  unique_activated_organizations: number;
+  activation_rate_pct: number;
+};
 
 // WS4 (B11): lazy-load recharts so it stays off the admin analytics first-paint bundle.
 const FeatureBarChart = dynamic(() => import("@/components/charts/feature-bar-chart"), {
@@ -18,6 +26,23 @@ const FeatureBarChart = dynamic(() => import("@/components/charts/feature-bar-ch
 export default function UsageAnalyticsPage() {
   const t = useTranslations("admin");
   const thirtyDaysAgo = useMemo(() => new Date(Date.now() - 30 * 86400000).toISOString(), []);
+  const [referralReport, setReferralReport] = useState<ReferralActivationReport | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const end = new Date();
+    const start = new Date(end);
+    start.setUTCDate(start.getUTCDate() - 29);
+    createClient().rpc("get_referral_activation_report", {
+      p_cohort_start: start.toISOString().slice(0, 10),
+      p_cohort_end: end.toISOString().slice(0, 10),
+    }).then(({ data, error }) => {
+      if (active && !error && data) {
+        setReferralReport(data as ReferralActivationReport);
+      }
+    });
+    return () => { active = false; };
+  }, []);
 
   const { results, loading } = useAdminQuery([
     { key: "users", table: "profiles", select: "id", count: "exact", limit: 1 },
@@ -51,6 +76,28 @@ export default function UsageAnalyticsPage() {
         <h1 className="text-3xl font-bold tracking-tight">{t("usageAnalytics")}</h1>
         <p className="text-muted-foreground">{t("analyticsSubtitle")}</p>
       </div>
+
+      {referralReport && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">{t("referralActivationTitle")}</CardTitle>
+            <p className="text-xs text-muted-foreground">{t("referralActivationDesc")}</p>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {([
+              ["referralIssued", referralReport.issued],
+              ["referralClaimed", referralReport.claimed],
+              ["referralActivated", referralReport.unique_activated_organizations],
+              ["referralRate", `${referralReport.activation_rate_pct}%`],
+            ] as const).map(([label, value]) => (
+              <div key={label}>
+                <p className="text-xs text-muted-foreground">{t(label)}</p>
+                <p className="text-2xl font-semibold">{value}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Available Metrics */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">

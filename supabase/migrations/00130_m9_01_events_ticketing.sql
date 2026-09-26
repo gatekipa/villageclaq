@@ -121,7 +121,7 @@ DECLARE
   v_group_currency TEXT;
 BEGIN
   -- 1. Validate Caller
-  IF NOT public.has_group_permission(p_group_id, v_caller, 'none') THEN
+  IF NOT public.has_group_permission(p_group_id, 'events.manage', v_caller) THEN
      RAISE EXCEPTION 'UNAUTHORIZED';
   END IF;
 
@@ -220,10 +220,20 @@ DECLARE
   v_existing UUID;
 BEGIN
   -- 1. Validate Caller
-  IF NOT public.has_group_permission(p_group_id, v_caller, 'manage_attendance') THEN
-     IF v_caller != (SELECT user_id FROM public.memberships WHERE id = p_membership_id) THEN
+  IF NOT public.has_group_permission(p_group_id, 'events.manage', v_caller) THEN
+     IF v_caller IS DISTINCT FROM (SELECT user_id FROM public.memberships
+       WHERE id = p_membership_id AND group_id = p_group_id
+         AND membership_status = 'active') THEN
         RAISE EXCEPTION 'UNAUTHORIZED';
      END IF;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM public.events e
+                 WHERE e.id=p_event_id AND e.group_id=p_group_id)
+     OR NOT EXISTS (SELECT 1 FROM public.memberships m
+                    WHERE m.id=p_membership_id AND m.group_id=p_group_id
+                      AND m.membership_status='active') THEN
+    RAISE EXCEPTION 'EVENT_MEMBER_SCOPE';
   END IF;
 
   -- 2. Concurrency Lock
@@ -257,7 +267,7 @@ DECLARE
   v_new_id UUID;
 BEGIN
   -- 1. Authorization
-  IF NOT public.has_group_permission(p_group_id, v_caller, 'manage_events') THEN
+  IF NOT public.has_group_permission(p_group_id, 'events.manage', v_caller) THEN
      RAISE EXCEPTION 'UNAUTHORIZED';
   END IF;
 
@@ -305,7 +315,7 @@ AS $$
 DECLARE
   v_caller UUID := auth.uid();
 BEGIN
-  IF NOT public.has_group_permission(p_group_id, v_caller, 'manage_events') THEN
+  IF NOT public.has_group_permission(p_group_id, 'events.manage', v_caller) THEN
     RAISE EXCEPTION 'UNAUTHORIZED';
   END IF;
   
@@ -327,8 +337,17 @@ AS $$
 DECLARE
   v_caller UUID := auth.uid();
 BEGIN
-  IF NOT public.has_group_permission(p_group_id, v_caller, 'none') THEN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.memberships m WHERE m.group_id = p_group_id
+      AND m.user_id = v_caller AND m.id = p_membership_id
+      AND m.membership_status = 'active' AND m.standing <> 'banned'
+  ) THEN
      RAISE EXCEPTION 'UNAUTHORIZED';
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM public.events e
+                 WHERE e.id = p_event_id AND e.group_id = p_group_id) THEN
+    RAISE EXCEPTION 'EVENT_NOT_FOUND';
   END IF;
 
   PERFORM pg_advisory_xact_lock(hashtext('m9_rsvp_' || p_event_id::text || '_' || p_membership_id::text));

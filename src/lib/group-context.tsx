@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 export interface GroupMembership {
   id: string; // membership id
@@ -101,6 +101,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   const [isPlatformStaff, setIsPlatformStaff] = useState(false);
   const [platformRole, setPlatformRole] = useState<string | null>(null);
   const searchParams = useSearchParams();
+  const pathname = usePathname();
 
   // ── STABLE search param extraction ───────────────────────────────────────
   // useSearchParams() returns a NEW URLSearchParams object on every render.
@@ -225,12 +226,17 @@ export function GroupProvider({ children }: { children: ReactNode }) {
         setMemberships(normalized);
 
         // Read from ref (always current) instead of stale closure over searchParams
-        const groupFromUrl = urlGroupIdRef.current;
+        // Read the live address at commit time. A different tab or a group
+        // switch can change this route while the membership query is pending.
+        const groupFromUrl = typeof window !== "undefined"
+          ? new URL(window.location.href).searchParams.get("group") ?? ""
+          : urlGroupIdRef.current;
         const storedGroupId = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
         const targetGroupId = groupFromUrl || storedGroupId || normalized[0]?.group_id || null;
-
         const valid = normalized.find((m) => m.group_id === targetGroupId);
-        setCurrentGroupId(valid ? targetGroupId : normalized[0]?.group_id || null);
+        // A route bearing an unauthorized group is never silently redirected
+        // into a different tenant's workspace.
+        setCurrentGroupId(valid ? targetGroupId : groupFromUrl ? null : normalized[0]?.group_id || null);
       }
 
       setInitialLoadDone(true);
@@ -294,7 +300,26 @@ export function GroupProvider({ children }: { children: ReactNode }) {
     }
   }, [currentGroupId]);
 
+  // Business routes pin their tenant in the URL. The stored group is a
+  // preference for an unscoped entry only; each tab keeps its own URL scope.
+  useEffect(() => {
+    if (!pathname.includes('/dashboard') || !currentGroupId || urlGroupId) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('group', currentGroupId);
+    window.history.replaceState(null, '', url);
+  }, [pathname, currentGroupId, urlGroupId]);
+
+  useEffect(() => {
+    if (!urlGroupId || loading || memberships.length === 0) return;
+    const authorized = memberships.some((m) => m.group_id === urlGroupId);
+    setCurrentGroupId(authorized ? urlGroupId : null);
+  }, [urlGroupId, loading, memberships]);
+
   const switchGroup = useCallback((groupId: string) => {
+    if (!memberships.some((m) => m.group_id === groupId && m.membership_status === "active")) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('group', groupId);
+    window.history.pushState(null, '', url);
     setCurrentGroupId((prev) => {
       if (prev && prev !== groupId) {
         // Clear all cached query data so stale data from the previous group
@@ -303,7 +328,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
       }
       return groupId;
     });
-  }, [queryClient]);
+  }, [queryClient, memberships]);
 
   const refresh = useCallback(async (force?: boolean) => {
     // Do NOT set loading=true here — that causes DashboardGuard to unmount the

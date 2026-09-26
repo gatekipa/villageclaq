@@ -320,9 +320,7 @@ function ReportDetailContent() {
     enabled: !!groupId,
   });
 
-  // Report 18: ballots for closed elections. RLS only exposes rows
-  // once an election is closed/cancelled, so this query is empty for
-  // still-open elections — correct behaviour (no live tallies).
+  // Report 18 consumes only explicitly published aggregates.
   const { data: electionBallots } = useQuery({
     queryKey: ["election-ballots-report", groupId],
     queryFn: async () => {
@@ -331,16 +329,20 @@ function ReportDetailContent() {
       const closedIds = (elections || [])
         .filter((e: Record<string, unknown>) => {
           const s = e.status as string;
-          return s === "closed" || s === "cancelled";
+          return s === "closed" && !!e.published_at;
         })
         .map((e: Record<string, unknown>) => e.id as string);
       if (closedIds.length === 0) return [];
-      const { data, error } = await supabase
-        .from("election_ballots")
-        .select("election_id, candidate_id, option_id")
-        .in("election_id", closedIds);
-      if (error) { console.warn("[Report 18] ballot fetch failed:", error.message); return []; }
-      return data || [];
+      const aggregates = await Promise.all(closedIds.map(async (electionId) => {
+        const { data, error } = await supabase.rpc("get_published_election_results", {
+          p_election: electionId,
+        });
+        if (error) throw error;
+        return ((Array.isArray(data) ? data : []) as Array<{
+          candidate_id: string | null; option_id: string | null; count: number;
+        }>).map((row) => ({ ...row, election_id: electionId }));
+      }));
+      return aggregates.flat();
     },
     enabled: !!groupId && reportId === "18" && Array.isArray(elections),
   });
@@ -1107,33 +1109,35 @@ function ReportDetailContent() {
     startDate: (c.start_date as string) || "",
   }));
 
-  // Report 18: Election Results — reads from anonymous election_ballots
-  // (no voter identity). Candidate names come from election_candidates;
+  // Report 18 uses published aggregates. Candidate names come from election_candidates;
   // option labels from election_options. For officer_election we tally
   // candidate_id; for poll/motion we tally option_id.
   const closedElections = (elections || []).filter((e: Record<string, unknown>) => {
     const s = e.status as string;
-    return s === "closed" || s === "cancelled";
+    return s === "closed" && !!e.published_at;
   });
-  const ballotsByElection: Record<string, Array<{ candidate_id: string | null; option_id: string | null }>> = {};
+  const ballotsByElection: Record<string, Array<{
+    candidate_id: string | null; option_id: string | null; count: number;
+  }>> = {};
   (electionBallots || []).forEach((b: Record<string, unknown>) => {
     const eid = b.election_id as string;
     if (!ballotsByElection[eid]) ballotsByElection[eid] = [];
     ballotsByElection[eid].push({
       candidate_id: (b.candidate_id as string) || null,
       option_id: (b.option_id as string) || null,
+      count: (b.count as number) || 0,
     });
   });
   const electionResultsData = closedElections.map((e: Record<string, unknown>) => {
     const eid = e.id as string;
     const etype = (e.election_type as string) || "poll";
     const ballots = ballotsByElection[eid] || [];
-    const totalVotes = ballots.length;
+    const totalVotes = ballots.reduce((sum, ballot) => sum + ballot.count, 0);
 
     const counts: Record<string, number> = {};
     ballots.forEach((b) => {
       const key = etype === "officer_election" ? b.candidate_id : b.option_id;
-      if (key) counts[key] = (counts[key] || 0) + 1;
+      if (key) counts[key] = (counts[key] || 0) + b.count;
     });
 
     // Resolve names/labels

@@ -1,284 +1,171 @@
--- M7 Slice 1: Database Migration & Canonical F3 Payout RPC
-
-DO $m7_pre$
+-- M7 relief continuation: production S0/M2 owns these tables and tenant policies.
+DO $pre$
 BEGIN
-  -- Verify presence of public.has_group_permission
-  IF to_regprocedure('public.has_group_permission(uuid,text,uuid)') IS NULL THEN
-    RAISE EXCEPTION 'M7_ABORT: public.has_group_permission missing';
-  END IF;
-  
-  -- Verify presence of canonical F3 ledger
-  IF NOT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'financial_core' AND tablename = 'currencies') THEN
-    RAISE EXCEPTION 'M7_ABORT: financial_core.currencies missing';
-  END IF;
-  
-  -- Verify presence of M4 dues bridge migration
-  IF to_regprocedure('public.post_dues_payment_confirmation(jsonb)') IS NULL THEN
-    RAISE EXCEPTION 'M7_ABORT: 00124 dues bridge missing';
-  END IF;
+  IF to_regclass('public.relief_plans') IS NULL OR to_regclass('public.relief_enrollments') IS NULL
+     OR to_regclass('public.relief_claims') IS NULL
+     OR to_regprocedure('financial_core.post_module_pair(uuid,text,text,text,numeric,text,uuid,uuid,uuid,uuid,timestamptz,text)') IS NULL
+  THEN RAISE EXCEPTION 'M7_ABORT: S0/M2 or F3 prerequisites missing'; END IF;
 END
-$m7_pre$;
-
+$pre$;
 BEGIN;
+ALTER TABLE public.relief_plans
+  ADD COLUMN IF NOT EXISTS coverage_amount numeric(15,2),
+  ADD COLUMN IF NOT EXISTS currency text,
+  ADD COLUMN IF NOT EXISTS status text;
+UPDATE public.relief_plans p SET currency=coalesce(p.currency,g.currency),
+  status=coalesce(p.status,CASE WHEN p.is_active THEN 'active' ELSE 'paused' END)
+FROM public.groups g WHERE g.id=p.group_id;
+ALTER TABLE public.relief_plans
+  ADD CONSTRAINT relief_plans_coverage_positive CHECK (coverage_amount IS NULL OR coverage_amount>0),
+  ADD CONSTRAINT relief_plans_new_status CHECK (status IN ('active','paused','retired'));
+ALTER TABLE public.relief_enrollments
+  ADD COLUMN IF NOT EXISTS group_id uuid REFERENCES public.groups(id),
+  ADD COLUMN IF NOT EXISTS status text,
+  ADD COLUMN IF NOT EXISTS matures_at timestamptz;
+UPDATE public.relief_enrollments e SET
+  group_id=coalesce(e.group_id,p.group_id),
+  status=coalesce(e.status,CASE WHEN e.is_active THEN 'active' ELSE 'suspended' END),
+  matures_at=coalesce(e.matures_at,e.enrolled_at+make_interval(days=>p.waiting_period_days))
+FROM public.relief_plans p WHERE p.id=e.plan_id;
+ALTER TABLE public.relief_enrollments
+  ADD CONSTRAINT relief_enrollments_new_status CHECK (status IN ('active','suspended','cancelled'));
+ALTER TABLE public.relief_claims
+  ADD COLUMN IF NOT EXISTS group_id uuid REFERENCES public.groups(id),
+  ADD COLUMN IF NOT EXISTS claimant_membership_id uuid REFERENCES public.memberships(id),
+  ADD COLUMN IF NOT EXISTS incident_date date,
+  ADD COLUMN IF NOT EXISTS amount_requested numeric(15,2),
+  ADD COLUMN IF NOT EXISTS amount_approved numeric(15,2),
+  ADD COLUMN IF NOT EXISTS currency text,
+  ADD COLUMN IF NOT EXISTS document_urls text[] DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS disbursed_at timestamptz,
+  ADD COLUMN IF NOT EXISTS financial_event_id uuid REFERENCES public.financial_events(id) ON DELETE RESTRICT,
+  ADD COLUMN IF NOT EXISTS payout_account_id uuid REFERENCES public.financial_accounts(id) ON DELETE RESTRICT;
+UPDATE public.relief_claims c SET group_id=coalesce(c.group_id,p.group_id),
+  claimant_membership_id=coalesce(c.claimant_membership_id,c.membership_id),
+  amount_requested=coalesce(c.amount_requested,c.amount),
+  currency=coalesce(c.currency,p.currency,g.currency)
+FROM public.relief_plans p JOIN public.groups g ON g.id=p.group_id WHERE p.id=c.plan_id;
+ALTER TABLE public.relief_claims
+  ADD CONSTRAINT relief_claims_requested_positive CHECK (amount_requested IS NULL OR amount_requested>0),
+  ADD CONSTRAINT relief_claims_approved_positive CHECK (amount_approved IS NULL OR amount_approved>0),
+  ADD CONSTRAINT relief_claims_paid_link CHECK (status<>'paid' OR
+    (financial_event_id IS NOT NULL AND payout_account_id IS NOT NULL
+      AND disbursed_at IS NOT NULL AND amount_approved IS NOT NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS relief_claims_financial_event_unique
+  ON public.relief_claims(financial_event_id) WHERE financial_event_id IS NOT NULL;
 
--- 2. Canonical Relief Infrastructure Schema
-CREATE TABLE IF NOT EXISTS public.relief_plans (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  group_id uuid NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
-  name text NOT NULL,
-  description text,
-  coverage_amount numeric(15,2) NOT NULL CHECK (coverage_amount > 0),
-  currency text NOT NULL REFERENCES financial_core.currencies(code),
-  waiting_period_days integer NOT NULL DEFAULT 90 CHECK (waiting_period_days >= 0),
-  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'retired')),
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now(),
-  UNIQUE (group_id, name)
-);
-
-CREATE TABLE IF NOT EXISTS public.relief_enrollments (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  group_id uuid NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
-  plan_id uuid NOT NULL REFERENCES public.relief_plans(id) ON DELETE RESTRICT,
-  membership_id uuid NOT NULL REFERENCES public.memberships(id) ON DELETE RESTRICT,
-  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'cancelled')),
-  enrolled_at timestamptz NOT NULL DEFAULT now(),
-  matures_at timestamptz NOT NULL,
-  UNIQUE (plan_id, membership_id)
-);
-
-CREATE TABLE IF NOT EXISTS public.relief_claims (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  group_id uuid NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
-  plan_id uuid NOT NULL REFERENCES public.relief_plans(id) ON DELETE RESTRICT,
-  claimant_membership_id uuid NOT NULL REFERENCES public.memberships(id) ON DELETE RESTRICT,
-  incident_date date NOT NULL,
-  amount_requested numeric(15,2) NOT NULL CHECK (amount_requested > 0),
-  amount_approved numeric(15,2) CHECK (amount_approved > 0),
-  currency text NOT NULL REFERENCES financial_core.currencies(code),
-  status text NOT NULL DEFAULT 'submitted' CHECK (status IN ('submitted', 'under_review', 'approved', 'rejected', 'paid')),
-  document_urls text[] DEFAULT '{}',
-  reviewed_by uuid REFERENCES public.memberships(id) ON DELETE SET NULL,
-  reviewed_at timestamptz,
-  review_notes text,
-  disbursed_at timestamptz,
-  financial_event_id uuid REFERENCES public.financial_events(id) ON DELETE RESTRICT,
-  payout_account_id uuid REFERENCES public.financial_accounts(id) ON DELETE RESTRICT,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-
--- RLS Enablement
-ALTER TABLE public.relief_plans ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.relief_enrollments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.relief_claims ENABLE ROW LEVEL SECURITY;
-
--- 3. Immutability & Safety Triggers
-CREATE OR REPLACE FUNCTION public.prevent_paid_claim_modification()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
+CREATE OR REPLACE FUNCTION public.assert_relief_claim_contract()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE v_plan public.relief_plans%ROWTYPE; v_member public.memberships%ROWTYPE;
+        v_event public.financial_events%ROWTYPE;
 BEGIN
-  IF OLD.status = 'paid' THEN
-    IF NEW.amount_approved IS DISTINCT FROM OLD.amount_approved OR
-       NEW.claimant_membership_id IS DISTINCT FROM OLD.claimant_membership_id OR
-       NEW.payout_account_id IS DISTINCT FROM OLD.payout_account_id OR
-       NEW.financial_event_id IS DISTINCT FROM OLD.financial_event_id THEN
-      RAISE EXCEPTION 'PAID_CLAIM_IMMUTABLE' USING ERRCODE = '23514';
-    END IF;
+  SELECT * INTO v_plan FROM public.relief_plans WHERE id=NEW.plan_id;
+  SELECT * INTO v_member FROM public.memberships WHERE id=NEW.membership_id;
+  IF v_plan.id IS NULL OR v_member.id IS NULL OR v_member.group_id<>v_plan.group_id
+     OR NEW.group_id IS DISTINCT FROM v_plan.group_id
+     OR NEW.claimant_membership_id IS DISTINCT FROM NEW.membership_id
+     OR NEW.currency IS DISTINCT FROM v_plan.currency
+     OR NEW.amount_requested IS DISTINCT FROM NEW.amount
+  THEN RAISE EXCEPTION 'RELIEF_CLAIM_DIMENSION_CONFLICT'; END IF;
+  IF TG_OP='UPDATE' AND OLD.status='paid'
+     AND (NEW.status IS DISTINCT FROM OLD.status
+       OR NEW.amount_approved IS DISTINCT FROM OLD.amount_approved
+       OR NEW.claimant_membership_id IS DISTINCT FROM OLD.claimant_membership_id
+       OR NEW.payout_account_id IS DISTINCT FROM OLD.payout_account_id
+       OR NEW.financial_event_id IS DISTINCT FROM OLD.financial_event_id
+       OR NEW.disbursed_at IS DISTINCT FROM OLD.disbursed_at)
+  THEN RAISE EXCEPTION 'PAID_CLAIM_IMMUTABLE'; END IF;
+  IF NEW.status='paid' THEN
+    SELECT * INTO v_event FROM public.financial_events WHERE id=NEW.financial_event_id;
+    IF v_event.id IS NULL OR v_event.group_id<>NEW.group_id
+       OR v_event.source_module<>'relief' OR v_event.source_record_id<>NEW.id::text
+       OR v_event.effect_kind<>'claim_payout' OR v_event.currency<>NEW.currency
+       OR NOT EXISTS (SELECT 1 FROM public.financial_postings fp
+           WHERE fp.event_id=v_event.id AND fp.control_class='custody'
+             AND fp.account_id=NEW.payout_account_id
+             AND fp.amount_signed=-NEW.amount_approved)
+    THEN RAISE EXCEPTION 'PAID_CLAIM_EVENT_CONFLICT'; END IF;
   END IF;
   RETURN NEW;
-END;
+END
 $$;
-
-DROP TRIGGER IF EXISTS trg_prevent_paid_claim_modification ON public.relief_claims;
-CREATE TRIGGER trg_prevent_paid_claim_modification
-  BEFORE UPDATE ON public.relief_claims
-  FOR EACH ROW EXECUTE FUNCTION public.prevent_paid_claim_modification();
-
+DROP TRIGGER IF EXISTS trg_assert_relief_claim_contract ON public.relief_claims;
+CREATE TRIGGER trg_assert_relief_claim_contract BEFORE INSERT OR UPDATE ON public.relief_claims
+  FOR EACH ROW EXECUTE FUNCTION public.assert_relief_claim_contract();
 CREATE OR REPLACE FUNCTION public.prevent_paid_claim_delete()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 BEGIN
-  IF OLD.status = 'paid' OR OLD.financial_event_id IS NOT NULL THEN
-    RAISE EXCEPTION 'PAID_CLAIM_DELETE_PROHIBITED' USING ERRCODE = '23514';
-  END IF;
+  IF OLD.status='paid' OR OLD.financial_event_id IS NOT NULL THEN
+    RAISE EXCEPTION 'PAID_CLAIM_DELETE_PROHIBITED'; END IF;
   RETURN OLD;
-END;
+END
 $$;
-
 DROP TRIGGER IF EXISTS trg_prevent_paid_claim_delete ON public.relief_claims;
-CREATE TRIGGER trg_prevent_paid_claim_delete
-  BEFORE DELETE ON public.relief_claims
+CREATE TRIGGER trg_prevent_paid_claim_delete BEFORE DELETE ON public.relief_claims
   FOR EACH ROW EXECUTE FUNCTION public.prevent_paid_claim_delete();
-
 CREATE OR REPLACE FUNCTION public.assert_claim_eligibility()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-DECLARE
-  v_enrollment public.relief_enrollments%ROWTYPE;
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE v_enrollment public.relief_enrollments%ROWTYPE;
 BEGIN
-  SELECT * INTO v_enrollment
-  FROM public.relief_enrollments
-  WHERE plan_id = NEW.plan_id AND membership_id = NEW.claimant_membership_id AND status = 'active';
-
-  IF v_enrollment.id IS NULL THEN
-    RAISE EXCEPTION 'MEMBER_NOT_ENROLLED_IN_PLAN' USING ERRCODE = '23514';
-  END IF;
-
-  IF NEW.incident_date < v_enrollment.matures_at::date THEN
-    RAISE EXCEPTION 'CLAIM_PREMATURE_WAITING_PERIOD_NOT_MET' USING ERRCODE = '23514';
-  END IF;
-
+  SELECT * INTO v_enrollment FROM public.relief_enrollments
+  WHERE plan_id=NEW.plan_id AND membership_id=NEW.claimant_membership_id AND status='active';
+  IF v_enrollment.id IS NULL THEN RAISE EXCEPTION 'MEMBER_NOT_ENROLLED_IN_PLAN'; END IF;
+  IF NEW.incident_date<v_enrollment.matures_at::date THEN
+    RAISE EXCEPTION 'CLAIM_PREMATURE_WAITING_PERIOD_NOT_MET'; END IF;
   RETURN NEW;
-END;
+END
 $$;
-
 DROP TRIGGER IF EXISTS trg_assert_claim_eligibility ON public.relief_claims;
-CREATE TRIGGER trg_assert_claim_eligibility
-  BEFORE INSERT OR UPDATE ON public.relief_claims
+CREATE TRIGGER trg_assert_claim_eligibility BEFORE INSERT ON public.relief_claims
   FOR EACH ROW EXECUTE FUNCTION public.assert_claim_eligibility();
 
--- 4. Canonical Atomic Disbursement RPC
 CREATE OR REPLACE FUNCTION public.post_relief_claim_payout(p_command jsonb)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-DECLARE
-  v_user_id uuid := auth.uid();
-  v_claim_id uuid := (p_command->>'claim_id')::uuid;
-  v_account_id uuid := (p_command->>'account_id')::uuid;
-  v_request_id uuid := (p_command->>'request_id')::uuid;
-  v_claim public.relief_claims%ROWTYPE;
-  v_account public.financial_accounts%ROWTYPE;
-  v_expense_account_id uuid;
-  v_f3_res jsonb;
-  v_event_id uuid;
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE v_claim public.relief_claims%ROWTYPE; v_plan public.relief_plans%ROWTYPE;
+        v_account public.financial_accounts%ROWTYPE; v_category uuid; v_result jsonb;
+        v_event uuid; v_occurred timestamptz; v_account_id uuid;
 BEGIN
-  IF v_user_id IS NULL THEN
-    RAISE EXCEPTION 'AUTH_REQUIRED' USING ERRCODE = '42501';
+  IF auth.uid() IS NULL OR p_command IS NULL OR (p_command->>'claim_id') IS NULL
+     OR (p_command->>'account_id') IS NULL THEN RAISE EXCEPTION 'INVALID_PAYOUT_COMMAND'; END IF;
+  v_account_id:=(p_command->>'account_id')::uuid;
+  SELECT * INTO v_claim FROM public.relief_claims WHERE id=(p_command->>'claim_id')::uuid FOR UPDATE;
+  IF v_claim.id IS NULL THEN RAISE EXCEPTION 'CLAIM_NOT_FOUND'; END IF;
+  SELECT * INTO v_plan FROM public.relief_plans WHERE id=v_claim.plan_id FOR SHARE;
+  IF v_plan.id IS NULL OR v_plan.group_id<>v_claim.group_id
+     OR v_claim.membership_id<>v_claim.claimant_membership_id
+  THEN RAISE EXCEPTION 'RELIEF_CLAIM_DIMENSION_CONFLICT'; END IF;
+  PERFORM financial_core.assert_finances_manage(v_claim.group_id);
+  IF v_claim.status NOT IN ('approved','paid') THEN RAISE EXCEPTION 'CLAIM_NOT_APPROVED_FOR_PAYOUT'; END IF;
+  SELECT * INTO v_account FROM public.financial_accounts WHERE id=v_account_id FOR SHARE;
+  IF v_account.id IS NULL OR v_account.group_id<>v_claim.group_id
+     OR v_account.currency<>v_claim.currency
+     OR (v_claim.status='approved' AND v_account.status<>'active')
+  THEN RAISE EXCEPTION 'ACCOUNT_NOT_FOUND_OR_INVALID'; END IF;
+  SELECT c.id INTO v_category FROM public.financial_categories c
+    WHERE c.group_id=v_claim.group_id AND c.category_class='expense'
+      AND c.status='active'
+    ORDER BY (c.name ILIKE '%relief%') DESC,c.created_at,c.id LIMIT 1;
+  IF v_category IS NULL THEN RAISE EXCEPTION 'RELIEF_EXPENSE_ACCOUNT_NOT_CONFIGURED'; END IF;
+  v_occurred:=coalesce(v_claim.disbursed_at,transaction_timestamp());
+  v_result:=financial_core.post_module_pair(v_claim.group_id,'relief',v_claim.id::text,
+    'claim_payout',v_claim.amount_approved,v_claim.currency,v_account.id,v_category,
+    NULL,v_claim.claimant_membership_id,v_occurred,'Relief claim payout');
+  v_event:=(v_result->>'event_id')::uuid;
+  IF v_event IS NULL THEN RAISE EXCEPTION 'POSTING_FAILED'; END IF;
+  IF v_claim.status='paid' THEN
+    IF v_claim.financial_event_id IS DISTINCT FROM v_event
+       OR v_claim.payout_account_id IS DISTINCT FROM v_account.id THEN
+      RAISE EXCEPTION 'CONFLICT'; END IF;
+  ELSE
+    UPDATE public.relief_claims SET status='paid',financial_event_id=v_event,
+      payout_account_id=v_account.id,disbursed_at=v_occurred,updated_at=now()
+    WHERE id=v_claim.id;
   END IF;
-
-  -- 1. Advisory Lock
-  PERFORM pg_catalog.pg_advisory_xact_lock(
-    hashtext('relief-payout'), hashtext(v_claim_id::text)
-  );
-
-  -- 2. Lookup Claim
-  SELECT * INTO v_claim FROM public.relief_claims WHERE id = v_claim_id FOR UPDATE;
-  IF v_claim.id IS NULL THEN
-    RAISE EXCEPTION 'CLAIM_NOT_FOUND';
-  END IF;
-
-  -- Authorization
-  IF NOT (public.has_group_permission(v_claim.group_id, 'finances.manage') OR 
-          EXISTS (SELECT 1 FROM public.memberships WHERE group_id = v_claim.group_id AND user_id = v_user_id AND role = 'owner')) THEN
-    RAISE EXCEPTION 'UNAUTHORIZED' USING ERRCODE = '42501';
-  END IF;
-
-  -- 3. Idempotency Check
-  IF v_claim.status = 'paid' AND v_claim.financial_event_id IS NOT NULL THEN
-    RETURN jsonb_build_object(
-      'decision', 'IDEMPOTENT_RETURN_EXISTING',
-      'claim_id', v_claim_id,
-      'financial_event_id', v_claim.financial_event_id,
-      'posting_count', 0
-    );
-  END IF;
-
-  -- 4. Status Validation
-  IF v_claim.status <> 'approved' THEN
-    RAISE EXCEPTION 'CLAIM_NOT_APPROVED_FOR_PAYOUT';
-  END IF;
-
-  -- 5. Lookup Custody Account
-  SELECT * INTO v_account FROM public.financial_accounts WHERE id = v_account_id FOR SHARE;
-  IF v_account.id IS NULL OR v_account.status <> 'active' OR v_account.kind NOT IN ('bank', 'cash', 'mobile_money', 'wallet') THEN
-    RAISE EXCEPTION 'ACCOUNT_NOT_FOUND_OR_INVALID';
-  END IF;
-
-  -- 6. Currency Match
-  IF v_account.currency <> v_claim.currency THEN
-    RAISE EXCEPTION 'CURRENCY_MISMATCH';
-  END IF;
-
-  -- 7. Active Fiscal Epoch check (handled by post_f3_command inherently, but we ensure group matches)
-  IF v_account.group_id <> v_claim.group_id THEN
-    RAISE EXCEPTION 'CROSS_GROUP_DIMENSION';
-  END IF;
-
-  -- 8. Resolve Expense Category
-  SELECT c.id INTO v_expense_account_id
-  FROM public.financial_categories c
-  WHERE c.group_id = v_claim.group_id
-    AND c.category_class = 'expense'
-    AND c.status = 'active'
-    AND c.code = 'relief_expense'
-  LIMIT 1;
-
-  IF v_expense_account_id IS NULL THEN
-    SELECT c.id INTO v_expense_account_id
-    FROM public.financial_categories c
-    WHERE c.group_id = v_claim.group_id
-      AND c.category_class = 'expense'
-      AND c.status = 'active'
-    ORDER BY (c.name ILIKE '%relief%' OR c.name ILIKE '%payout%') DESC, c.created_at ASC
-    LIMIT 1;
-  END IF;
-
-  IF v_expense_account_id IS NULL THEN
-    RAISE EXCEPTION 'RELIEF_EXPENSE_ACCOUNT_NOT_CONFIGURED';
-  END IF;
-
-  -- 9. F3 Command Dispatch
-  v_f3_res := financial_core.post_f3_command(jsonb_build_object(
-    'command_type', 'record_event',
-    'group_id', v_claim.group_id,
-    'action_type', 'money_out',
-    'event_type', 'relief_payout',
-    'occurred_at', now(),
-    'currency', v_claim.currency,
-    'postings', jsonb_build_array(
-      jsonb_build_object('account_id', v_expense_account_id, 'amount', v_claim.amount_approved, 'direction', 'debit'),
-      jsonb_build_object('account_id', v_account.id, 'amount', v_claim.amount_approved, 'direction', 'credit')
-    ),
-    'metadata', jsonb_build_object('claim_id', v_claim.id, 'plan_id', v_claim.plan_id, 'member_id', v_claim.claimant_membership_id)
-  ), v_request_id);
-
-  v_event_id := (v_f3_res->>'event_id')::uuid;
-  IF v_event_id IS NULL THEN
-    RAISE EXCEPTION 'POSTING_FAILED';
-  END IF;
-
-  -- 10. Update Claim
-  UPDATE public.relief_claims
-  SET status = 'paid',
-      financial_event_id = v_event_id,
-      payout_account_id = v_account.id,
-      disbursed_at = now(),
-      updated_at = now()
-  WHERE id = v_claim.id;
-
-  -- 11. Return JSON confirmation
-  RETURN jsonb_build_object(
-    'ok', true,
-    'claim_id', v_claim.id,
-    'financial_event_id', v_event_id,
-    'posting_count', COALESCE((v_f3_res->>'new_posting_count')::int, 2)
-  );
-END;
+  RETURN pg_catalog.jsonb_build_object('ok',true,'claim_id',v_claim.id,
+    'financial_event_id',v_event,'posting_count',v_result->'new_posting_count',
+    'decision',v_result->'decision');
+END
 $$;
-
+REVOKE ALL ON FUNCTION public.post_relief_claim_payout(jsonb) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.post_relief_claim_payout(jsonb) TO authenticated;
-
 COMMIT;

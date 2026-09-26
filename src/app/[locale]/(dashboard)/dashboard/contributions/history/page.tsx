@@ -31,6 +31,7 @@ import { signedUrlFor } from "@/lib/storage-urls";
 import { useGroup } from "@/lib/group-context";
 import { usePayments } from "@/lib/hooks/use-supabase-query";
 import { useConfirmDuesPayment, parseDuesPostingRpcError } from "@/lib/hooks/use-dues-posting";
+import { DuesCreditActions } from "@/components/contributions/dues-credit-actions";
 import { useFinancialAccounts } from "@/lib/hooks/use-financial-config";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { normalizeSearch } from "@/lib/utils";
@@ -105,12 +106,15 @@ export interface NormalizedPayment {
   status: string;
   financialEventId: string | null;
   financialAccountId: string | null;
+  cashClass: "non_refundable" | "refundable" | "conditional";
+  settlementStatus: "open" | "recognized" | "refunded";
 }
 
 export default function PaymentHistoryPage() {
   const t = useTranslations();
   const tc = useTranslations("common");
   const tFinancial = useTranslations("financialConfig");
+  const tDues = useTranslations("duesClassification");
   const locale = useLocale();
   const dateLocale = getDateLocale(locale);
   const { currentGroup, groupId } = useGroup();
@@ -135,6 +139,7 @@ export default function PaymentHistoryPage() {
   // Confirmation modal state
   const [confirmingPayment, setConfirmingPayment] = useState<NormalizedPayment | null>(null);
   const [depositAccountId, setDepositAccountId] = useState("");
+  const [cashClass, setCashClass] = useState<"non_refundable" | "refundable" | "conditional">("non_refundable");
   const [depositAccountError, setDepositAccountError] = useState<string | null>(null);
   const [postingError, setPostingError] = useState<string | null>(null);
 
@@ -261,6 +266,8 @@ export default function PaymentHistoryPage() {
         status: (p.status as string) || "confirmed",
         financialEventId: (p.financial_event_id as string) || null,
         financialAccountId: (p.financial_account_id as string) || null,
+        cashClass: (p.cash_class as NormalizedPayment["cashClass"]) || "non_refundable",
+        settlementStatus: (p.settlement_status as NormalizedPayment["settlementStatus"]) || "open",
       };
     });
   }, [payments, currency]);
@@ -358,6 +365,7 @@ export default function PaymentHistoryPage() {
 
   function handleOpenConfirmModal(payment: NormalizedPayment) {
     setConfirmingPayment(payment);
+    setCashClass(payment.cashClass);
     setDepositAccountError(null);
     setPostingError(null);
     const matching = custodyAccounts.find((a) => a.currency === payment.currency) || custodyAccounts[0];
@@ -395,6 +403,7 @@ export default function PaymentHistoryPage() {
         accountId: depositAccountId,
         accountCurrency: account?.currency,
         expectedCurrency: confirmingPayment.currency,
+        cashClass,
       });
 
       // Produce the receipt notifications server-side (fire-and-forget)
@@ -974,6 +983,15 @@ export default function PaymentHistoryPage() {
                                 {t("contributions.duesPosting.postedBadge")}
                               </span>
                             )}
+                            {payment.financialEventId && payment.settlementStatus === "refunded" && (
+                              <span className="text-xs text-muted-foreground">{tDues("refunded")}</span>
+                            )}
+                            {payment.financialEventId && groupId && canManage && (
+                              <DuesCreditActions groupId={groupId}
+                                paymentId={payment.id} memberId={payment.membershipId}
+                                amount={payment.amount} currency={payment.currency}
+                                cashClass={payment.cashClass} status={payment.settlementStatus} />
+                            )}
                           </div>
                         )}
                       </td>
@@ -990,14 +1008,15 @@ export default function PaymentHistoryPage() {
                                   {t("contributions.viewProof")}
                                 </DropdownMenuItem>
                               )}
-                              <DropdownMenuItem onClick={() => openEditDialog(payment)}>
+                              {!payment.financialEventId && <DropdownMenuItem onClick={() => openEditDialog(payment)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 {t("contributions.editPayment")}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setDeletePayment(payment)} className="text-destructive">
+                              </DropdownMenuItem>}
+                              {!payment.financialEventId && <DropdownMenuItem onClick={() => setDeletePayment(payment)} className="text-destructive">
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 {t("contributions.deletePayment")}
-                              </DropdownMenuItem>
+                              </DropdownMenuItem>}
+                              {payment.financialEventId && <p className="px-2 py-1 text-xs text-muted-foreground">{tDues("postedImmutable")}</p>}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </td>
@@ -1120,6 +1139,18 @@ export default function PaymentHistoryPage() {
                     </Button>
                   </div>
                 )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirm-dues-cash-class">{tDues("label")}</Label>
+                <select id="confirm-dues-cash-class" value={cashClass}
+                  onChange={(e) => setCashClass(e.target.value as typeof cashClass)}
+                  className="flex min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm">
+                  <option value="non_refundable">{tDues("non_refundable")}</option>
+                  <option value="refundable">{tDues("refundable")}</option>
+                  <option value="conditional">{tDues("conditional")}</option>
+                </select>
+                <p className="text-xs text-muted-foreground">{tDues("explanation")}</p>
               </div>
 
               {/* Deposit Custody Account Selector */}

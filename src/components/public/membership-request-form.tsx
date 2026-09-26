@@ -1,14 +1,18 @@
 "use client";
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useMembershipRequestSubmission } from '@/lib/hooks/use-public-profile';
 
 export function MembershipRequestForm({ slug }: { slug: string }) {
+  const t = useTranslations('publicProfile');
   const submitRequest = useMembershipRequestSubmission();
   const [formData, setFormData] = useState({ fullName: '', email: '', phone: '', message: '' });
   const [success, setSuccess] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFailed(false);
     if (!formData.email.includes("@")) return;
     try {
       await submitRequest.mutateAsync({
@@ -19,26 +23,26 @@ export function MembershipRequestForm({ slug }: { slug: string }) {
         message: formData.message
       });
       setSuccess(true);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      setFailed(true);
     }
   };
 
   if (success) {
     return (
       <div className="p-6 bg-green-50 rounded-lg text-center border border-green-200">
-        <h3 className="text-lg font-bold text-green-800 mb-2">Request Submitted</h3>
-        <p className="text-sm text-green-700">Your application has been sent to the organization administrators. They will review it shortly.</p>
+        <h3 className="text-lg font-bold text-green-800 mb-2">{t('requestSubmitted')}</h3>
+        <p className="text-sm text-green-700">{t('requestSubmittedDetail')}</p>
       </div>
     );
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-md w-full bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-      <h2 className="text-lg font-bold text-gray-900">Request to Join</h2>
+      <h2 className="text-lg font-bold text-gray-900">{t('requestTitle')}</h2>
       
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('fullName')}</label>
         <input 
           type="text" 
           value={formData.fullName} 
@@ -49,7 +53,7 @@ export function MembershipRequestForm({ slug }: { slug: string }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('email')}</label>
         <input 
           type="email" 
           value={formData.email} 
@@ -60,7 +64,7 @@ export function MembershipRequestForm({ slug }: { slug: string }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Message (Optional)</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('messageOptional')}</label>
         <textarea 
           value={formData.message} 
           onChange={e => setFormData({ ...formData, message: e.target.value })}
@@ -69,12 +73,13 @@ export function MembershipRequestForm({ slug }: { slug: string }) {
         />
       </div>
 
+      {failed && <p role="alert" className="text-sm text-red-700">{t('requestFailed')}</p>}
       <button 
         type="submit" 
         disabled={submitRequest.isPending}
         className="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded font-medium min-h-[44px] transition-colors"
       >
-        {submitRequest.isPending ? 'Submitting...' : 'Submit Request'}
+        {submitRequest.isPending ? t('submitting') : t('submitRequest')}
       </button>
     </form>
   );

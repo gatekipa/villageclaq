@@ -1,20 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 
-export type CardType = 'membership_card' | 'election_success' | 'milestone_achievement';
+export type CardType = 'membership_card';
 
 export function useCommunityCard(currentGroupId: string) {
   const queryClient = useQueryClient();
   const supabase = createClient();
 
   const issueCard = useMutation({
-    mutationFn: async (input: { groupId: string; cardType: CardType }) => {
+    mutationFn: async (input: { groupId: string; cardType: CardType; includeName: boolean; consent: boolean }) => {
       if (input.groupId !== currentGroupId) {
         throw new Error("staleTenantAborted");
       }
       const { data, error } = await supabase.rpc("issue_member_share_card", {
         p_group_id: input.groupId,
-        p_card_type: input.cardType
+        p_card_type: input.cardType,
+        p_include_name: input.includeName,
+        p_consent: input.consent
       });
       if (error) throw error;
       return data;
@@ -48,7 +50,8 @@ export function useCommunityCard(currentGroupId: string) {
           .from("community_share_cards")
           .select("*")
           .eq("group_id", currentGroupId)
-          .eq("revoked", false);
+          .eq("revoked", false)
+          .gt("expires_at", new Date().toISOString());
         if (error) throw error;
         return data;
       }
@@ -71,6 +74,8 @@ export function usePublicCardVerification(shareToken: string) {
       return data;
     },
     enabled: !!shareToken,
-    staleTime: 1000 * 60 * 5
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: 30_000,
   });
 }

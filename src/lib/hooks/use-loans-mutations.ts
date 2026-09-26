@@ -26,6 +26,7 @@ export interface RecordLoanRepaymentInput {
   paymentMethod?: string;
   notes?: string;
   referenceNumber?: string;
+  requestId?: string;
 }
 
 export interface RecordLoanRepaymentResponse {
@@ -123,7 +124,7 @@ export function useRecordLoanRepayment(currentGroupId: string) {
       if (input.amount <= 0) {
         throw new Error("INVALID_AMOUNT");
       }
-      const { data, error } = await supabase.rpc("post_loan_repayment", {
+      const { data: prepared, error: prepareError } = await supabase.rpc("prepare_loan_repayment", {
         p_command: {
           loan_id: input.loanId,
           account_id: input.accountId,
@@ -131,7 +132,14 @@ export function useRecordLoanRepayment(currentGroupId: string) {
           payment_method: input.paymentMethod,
           notes: input.notes,
           reference_number: input.referenceNumber,
+          request_id: input.requestId ?? crypto.randomUUID(),
         },
+      });
+      if (prepareError) throw new Error(parseLoanRpcError(prepareError));
+      const repaymentId = prepared?.repayment_id;
+      if (typeof repaymentId !== "string") throw new Error("REPAYMENT_PREPARATION_FAILED");
+      const { data, error } = await supabase.rpc("post_loan_repayment", {
+        p_command: { repayment_id: repaymentId },
       });
       if (error) throw new Error(parseLoanRpcError(error));
       return data as RecordLoanRepaymentResponse;

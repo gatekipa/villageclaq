@@ -87,6 +87,9 @@ interface Election {
   starts_at: string;
   ends_at: string;
   status: ElectionStatus;
+  scope_unit_id: string | null;
+  scope_mode: "unit" | "subtree" | "organization";
+  published_at: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -176,6 +179,17 @@ export default function ElectionsPage() {
   const createElection = useCreateElection();
   const { data: members } = useMembers();
   const { data: positions } = useGroupPositions();
+  const { data: organizationUnits = [] } = useQuery({
+    queryKey: ["organization-units", currentGroup?.organization_id],
+    enabled: !!currentGroup?.organization_id,
+    queryFn: async () => {
+      const { data, error } = await createClient().from("organization_units")
+        .select("id,name,group_id,parent_id")
+        .eq("organization_id", currentGroup!.organization_id!);
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   // ─── State ────────────────────────────────────────────────────────────────
 
@@ -187,6 +201,8 @@ export default function ElectionsPage() {
   const [elType, setElType] = useState<string>("poll");
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
+  const [scopeUnitId, setScopeUnitId] = useState("");
+  const [scopeMode, setScopeMode] = useState<"unit" | "subtree" | "organization">("unit");
   const [createError, setCreateError] = useState("");
 
   const [editElectionId, setEditElectionId] = useState<string | null>(null);
@@ -254,58 +270,38 @@ export default function ElectionsPage() {
   }, [allElections]);
 
   // ─── Vote check query ────────────────────────────────────────────────────
-  // Reads from election_vote_receipts (identity, no choice). RLS restricts to
-  // the voter's own rows — no other member, admin, or manager sees this.
+  // Person-level claim survives transfer and multiple memberships.
 
   const { data: existingVote } = useQuery({
     queryKey: ["election-vote-receipt", selectedElectionId, currentMembership?.id],
     queryFn: async () => {
-      if (!selectedElectionId || !currentMembership?.id) return null;
-      const { data } = await supabase
-        .from("election_vote_receipts")
-        .select("id")
-        .eq("election_id", selectedElectionId)
-        .eq("voter_membership_id", currentMembership.id)
-        .maybeSingle();
-      return data;
+      if (!selectedElectionId) return false;
+      const { data, error } = await supabase.rpc("get_election_vote_status", {
+        p_election: selectedElectionId,
+      });
+      if (error) throw error;
+      return data === true;
     },
-    enabled: !!selectedElectionId && !!currentMembership?.id,
+    enabled: !!selectedElectionId && !!user?.id,
   });
 
   // ─── Results query ───────────────────────────────────────────────────────
-  // Reads from election_ballots, which has NO voter reference. RLS only
-  // exposes ballots once the election is closed/cancelled, so results are
-  // hidden during the voting period regardless of the client-side guard.
+  // Only an approved aggregate is exposed. Raw choices are never client-readable.
 
   const { data: voteResults } = useQuery({
     queryKey: ["election-results", selectedElectionId],
     queryFn: async () => {
       if (!selectedElectionId) return null;
-      const { data } = await supabase
-        .from("election_ballots")
-        .select("candidate_id, option_id")
-        .eq("election_id", selectedElectionId);
-      if (!data) return { results: [] as VoteResult[], totalVotes: 0 };
-
-      const counts: Record<string, { candidate_id: string | null; option_id: string | null; count: number }> = {};
-      for (const vote of data) {
-        const key = (vote.candidate_id as string | null) || (vote.option_id as string | null) || "unknown";
-        if (!counts[key]) {
-          counts[key] = {
-            candidate_id: (vote.candidate_id as string | null) || null,
-            option_id: (vote.option_id as string | null) || null,
-            count: 0,
-          };
-        }
-        counts[key].count += 1;
-      }
-
-      const results: VoteResult[] = Object.values(counts);
-
-      return { results, totalVotes: data.length };
+      const { data, error } = await supabase.rpc("get_published_election_results", {
+        p_election: selectedElectionId,
+      });
+      if (error) throw error;
+      const results = (Array.isArray(data) ? data : []) as VoteResult[];
+      return { results, totalVotes: results.reduce((sum, row) => sum + row.count, 0) };
     },
     // Only fetch results when election is CLOSED — no live tallies during voting
-    enabled: !!selectedElectionId && selectedElection?.status === "closed",
+    enabled: !!selectedElectionId && selectedElection?.status === "closed"
+      && !!selectedElection.published_at,
   });
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
@@ -318,6 +314,8 @@ export default function ElectionsPage() {
     setElType("poll");
     setStartsAt("");
     setEndsAt("");
+    setScopeUnitId("");
+    setScopeMode("unit");
     setCreateError("");
   };
 
@@ -332,7 +330,9 @@ export default function ElectionsPage() {
     if (editElectionId) {
       setStatusLoading(true);
       try {
-        const { error } = await supabase.from('elections').update({
+        const { error } = await supabase.rpc("update_election_draft_v2", {
+          p_election: editElectionId,
+          p_payload: {
           title: elTitle.trim(),
           title_fr: elTitleFr.trim() || null,
           description: elDescription.trim() || null,
@@ -340,8 +340,16 @@ export default function ElectionsPage() {
           election_type: elType,
           starts_at: new Date(startsAt).toISOString(),
           ends_at: new Date(endsAt).toISOString(),
-        }).eq('id', editElectionId);
+          },
+        });
         if (error) { setCreateError(error.message); return; }
+        if (scopeUnitId) {
+          const { error: scopeError } = await supabase.rpc("configure_election_scope_v2", {
+            p_election: editElectionId, p_scope_unit: scopeUnitId,
+            p_scope_mode: scopeMode,
+          });
+          if (scopeError) { setCreateError(scopeError.message); return; }
+        }
         queryClient.invalidateQueries({ queryKey: ["elections", groupId] });
         setShowCreate(false);
         setEditElectionId(null);
@@ -368,6 +376,13 @@ export default function ElectionsPage() {
       resetCreateForm();
       // Auto-expand the newly created election so admin can immediately add candidates/positions
       if (result?.id) {
+        if (scopeUnitId && scopeMode !== "unit") {
+          const { error: scopeError } = await supabase.rpc("configure_election_scope_v2", {
+            p_election: result.id, p_scope_unit: scopeUnitId,
+            p_scope_mode: scopeMode,
+          });
+          if (scopeError) showError(scopeError.message);
+        }
         setSelectedElectionId(result.id);
       }
     } catch (err) {
@@ -379,13 +394,19 @@ export default function ElectionsPage() {
     if (statusLoading) return;
     setStatusLoading(true);
     try {
-      const { error: err } = await supabase
-        .from("elections")
-        .update({ status: newStatus })
-        .eq("id", electionId);
+      const electionBefore = allElections.find((item) => item.id === electionId);
+      const { error: err } = newStatus === "open"
+        ? await supabase.rpc("open_election_v2", {
+            p_election: electionId,
+            p_scope_unit: electionBefore?.scope_unit_id,
+            p_scope_mode: electionBefore?.scope_mode || "unit",
+          })
+        : await supabase.rpc("transition_election_v2", {
+            p_election: electionId, p_status: newStatus,
+          });
       if (err) throw err;
       queryClient.invalidateQueries({ queryKey: ["elections", groupId] });
-      // After close transition, results become visible — invalidate the cache
+      // Aggregate results remain private until explicit publication.
       if (newStatus === "closed" || newStatus === "cancelled") {
         queryClient.invalidateQueries({ queryKey: ["election-results", electionId] });
       }
@@ -393,29 +414,11 @@ export default function ElectionsPage() {
       const election = (elections || []).find((e: Election) => e.id === electionId) as Election | undefined;
       const electionTitle = election ? ((locale === "fr" && election.title_fr) ? election.title_fr : election.title) : "";
 
-      // G3: on close of an officer_election, call finalize_election RPC
-      // to auto-assign the winner to the position (ending the prior
-      // holder's term). Ties / no-position are handled by the RPC;
-      // the UI surfaces the returned reason but does not block close.
-      if (newStatus === "closed" && election?.election_type === "officer_election") {
-        try {
-          const { data: finalizeData } = await supabase.rpc("finalize_election", { p_election_id: electionId });
-          const finalizeResult = (finalizeData || {}) as { ok?: boolean; error?: string; no_change?: boolean };
-          if (finalizeResult.ok) {
-            queryClient.invalidateQueries({ queryKey: ["position-assignments", groupId] });
-          } else if (finalizeResult.error && finalizeResult.error !== "tied" && finalizeResult.error !== "no_position_linked" && finalizeResult.error !== "no_votes") {
-            console.warn("[Elections:Finalize] returned error:", finalizeResult.error);
-          }
-        } catch (finalizeErr) {
-          console.warn("[Elections:Finalize] RPC failed:", finalizeErr instanceof Error ? finalizeErr.message : finalizeErr);
-        }
-      }
-
-      // Notify on open (voting starts) and on closed (results announced).
+      // Opening may notify the frozen electorate. Closing never announces results.
       if (newStatus === "open") {
         requestElectionOpenedNotifications(supabase, electionId, locale);
       }
-      if (newStatus === "open" || newStatus === "closed") {
+      if (newStatus === "open") {
         try {
           const { notifyBulkFromClient } = await import("@/lib/notify-client");
           const recipients = (members || [])
@@ -461,6 +464,26 @@ export default function ElectionsPage() {
     } catch (err) {
       console.warn("[Elections:Status] update failed:", err instanceof Error ? err.message : err);
       showError(t("statusChangeFailed"));
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const handlePublishResults = async (electionId: string) => {
+    if (statusLoading) return;
+    setStatusLoading(true);
+    try {
+      const { error } = await supabase.rpc("publish_election_results", {
+        p_election: electionId,
+      });
+      if (error) throw error;
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["position-assignments", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["elections", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["election-results", electionId] }),
+      ]);
+    } catch (error) {
+      showError(error instanceof Error ? error.message : t("publishFailed"));
     } finally {
       setStatusLoading(false);
     }
@@ -753,7 +776,7 @@ export default function ElectionsPage() {
                         )}
                         {t(`status${election.status.charAt(0).toUpperCase() + election.status.slice(1)}` as Parameters<typeof t>[0])}
                       </Badge>
-                      {hasPermission("elections.manage") && (election.status === "draft" || election.status === "cancelled") && (
+                      {hasPermission("elections.manage") && election.status === "draft" && (
                         <DropdownMenu>
                           <DropdownMenuTrigger className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground focus:outline-none">
                             <MoreVertical className="h-4 w-4" />
@@ -767,6 +790,8 @@ export default function ElectionsPage() {
                               setElType(election.election_type);
                               setStartsAt(election.starts_at ? new Date(election.starts_at).toISOString().slice(0,16) : "");
                               setEndsAt(election.ends_at ? new Date(election.ends_at).toISOString().slice(0,16) : "");
+                              setScopeUnitId(election.scope_unit_id || "");
+                              setScopeMode(election.scope_mode || "unit");
                               setEditElectionId(election.id);
                               setShowCreate(true);
                             }}>
@@ -802,13 +827,15 @@ export default function ElectionsPage() {
                   )}
 
                   {/* Manage / view results */}
-                  {!isSelected && (election.status === "closed" || hasPermission("elections.manage")) && (
+                  {!isSelected && ((election.status === "closed" && election.published_at)
+                    || hasPermission("elections.manage")) && (
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => { setSelectedElectionId(election.id); setSelectedVote(""); setVoteSuccess(null); }}
                     >
-                      {election.status === "closed" ? t("results") : t("manageElection")}
+                      {election.status === "closed" && election.published_at
+                        ? t("results") : t("manageElection")}
                     </Button>
                   )}
 
@@ -861,8 +888,15 @@ export default function ElectionsPage() {
                             </>
                           )}
 
+                          {election.status === "closed" && !election.published_at && (
+                            <Button size="sm" disabled={statusLoading}
+                              onClick={() => handlePublishResults(election.id)}>
+                              {t("publishResults")}
+                            </Button>
+                          )}
+
                           {/* Add Candidate (officer_election only) */}
-                          {election.election_type === "officer_election" && (election.status === "draft" || election.status === "open") && (
+                          {election.election_type === "officer_election" && election.status === "draft" && (
                             <Button size="sm" variant="outline" onClick={() => setShowAddCandidate(true)}>
                               <UserPlus className="mr-2 h-4 w-4" />
                               {t("addCandidate")}
@@ -870,7 +904,7 @@ export default function ElectionsPage() {
                           )}
 
                           {/* Add Option (poll/motion) */}
-                          {(election.election_type === "poll" || election.election_type === "motion") && (election.status === "draft" || election.status === "open") && (
+                          {(election.election_type === "poll" || election.election_type === "motion") && election.status === "draft" && (
                             <Button size="sm" variant="outline" onClick={() => setShowAddOption(true)}>
                               <ListPlus className="mr-2 h-4 w-4" />
                               {t("addOption")}
@@ -908,7 +942,7 @@ export default function ElectionsPage() {
                                     <p className="line-clamp-2 text-xs text-muted-foreground">{(locale === "fr" && candidate.statement_fr) ? candidate.statement_fr : candidate.statement}</p>
                                   )}
                                 </div>
-                                {hasPermission("elections.manage") && (election.status === "draft" || election.status === "open") && (
+                                {hasPermission("elections.manage") && election.status === "draft" && (
                                   <Button
                                     size="icon"
                                     variant="ghost"
@@ -936,7 +970,7 @@ export default function ElectionsPage() {
                             .map((option) => (
                               <div key={option.id} className="flex items-center gap-1">
                                 <Badge variant="outline">{(locale === "fr" && option.label_fr) ? option.label_fr : option.label}</Badge>
-                                {hasPermission("elections.manage") && (election.status === "draft" || election.status === "open") && (
+                                {hasPermission("elections.manage") && election.status === "draft" && (
                                   <Button
                                     size="icon"
                                     variant="ghost"
@@ -1093,7 +1127,7 @@ export default function ElectionsPage() {
                     )}
 
                     {/* ─── Results (closed elections ONLY) ────────────────── */}
-                    {election.status === "closed" && voteResults && (
+                    {election.status === "closed" && !!election.published_at && voteResults && (
                       <div className="space-y-4">
                         <h4 className="flex items-center gap-2 text-sm font-semibold">
                           <Trophy className="h-4 w-4 text-amber-500" />
@@ -1248,6 +1282,29 @@ export default function ElectionsPage() {
                 <Input type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
               </div>
             </div>
+            {organizationUnits.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="election-scope-unit">{t("votingScope")}</Label>
+                <select id="election-scope-unit" className="min-h-11 w-full rounded border px-3"
+                  value={scopeUnitId || organizationUnits.find((unit) => unit.group_id === groupId)?.id || ""}
+                  onChange={(event) => setScopeUnitId(event.target.value)}>
+                  {organizationUnits.map((unit) => (
+                    <option key={unit.id} value={unit.id}>{unit.name}</option>
+                  ))}
+                </select>
+                <select aria-label={t("scopeMode")}
+                  className="min-h-11 w-full rounded border px-3"
+                  value={scopeMode}
+                  onChange={(event) => setScopeMode(event.target.value as typeof scopeMode)}>
+                  <option value="unit">{t("scopeUnit")}</option>
+                  <option value="subtree">{t("scopeSubtree")}</option>
+                  <option value="organization">{t("scopeOrganization")}</option>
+                </select>
+                {scopeMode !== "unit" && <p className="text-xs text-muted-foreground">
+                  {t("scopeIdentityWarning")}
+                </p>}
+              </div>
+            )}
             {createError && <p className="text-sm text-destructive">{createError}</p>}
           </div>
           <DialogFooter>
@@ -1442,7 +1499,9 @@ export default function ElectionsPage() {
               if (!deletingElectionId) return;
               setStatusLoading(true);
               try {
-                const { error: err } = await supabase.from('elections').delete().eq('id', deletingElectionId);
+                const { error: err } = await supabase.rpc("transition_election_v2", {
+                  p_election: deletingElectionId, p_status: "cancelled",
+                });
                 if (err) throw err;
                 await queryClient.invalidateQueries({ queryKey: ["elections", groupId] });
                 setDeletingElectionId(null);

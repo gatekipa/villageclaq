@@ -57,7 +57,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEvents } from "@/lib/hooks/use-supabase-query";
 import { useManageEvent, useDeleteEvent, useRecordRsvp, usePostTicketPurchase, parseEventRpcError } from "@/lib/hooks/use-events-mutations";
-import { useFinancialAccounts } from "@/lib/hooks/use-financial-config";
+import { useFinancialAccounts, useFinancialCategories } from "@/lib/hooks/use-financial-config";
 import { useRef, useEffect } from "react";
 import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -108,7 +108,33 @@ export default function EventsPage() {
   const recordRsvp = useRecordRsvp(groupId || "");
   const postTicket = usePostTicketPurchase(groupId || "");
   const { data: accounts } = useFinancialAccounts(groupId || "");
+  const { data: categories } = useFinancialCategories(groupId || "");
   const queryClient = useQueryClient();
+  const { data: ticketTiers = [] } = useQuery({
+    queryKey: ["ticket_tiers", groupId],
+    enabled: !!groupId && !!events?.length,
+    queryFn: async () => {
+      const { data, error } = await createClient().from("ticket_tiers")
+        .select("id,event_id,name,price,capacity,sales_start,sales_end")
+        .in("event_id", (events || []).map((event) => event.id));
+      if (error) throw error;
+      return data || [];
+    },
+  });
+  const { data: ownTicketPurchases = [] } = useQuery({
+    queryKey: ["ticket-purchases", groupId],
+    enabled: !!groupId && hasPermission("events.manage"),
+    queryFn: async () => {
+      const { data, error } = await createClient().rpc(
+        "list_own_ticket_purchases", { p_group: groupId },
+      );
+      if (error) throw error;
+      return (Array.isArray(data) ? data : []) as Array<{
+        request_id: string; event_id: string; amount: string;
+        currency: string; financial_event_id: string | null;
+      }>;
+    },
+  });
 
   // RSVP: query current user's RSVPs for all events
   const { data: myRsvps } = useQuery({
@@ -170,14 +196,19 @@ export default function EventsPage() {
   }
 
   const handlePurchaseTicket = async () => {
-    if (!purchaseEventId || !purchaseTierId || !purchaseAccountId || !currentMembership?.id) return;
+    if (!purchaseEventId || !purchaseTierId || !purchaseRequestId
+      || !currentMembership?.id ||
+      (purchaseTier && !/^0(?:\.0+)?$/.test(String(purchaseTier.price))
+        && (!purchaseAccountId || !purchaseCategoryId))) return;
     try {
       await postTicket.mutateAsync({
+        requestId: purchaseRequestId,
         groupId: groupId || "",
         eventId: purchaseEventId,
         tierId: purchaseTierId,
         membershipId: currentMembership.id,
-        accountId: purchaseAccountId,
+        accountId: purchaseAccountId || null,
+        categoryId: purchaseCategoryId || null,
       });
       setShowPurchaseDialog(false);
       setPurchaseEventId(null);
@@ -228,6 +259,36 @@ export default function EventsPage() {
   const [purchaseEventId, setPurchaseEventId] = useState<string | null>(null);
   const [purchaseTierId, setPurchaseTierId] = useState<string>("");
   const [purchaseAccountId, setPurchaseAccountId] = useState<string>("");
+  const [purchaseCategoryId, setPurchaseCategoryId] = useState<string>("");
+  const [purchaseRequestId, setPurchaseRequestId] = useState<string>("");
+  const purchaseTier = ticketTiers.find((tier) => tier.id === purchaseTierId);
+  const [tierEventId, setTierEventId] = useState<string | null>(null);
+  const [tierName, setTierName] = useState("");
+  const [tierPrice, setTierPrice] = useState("");
+  const [tierCapacity, setTierCapacity] = useState("");
+  const [tierSaving, setTierSaving] = useState(false);
+
+  async function createTicketTier() {
+    if (!tierEventId || !tierName.trim() || !/^\d+(?:\.\d{1,2})?$/.test(tierPrice)
+      || (tierCapacity && !/^[1-9]\d*$/.test(tierCapacity)) || tierSaving) return;
+    setTierSaving(true);
+    try {
+      const { error } = await createClient().rpc("create_ticket_tier", {
+        p_event: tierEventId, p_name: tierName.trim(), p_price: tierPrice,
+        p_capacity: tierCapacity ? Number(tierCapacity) : null,
+      });
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["ticket_tiers", groupId] });
+      setTierEventId(null);
+      setTierName("");
+      setTierPrice("");
+      setTierCapacity("");
+    } catch (error) {
+      showError(error instanceof Error ? error.message : t("ticketTierFailed"));
+    } finally {
+      setTierSaving(false);
+    }
+  }
   // Attendance is tracked for all events by default (no per-event toggle — no DB column exists)
   // RSVP is enabled by default for all upcoming events (no per-event toggle — no DB column exists)
   const [preFilledBanner, setPreFilledBanner] = useState<string | null>(null);
@@ -555,17 +616,45 @@ export default function EventsPage() {
           <p className="text-muted-foreground">{t("subtitle")}</p>
         
       {/* Ticket Purchase Modal */}
+      <Dialog open={!!tierEventId} onOpenChange={(open) => { if (!open) setTierEventId(null); }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader><DialogTitle>{t("createTicketTier")}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Label htmlFor="ticket-tier-name">{t("ticketTierName")}</Label>
+            <Input id="ticket-tier-name" value={tierName}
+              onChange={(event) => setTierName(event.target.value)} />
+            <Label htmlFor="ticket-tier-price">{t("ticketTierPrice")}</Label>
+            <Input id="ticket-tier-price" inputMode="decimal" value={tierPrice}
+              onChange={(event) => setTierPrice(event.target.value)} />
+            <Label htmlFor="ticket-tier-capacity">{t("ticketTierCapacity")}</Label>
+            <Input id="ticket-tier-capacity" inputMode="numeric" value={tierCapacity}
+              onChange={(event) => setTierCapacity(event.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTierEventId(null)}>{tc("cancel")}</Button>
+            <Button disabled={tierSaving || !tierName.trim() ||
+              !/^\d+(?:\.\d{1,2})?$/.test(tierPrice) ||
+              (!!tierCapacity && !/^[1-9]\d*$/.test(tierCapacity))}
+              onClick={createTicketTier}>{t("createTicketTier")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={showPurchaseDialog} onOpenChange={setShowPurchaseDialog}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>{t("purchaseTicket") || "Purchase Ticket"}</DialogTitle>
           </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {purchaseTier?.name} · {String(purchaseTier?.price || "0")} {currentGroup?.currency}
+          </p>
           <div className="grid gap-4 py-4">
+            {purchaseTier && !/^0(?:\.0+)?$/.test(String(purchaseTier.price)) && (
+              <>
             <div className="grid gap-2">
-              <Label>Custody Account</Label>
+              <Label>{t("ticketCustodyAccount")}</Label>
               <Select value={purchaseAccountId} onValueChange={(val) => setPurchaseAccountId(val || "")}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select account..." />
+                  <SelectValue placeholder={t("ticketChooseAccount")} />
                 </SelectTrigger>
                 <SelectContent>
                   {accounts?.filter(a => a.status === 'active' && a.currency === (currentGroup?.currency || 'USD')).map(a => (
@@ -576,10 +665,24 @@ export default function EventsPage() {
               {accounts && accounts.filter(a => a.status === 'active' && a.currency === (currentGroup?.currency || 'USD')).length === 0 && (
                 <div className="flex items-center gap-2 mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-200 rounded-md text-sm border border-amber-200 dark:border-amber-800">
                   <AlertCircle className="h-4 w-4 shrink-0" />
-                  <p>No active custody accounts found in this currency. Please configure a matching bank or cash account in Settings.</p>
+                  <p>{t("ticketNoAccount")}</p>
                 </div>
               )}
             </div>
+            <div className="grid gap-2">
+              <Label>{t("ticketIncomeCategory")}</Label>
+              <select className="min-h-11 w-full rounded border bg-background px-3"
+                value={purchaseCategoryId}
+                onChange={(event) => setPurchaseCategoryId(event.target.value)}>
+                <option value="">{t("ticketChooseCategory")}</option>
+                {categories?.filter((category) => category.category_class === "income"
+                  && category.status === "active").map((category) => (
+                  <option key={category.id} value={category.id}>{category.name}</option>
+                ))}
+              </select>
+            </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPurchaseDialog(false)} disabled={postTicket.isPending}>
@@ -587,7 +690,9 @@ export default function EventsPage() {
             </Button>
             <Button 
               onClick={handlePurchaseTicket} 
-              disabled={postTicket.isPending || !purchaseAccountId}
+              disabled={postTicket.isPending || !purchaseRequestId ||
+                (!!purchaseTier && !/^0(?:\.0+)?$/.test(String(purchaseTier.price))
+                  && (!purchaseAccountId || !purchaseCategoryId))}
             >
               {postTicket.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("confirmPurchase") || "Confirm Purchase"}
@@ -903,6 +1008,10 @@ export default function EventsPage() {
                               <Edit className="mr-2 h-4 w-4" />
                               {tc("edit")}
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setTierEventId(event.id as string)}>
+                              <Plus className="mr-2 h-4 w-4" />
+                              {t("createTicketTier")}
+                            </DropdownMenuItem>
                             {(event.status as string) !== "cancelled" && (
                               <DropdownMenuItem onClick={() => handleCancelEvent(event.id as string)} disabled={cancellingId === (event.id as string)}>
                                 <XCircle className="mr-2 h-4 w-4" />
@@ -963,12 +1072,46 @@ export default function EventsPage() {
                         </div>
                       );
                     })()}
+                    {!isPast && (event.status as string) !== "cancelled" &&
+                      hasPermission("events.manage") && ticketTiers
+                        .filter((tier) => tier.event_id === event.id).length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
+                        {ticketTiers.filter((tier) => tier.event_id === event.id).map((tier) => (
+                          <Button key={tier.id} size="sm" variant="outline"
+                            disabled={!/^0(?:\.0+)?$/.test(String(tier.price))
+                              && !hasPermission("finances.manage")}
+                            onClick={() => {
+                              setPurchaseEventId(event.id as string);
+                              setPurchaseTierId(tier.id);
+                              setPurchaseRequestId(crypto.randomUUID());
+                              setPurchaseAccountId("");
+                              setPurchaseCategoryId("");
+                              setShowPurchaseDialog(true);
+                            }}>
+                            {t("purchaseTicket")}: {tier.name} · {String(tier.price)} {currentGroup?.currency}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
             })
           )}
         </div>
+      )}
+      {ownTicketPurchases.length > 0 && (
+        <section className="rounded-lg border p-4 text-sm">
+          <h2 className="font-semibold">{t("ticketRecovery")}</h2>
+          <ul className="mt-2 space-y-1">
+            {ownTicketPurchases.slice(0, 10).map((purchase) => (
+              <li key={purchase.request_id}>
+                {purchase.amount} {purchase.currency} · {purchase.request_id}
+                {purchase.financial_event_id && ` · ${t("ticketLedgerPosted")}`}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {/* Delete Event Confirmation Dialog */}

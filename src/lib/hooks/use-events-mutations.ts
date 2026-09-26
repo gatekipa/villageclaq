@@ -41,11 +41,13 @@ export interface RecordRsvpInput {
 }
 
 export interface PostTicketPurchaseInput {
+  requestId: string;
   groupId: string;
   eventId: string;
   tierId: string;
   membershipId: string;
-  accountId: string;
+  accountId: string | null;
+  categoryId: string | null;
 }
 
 export interface EventMutationResponse {
@@ -194,10 +196,12 @@ export function usePostTicketPurchase(currentGroupId: string) {
         throw new Error("staleTenantAborted");
       }
       const { data, error } = await supabase.rpc("post_ticket_purchase", {
+        p_request: input.requestId,
         p_event_id: input.eventId,
         p_tier_id: input.tierId,
         p_membership_id: input.membershipId,
         p_account_id: input.accountId,
+        p_category_id: input.categoryId,
         p_group_id: input.groupId,
       });
       if (error) throw new Error(parseEventRpcError(error));
@@ -206,6 +210,8 @@ export function usePostTicketPurchase(currentGroupId: string) {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["ticket_purchases", variables.eventId] });
       queryClient.invalidateQueries({ queryKey: ["ticket_tiers", variables.eventId] });
+      queryClient.invalidateQueries({ queryKey: ["ticket_tiers", currentGroupId] });
+      queryClient.invalidateQueries({ queryKey: ["ticket-purchases", currentGroupId] });
       queryClient.invalidateQueries({ queryKey: ["events", currentGroupId] });
     },
   });

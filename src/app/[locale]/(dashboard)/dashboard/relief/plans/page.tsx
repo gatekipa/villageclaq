@@ -17,6 +17,7 @@ import { Loader2, Plus, Users, ShieldAlert } from "lucide-react";
 import { useCreateReliefPlan, useEnrollMemberInPlan, parseReliefRpcError } from "@/lib/hooks/use-relief-mutations";
 import { useMembers } from "@/lib/hooks/use-supabase-query";
 import { formatExactAmount as formatAmount } from "@/lib/export-financial-ledger";
+import { OwnerReliefReceiptPanel } from "@/components/relief/owner-receipt-panel";
 
 const supabase = createClient();
 
@@ -55,7 +56,7 @@ function useReliefEnrollments(groupId: string | null) {
 
 export default function ReliefPlansPage() {
   const t = useTranslations("relief");
-  const { groupId, isAdmin, isOwner } = useGroup();
+  const { groupId, currentGroup, user, isAdmin, isOwner } = useGroup();
 
   const [prevGroupId, setPrevGroupId] = useState(groupId);
 
@@ -153,6 +154,10 @@ export default function ReliefPlansPage() {
           })}
         </div>
       )}
+
+      {canManage && groupId && user && <OwnerReliefReceiptPanel
+        key={groupId} groupId={groupId} userId={user.id}
+        plans={plans} currency={currentGroup?.currency || "USD"} />}
 
       <CreatePlanDialog open={createPlanOpen} onOpenChange={setCreatePlanOpen} />
       

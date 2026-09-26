@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 
 export function useGroupReferral(currentGroupId: string) {
@@ -22,7 +22,34 @@ export function useGroupReferral(currentGroupId: string) {
     }
   });
 
-  return { generateReferral };
+  const ownReferrals = useQuery({
+    queryKey: ["organization_referrals", currentGroupId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("list_own_group_referrals", {
+        p_group_id: currentGroupId,
+      });
+      if (error) throw error;
+      return (Array.isArray(data) ? data : []) as Array<{
+        id: string; status: string; created_at: string; expires_at: string;
+      }>;
+    },
+    enabled: !!currentGroupId,
+  });
+
+  const revokeReferral = useMutation({
+    mutationFn: async (input: { groupId: string; referralId: string }) => {
+      if (input.groupId !== currentGroupId) throw new Error("staleTenantAborted");
+      const { error } = await supabase.rpc("revoke_group_referral_by_id", {
+        p_referral_id: input.referralId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({
+      queryKey: ["organization_referrals", currentGroupId],
+    }),
+  });
+
+  return { generateReferral, ownReferrals, revokeReferral };
 }
 
 export function useReferralIngress() {

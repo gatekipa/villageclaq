@@ -55,6 +55,7 @@ import { usePermissions } from "@/lib/hooks/use-permissions";
 import { PaymentsTab } from "@/components/settings/payments-tab";
 import { StandingRulesTab } from "@/components/settings/standing-rules-tab";
 import { getMemberName } from "@/lib/get-member-name";
+import { PublicProfileSettings } from "@/components/settings/public-profile-settings";
 
 function getInitials(name: string) {
   return name
@@ -119,6 +120,10 @@ export default function GroupSettingsPage() {
   const { groupId, currentGroup, currentMembership, user } = useGroup();
   const { hasPermission } = usePermissions();
   const canManageSettings = hasPermission("settings.manage");
+  const canPublish = currentMembership?.membership_status === "active" &&
+    (currentMembership?.role === "owner" || currentMembership?.role === "admin");
+  const [savingPublicCards, setSavingPublicCards] = useState(false);
+  const [publicCardsError, setPublicCardsError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { data: group, isLoading: groupLoading, isError: groupError, error: groupErr, refetch: refetchGroup } = useGroupSettings();
   const { data: positions, isLoading: posLoading, isError: posError, error: posErr, refetch: refetchPos } = useGroupPositions();
@@ -466,6 +471,17 @@ export default function GroupSettingsPage() {
   }
 
   const groupData = group as Record<string, unknown> | null;
+  async function handlePublicCards(enabled: boolean) {
+    if (!groupId || !canPublish) return;
+    setSavingPublicCards(true);
+    setPublicCardsError(null);
+    const { error } = await createClient().rpc("configure_public_card_sharing", {
+      p_group_id: groupId, p_enabled: enabled,
+    });
+    if (error) setPublicCardsError(error.message);
+    else await queryClient.invalidateQueries({ queryKey: ["group-settings", groupId] });
+    setSavingPublicCards(false);
+  }
   const positionsData = (positions || []) as Record<string, unknown>[];
 
   return (
@@ -483,6 +499,7 @@ export default function GroupSettingsPage() {
           <TabsTrigger value="standing" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("standingTab")}</TabsTrigger>
           <TabsTrigger value="positions" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("positionsTab")}</TabsTrigger>
           <TabsTrigger value="notifications" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("notificationsTab")}</TabsTrigger>
+          {canPublish && <TabsTrigger value="public" className="px-3 py-1.5 text-sm font-medium">{t("publicTab")}</TabsTrigger>}
           {isBranch && (
             <TabsTrigger value="data-sharing" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("dataSharingTab")}</TabsTrigger>
           )}
@@ -958,6 +975,21 @@ export default function GroupSettingsPage() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+        )}
+        {canPublish && groupId && (
+          <TabsContent value="public" className="mt-6 space-y-6">
+            <Card>
+              <CardContent className="space-y-3 pt-6">
+                <Label htmlFor="allow-public-cards">{t("publicCardsLabel")}</Label>
+                <p className="text-sm text-muted-foreground">{t("publicCardsDescription")}</p>
+                <Switch id="allow-public-cards"
+                  checked={groupData?.allow_public_cards === true}
+                  onCheckedChange={handlePublicCards} disabled={savingPublicCards} />
+                {publicCardsError && <p role="alert" className="text-sm text-destructive">{publicCardsError}</p>}
+              </CardContent>
+            </Card>
+            <PublicProfileSettings groupId={groupId} />
           </TabsContent>
         )}
         {/* Notifications Tab */}

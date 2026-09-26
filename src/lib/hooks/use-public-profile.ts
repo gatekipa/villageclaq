@@ -60,7 +60,9 @@ export function usePublicOrganizationView(slug: string) {
       return data;
     },
     enabled: !!slug,
-    staleTime: 1000 * 60 * 15
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: 30_000
   });
 }
 

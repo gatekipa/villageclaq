@@ -11,6 +11,7 @@ import {
   UserPlus,
   Search,
   Layers,
+  Share2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ import { Button } from "@/components/ui/button";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { BringAnotherGroupModal } from "@/components/referrals/bring-another-group-modal";
 
 // Above this many groups, the dropdown gets a client-side name filter so a
 // member of an HQ plus several of its branches can still find a group fast.
@@ -59,6 +61,7 @@ export function GroupSwitcher() {
   const [leaveSaving, setLeaveSaving] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const [joinOpen, setJoinOpen] = useState(false);
+  const [referralOpen, setReferralOpen] = useState(false);
   const [search, setSearch] = useState("");
   const searchInputId = useId();
 
@@ -277,6 +280,13 @@ export function GroupSwitcher() {
               </div>
             </DropdownMenuItem>
           </Link>
+          {currentMembership?.membership_status === "active" && (
+            <DropdownMenuItem className="flex items-center gap-2"
+              onClick={() => setReferralOpen(true)}>
+              <Share2 className="h-4 w-4" />
+              <span>{tSwitcher("bringAnotherGroup")}</span>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             className="flex items-center gap-2"
             onClick={() => setJoinOpen(true)}
@@ -320,6 +330,8 @@ export function GroupSwitcher() {
 
       {/* Join by Code Dialog */}
       <JoinByCodeDialog open={joinOpen} onOpenChange={setJoinOpen} />
+      {groupId && <BringAnotherGroupModal groupId={groupId}
+        isOpen={referralOpen} onClose={() => setReferralOpen(false)} />}
 
       {/* Leave Group Confirmation Dialog */}
       <Dialog open={leaveOpen} onOpenChange={(o) => { setLeaveOpen(o); if (!o) setLeaveError(null); }}>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter, usePathname, Link } from "@/i18n/routing";
+import { useSearchParams } from "next/navigation";
 import { JoinByCodeDialog } from "@/components/ui/join-by-code-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
@@ -132,6 +133,7 @@ export default function GroupOnboardingPage() {
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
+  const referralToken = useSearchParams().get("ref");
   const { refresh, user } = useGroup();
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -183,6 +185,7 @@ export default function GroupOnboardingPage() {
     emailFailed: number;
     phoneQueued: number;
     insertFailed: boolean;
+    referralFailed: boolean;
   } | null>(null);
 
   // ─── Pending invitations check (safety net) ────────────────────────────
@@ -555,7 +558,7 @@ export default function GroupOnboardingPage() {
     });
     if (memErr) {
       setError(t("setupFailed"));
-      await supabase.from("groups").delete().eq("id", group.id);
+      await supabase.rpc("abort_uninitialized_group", { p_group: group.id });
       await supabase.from("organizations").delete().eq("id", org.id);
       setIsSubmitting(false);
       return;
@@ -699,6 +702,20 @@ export default function GroupOnboardingPage() {
       }
     }
 
+    // Attribution is optional and never grants membership. Claim it only after
+    // ordinary group/owner setup has succeeded.
+    let referralFailed = false;
+    if (referralToken) {
+      if (!/^[0-9a-f]{48}$/.test(referralToken)) {
+        referralFailed = true;
+      } else {
+        const { error: referralError } = await supabase.rpc("claim_group_referral", {
+          p_token: referralToken, p_new_group_id: group.id,
+        });
+        referralFailed = !!referralError;
+      }
+    }
+
     // Group is created — refresh context regardless of invite outcome.
     // FORCE the refresh: a non-forced refresh() no-ops under the provider's
     // 5s cooldown / in-flight guard, so memberships could still be [] when
@@ -710,8 +727,8 @@ export default function GroupOnboardingPage() {
     // If every channel went out cleanly, go straight to the dashboard. If any
     // EMAIL failed or the invitation rows didn't save, stop on an honest
     // completion screen rather than pretending all invites were delivered.
-    if (emailFailed > 0 || inviteInsertFailed) {
-      setSetupOutcome({ emailSent, emailFailed, phoneQueued, insertFailed: inviteInsertFailed });
+    if (emailFailed > 0 || inviteInsertFailed || referralFailed) {
+      setSetupOutcome({ emailSent, emailFailed, phoneQueued, insertFailed: inviteInsertFailed, referralFailed });
       setIsSubmitting(false);
       return;
     }
@@ -810,7 +827,7 @@ export default function GroupOnboardingPage() {
   // not go out cleanly (email failed or the rows didn't save) — the group
   // itself is already created, so this never blocks the owner from continuing.
   if (setupOutcome) {
-    const { emailSent, emailFailed, phoneQueued, insertFailed } = setupOutcome;
+    const { emailSent, emailFailed, phoneQueued, insertFailed, referralFailed } = setupOutcome;
     return (
       <div className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center px-4 py-8">
         <img src="/logo-mark.svg" className="mb-6 h-12 w-12" alt="" />
@@ -840,6 +857,11 @@ export default function GroupOnboardingPage() {
             {insertFailed && (
               <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
                 {t("inviteSaveFailed")}
+              </p>
+            )}
+            {referralFailed && (
+              <p role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-800">
+                {t("referralNotRecorded")}
               </p>
             )}
             <p className="text-xs text-muted-foreground">{t("inviteResendHint")}</p>

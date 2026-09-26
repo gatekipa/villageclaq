@@ -22,8 +22,7 @@ BEGIN
   END IF;
 END $$;
 
--- Add in_app to notification_channel if it doesn't exist
-ALTER TYPE public.notification_channel ADD VALUE IF NOT EXISTS 'in_app';
+BEGIN;
 
 -- 2. Outbox Schema Fortification
 ALTER TABLE public.notifications_queue
@@ -36,21 +35,8 @@ ALTER TABLE public.notifications_queue
   ADD COLUMN next_retry_at TIMESTAMPTZ,
   ADD COLUMN provider_message_id TEXT;
 
--- Convert existing columns to match requirement names
-ALTER TABLE public.notifications_queue RENAME COLUMN attempts TO attempt_count;
-ALTER TABLE public.notifications_queue RENAME COLUMN error_message TO last_error;
-
--- Map existing 'queued' to 'pending' and change to TEXT
-ALTER TABLE public.notifications_queue ALTER COLUMN status DROP DEFAULT;
-ALTER TABLE public.notifications_queue ALTER COLUMN status TYPE TEXT USING (
-  CASE 
-    WHEN status::TEXT = 'queued' THEN 'pending'
-    ELSE status::TEXT 
-  END
-);
-ALTER TABLE public.notifications_queue ALTER COLUMN status SET DEFAULT 'pending';
-ALTER TABLE public.notifications_queue ADD CONSTRAINT chk_notifications_queue_status 
-  CHECK (status IN ('pending', 'processing', 'sent', 'failed', 'dead_letter'));
+-- Preserve the baseline enum, queued state, attempts, and error_message
+-- because existing outbound producers and workers still use those contracts.
 
 ALTER TABLE public.notifications_queue ADD CONSTRAINT uq_notifications_queue_idempotency UNIQUE (group_id, idempotency_key);
 
@@ -75,6 +61,8 @@ DECLARE
   v_payload JSONB;
   v_idempotency_key TEXT;
   v_queue_id UUID;
+  v_user_id UUID;
+  v_existing public.notifications_queue%ROWTYPE;
 BEGIN
   v_group_id := (p_command->>'group_id')::UUID;
   v_membership_id := (p_command->>'membership_id')::UUID;
@@ -84,12 +72,21 @@ BEGIN
   v_payload := COALESCE(p_command->'payload', '{}'::jsonb);
   v_idempotency_key := p_command->>'idempotency_key';
 
-  IF v_group_id IS NULL OR v_channel IS NULL OR v_template_key IS NULL OR v_idempotency_key IS NULL THEN
+  IF v_group_id IS NULL OR v_membership_id IS NULL OR v_channel IS NULL
+     OR v_template_key IS NULL OR v_idempotency_key IS NULL THEN
     RAISE EXCEPTION 'MISSING_REQUIRED_FIELDS';
   END IF;
+  IF coalesce(auth.jwt()->>'role','') <> 'service_role'
+     AND NOT public.has_group_permission(v_group_id,'announcements.manage',auth.uid())
+  THEN RAISE EXCEPTION 'UNAUTHORIZED' USING ERRCODE='42501'; END IF;
+  SELECT m.user_id INTO v_user_id FROM public.memberships m
+  WHERE m.id=v_membership_id AND m.group_id=v_group_id
+    AND m.membership_status='active';
+  IF v_user_id IS NULL THEN RAISE EXCEPTION 'INVALID_RECIPIENT'; END IF;
 
   INSERT INTO public.notifications_queue (
     group_id,
+    user_id,
     membership_id,
     channel,
     template,
@@ -98,6 +95,7 @@ BEGIN
     idempotency_key
   ) VALUES (
     v_group_id,
+    v_user_id,
     v_membership_id,
     v_channel::public.notification_channel,
     v_template_key,
@@ -109,7 +107,15 @@ BEGIN
   RETURNING id INTO v_queue_id;
 
   IF v_queue_id IS NULL THEN
-    SELECT id INTO v_queue_id FROM public.notifications_queue WHERE group_id = v_group_id AND idempotency_key = v_idempotency_key;
+    SELECT * INTO v_existing FROM public.notifications_queue
+    WHERE group_id=v_group_id AND idempotency_key=v_idempotency_key;
+    IF v_existing.membership_id IS DISTINCT FROM v_membership_id
+       OR v_existing.channel::text IS DISTINCT FROM v_channel
+       OR v_existing.template IS DISTINCT FROM v_template_key
+       OR v_existing.data IS DISTINCT FROM
+         (v_payload || pg_catalog.jsonb_build_object('recipient',v_recipient_address))
+    THEN RAISE EXCEPTION 'NOTIFICATION_IDENTITY_CONFLICT'; END IF;
+    v_queue_id:=v_existing.id;
     RETURN jsonb_build_object('queued', false, 'idempotent_replay', true, 'queue_id', v_queue_id);
   END IF;
 
@@ -139,7 +145,7 @@ BEGIN
   WITH claimed AS (
     SELECT id
     FROM public.notifications_queue
-    WHERE (status = 'pending' AND (next_retry_at IS NULL OR next_retry_at <= now()))
+    WHERE (status IN ('queued','pending','failed') AND (next_retry_at IS NULL OR next_retry_at <= now()))
        OR (status = 'processing' AND locked_at < now() - INTERVAL '5 minutes')
     ORDER BY created_at ASC
     FOR UPDATE SKIP LOCKED
@@ -150,7 +156,7 @@ BEGIN
     SET status = 'processing',
         locked_at = now(),
         locked_by = v_worker_id,
-        attempt_count = attempt_count + 1
+        attempts = attempts + 1
     FROM claimed c
     WHERE q.id = c.id
     RETURNING q.*
@@ -161,7 +167,6 @@ BEGIN
   RETURN COALESCE(v_claimed, '[]'::jsonb);
 END;
 $$;
-
 
 -- settle_notification_delivery
 CREATE OR REPLACE FUNCTION public.settle_notification_delivery(p_command jsonb)
@@ -202,14 +207,14 @@ BEGIN
         locked_at = NULL,
         locked_by = NULL,
         sent_at = now(),
-        last_error = NULL
+        error_message = NULL
     WHERE id = v_notification_id;
   ELSE
-    IF v_row.attempt_count >= v_row.max_attempts THEN
+    IF v_row.attempts >= v_row.max_attempts THEN
       v_new_status := 'dead_letter';
       UPDATE public.notifications_queue
       SET status = v_new_status,
-          last_error = v_error_message,
+          error_message = v_error_message,
           locked_at = NULL,
           locked_by = NULL
       WHERE id = v_notification_id;
@@ -217,8 +222,8 @@ BEGIN
       v_new_status := 'failed';
       UPDATE public.notifications_queue
       SET status = v_new_status,
-          last_error = v_error_message,
-          next_retry_at = now() + (POWER(2, v_row.attempt_count) * INTERVAL '30 seconds'),
+          error_message = v_error_message,
+          next_retry_at = now() + (POWER(2, v_row.attempts) * INTERVAL '30 seconds'),
           locked_at = NULL,
           locked_by = NULL
       WHERE id = v_notification_id;
@@ -228,3 +233,10 @@ BEGIN
   RETURN jsonb_build_object('settled', true, 'status', v_new_status);
 END;
 $$;
+REVOKE ALL ON FUNCTION public.queue_transactional_notification(jsonb) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.queue_transactional_notification(jsonb) TO authenticated,service_role;
+REVOKE ALL ON FUNCTION public.claim_notification_batch(jsonb) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_notification_batch(jsonb) TO service_role;
+REVOKE ALL ON FUNCTION public.settle_notification_delivery(jsonb) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.settle_notification_delivery(jsonb) TO service_role;
+COMMIT;

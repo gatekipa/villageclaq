@@ -66,9 +66,19 @@ export default function EnquiriesPage() {
       select: "*",
       order: { column: "created_at", ascending: false },
     },
+    {
+      key: "profileAbuse",
+      table: "organization_profile_abuse_reports",
+      select: "id, group_id, reason, details, created_at",
+      order: { column: "created_at", ascending: false },
+      limit: 50,
+    },
   ]);
 
   const enquiries = (results.enquiries?.data ?? []) as Enquiry[];
+  const profileAbuse = (results.profileAbuse?.data ?? []) as Array<{
+    id: string; group_id: string; reason: string; details: string; created_at: string;
+  }>;
 
   const handleUpdateEnquiry = async (id: string) => {
     const supabase = createClient();
@@ -282,6 +292,20 @@ export default function EnquiriesPage() {
           );
         })}
       </div>
+      {profileAbuse.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">{t("profileAbuseTitle")}</h2>
+          {profileAbuse.map((report) => (
+            <Card key={report.id}>
+              <CardContent className="space-y-2 p-4">
+                <p className="text-sm font-medium">{report.reason} · {report.created_at.slice(0, 10)}</p>
+                <p className="text-xs text-muted-foreground">{t("profileAbuseGroup")}: {report.group_id}</p>
+                <p className="whitespace-pre-wrap text-sm">{report.details}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+      )}
     </div>
   );
 }

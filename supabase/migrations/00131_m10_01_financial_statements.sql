@@ -137,7 +137,7 @@ BEGIN
   v_end_date := COALESCE((p_command->>'end_date')::timestamptz, now());
 
   -- Authorization
-  IF NOT public.has_group_permission(v_group_id, v_uid, 'finances.view') THEN
+  IF NOT public.has_group_permission(v_group_id, 'finances.view', v_uid) THEN
     RAISE EXCEPTION 'UNAUTHORIZED' USING ERRCODE = 'INSUFFICIENT_PRIVILEGE';
   END IF;
 
@@ -283,8 +283,9 @@ BEGIN
   v_end_date := COALESCE((p_command->>'end_date')::timestamptz, now());
 
   -- Privacy Invariant: Rejects if caller is not the owner of the membership and lacks finances.view.
-  SELECT (user_id = v_uid) INTO v_is_owner FROM public.memberships WHERE id = v_member_id AND group_id = v_group_id;
-  v_has_view := public.has_group_permission(v_group_id, v_uid, 'finances.view');
+  SELECT (user_id = v_uid AND membership_status = 'active') INTO v_is_owner
+  FROM public.memberships WHERE id = v_member_id AND group_id = v_group_id;
+  v_has_view := public.has_group_permission(v_group_id, 'finances.view', v_uid);
   
   IF v_is_owner IS NOT TRUE AND v_has_view IS NOT TRUE THEN
     RAISE EXCEPTION 'UNAUTHORIZED' USING ERRCODE = 'INSUFFICIENT_PRIVILEGE';
@@ -329,3 +330,12 @@ BEGIN
   RETURN v_result;
 END;
 $$;
+
+-- Views are owned by the migration role and can bypass underlying RLS. The
+-- scoped RPCs above are the only supported client observation boundary.
+REVOKE ALL ON public.v_f3_trial_balance, public.v_f3_account_ledger
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.get_financial_statement(jsonb),
+  public.get_member_contribution_statement(jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_financial_statement(jsonb),
+  public.get_member_contribution_statement(jsonb) TO authenticated;

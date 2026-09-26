@@ -999,16 +999,26 @@ export function useElections() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["elections", groupId],
-    staleTime: 5 * 60 * 1000, // WS3 (B11): invalidated by useCreateElection
+    staleTime: 0, // publication and eligibility are server-authoritative
     queryFn: async () => {
       if (!groupId) return [];
+      const { data: unit, error: unitError } = await supabase
+        .from("organization_units").select("id")
+        .eq("group_id", groupId).maybeSingle();
+      if (unitError) throw unitError;
+      const { data: electorate, error: electorateError } = unit
+        ? await supabase.from("election_electorate")
+            .select("election_id").eq("unit_id", unit.id)
+        : { data: [], error: null };
+      if (electorateError) throw electorateError;
+      const visibleElectionIds = new Set((electorate || []).map((row) => row.election_id));
       const { data, error } = await supabase
         .from("elections")
         .select("*, election_candidates(*, membership:memberships!inner(id, display_name, is_proxy, privacy_settings, profiles!memberships_user_id_fkey(id, full_name, avatar_url))), election_options(*)")
-        .eq("group_id", groupId)
         .order("created_at", { ascending: false });
-      if (error) { console.warn("[Query] failed:", error.message); return []; }
-      return data || [];
+      if (error) throw error;
+      return (data || []).filter((election) =>
+        election.group_id === groupId || visibleElectionIds.has(election.id));
     },
     enabled: !!groupId,
   });

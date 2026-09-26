@@ -18,6 +18,7 @@ import { DashboardSkeleton, EmptyState } from "@/components/ui/page-skeleton";
 import { getMemberName } from "@/lib/get-member-name";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { AccessDenied } from "@/components/ui/permission-gate";
+import { CommunityCardShareModal } from "@/components/cards/community-card-share-modal";
 
 function getInitials(name: string | null): string {
   if (!name) return "?";
@@ -80,6 +81,7 @@ export default function MembershipCardPage() {
   const [side, setSide] = useState<"front" | "back">("front");
   const [downloading, setDownloading] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [publicShareOpen, setPublicShareOpen] = useState(false);
 
   const isLoading = loading || permsLoading || (allowTargetFetch && targetLoading);
 
@@ -330,8 +332,18 @@ export default function MembershipCardPage() {
               {t("shareViaWhatsApp")}
             </Button>
           </div>
+          {isOwnCard && currentGroup?.id && (
+            <Button variant="outline" className="w-full"
+              onClick={() => setPublicShareOpen(true)}>
+              {t("publicSafeShare")}
+            </Button>
+          )}
         </div>
       </div>
+      {isOwnCard && currentGroup?.id && (
+        <CommunityCardShareModal groupId={currentGroup.id}
+          isOpen={publicShareOpen} onClose={() => setPublicShareOpen(false)} />
+      )}
     </div>
   );
 }

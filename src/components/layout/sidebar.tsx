@@ -120,6 +120,7 @@ const adminSections: NavSection[] = [
     items: [
       { key: "savingsCircle", href: "/dashboard/savings-circle", icon: RefreshCw, tierBadgeKey: "badgeStarter" },
       { key: "elections", href: "/dashboard/elections", icon: Vote, tierBadgeKey: "badgeStarter" },
+      { key: "hierarchy", href: "/dashboard/hierarchy", icon: GitBranch },
       { key: "relief", href: "/dashboard/relief", icon: Heart, tierBadgeKey: "badgeStarter" },
       { key: "constitution", href: "/dashboard/constitution", icon: ScrollText },
       { key: "documents", href: "/dashboard/documents", icon: FolderLock },
@@ -179,6 +180,7 @@ const memberSections: NavSection[] = [
     items: [
       { key: "directory", href: "/dashboard/directory", icon: Users },
       { key: "elections", href: "/dashboard/elections", icon: Vote, tierBadgeKey: "badgeStarter" },
+      { key: "hierarchy", href: "/dashboard/hierarchy", icon: GitBranch },
       { key: "meetings", href: "/dashboard/minutes", icon: BookOpen },
       { key: "constitution", href: "/dashboard/constitution", icon: ScrollText },
       { key: "documents", href: "/dashboard/documents", icon: FolderLock },

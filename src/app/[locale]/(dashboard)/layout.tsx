@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { useTranslations } from "next-intl";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { HierarchyScopeBar } from "@/components/layout/hierarchy-scope-bar";
 import { GroupProvider, useGroup, type GroupMembership } from "@/lib/group-context";
 import { useRouter, usePathname, Link } from "@/i18n/routing";
 import { DashboardSkeleton } from "@/components/ui/page-skeleton";
@@ -318,7 +319,7 @@ function PhoneBanner({ onDismiss }: { onDismiss: () => void }) {
 }
 
 function DashboardGuard({ children }: { children: React.ReactNode }) {
-  const { loading, memberships, user, currentMembership } = useGroup();
+  const { loading, memberships, user, currentMembership, switchGroup } = useGroup();
   const router = useRouter();
   const pathname = usePathname();
   const tCommon = useTranslations("common");
@@ -492,6 +493,27 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // A pinned URL with an unknown, exited, or suspended tenant must never
+  // render dashboard children using ambient data from another membership.
+  if (!loading && user && memberships.length > 0 &&
+      (!currentMembership ||
+       !["active", "pending_approval"].includes(currentMembership.membership_status))) {
+    const available = memberships.filter((m) => m.membership_status === "active" &&
+      m.group?.is_active !== false);
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="w-full max-w-sm space-y-4 rounded-2xl border bg-card p-6">
+          <h1 className="text-lg font-semibold">{tCommon("groupUnavailable")}</h1>
+          <p className="text-sm text-muted-foreground">{tCommon("groupUnavailableDesc")}</p>
+          {available.map((m) => (
+            <Button key={m.group_id} className="w-full" variant="outline"
+              onClick={() => switchGroup(m.group_id)}>{m.group.name}</Button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   // Pending approval interstitial — legitimate blocker (user can't use the app)
   if (!loading && currentMembership?.membership_status === "pending_approval") {
     return (
@@ -549,7 +571,7 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
 
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { memberships, loading, user } = useGroup();
+  const { memberships, loading, user, groupId } = useGroup();
   const pathname = usePathname();
   // Phone banner state — shown after user skips the phone collection prompt
   const [bannerDismissed, setBannerDismissed] = useState(true); // true = hidden until loaded
@@ -612,6 +634,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <Header onMenuClick={() => setSidebarOpen(true)} />
+          <HierarchyScopeBar />
           <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 lg:p-6">
             <ScrollToTopOnNav />
             <PageContainer>
@@ -626,7 +649,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                 />
               )}
               <Suspense fallback={<DashboardSkeleton />}>
-                {children}
+                <div key={groupId || 'unscoped'}>{children}</div>
               </Suspense>
             </PageContainer>
           </main>

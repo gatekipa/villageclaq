@@ -312,6 +312,7 @@ export default function LoansAdminPage() {
   const [repayAccountId, setRepayAccountId] = useState("");
   const [repayError, setRepayError] = useState<string | null>(null);
   const [repaySaving, setRepaySaving] = useState(false);
+  const [recoveringRepaymentId, setRecoveringRepaymentId] = useState<string | null>(null);
 
   // Quick loan dialog
   const [quickLoanOpen, setQuickLoanOpen] = useState(false);
@@ -885,6 +886,22 @@ export default function LoansAdminPage() {
     } finally {
       setRepaySaving(false);
     }
+  }
+
+  async function handleRecoverRepayment(repaymentId: string) {
+    if (!groupId || !detailLoanId) return;
+    setRecoveringRepaymentId(repaymentId);
+    setRepayError(null);
+    const { error } = await createClient().rpc("post_loan_repayment", {
+      p_command: { repayment_id: repaymentId },
+    });
+    if (error) setRepayError(parseLoanRpcError(error));
+    else {
+      await queryClient.invalidateQueries({ queryKey: ["loan-repayments", detailLoanId] });
+      await queryClient.invalidateQueries({ queryKey: ["loans", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["financial-events", groupId] });
+    }
+    setRecoveringRepaymentId(null);
   }
 
   // ─── Status change: default / write-off ───────────────────────────────
@@ -1553,7 +1570,8 @@ export default function LoansAdminPage() {
                             <th className="px-3 py-2 text-left">{tc("date")}</th>
                             <th className="px-3 py-2 text-right">{t("amount")}</th>
                             <th className="px-3 py-2 text-left">{tc("method")}</th>
-                            <th className="px-3 py-2 text-left">{t("referenceNumber")}</th>
+                          <th className="px-3 py-2 text-left">{t("referenceNumber")}</th>
+                          <th className="px-3 py-2 text-left">{t("repaymentStatus")}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1563,6 +1581,15 @@ export default function LoansAdminPage() {
                               <td className="px-3 py-2 text-right font-medium">{formatAmount(Number(rep.amount), currency)}</td>
                               <td className="px-3 py-2">{String(rep.payment_method || "")}</td>
                               <td className="px-3 py-2">{String(rep.reference_number || "—")}</td>
+                              <td className="px-3 py-2">
+                                {rep.posting_status === "pending" ? (
+                                  <Button size="sm" variant="outline"
+                                    disabled={recoveringRepaymentId === rep.id}
+                                    onClick={() => handleRecoverRepayment(rep.id as string)}>
+                                    {t("recoverRepayment")}
+                                  </Button>
+                                ) : rep.posting_status === "posted" ? t("postedRepayment") : t("legacyRepayment")}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -1570,6 +1597,7 @@ export default function LoansAdminPage() {
                     </div>
                   </div>
                 )}
+                {repayError && <p role="alert" className="text-sm text-destructive">{repayError}</p>}
 
                 {/* Actions */}
                 {(detailLoan.status === "repaying" || detailLoan.status === "disbursed") && (

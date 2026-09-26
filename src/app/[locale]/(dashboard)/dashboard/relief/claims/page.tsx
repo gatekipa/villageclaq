@@ -211,6 +211,7 @@ function SubmitClaimDialog({ open, onOpenChange, plans, members }: { open: boole
 
   const [planId, setPlanId] = useState("");
   const [claimantId, setClaimantId] = useState("");
+  const [eventType, setEventType] = useState<"death" | "illness" | "wedding" | "childbirth" | "natural_disaster" | "other">("other");
   const [incidentDate, setIncidentDate] = useState("");
   const [amountRequested, setAmountRequested] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -226,6 +227,7 @@ function SubmitClaimDialog({ open, onOpenChange, plans, members }: { open: boole
         groupId,
         planId,
         claimantMembershipId: claimantId,
+        eventType,
         incidentDate,
         amountRequested: parseFloat(amountRequested),
         currency: selectedPlan.currency,
@@ -240,6 +242,7 @@ function SubmitClaimDialog({ open, onOpenChange, plans, members }: { open: boole
     if (!isOpen) {
       setPlanId("");
       setClaimantId("");
+      setEventType("other");
       setIncidentDate("");
       setAmountRequested("");
       setError(null);
@@ -270,6 +273,17 @@ function SubmitClaimDialog({ open, onOpenChange, plans, members }: { open: boole
               <SelectTrigger><SelectValue placeholder="Select member..." /></SelectTrigger>
               <SelectContent>
                 {members.map((m:any) => <SelectItem key={m.id} value={m.id}>{m.display_name || m.user_id}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>{t("fields.eventType")}</Label>
+            <Select value={eventType} onValueChange={(value) => setEventType(value as typeof eventType)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {(["death", "illness", "wedding", "childbirth", "natural_disaster", "other"] as const).map((value) => (
+                  <SelectItem key={value} value={value}>{t(`eventTypes.${value}`)}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

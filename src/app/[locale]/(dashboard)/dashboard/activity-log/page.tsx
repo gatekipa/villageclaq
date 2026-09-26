@@ -6,7 +6,6 @@ import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
-import { getMemberName } from "@/lib/get-member-name";
 import { exportCSV } from "@/lib/export";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -54,12 +53,13 @@ interface AuditEntry {
   description: string | null;
   details: Record<string, unknown> | null;
   created_at: string;
-  actor_member: Record<string, unknown> | null;
+  actor_profile: { full_name: string | null } | null;
 }
 
 const ENTITY_TYPE_ICONS: Record<string, LucideIcon> = {
   membership: Users,
   payment: CreditCard,
+  financial_event: CreditCard,
   event: Calendar,
   fine: Gavel,
   loan: Landmark,
@@ -72,6 +72,7 @@ const ENTITY_TYPE_ICONS: Record<string, LucideIcon> = {
 const ENTITY_TYPE_COLORS: Record<string, string> = {
   membership: "text-blue-500",
   payment: "text-emerald-500",
+  financial_event: "text-emerald-500",
   event: "text-purple-500",
   fine: "text-red-500",
   loan: "text-amber-500",
@@ -84,6 +85,7 @@ const ENTITY_TYPE_COLORS: Record<string, string> = {
 const ACTION_BADGE_COLORS: Record<string, string> = {
   created: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
   recorded: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  posted: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
   approved: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   issued: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
   paid: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
@@ -113,7 +115,7 @@ function getActionBadgeColor(action: string): string {
 const CATEGORY_FILTERS = [
   { key: "all", entityTypes: [] },
   { key: "member", entityTypes: ["membership"] },
-  { key: "financial", entityTypes: ["payment", "fine", "loan"] },
+  { key: "financial", entityTypes: ["payment", "fine", "loan", "financial_event"] },
   { key: "event", entityTypes: ["event"] },
   { key: "relief", entityTypes: ["relief"] },
   { key: "settings", entityTypes: ["settings", "announcement"] },
@@ -131,7 +133,7 @@ function useAuditLogs(category: string, searchQuery: string, dateFrom: string, d
       const supabase = createClient();
       let query = supabase
         .from("group_audit_logs")
-        .select("*, actor_member:memberships!left(id, display_name, is_proxy, privacy_settings, profiles:profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
+        .select("*, actor_profile:profiles!group_audit_logs_actor_id_fkey(full_name)")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false })
         .limit(500);
@@ -157,8 +159,7 @@ function useAuditLogs(category: string, searchQuery: string, dateFrom: string, d
 
       const { data, error } = await query;
       if (error) {
-        console.warn("[ActivityLog] Query failed:", error.message);
-        return [];
+        throw error;
       }
       return (data || []) as AuditEntry[];
     },
@@ -206,9 +207,7 @@ export default function ActivityLogPage() {
   };
 
   const getActorName = (entry: AuditEntry): string => {
-    // actor_member is joined via memberships → may be array or object
-    const member = Array.isArray(entry.actor_member) ? entry.actor_member[0] : entry.actor_member;
-    if (member) return getMemberName(member as Record<string, unknown>);
+    if (entry.actor_profile?.full_name) return entry.actor_profile.full_name;
     return t("system");
   };
 
@@ -358,6 +357,9 @@ export default function ActivityLogPage() {
                             <Badge variant="secondary" className={`text-xs ${getActionBadgeColor(entry.action)}`}>
                               {t.has(`action_${entry.action.replace(/\./g, "_")}`) ? t(`action_${entry.action.replace(/\./g, "_")}`) : entry.action}
                             </Badge>
+                            {entry.action === "client_activity" && (
+                              <Badge variant="outline" className="text-xs">{t("unverifiedReport")}</Badge>
+                            )}
                           </div>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
                             <Clock className="h-3 w-3" />

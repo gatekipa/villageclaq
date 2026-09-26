@@ -188,17 +188,18 @@ export default function DashboardPage() {
   // fetch + client-side filter/reduce.
 
   // Recent audit log entries (admin only, best-effort)
-  const { data: recentAuditLogs } = useQuery({
+  const { data: recentAuditLogs, isError: recentAuditError } = useQuery({
     queryKey: ["recent-audit-logs", currentGroup?.id],
     queryFn: async () => {
       if (!currentGroup?.id) return [];
       const supabase = createClient();
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("group_audit_logs")
-        .select("id, action, entity_type, description, created_at, actor_id, actor_member:memberships!left(id, display_name, is_proxy, privacy_settings, profiles:profiles!memberships_user_id_fkey(id, full_name))")
+        .select("id, action, entity_type, description, created_at, actor_id, actor_profile:profiles!group_audit_logs_actor_id_fkey(full_name)")
         .eq("group_id", currentGroup.id)
         .order("created_at", { ascending: false })
         .limit(10);
+      if (error) throw error;
       return data || [];
     },
     enabled: !!currentGroup?.id && isAdmin,
@@ -748,18 +749,20 @@ export default function DashboardPage() {
             </Link>
           </CardHeader>
           <CardContent>
-            {recentAuditLogs && recentAuditLogs.length > 0 ? (
+            {recentAuditError ? (
+              <p className="text-base text-muted-foreground">{t("dashboard.recentActivityUnavailable")}</p>
+            ) : recentAuditLogs && recentAuditLogs.length > 0 ? (
               <div className="space-y-3">
                 {(recentAuditLogs as Record<string, unknown>[]).map((entry) => {
                   const entityType = (entry.entity_type as string) || "settings";
                   const ICON_MAP: Record<string, typeof Activity> = {
-                    membership: Users, payment: CreditCard, event: Calendar,
+                    membership: Users, payment: CreditCard, financial_event: CreditCard, event: Calendar,
                     fine: Gavel, loan: Landmark, relief: Heart,
                     dispute: Scale, announcement: Megaphone, settings: Settings,
                   };
                   const Icon = ICON_MAP[entityType] || Activity;
-                  const member = Array.isArray(entry.actor_member) ? entry.actor_member[0] : entry.actor_member;
-                  const actorName = member ? getMemberName(member as Record<string, unknown>) : t("dashboard.system");
+                  const actorProfile = entry.actor_profile as { full_name?: string | null } | null;
+                  const actorName = actorProfile?.full_name || t("dashboard.system");
 
                   // Relative time
                   const diffMs = Date.now() - new Date(entry.created_at as string).getTime();
@@ -779,7 +782,13 @@ export default function DashboardPage() {
                       <div className="min-w-0 flex-1">
                         <p className="text-base">
                           <span className="font-medium">{actorName}</span>{" "}
-                          <span className="text-muted-foreground">{(entry.description as string) || (entry.action as string)}</span>
+                          <span className="text-muted-foreground">
+                            {entry.action === "client_activity"
+                              ? `${t("activityLog.action_client_activity")} · ${t("activityLog.unverifiedReport")}`
+                              : entry.action === "financial_event.posted"
+                                ? t("activityLog.action_financial_event_posted")
+                                : (entry.description as string) || (entry.action as string)}
+                          </span>
                         </p>
                       </div>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">

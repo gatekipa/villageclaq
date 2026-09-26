@@ -403,5 +403,161 @@ BEGIN
 END
 $test$;
 RESET ROLE;
+SELECT set_config('request.jwt.claim.sub','',true);
+INSERT INTO public.contribution_obligations
+  (id,contribution_type_id,membership_id,group_id,amount,currency,due_date)
+VALUES
+ ('00000000-0000-4000-8000-00000000a514',
+  '00000000-0000-4000-8000-00000000a504',
+  '00000000-0000-4000-8000-00000000c502',
+  '00000000-0000-4000-8000-00000000b501',60,'USD','2026-11-01'),
+ ('00000000-0000-4000-8000-00000000a515',
+  '00000000-0000-4000-8000-00000000a504',
+  '00000000-0000-4000-8000-00000000c502',
+  '00000000-0000-4000-8000-00000000b501',60,'USD','2026-12-01');
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a501',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_result jsonb; v_denied boolean:=false;
+BEGIN
+  BEGIN
+    UPDATE public.contribution_obligations SET status='waived'
+      WHERE id='00000000-0000-4000-8000-00000000a514';
+  EXCEPTION WHEN OTHERS THEN v_denied:=SQLSTATE='42501'; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'DIRECT_WAIVER_ACCEPTED'; END IF;
+  v_denied:=false;
+  BEGIN
+    INSERT INTO public.contribution_obligations
+      (id,contribution_type_id,membership_id,group_id,amount,currency,due_date,status)
+    VALUES('00000000-0000-4000-8000-00000000a516',
+      '00000000-0000-4000-8000-00000000a504',
+      '00000000-0000-4000-8000-00000000c502',
+      '00000000-0000-4000-8000-00000000b501',60,'USD','2027-01-01','waived');
+  EXCEPTION WHEN OTHERS THEN v_denied:=SQLSTATE='42501'; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'DIRECT_WAIVER_INSERT_ACCEPTED'; END IF;
+  v_denied:=false;
+  BEGIN
+    PERFORM public.waive_dues_obligation(
+      '00000000-0000-4000-8000-00000000a505','Paid obligation waiver');
+  EXCEPTION WHEN OTHERS THEN v_denied:=SQLERRM LIKE '%OBLIGATION_HAS_PAYMENT%'; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'PAID_OBLIGATION_WAIVED'; END IF;
+  v_result:=public.waive_dues_obligation(
+    '00000000-0000-4000-8000-00000000a514','Fictional hardship waiver');
+  IF v_result->>'decision'<>'WAIVED' THEN RAISE EXCEPTION 'WAIVER_FAILED'; END IF;
+  v_result:=public.waive_dues_obligation(
+    '00000000-0000-4000-8000-00000000a514','Fictional hardship waiver');
+  IF v_result->>'decision'<>'ALREADY_WAIVED' THEN
+    RAISE EXCEPTION 'WAIVER_RETRY_DUPLICATED'; END IF;
+END
+$test$;
+RESET ROLE;
+DO $test$
+BEGIN
+  IF (SELECT count(*) FROM public.group_audit_logs WHERE action='dues.obligation_waived'
+      AND entity_id='00000000-0000-4000-8000-00000000a514')<>1
+    OR (SELECT status::text FROM public.contribution_obligations WHERE id=
+      '00000000-0000-4000-8000-00000000a514')<>'waived'
+    OR EXISTS (SELECT 1 FROM public.financial_events WHERE source_record_id=
+      '00000000-0000-4000-8000-00000000a514')
+  THEN RAISE EXCEPTION 'WAIVER_AUDIT_OR_CASH_EFFECT_WRONG'; END IF;
+END
+$test$;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a503',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_denied boolean:=false;
+BEGIN
+  BEGIN
+    PERFORM public.waive_dues_obligation(
+      '00000000-0000-4000-8000-00000000a515','Cross tenant attempt');
+  EXCEPTION WHEN OTHERS THEN v_denied:=SQLSTATE='42501'; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'CROSS_TENANT_WAIVER'; END IF;
+END
+$test$;
+RESET ROLE;
+CREATE FUNCTION pg_temp.reject_waiver_audit() RETURNS trigger
+ LANGUAGE plpgsql AS $fn$
+BEGIN
+  IF new.action='dues.obligation_waived' THEN
+    RAISE EXCEPTION 'INJECTED_WAIVER_AUDIT_FAILURE';
+  END IF;
+  RETURN new;
+END
+$fn$;
+CREATE TRIGGER reject_waiver_audit BEFORE INSERT ON public.group_audit_logs
+ FOR EACH ROW EXECUTE FUNCTION pg_temp.reject_waiver_audit();
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a501',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_failed boolean:=false;
+BEGIN
+  BEGIN
+    PERFORM public.waive_dues_obligation(
+      '00000000-0000-4000-8000-00000000a515','Fictional hardship waiver');
+  EXCEPTION WHEN OTHERS THEN
+    v_failed:=SQLERRM LIKE '%INJECTED_WAIVER_AUDIT_FAILURE%';
+  END;
+  IF NOT v_failed THEN RAISE EXCEPTION 'WAIVER_AUDIT_FAILURE_NOT_PROPAGATED'; END IF;
+END
+$test$;
+RESET ROLE;
+DO $test$
+BEGIN
+  IF (SELECT status::text FROM public.contribution_obligations WHERE id=
+      '00000000-0000-4000-8000-00000000a515')='waived' THEN
+    RAISE EXCEPTION 'WAIVER_AUDIT_FAILURE_LEFT_EFFECT'; END IF;
+END
+$test$;
+DROP TRIGGER reject_waiver_audit ON public.group_audit_logs;
+SET LOCAL ROLE authenticated;
+SELECT public.waive_dues_obligation(
+  '00000000-0000-4000-8000-00000000a515','Fictional hardship waiver');
+RESET ROLE;
+DO $test$
+BEGIN
+  IF (SELECT count(*) FROM public.group_audit_logs WHERE action='dues.obligation_waived'
+      AND entity_id='00000000-0000-4000-8000-00000000a515')<>1 THEN
+    RAISE EXCEPTION 'WAIVER_AUDIT_RETRY_DUPLICATED'; END IF;
+  RAISE NOTICE 'DUES_WAIVER_PASS: direct/cross-tenant denied, retry once, audit failure rollback';
+END
+$test$;
+SET LOCAL ROLE authenticated;
+DO $test$
+BEGIN
+  IF (SELECT count(*) FROM public.group_audit_logs
+      WHERE group_id='00000000-0000-4000-8000-00000000b501'
+        AND action='dues.obligation_waived'
+        AND entity_id IN ('00000000-0000-4000-8000-00000000a514',
+                          '00000000-0000-4000-8000-00000000a515'))<>2
+  THEN RAISE EXCEPTION 'ACTIVE_ADMIN_AUDIT_READ_MISSING'; END IF;
+END
+$test$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub','',true);
+UPDATE public.memberships SET membership_status='suspended'
+ WHERE id='00000000-0000-4000-8000-00000000c501';
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a501',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_denied boolean:=false;
+BEGIN
+  IF (SELECT count(*) FROM public.group_audit_logs
+      WHERE group_id='00000000-0000-4000-8000-00000000b501'
+        AND action='dues.obligation_waived'
+        AND entity_id IN ('00000000-0000-4000-8000-00000000a514',
+                          '00000000-0000-4000-8000-00000000a515'))<>0
+  THEN RAISE EXCEPTION 'SUSPENDED_ADMIN_READ_AUDIT'; END IF;
+  BEGIN
+    PERFORM public.waive_dues_obligation(
+      '00000000-0000-4000-8000-00000000a514','Replay after revocation');
+  EXCEPTION WHEN OTHERS THEN v_denied:=SQLSTATE='42501'; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'REVOKED_WAIVER_REPLAYED'; END IF;
+END
+$test$;
+RESET ROLE;
 ROLLBACK;
 SELECT 'F4_MEMBER_STATEMENT_PASS' AS result;

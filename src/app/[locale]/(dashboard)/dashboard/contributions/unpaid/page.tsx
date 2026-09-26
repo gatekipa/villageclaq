@@ -7,6 +7,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog,
@@ -35,6 +36,7 @@ import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skele
 import { getMemberName } from "@/lib/get-member-name";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { SendReviewNotice } from "@/components/send-review-notice";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 interface UnpaidMember {
   id: string;
@@ -44,6 +46,7 @@ interface UnpaidMember {
   standing: string;
   totalOutstanding: number;
   obligations: {
+    id: string;
     type: string;
     period: string;
     amount: number;
@@ -64,6 +67,8 @@ export default function UnpaidReportPage() {
   const t = useTranslations();
   const locale = useLocale();
   const { currentGroup, groupId } = useGroup();
+  const { hasPermission } = usePermissions();
+  const canWaive = hasPermission("contributions.manage");
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const currency = currentGroup?.currency || "XAF";
   const [sortBy, setSortBy] = useState<"amount" | "name">("amount");
@@ -73,6 +78,10 @@ export default function UnpaidReportPage() {
   const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
   const [showRemindersConfirm, setShowRemindersConfirm] = useState(false);
   const [remindersError, setRemindersError] = useState<string | null>(null);
+  const [waiverTarget, setWaiverTarget] = useState<{ id: string; member: string; type: string } | null>(null);
+  const [waiverReason, setWaiverReason] = useState("");
+  const [waiverSaving, setWaiverSaving] = useState(false);
+  const [waiverError, setWaiverError] = useState<string | null>(null);
 
   // Fetch ALL obligations + the UNCAPPED confirmed-payment basis. Whether a
   // member is unpaid/owing/overdue is derived from CONFIRMED payments (Build 12
@@ -124,6 +133,7 @@ export default function UnpaidReportPage() {
 
       const contributionType = obl.contribution_type as { id: string; name: string; name_fr?: string } | null;
       member.obligations.push({
+        id: obl.id as string,
         type: contributionType?.name || t("contributions.contribution"),
         period: obl.period_label || obl.due_date?.slice(0, 7) || "",
         amount: c.expected,
@@ -199,6 +209,28 @@ export default function UnpaidReportPage() {
     }
   }
 
+  async function handleWaive() {
+    if (!waiverTarget || !groupId || waiverSaving || waiverReason.trim().length < 5) return;
+    setWaiverSaving(true);
+    setWaiverError(null);
+    try {
+      const { error } = await createClient().rpc("waive_dues_obligation", {
+        p_obligation: waiverTarget.id,
+        p_reason: waiverReason.trim(),
+      });
+      if (error) throw error;
+      await refetchObl();
+      setWaiverTarget(null);
+      setWaiverReason("");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      setWaiverError(message.includes("OBLIGATION_HAS_PAYMENT")
+        ? t("contributions.waiverHasPayment") : t("contributions.waiverFailed"));
+    } finally {
+      setWaiverSaving(false);
+    }
+  }
+
   function handleExportCSV() {
     const data = sorted.map((m) => ({
       Member: m.name,
@@ -211,12 +243,12 @@ export default function UnpaidReportPage() {
     exportCSV(data, "unpaid_members");
   }
 
-  if (isLoading) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ListSkeleton rows={6} /></RequirePermission>;
+  if (isLoading) return <RequirePermission anyOf={["contributions.manage", "finances.manage", "finances.view"]}><ListSkeleton rows={6} /></RequirePermission>;
 
-  if (isError) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ErrorState message={t("common.error")} onRetry={() => refetch()} /></RequirePermission>;
+  if (isError) return <RequirePermission anyOf={["contributions.manage", "finances.manage", "finances.view"]}><ErrorState message={t("common.error")} onRetry={() => refetch()} /></RequirePermission>;
 
   return (
-    <RequirePermission anyOf={["finances.manage", "finances.view"]}><div className="space-y-6">
+    <RequirePermission anyOf={["contributions.manage", "finances.manage", "finances.view"]}><div className="space-y-6">
       {/* Success banner */}
       {remindersSentCount > 0 && (
         <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-900/20">
@@ -352,8 +384,8 @@ export default function UnpaidReportPage() {
                   {expandedId === member.id && (
                     <div className="border-t bg-muted/10 px-4 pb-4">
                       <div className="mt-3 space-y-2">
-                        {member.obligations.map((obl, i) => (
-                          <div key={i} className="flex items-center justify-between rounded-lg bg-background p-3 text-sm">
+                        {member.obligations.map((obl) => (
+                          <div key={obl.id} className="flex items-center justify-between gap-3 rounded-lg bg-background p-3 text-sm">
                             <div>
                               <p className="font-medium">{obl.type}</p>
                               <p className="text-xs text-muted-foreground">
@@ -369,6 +401,12 @@ export default function UnpaidReportPage() {
                                 <p className="text-[10px] text-muted-foreground">
                                   {t("contributions.paidSoFar")}: {formatAmount(obl.amountPaid, currency)}
                                 </p>
+                              )}
+                              {canWaive && obl.amountPaid === 0 && (
+                                <Button size="sm" variant="outline" className="mt-2"
+                                  onClick={() => { setWaiverTarget({ id: obl.id, member: member.name, type: obl.type }); setWaiverReason(""); setWaiverError(null); }}>
+                                  {t("contributions.waiveObligation")}
+                                </Button>
                               )}
                             </div>
                           </div>
@@ -421,6 +459,27 @@ export default function UnpaidReportPage() {
             <Button onClick={handleSendAllReminders} disabled={sendingReminders || eligibleMembers.length === 0}>
               {sendingReminders ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
               {t("contributions.sendAllReminders")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!waiverTarget} onOpenChange={(open) => { if (!open && !waiverSaving) setWaiverTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogTitle>{t("contributions.waiveObligation")}</DialogTitle>
+          <DialogDescription>{t("contributions.waiverConfirm", {
+            member: waiverTarget?.member || "", type: waiverTarget?.type || "",
+          })}</DialogDescription>
+          <Textarea value={waiverReason} maxLength={500}
+            onChange={(event) => setWaiverReason(event.target.value)}
+            placeholder={t("contributions.waiverReason")} aria-label={t("contributions.waiverReason")} />
+          {waiverError && <p role="alert" className="text-sm text-destructive">{waiverError}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWaiverTarget(null)} disabled={waiverSaving}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={handleWaive} disabled={waiverSaving || waiverReason.trim().length < 5}>
+              {waiverSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("contributions.waiveObligation")}
             </Button>
           </DialogFooter>
         </DialogContent>

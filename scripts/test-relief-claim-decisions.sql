@@ -51,8 +51,13 @@ VALUES ('00000000-0000-4000-8000-00000000f925',
   '00000000-0000-4000-8000-00000000b921','Relief expense','expense');
 INSERT INTO public.financial_funds
   (id,group_id,name,is_default,is_restricted)
-VALUES ('00000000-0000-4000-8000-00000000f926',
-  '00000000-0000-4000-8000-00000000b921','General',true,false);
+VALUES
+ ('00000000-0000-4000-8000-00000000f926',
+  '00000000-0000-4000-8000-00000000b921','Relief',false,true),
+ ('00000000-0000-4000-8000-00000000f927',
+  '00000000-0000-4000-8000-00000000b921','General',true,false),
+ ('00000000-0000-4000-8000-00000000f928',
+  '00000000-0000-4000-8000-00000000b921','Other relief',false,true);
 INSERT INTO public.relief_claims
   (id,plan_id,membership_id,claimant_membership_id,group_id,
    event_type,incident_date,amount,amount_requested,currency,
@@ -153,12 +158,30 @@ BEGIN
       'approved','rejected',auth.uid(),'{}');
   EXCEPTION WHEN insufficient_privilege THEN v_denied:=true; END;
   IF NOT v_denied THEN RAISE EXCEPTION 'HISTORY_FORGERY_ALLOWED'; END IF;
-  PERFORM pg_catalog.set_config('qual.fail_paid_history','on',true);
+  v_conflict:=false;
+  BEGIN
+    PERFORM public.post_relief_claim_payout(pg_catalog.jsonb_build_object(
+      'claim_id','00000000-0000-4000-8000-00000000e921',
+      'account_id','00000000-0000-4000-8000-00000000e925',
+      'fund_id','00000000-0000-4000-8000-00000000f927'));
+  EXCEPTION WHEN OTHERS THEN
+    v_conflict:=SQLERRM LIKE '%RESTRICTED_RELIEF_FUND_REQUIRED%'; END;
+  IF NOT v_conflict THEN RAISE EXCEPTION 'UNRESTRICTED_PAYOUT_FUND_ACCEPTED'; END IF;
   v_conflict:=false;
   BEGIN
     PERFORM public.post_relief_claim_payout(pg_catalog.jsonb_build_object(
       'claim_id','00000000-0000-4000-8000-00000000e921',
       'account_id','00000000-0000-4000-8000-00000000e925'));
+  EXCEPTION WHEN OTHERS THEN
+    v_conflict:=SQLERRM LIKE '%RESTRICTED_RELIEF_FUND_REQUIRED%'; END;
+  IF NOT v_conflict THEN RAISE EXCEPTION 'MISSING_PAYOUT_FUND_ACCEPTED'; END IF;
+  PERFORM pg_catalog.set_config('qual.fail_paid_history','on',true);
+  v_conflict:=false;
+  BEGIN
+    PERFORM public.post_relief_claim_payout(pg_catalog.jsonb_build_object(
+      'claim_id','00000000-0000-4000-8000-00000000e921',
+      'account_id','00000000-0000-4000-8000-00000000e925',
+      'fund_id','00000000-0000-4000-8000-00000000f926'));
   EXCEPTION WHEN OTHERS THEN
     v_conflict:=SQLERRM LIKE '%QUAL_HISTORY_FAULT%'; END;
   PERFORM pg_catalog.set_config('qual.fail_paid_history','off',true);
@@ -172,7 +195,8 @@ BEGIN
   THEN RAISE EXCEPTION 'PAYOUT_HISTORY_FAULT_DID_NOT_ROLL_BACK'; END IF;
   v_result:=public.post_relief_claim_payout(pg_catalog.jsonb_build_object(
     'claim_id','00000000-0000-4000-8000-00000000e921',
-    'account_id','00000000-0000-4000-8000-00000000e925'));
+    'account_id','00000000-0000-4000-8000-00000000e925',
+    'fund_id','00000000-0000-4000-8000-00000000f926'));
   IF v_result->>'ok'<>'true' OR
      (SELECT decision_version FROM public.relief_claims
        WHERE id='00000000-0000-4000-8000-00000000e921')<>3 OR
@@ -188,6 +212,14 @@ BEGIN
      (SELECT count(*) FROM public.list_relief_claim_decisions(
        '00000000-0000-4000-8000-00000000e921'))<>3
   THEN RAISE EXCEPTION 'PAYOUT_RETRY_DUPLICATED_HISTORY'; END IF;
+  v_conflict:=false;
+  BEGIN
+    PERFORM public.post_relief_claim_payout(pg_catalog.jsonb_build_object(
+      'claim_id','00000000-0000-4000-8000-00000000e921',
+      'account_id','00000000-0000-4000-8000-00000000e925',
+      'fund_id','00000000-0000-4000-8000-00000000f928'));
+  EXCEPTION WHEN OTHERS THEN v_conflict:=SQLERRM LIKE '%CONFLICT%'; END;
+  IF NOT v_conflict THEN RAISE EXCEPTION 'CHANGED_PAYOUT_FUND_REPLAYED'; END IF;
 END
 $test$;
 RESET ROLE;

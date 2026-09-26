@@ -1,5 +1,6 @@
 -- R-002/R-005: bind decisions and retries to current contracted review authority.
 -- Uncontracted plans keep their legacy owner path until R-012.
+BEGIN;
 CREATE OR REPLACE FUNCTION public.can_review_relief_plan(p_plan uuid)
 RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path='' AS $$
 DECLARE v_plan public.relief_plans%ROWTYPE;
@@ -141,3 +142,4 @@ REVOKE ALL ON FUNCTION public.list_relief_claim_decisions(uuid)
   FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.list_relief_claim_decisions(uuid)
   TO authenticated;
+COMMIT;

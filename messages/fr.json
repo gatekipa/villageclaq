@@ -2968,7 +2968,10 @@
       "amountRequested": "Montant demandé",
       "amountApproved": "Montant approuvé",
       "reviewNotes": "Notes d'examen",
-      "custodyAccount": "Compte de garde"
+      "custodyAccount": "Compte de garde",
+      "restrictedFund": "Fonds de secours affecté",
+      "selectRestrictedFund": "Sélectionner un fonds affecté",
+      "restrictedFundUnavailable": "Créez un fonds affecté actif dans les paramètres financiers avant de payer cette demande."
     },
     "actions": {
       "createPlan": "Créer un plan",

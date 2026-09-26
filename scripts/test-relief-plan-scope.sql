@@ -61,6 +61,27 @@ VALUES ('00000000-0000-4000-8000-00000000e936',
  '00000000-0000-4000-8000-00000000c931',
  '00000000-0000-4000-8000-00000000b931',
  'illness',CURRENT_DATE,20,20,'USD','Fictional scoped claim','submitted');
+INSERT INTO public.financial_ledger_epochs
+ (id,group_id,currency,effective_from,source_kind,approval_note)
+VALUES ('00000000-0000-4000-8000-00000000d937',
+ '00000000-0000-4000-8000-00000000b931','USD','2020-01-01',
+ 'cutover','Fictional scope epoch');
+INSERT INTO public.financial_accounts
+ (id,group_id,opened_ledger_epoch_id,currency,name,kind,opened_at)
+VALUES ('00000000-0000-4000-8000-00000000e937',
+ '00000000-0000-4000-8000-00000000b931',
+ '00000000-0000-4000-8000-00000000d937','USD',
+ 'Fictional Scope Cash','cash','2020-01-01');
+INSERT INTO public.financial_categories
+ (id,group_id,name,category_class)
+VALUES ('00000000-0000-4000-8000-00000000f937',
+ '00000000-0000-4000-8000-00000000b931','Relief expense','expense');
+INSERT INTO public.financial_funds
+ (id,group_id,name,is_default,is_restricted)
+VALUES ('00000000-0000-4000-8000-00000000f938',
+ '00000000-0000-4000-8000-00000000b931','Relief',false,true),
+ ('00000000-0000-4000-8000-00000000f939',
+ '00000000-0000-4000-8000-00000000b931','General',true,false);
 INSERT INTO public.payments
   (id,group_id,membership_id,amount,currency,payment_method,
    recorded_by,relief_plan_id,status)
@@ -278,6 +299,22 @@ BEGIN
     'reporting_unit_id',v_root,'reporting_mode','unit'));
   IF (v_result->>'version')::integer<>3
   THEN RAISE EXCEPTION 'SUBTREE_SCOPE_NOT_ACTIVATED'; END IF;
+  BEGIN
+    PERFORM public.configure_relief_plan_scope(pg_catalog.jsonb_build_object(
+      'plan_id','00000000-0000-4000-8000-00000000e931',
+      'request_id','00000000-0000-4000-8000-00000000f952',
+      'expected_version',3,'owning_unit_id',v_root,
+      'financial_owner_group_id','00000000-0000-4000-8000-00000000b931',
+      'participation_unit_id',v_root,'participation_mode','subtree',
+      'collection_unit_id',v_root,'collection_mode','subtree',
+      'review_unit_id',current_setting('qual.scope_branch')::uuid,
+      'payout_unit_id',current_setting('qual.scope_branch')::uuid,
+      'reporting_unit_id',v_root,'reporting_mode','unit'));
+    RAISE EXCEPTION 'DELEGATED_PAYOUT_FALSELY_CONFIGURED';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%DELEGATED_PAYOUT_ADAPTER_PENDING%'
+    THEN RAISE; END IF;
+  END;
 END
 $test$;
 RESET ROLE;
@@ -296,7 +333,7 @@ SELECT set_config('request.jwt.claim.sub',
  '00000000-0000-4000-8000-00000000a932',true);
 SET LOCAL ROLE authenticated;
 DO $test$
-DECLARE v_result jsonb;
+DECLARE v_result jsonb; v_denied boolean:=false;
 BEGIN
   v_result:=public.decide_relief_claim(pg_catalog.jsonb_build_object(
     'group_id','00000000-0000-4000-8000-00000000b931',
@@ -351,7 +388,7 @@ SELECT set_config('request.jwt.claim.sub',
  '00000000-0000-4000-8000-00000000a932',true);
 SET LOCAL ROLE authenticated;
 DO $test$
-DECLARE v_result jsonb;
+DECLARE v_result jsonb; v_denied boolean:=false;
 BEGIN
   v_result:=public.decide_relief_claim(pg_catalog.jsonb_build_object(
     'group_id','00000000-0000-4000-8000-00000000b931',
@@ -360,9 +397,50 @@ BEGIN
     'expected_version',1,'status','approved','amount_approved',15));
   IF v_result->>'decision'<>'posted' THEN
     RAISE EXCEPTION 'DESIGNATED_BRANCH_APPROVAL_DENIED'; END IF;
+  BEGIN
+    PERFORM public.post_relief_claim_payout(pg_catalog.jsonb_build_object(
+      'claim_id','00000000-0000-4000-8000-00000000e936',
+      'account_id','00000000-0000-4000-8000-00000000e937'));
+  EXCEPTION WHEN insufficient_privilege THEN v_denied:=true; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'REVIEWER_SPENT_OWNER_CUSTODY'; END IF;
 END
 $test$;
 RESET ROLE;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a931',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_result jsonb; v_event uuid;
+BEGIN
+  v_result:=public.post_relief_claim_payout(pg_catalog.jsonb_build_object(
+    'claim_id','00000000-0000-4000-8000-00000000e936',
+    'account_id','00000000-0000-4000-8000-00000000e937',
+    'fund_id','00000000-0000-4000-8000-00000000f938'));
+  v_event:=(v_result->>'financial_event_id')::uuid;
+  IF v_result->>'ok'<>'true' OR v_event IS NULL
+  THEN RAISE EXCEPTION 'SCOPED_OWNER_PAYOUT_NOT_ATOMIC'; END IF;
+  PERFORM set_config('qual.scope_payout_event',v_event::text,true);
+  v_result:=public.post_relief_claim_payout(pg_catalog.jsonb_build_object(
+    'claim_id','00000000-0000-4000-8000-00000000e936',
+    'account_id','00000000-0000-4000-8000-00000000e937'));
+  IF v_result->>'financial_event_id' IS DISTINCT FROM v_event::text
+  THEN RAISE EXCEPTION 'SCOPED_OWNER_PAYOUT_RETRY_DUPLICATED'; END IF;
+END
+$test$;
+RESET ROLE;
+DO $test$
+DECLARE v_event uuid:=current_setting('qual.scope_payout_event')::uuid;
+BEGIN
+  IF (SELECT count(*) FROM public.financial_postings
+      WHERE event_id=v_event)<>2
+     OR (SELECT count(*) FROM financial_core.financial_event_audit_links
+       WHERE event_id=v_event)<>1
+     OR (SELECT count(*) FROM public.relief_claim_decisions
+       WHERE claim_id='00000000-0000-4000-8000-00000000e936'
+         AND new_status='paid')<>1
+  THEN RAISE EXCEPTION 'SCOPED_OWNER_PAYOUT_EFFECT_DUPLICATED'; END IF;
+END
+$test$;
 SELECT set_config('request.jwt.claim.sub',
  '00000000-0000-4000-8000-00000000a931',true);
 UPDATE public.memberships SET membership_status='suspended'
@@ -414,6 +492,12 @@ BEGIN
       '00000000-0000-4000-8000-00000000e931')
       ->>'topology_stale')<>'true'
   THEN RAISE EXCEPTION 'STALE_SCOPE_NOT_DISPLAYED'; END IF;
+  BEGIN
+    PERFORM public.post_relief_claim_payout(pg_catalog.jsonb_build_object(
+      'claim_id','00000000-0000-4000-8000-00000000e936',
+      'account_id','00000000-0000-4000-8000-00000000e937'));
+    RAISE EXCEPTION 'STALE_TOPOLOGY_PAYOUT_REPLAY_ALLOWED';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN
     INSERT INTO public.payments
       (id,group_id,membership_id,amount,currency,payment_method,

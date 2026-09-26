@@ -1,6 +1,7 @@
 -- R-002/R-010: a contracted plan's rollup is visible only inside its
 -- frozen reporting audience and to a currently authorized reports viewer.
 -- Legacy plans retain the S0/M2 path until R-012 classifies them.
+BEGIN;
 CREATE OR REPLACE FUNCTION public.get_relief_branch_summary()
 RETURNS TABLE (
   relief_plan_id uuid, plan_name text, collecting_group_id uuid,
@@ -79,3 +80,4 @@ $function$;
 REVOKE ALL ON FUNCTION public.get_relief_branch_summary() FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.get_relief_branch_summary()
   TO authenticated,service_role;
+COMMIT;

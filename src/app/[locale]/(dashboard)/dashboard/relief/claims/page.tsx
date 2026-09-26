@@ -19,6 +19,7 @@ import { Loader2, Plus, CheckCircle2, FileText } from "lucide-react";
 import { useSubmitReliefClaim, useReviewReliefClaim, useDisburseReliefClaim, parseReliefRpcError } from "@/lib/hooks/use-relief-mutations";
 import { useMembers } from "@/lib/hooks/use-supabase-query";
 import { formatExactAmount as formatAmount } from "@/lib/export-financial-ledger";
+import { useFinancialFunds } from "@/lib/hooks/use-financial-config";
 
 const supabase = createClient();
 
@@ -410,21 +411,25 @@ function DisburseClaimDialog({ open, onOpenChange, claim, plan, claimant }: { op
   const { groupId } = useGroup();
   const disburseClaim = useDisburseReliefClaim();
   const { data: accounts = [], isLoading: accountsLoading } = useFinancialAccounts(groupId);
+  const { data: funds = [], isLoading: fundsLoading } = useFinancialFunds(groupId);
 
   const [accountId, setAccountId] = useState("");
+  const [fundId, setFundId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const matchingAccounts = accounts.filter((a:any) => a.currency === claim?.currency);
+  const restrictedFunds = funds.filter(f => f.status === "active" && f.is_restricted);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!groupId || !claim || !accountId) return;
+    if (!groupId || !claim || !accountId || !fundId) return;
     try {
       await disburseClaim.mutateAsync({
         groupId,
         claimId: claim.id,
-        accountId
+        accountId,
+        fundId
       });
       handleOpenChange(false);
     } catch (err: any) {
@@ -435,6 +440,7 @@ function DisburseClaimDialog({ open, onOpenChange, claim, plan, claimant }: { op
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       setAccountId("");
+      setFundId("");
       setError(null);
     }
     onOpenChange(isOpen);
@@ -471,10 +477,26 @@ function DisburseClaimDialog({ open, onOpenChange, claim, plan, claimant }: { op
               </div>
             )}
           </div>
+          <div className="space-y-2">
+            <Label>{t("fields.restrictedFund")}</Label>
+            <Select required value={fundId} onValueChange={v => setFundId(v || "")} disabled={fundsLoading}>
+              <SelectTrigger>
+                <SelectValue placeholder={t("fields.selectRestrictedFund")} />
+              </SelectTrigger>
+              <SelectContent>
+                {restrictedFunds.map(f => (
+                  <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {restrictedFunds.length === 0 && !fundsLoading && (
+              <p className="text-sm text-amber-600">{t("fields.restrictedFundUnavailable")}</p>
+            )}
+          </div>
           
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={disburseClaim.isPending || !accountId || accountId === 'none'}>
+            <Button type="submit" disabled={disburseClaim.isPending || !accountId || accountId === 'none' || !fundId}>
               {disburseClaim.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Disburse Now
             </Button>

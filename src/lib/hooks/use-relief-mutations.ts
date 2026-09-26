@@ -56,6 +56,7 @@ export interface DisburseReliefClaimInput {
   groupId: string;
   claimId: string;
   accountId: string;
+  fundId: string;
   requestId?: string;
 }
 
@@ -282,6 +283,7 @@ export function useDisburseReliefClaim() {
         p_command: {
           claim_id: input.claimId,
           account_id: input.accountId,
+          fund_id: input.fundId,
           request_id: input.requestId,
         }
       });

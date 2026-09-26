@@ -2968,7 +2968,10 @@
       "amountRequested": "Amount Requested",
       "amountApproved": "Amount Approved",
       "reviewNotes": "Review Notes",
-      "custodyAccount": "Custody Account"
+      "custodyAccount": "Custody Account",
+      "restrictedFund": "Restricted relief fund",
+      "selectRestrictedFund": "Select a restricted fund",
+      "restrictedFundUnavailable": "Create an active restricted fund in Finance settings before paying this claim."
     },
     "actions": {
       "createPlan": "Create Plan",

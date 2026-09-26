@@ -15,10 +15,12 @@ export function CanonicalReportRenderer({
   reportId,
   groupId,
   defaultCurrency,
+  membershipId,
 }: {
   reportId: string;
   groupId: string;
   defaultCurrency: string;
+  membershipId?: string;
 }) {
   const t = useTranslations();
   const [currency, setCurrency] = useState(defaultCurrency);
@@ -39,7 +41,7 @@ export function CanonicalReportRenderer({
   const statementType = statementTypeMap[reportId];
 
   const finQuery = useFinancialStatement(groupId, { statementType, currency });
-  const memQuery = useMemberContributionStatement(groupId, "all", { currency });
+  const memQuery = useMemberContributionStatement(groupId, membershipId || "", { currency });
 
   const isLoading = isMemberContribution ? memQuery.isLoading : finQuery.isLoading;
   const errorRaw = isMemberContribution ? memQuery.error : finQuery.error;
@@ -56,8 +58,8 @@ export function CanonicalReportRenderer({
       normalizedRows = (mc.transactions || []).map((t: any) => ({
         entity: t.description || "-",
         class: t.source_module || "-",
-        debit: 0,
-        credit: t.amount || 0,
+        debit: t.amount < 0 ? -t.amount : 0,
+        credit: t.amount > 0 ? t.amount : 0,
         balance: t.amount || 0,
       }));
     } else {
@@ -168,6 +170,11 @@ export function CanonicalReportRenderer({
 
       {data && !isLoading && !error && (
         <>
+          {isMemberContribution && (
+            <p role="status" className="text-sm font-semibold">
+              {t("reports.statements.totalContributed")}: {formatAmount((data as { total_contributed: number }).total_contributed, currency)}
+            </p>
+          )}
           {hasBalanceStatus && (
             isBalanced ? (
               <div className="p-4 bg-emerald-50 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 rounded-md flex items-center gap-2">

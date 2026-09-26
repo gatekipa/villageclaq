@@ -1,4 +1,4 @@
--- F4-002/FCG-1 transactional local probe on production S0/M2 schema.
+-- F4-001/002/FCG-1 rollback probe on the production S0/M2-to-candidate schema.
 BEGIN;
 INSERT INTO auth.users(id,email) VALUES
  ('00000000-0000-4000-8000-00000000a501','dues-officer@example.test'),
@@ -183,10 +183,15 @@ BEGIN
       WHERE source_module='dues' AND source_record_id IN (
         '00000000-0000-4000-8000-00000000a508',
         '00000000-0000-4000-8000-00000000a509'))<>4
-    OR (SELECT count(*) FROM financial_core.dues_settlement_links)<>2
+    OR (SELECT count(*) FROM financial_core.dues_settlement_links
+        WHERE payment_id IN ('00000000-0000-4000-8000-00000000a508',
+                             '00000000-0000-4000-8000-00000000a509'))<>2
     OR (SELECT count(*) FROM financial_core.financial_event_audit_links l
       JOIN public.financial_events e ON e.id=l.event_id
-      WHERE e.source_module='dues')<>5
+      WHERE e.source_module='dues' AND e.source_record_id IN (
+        '00000000-0000-4000-8000-00000000a507',
+        '00000000-0000-4000-8000-00000000a508',
+        '00000000-0000-4000-8000-00000000a509'))<>5
   THEN RAISE EXCEPTION 'LIABILITY_SETTLEMENT_OR_AUDIT_FAIL'; END IF;
   SELECT count(*) INTO v_count FROM public.financial_postings p
   JOIN public.financial_events e ON e.id=p.event_id
@@ -229,7 +234,9 @@ RESET ROLE;
 DO $test$
 BEGIN
   IF (SELECT count(*) FROM public.financial_events
-      WHERE source_module='dues' AND effect_kind='nonrefundable_receipt')<>2
+      WHERE source_module='dues' AND effect_kind='nonrefundable_receipt'
+        AND source_record_id IN ('00000000-0000-4000-8000-00000000a507',
+                                 '00000000-0000-4000-8000-00000000a511'))<>2
   THEN RAISE EXCEPTION 'SECOND_RECEIPT_NOT_DISTINCT'; END IF;
 END
 $test$;
@@ -345,4 +352,56 @@ BEGIN
   RAISE NOTICE 'DUES_AUDIT_ATOMIC_PASS: forced audit failure rolled back payment and event; retry posted once';
 END
 $test$;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a502',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_statement jsonb; v_denied boolean:=false; v_other jsonb; v_error text;
+BEGIN
+  v_statement:=public.get_member_contribution_statement(jsonb_build_object(
+    'group_id','00000000-0000-4000-8000-00000000b501',
+    'membership_id','00000000-0000-4000-8000-00000000c502',
+    'currency','USD','start_date','2026-09-01T00:00:00Z',
+    'end_date','2026-09-30T23:59:59Z'));
+  IF (v_statement->>'total_contributed')::numeric<>330
+    OR jsonb_array_length(v_statement->'transactions')<>6
+    OR (SELECT count(*) FROM jsonb_array_elements(v_statement->'transactions') row
+        WHERE (row->>'amount')::numeric<0)<>1
+    OR EXISTS (SELECT 1 FROM jsonb_array_elements(v_statement->'transactions') row
+        WHERE row->>'description' ILIKE '%recognized%')
+  THEN RAISE EXCEPTION 'MEMBER_DUES_CASH_LINEAGE_WRONG: %',v_statement; END IF;
+  BEGIN
+    v_other:=public.get_member_contribution_statement(jsonb_build_object(
+      'group_id','00000000-0000-4000-8000-00000000b502',
+      'membership_id','00000000-0000-4000-8000-00000000c503',
+      'currency','USD'));
+  EXCEPTION WHEN OTHERS THEN v_denied:=SQLSTATE='42501'; v_error:=SQLSTATE||' '||SQLERRM; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'CROSS_TENANT_MEMBER_STATEMENT_READ actor=% can_view=% result=% error=%',
+    auth.uid(),public.has_group_permission('00000000-0000-4000-8000-00000000b502',
+      'finances.view',auth.uid()),v_other,v_error; END IF;
+  RAISE NOTICE 'DUES_MEMBER_STATEMENT_PASS: six cash entries net 330, one linked refund, no recognition, cross-tenant denied';
+END
+$test$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub','',true);
+UPDATE public.memberships SET membership_status='suspended'
+ WHERE id='00000000-0000-4000-8000-00000000c502';
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a502',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_denied boolean:=false;
+BEGIN
+  BEGIN
+    PERFORM public.get_member_contribution_statement(jsonb_build_object(
+      'group_id','00000000-0000-4000-8000-00000000b501',
+      'membership_id','00000000-0000-4000-8000-00000000c502',
+      'currency','USD'));
+  EXCEPTION WHEN OTHERS THEN v_denied:=SQLSTATE='42501'; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'REVOKED_MEMBER_STATEMENT_READ'; END IF;
+  RAISE NOTICE 'DUES_MEMBER_STATEMENT_REVOKED_PASS';
+END
+$test$;
+RESET ROLE;
 ROLLBACK;
+SELECT 'F4_MEMBER_STATEMENT_PASS' AS result;

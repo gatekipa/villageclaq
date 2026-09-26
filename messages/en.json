@@ -3817,6 +3817,7 @@
     "pendingClaims": "Pending Claims",
     "pct": "Pct",
     "statements": {
+      "totalContributed": "Net dues cash received",
       "tamperProofHash": "Document Verification Fingerprint (SHA-256)",
       "generatedAt": "Generated At (UTC)",
       "balancedNotice": "Statement Equilibrium: Mathematically Verified",

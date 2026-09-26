@@ -3817,6 +3817,7 @@
     "pendingClaims": "Réclamations en attente",
     "pct": "Pct",
     "statements": {
+      "totalContributed": "Montant net encaissé pour les cotisations",
       "tamperProofHash": "Empreinte de vérification du document (SHA-256)",
       "generatedAt": "Généré à (UTC)",
       "balancedNotice": "Équilibre de l'état : Vérifié mathématiquement",

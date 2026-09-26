@@ -38,8 +38,8 @@ import { useGroup } from "@/lib/group-context";
 import { useMembers, usePayments, useObligations, useEvents, useAllEventAttendances, useReliefPlans, useReliefClaims, useHostingRosters, useMeetingMinutes, useSavingsCycles, useElections, useGroupDuesPayments } from "@/lib/hooks/use-supabase-query";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
-import { RequirePermission } from "@/components/ui/permission-gate";
+import { ListSkeleton, ErrorState, DashboardSkeleton } from "@/components/ui/page-skeleton";
+import { RequirePermission, AccessDenied } from "@/components/ui/permission-gate";
 import {
   computeMoneyFigures,
   computeObligationStates,
@@ -216,10 +216,36 @@ import { CanonicalReportRenderer } from "./canonical-statement";
  * /dashboard/reports/<id> and read/export group financials.
  */
 export default function ReportDetailPage() {
+  const params = useParams();
+  if (params.reportId === "4") return <OwnMemberStatementPage />;
   return (
     <RequirePermission anyOf={["reports.view", "finances.view", "finances.manage"]}>
       <ReportDetailContent />
     </RequirePermission>
+  );
+}
+
+function OwnMemberStatementPage() {
+  const t = useTranslations();
+  const { groupId, currentGroup, currentMembership, loading } = useGroup();
+  if (loading) return <DashboardSkeleton />;
+  if (!groupId || !currentMembership || currentMembership.group_id !== groupId ||
+      currentMembership.membership_status !== "active") return <AccessDenied />;
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <Link href="/dashboard/reports" className="rounded p-2" aria-label={t("common.back")}>
+          <ArrowLeft className="h-4 w-4" />
+        </Link>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{t("reports.report4.name")}</h1>
+          <p className="text-sm text-muted-foreground">{t("reports.report4.desc")}</p>
+        </div>
+      </div>
+      <CanonicalReportRenderer reportId="4" groupId={groupId}
+        membershipId={currentMembership.id}
+        defaultCurrency={currentGroup?.currency || "XAF"} />
+    </div>
   );
 }
 

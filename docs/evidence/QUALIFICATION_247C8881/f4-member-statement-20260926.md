@@ -1,0 +1,20 @@
+# F4-001 member dues statement: cash lineage and mounted report
+
+Executor: Daybreak Blue. Code commit: recorded in `BUILD_STATUS.md`. Environment: authorized isolated Supabase branch `nisipxbuvndobyxqqglf`, production S0/M2 schema-only baseline upgraded through candidate migration `00184`; fictional users and ledger rows, external messaging suppressed. Production remained read only. This is executor evidence, not the independent Sol review or full release acceptance.
+
+## Before and focused repair
+
+- The original `get_member_contribution_statement` included any positive member posting for a `money_in` event. On a narrow hosted interval with two $5 dues receipts and a later $5 liability-to-income recognition, it returned three transactions totaling $15. The two receipts moved $10 cash; recognition moved none.
+- The mounted report 4 passed the literal `membershipId="all"` to a UUID RPC, yielding no statement and disabled exports. The report permission wrapper also kept an ordinary active member from an own statement, despite the RPC's own-member authorization.
+- Migration `00182` selects posted custody postings linked to a payment receipt or refund. The rollback probe returned six cash entries net $330 (three $100 non-refundable receipts, one $25 refundable receipt and its -$25 refund, one $30 conditional receipt), excluding later recognition and a rejected payment. A deliberate second identical $100 receipt remained separate. The original unauthorized error branch used an unrecognized `ERRCODE` name and surfaced `42704`; `00183` made it `42501`.
+- The real HQ fixture then exposed a separate source collision: two Relief receipts ($3 and $2) had `payments` links and entered the dues statement. Before `00184`, the mounted FR statement showed four rows and $15: those Relief rows plus two $5 dues receipts. `00184` constrains the statement to `source_module='dues'` while retaining the cash and payment-link checks.
+
+## After and boundaries
+
+- `scripts/test-dues-security-revision-2.sql` completed on the isolated branch with `F4_MEMBER_STATEMENT_PASS` and transaction rollback. It verifies six cash entries/net $330, one negative refund, no recognition row, cross-tenant denial and current-revocation denial with SQLSTATE `42501`. Existing payment/audit retry and failure assertions in the same script also passed. Its global fixture counts were scoped to its own IDs so existing isolated-branch dues records do not change the result.
+- Mounted `/fr/dashboard/reports/4` and `/en/dashboard/reports/4` used the verified isolated branch. At 390 px, both showed exactly two dues $5 rows and a $10 net cash total; document width stayed 390 px. CSV/PDF controls were enabled. Their exported file contents were not inspected in this checkpoint.
+- Hosted migration history records `00182_member_dues_statement_cash_lineage` as `20260926165523`, `00183_member_dues_statement_authorization_code` as `20260926185153`, and `00184_member_dues_statement_source_scope` as `20260926185747`. The effective RPC remains owned by `postgres` and SECURITY DEFINER; `anon` has no EXECUTE and `authenticated` does. No finance or tenant grant was widened.
+- The local Next.js Turbopack dev cache returned a route 404 despite the source route. A fresh ignored webpack dev output directory served it with HTTP 200; the temporary `next.config.ts` and generated `tsconfig.json` changes were restored. This was an environment workaround, not a product-route fix.
+- `npx tsc --noEmit --incremental false`, targeted `eslint --quiet` on the three changed TSX files, `git diff --check`, and `npm run build` all exited 0. The optimized build used a fresh ignored output directory to avoid the OneDrive cache problem; its route table includes `/[locale]/dashboard/reports/[reportId]`. Existing middleware, edge-static and metadata warnings remained advisory.
+
+F4-001 member-statement cash reconciliation is verified in this scope. Broader F4 and VC-04 acceptance and independent Sol review remain tracked in `BUILD_STATUS.md`.

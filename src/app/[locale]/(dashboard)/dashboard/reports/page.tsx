@@ -102,7 +102,7 @@ const categoryIconColors: Record<ReportCategory, string> = {
 export default function ReportsHubPage() {
   const t = useTranslations();
   const locale = useLocale();
-  const { currentGroup } = useGroup();
+  const { currentGroup, currentMembership } = useGroup();
   const { hasPermission } = usePermissions();
   const canViewReports = hasPermission("reports.view");
   const canExport = hasPermission("reports.export");
@@ -298,7 +298,10 @@ export default function ReportsHubPage() {
                             </Link>
                           ) : (
                             <Link href={href}>
-                              <Button size="sm" variant={report.isPlaceholder ? "outline" : "default"} disabled={report.isPlaceholder || !canViewReports} className="h-7 text-xs">
+                              <Button size="sm" variant={report.isPlaceholder ? "outline" : "default"}
+                                disabled={report.isPlaceholder || !(canViewReports ||
+                                  (report.id === "4" && currentMembership?.membership_status === "active"))}
+                                className="h-7 text-xs">
                                 {t("reports.generate")}
                                 <ArrowRight className="ml-1 h-3 w-3" />
                               </Button>

@@ -264,6 +264,21 @@ BEGIN
   EXCEPTION WHEN OTHERS THEN
     v_denied:=SQLERRM LIKE '%INITIAL_STATE_CONFLICT%'; END;
   IF NOT v_denied THEN RAISE EXCEPTION 'PREAPPROVED_CLAIM_INSERT_ALLOWED'; END IF;
+  v_denied:=false;
+  BEGIN
+    INSERT INTO public.relief_claims
+      (id,plan_id,membership_id,claimant_membership_id,group_id,
+       event_type,incident_date,amount,amount_requested,
+       currency,status,review_notes)
+    VALUES ('00000000-0000-4000-8000-00000000e923',
+      '00000000-0000-4000-8000-00000000d921',
+      '00000000-0000-4000-8000-00000000c922',
+      '00000000-0000-4000-8000-00000000c922',
+      '00000000-0000-4000-8000-00000000b921',
+      'illness',CURRENT_DATE,10,10,'USD','submitted','Forged reviewer note');
+  EXCEPTION WHEN OTHERS THEN
+    v_denied:=SQLERRM LIKE '%INITIAL_STATE_CONFLICT%'; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'FORGED_REVIEW_NOTE_INSERT_ALLOWED'; END IF;
   INSERT INTO public.relief_claims
     (id,plan_id,membership_id,claimant_membership_id,group_id,
      event_type,incident_date,amount,amount_requested,currency,status)

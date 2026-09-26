@@ -65,6 +65,23 @@ export default function ReliefPlansPage() {
   const [enrollPlanId, setEnrollPlanId] = useState<string | null>(null);
 
   const { data: plans = [], isLoading: plansLoading } = useReliefPlans(groupId);
+  const planIdsKey = plans.map((plan: { id: string }) => plan.id).join(",");
+  const { data: planScopes = {}, error: planScopeError, isPending: planScopesPending } = useQuery({
+    queryKey: ["relief-plan-scopes", groupId, planIdsKey],
+    queryFn: async () => {
+      const entries = await Promise.all(plans.map(async (plan: { id: string }) => {
+        const { data, error } = await supabase.rpc("get_relief_plan_scope", {
+          p_plan: plan.id,
+        });
+        if (error) throw error;
+        return [plan.id, data] as const;
+      }));
+      return Object.fromEntries(entries) as Record<string, {
+        participation_mode: string; topology_stale: boolean;
+      } | null>;
+    },
+    enabled: !!groupId && plans.length > 0,
+  });
   const { data: enrollments = [] } = useReliefEnrollments(groupId);
   const { data: members = [] } = useMembers();
 
@@ -125,6 +142,14 @@ export default function ReliefPlansPage() {
                     </Badge>
                   </div>
                   {plan.description && <CardDescription>{plan.description}</CardDescription>}
+                  <Badge variant="secondary" className="mt-2 w-fit">
+                    {planScopesPending ? t("scopeLoading")
+                      : planScopeError ? t("scopeUnavailable")
+                      : planScopes[plan.id]?.topology_stale ? t("scopeStale")
+                      : planScopes[plan.id]
+                        ? t(`scopeDisplay.${planScopes[plan.id]?.participation_mode}`)
+                        : t("scopeUnconfigured")}
+                  </Badge>
                 </CardHeader>
                 <CardContent>
                   <dl className="space-y-2 text-sm mb-6">
@@ -165,7 +190,7 @@ export default function ReliefPlansPage() {
           groupId={groupId} userId={user.id}
           currency={currentGroup.currency || "USD"} />}
 
-      <CreatePlanDialog open={createPlanOpen} onOpenChange={setCreatePlanOpen} />
+      <CreatePlanDialog key={groupId ?? "none"} open={createPlanOpen} onOpenChange={setCreatePlanOpen} />
       
       {enrollPlanId && (
         <EnrollMemberDialog 
@@ -181,28 +206,63 @@ export default function ReliefPlansPage() {
 
 function CreatePlanDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
   const t = useTranslations("relief");
-  const { groupId } = useGroup();
+  const { groupId, currentGroup } = useGroup();
   const createPlan = useCreateReliefPlan();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [coverageAmount, setCoverageAmount] = useState("");
-  const [currency, setCurrency] = useState("USD"); 
+  const currency = currentGroup?.currency ?? "XAF";
   const [waitingPeriod, setWaitingPeriod] = useState("90");
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
+  const [participationMode, setParticipationMode] = useState<"unit" | "subtree" | "organization">("unit");
+  const [participationUnitId, setParticipationUnitId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const organizationId = currentGroup?.organization_id ?? null;
+  const { data: scopeUnits = [] } = useQuery({
+    queryKey: ["relief-plan-scope-units", organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error: unitsError } = await supabase
+        .from("organization_units")
+        .select("id,name,group_id,parent_id")
+        .eq("organization_id", organizationId)
+        .is("archived_at", null)
+        .order("name");
+      if (unitsError) throw unitsError;
+      return data ?? [];
+    },
+    enabled: !!organizationId && open,
+  });
+  const ownerUnitId = scopeUnits.find((unit) => unit.group_id === groupId)?.id;
+  const rootUnitId = scopeUnits.find((unit) => unit.parent_id === null)?.id;
+  const selectedUnitId = participationMode === "organization"
+    ? rootUnitId
+    : participationUnitId || ownerUnitId;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!groupId) return;
+    if (!ownerUnitId || !selectedUnitId) {
+      setError(t("planScopeNotReady"));
+      return;
+    }
     try {
       await createPlan.mutateAsync({
         groupId,
+        requestId,
         name,
         description,
         coverageAmount: parseFloat(coverageAmount),
         currency,
         waitingPeriodDays: parseInt(waitingPeriod, 10),
+        participationUnitId: selectedUnitId,
+        participationMode,
+        collectionUnitId: selectedUnitId,
+        collectionMode: participationMode,
+        reportingUnitId: selectedUnitId,
+        reportingMode: participationMode,
       });
       handleOpenChange(false);
     } catch (err: any) {
@@ -216,6 +276,9 @@ function CreatePlanDialog({ open, onOpenChange }: { open: boolean, onOpenChange:
       setDescription("");
       setCoverageAmount("");
       setWaitingPeriod("90");
+      setRequestId(crypto.randomUUID());
+      setParticipationMode("unit");
+      setParticipationUnitId("");
       setError(null);
     }
     onOpenChange(isOpen);
@@ -248,23 +311,42 @@ function CreatePlanDialog({ open, onOpenChange }: { open: boolean, onOpenChange:
               }} />
             </div>
             <div className="space-y-2">
-              <Label>Currency</Label>
-              <Select value={currency} onValueChange={(v: any) => setCurrency(v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                  <SelectItem value="GBP">GBP</SelectItem>
-                  <SelectItem value="NGN">NGN</SelectItem>
-                  <SelectItem value="KES">KES</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>{t("fields.currency")}</Label>
+              <div className="flex h-10 items-center rounded-md border px-3 text-sm">{currency}</div>
             </div>
           </div>
           <div className="space-y-2">
             <Label>{t("fields.waitingPeriod")}</Label>
             <Input type="number" min="0" required value={waitingPeriod} onChange={e => setWaitingPeriod(e.target.value)} />
           </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>{t("planParticipationMode")}</Label>
+              <Select value={participationMode}
+                onValueChange={(value) => setParticipationMode(value as "unit" | "subtree" | "organization")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unit">{t("scopeUnit")}</SelectItem>
+                  <SelectItem value="subtree">{t("scopeSubtree")}</SelectItem>
+                  <SelectItem value="organization">{t("scopeOrganization")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("planParticipationUnit")}</Label>
+              <Select value={selectedUnitId ?? ""}
+                disabled={participationMode === "organization"}
+                onValueChange={(value) => setParticipationUnitId(value)}>
+                <SelectTrigger><SelectValue placeholder={t("planScopeNotReady")} /></SelectTrigger>
+                <SelectContent>
+                  {scopeUnits.map((unit) => (
+                    <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">{t("planAuthorityDefault")}</p>
           
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>

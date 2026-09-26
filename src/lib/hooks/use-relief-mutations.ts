@@ -12,11 +12,18 @@ const supabase = createClient();
 
 export interface CreateReliefPlanInput {
   groupId: string;
+  requestId: string;
   name: string;
   description?: string;
   coverageAmount: number;
   currency: string;
   waitingPeriodDays?: number;
+  participationUnitId?: string;
+  participationMode?: "unit" | "subtree" | "organization";
+  collectionUnitId?: string;
+  collectionMode?: "unit" | "subtree" | "organization";
+  reportingUnitId?: string;
+  reportingMode?: "unit" | "subtree" | "organization";
 }
 
 export interface EnrollMemberInPlanInput {
@@ -102,29 +109,32 @@ export function useCreateReliefPlan() {
         throw new Error("staleTenantAborted");
       }
       
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError || !userData.user) throw new Error("Auth required");
-      const { data, error } = await supabase
-        .from("relief_plans")
-        .insert({
+      const { data, error } = await supabase.rpc("create_relief_plan_with_scope", {
+        p_command: {
+          request_id: input.requestId,
           group_id: input.groupId,
           name: input.name,
           description: input.description,
           coverage_amount: input.coverageAmount,
           currency: input.currency,
           waiting_period_days: input.waitingPeriodDays ?? 90,
-          created_by: userData.user.id,
-          is_active: true,
-          status: "active",
-        })
-        .select()
-        .single();
+          ...(input.participationUnitId ? {
+            participation_unit_id: input.participationUnitId,
+            participation_mode: input.participationMode,
+            collection_unit_id: input.collectionUnitId ?? input.participationUnitId,
+            collection_mode: input.collectionMode ?? input.participationMode,
+            reporting_unit_id: input.reportingUnitId ?? input.participationUnitId,
+            reporting_mode: input.reportingMode ?? input.participationMode,
+          } : {}),
+        },
+      });
 
       if (error) throw error;
       return data;
     },
     onSuccess: (_, input) => {
       queryClient.invalidateQueries({ queryKey: ["relief-plans", input.groupId] });
+      queryClient.invalidateQueries({ queryKey: ["relief-plan-scopes", input.groupId] });
     },
   });
 }

@@ -48,11 +48,5 @@ export function useStableSearchParams() {
  */
 export function useSearchParam(name: string): string | null {
   const searchParams = useSearchParams();
-  const value = searchParams.get(name);
-  // useRef to keep the same reference if value hasn't changed
-  const ref = useRef(value);
-  if (ref.current !== value) {
-    ref.current = value;
-  }
-  return ref.current;
+  return searchParams.get(name);
 }

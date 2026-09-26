@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
 
 /**
  * Wraps a callback with a cooldown period. If called again within the cooldown,
@@ -27,8 +27,9 @@ export function useThrottledCallback<T extends (...args: unknown[]) => unknown>(
 ): T {
   const lastCallTime = useRef(0);
   const fnRef = useRef(fn);
-  fnRef.current = fn;
-
+  useEffect(() => {
+    fnRef.current = fn;
+  }, [fn]);
   const throttled = useCallback(
     (...args: unknown[]) => {
       const now = Date.now();

@@ -149,7 +149,7 @@ test("payment-receipt-producer still refuses non-confirmed payments", () => {
 // ── 5. Individual confirmed-payment receipt path is untouched ───────────────
 
 test("individual receipt path still produces a payment_receipt", () => {
-  assert.ok(/template: "payment_receipt"/.test(producer), "producer still queues payment_receipt");
+  assert.ok(/notificationType: "payment_receipt"/.test(producer), "producer still queues payment_receipt");
   assert.ok(
     /producePaymentReceiptNotifications/.test(route),
     "receipt-notifications route still calls the producer",

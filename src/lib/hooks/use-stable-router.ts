@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import { useRouter } from "@/i18n/routing";
 
 /**
@@ -29,7 +29,9 @@ import { useRouter } from "@/i18n/routing";
 export function useStableRouter() {
   const router = useRouter();
   const routerRef = useRef(router);
-  routerRef.current = router;
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
 
   // Return a stable object whose methods always delegate to the latest router
   const stable = useMemo(

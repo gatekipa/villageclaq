@@ -65,7 +65,10 @@ export async function POST(req: NextRequest) {
     // Role-based table allowlist. Because this route runs under the
     // service-role client (bypassing RLS), the allowlist is the only
     // wall between a Sales staff member and the payments table.
-    const forbidden = queries.find((q) => !canRead(callerRole, q.table));
+    // R-011: no role gets claim-level rows through this service-role bypass.
+    // The dedicated aggregate endpoint is the platform reporting surface.
+    const forbidden = queries.find((q) =>
+      q.table === "relief_claims" || !canRead(callerRole, q.table));
     if (forbidden) {
       return NextResponse.json(
         {

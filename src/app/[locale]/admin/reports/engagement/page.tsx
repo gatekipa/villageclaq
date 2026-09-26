@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { useAdminQuery } from "@/lib/hooks/use-admin-query";
+import { useAdminReliefAggregate } from "@/lib/hooks/use-admin-relief-aggregate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -45,6 +46,7 @@ export default function EngagementReportsPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>("6m");
 
   const cutoff = useMemo(() => getCutoffDate(timeRange).toISOString(), [timeRange]);
+  const { plans: reliefPlans, error: reliefError } = useAdminReliefAggregate(timeRange);
 
   const { results, loading, error } = useAdminQuery([
     { key: "profiles", table: "profiles", select: "id", count: "exact", limit: 1 },
@@ -80,14 +82,6 @@ export default function EngagementReportsPage() {
       limit: 1,
       filters: [{ column: "created_at", op: "gte", value: cutoff }],
     },
-    {
-      key: "reliefClaims",
-      table: "relief_claims",
-      select: "id",
-      count: "exact",
-      limit: 1,
-      filters: [{ column: "created_at", op: "gte", value: cutoff }],
-    },
   ]);
 
   const totalUsers = results.profiles?.count ?? 0;
@@ -97,14 +91,14 @@ export default function EngagementReportsPage() {
     { feature: t("totalPayments"), count: results.payments?.count ?? 0 },
     { feature: t("totalEventsR"), count: results.events?.count ?? 0 },
     { feature: t("membershipReports"), count: results.memberships?.count ?? 0 },
-    { feature: t("reliefPlanReports"), count: results.reliefClaims?.count ?? 0 },
-  ], [results, t]);
+    { feature: t("reliefPlanReports"), count: reliefPlans.reduce((sum, plan) => sum + Number(plan.claims_since), 0) },
+  ], [results, reliefPlans, t]);
 
-  if (error) {
+  if (error || reliefError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-muted-foreground">
         <AlertCircle className="h-16 w-16 mb-4 text-red-500" />
-        <p>{error}</p>
+        <p>{error || reliefError}</p>
       </div>
     );
   }

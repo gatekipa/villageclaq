@@ -133,27 +133,30 @@ export async function POST(req: NextRequest) {
           .join("\n");
       }
     } else if (type === "relief") {
-      const { data, error } = await adminClient
-        .from("relief_claims")
-        .select("amount, status, created_at, relief_plans(name)")
-        .order("created_at", { ascending: false })
-        .limit(10000);
+      // R-011: platform export is plan-level aggregate, never claim-level rows.
+      const { data, error } = await authClient.rpc("platform_relief_aggregate_for_staff", {
+        p_range: "all",
+      });
 
       if (error) throw new Error(error.message);
 
-      csvContent = "Relief Plan,Amount,Status,Created At\n";
+      csvContent = "Group,Relief Plan,Currency,Claims,Claim Amount,Disbursed\n";
       if (data && data.length > 0) {
         csvContent += data
-          .map((row) => {
-            const plan = row.relief_plans as unknown as { name: string } | null;
-            return `"${(plan?.name ?? "").replace(/"/g, '""')}","${row.amount ?? ""}","${row.status ?? ""}","${row.created_at ?? ""}"`;
+          .map((row: { group_name: string | null; plan_name: string | null;
+            currency: string | null; claims_all: number | null;
+            claim_amount_since: number | null; payouts_all: number | null }) => {
+            const group = (row.group_name ?? "").replace(/"/g, '""');
+            const plan = (row.plan_name ?? "").replace(/"/g, '""');
+            return `"${group}","${plan}","${row.currency ?? ""}","${row.claims_all ?? 0}","${row.claim_amount_since ?? 0}","${row.payouts_all ?? 0}"`;
           })
           .join("\n");
       }
     }
 
     // 4. Audit log
-    await adminClient.from("platform_audit_logs").insert({
+    const auditClient = type === "relief" ? authClient : adminClient;
+    const { error: auditError } = await auditClient.from("platform_audit_logs").insert({
       staff_id: staffRow.id,
       action: `export_${type}`,
       target_type: "data_export",
@@ -162,6 +165,7 @@ export async function POST(req: NextRequest) {
         target_description: `Exported ${type} data as CSV`,
       },
     });
+    if (auditError) throw new Error("EXPORT_AUDIT_FAILED");
 
     // 5. Return CSV
     return new NextResponse(csvContent, {

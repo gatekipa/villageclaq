@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAdminQuery } from "@/lib/hooks/use-admin-query";
+import { useAdminReliefAggregate } from "@/lib/hooks/use-admin-relief-aggregate";
 import { Activity, Users, Info, Calendar, CreditCard, Heart, ClipboardList } from "lucide-react";
 import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
@@ -26,6 +27,7 @@ const FeatureBarChart = dynamic(() => import("@/components/charts/feature-bar-ch
 export default function UsageAnalyticsPage() {
   const t = useTranslations("admin");
   const thirtyDaysAgo = useMemo(() => new Date(Date.now() - 30 * 86400000).toISOString(), []);
+  const { plans: reliefPlans, error: reliefError } = useAdminReliefAggregate("1m");
   const [referralReport, setReferralReport] = useState<ReferralActivationReport | null>(null);
 
   useEffect(() => {
@@ -50,7 +52,6 @@ export default function UsageAnalyticsPage() {
     { key: "payments", table: "payments", select: "id", count: "exact", limit: 1, filters: [{ column: "created_at", op: "gte", value: thirtyDaysAgo }] },
     { key: "events", table: "events", select: "id", count: "exact", limit: 1, filters: [{ column: "created_at", op: "gte", value: thirtyDaysAgo }] },
     { key: "members", table: "memberships", select: "id", count: "exact", limit: 1, filters: [{ column: "created_at", op: "gte", value: thirtyDaysAgo }] },
-    { key: "relief", table: "relief_claims", select: "id", count: "exact", limit: 1, filters: [{ column: "created_at", op: "gte", value: thirtyDaysAgo }] },
   ]);
 
   const totalUsers = results.users?.count ?? 0;
@@ -59,8 +60,9 @@ export default function UsageAnalyticsPage() {
     { name: "Payments", count: results.payments?.count ?? 0 },
     { name: "Events", count: results.events?.count ?? 0 },
     { name: "Members Added", count: results.members?.count ?? 0 },
-    { name: "Relief Claims", count: results.relief?.count ?? 0 },
-  ], [results]);
+    ...(!reliefError ? [{ name: "Relief Claims", count: reliefPlans.reduce((sum, plan) =>
+      sum + Number(plan.claims_since), 0) }] : []),
+  ], [results, reliefPlans, reliefError]);
 
   const unavailableMetrics = [
     "Avg Session Duration",
@@ -72,6 +74,9 @@ export default function UsageAnalyticsPage() {
 
   return (
     <div className="space-y-6">
+      {reliefError && <p role="alert" className="text-sm text-red-600">
+        {t("queryErrors")}: {reliefError}
+      </p>}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{t("usageAnalytics")}</h1>
         <p className="text-muted-foreground">{t("analyticsSubtitle")}</p>

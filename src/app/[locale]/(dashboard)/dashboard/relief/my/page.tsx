@@ -44,13 +44,16 @@ import {
 } from "lucide-react";
 
 type EventType = "death" | "illness" | "wedding" | "childbirth" | "natural_disaster" | "other";
-type ClaimStatus = "submitted" | "reviewing" | "approved" | "denied";
+type ClaimStatus = "submitted" | "reviewing" | "approved" | "denied" | "rejected" | "withdrawn" | "paid";
 
 const claimStatusConfig: Record<ClaimStatus, { color: string; icon: typeof CheckCircle2 }> = {
   submitted: { color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400", icon: Clock },
   reviewing: { color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400", icon: AlertCircle },
   approved: { color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400", icon: CheckCircle2 },
   denied: { color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400", icon: XCircle },
+  rejected: { color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400", icon: XCircle },
+  withdrawn: { color: "bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-400", icon: XCircle },
+  paid: { color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400", icon: CheckCircle2 },
 };
 
 export default function MyReliefPage() {
@@ -72,6 +75,8 @@ export default function MyReliefPage() {
   const [claimDocUrl, setClaimDocUrl] = useState("");
   const [claimSubmitting, setClaimSubmitting] = useState(false);
   const [claimError, setClaimError] = useState("");
+  const [withdrawError, setWithdrawError] = useState("");
+  const [withdrawingClaimId, setWithdrawingClaimId] = useState<string | null>(null);
 
   // Fetch enrollments with plan details
   const { data: enrollments = [], isLoading: enrollmentsLoading, error: enrollmentsError, refetch: refetchEnrollments } = useQuery({
@@ -168,6 +173,7 @@ export default function MyReliefPage() {
     const plan = claim.plan as Record<string, unknown> | null;
     return {
       id: claim.id as string,
+      decisionVersion: (claim.decision_version as number) || 0,
       planName: (plan?.name as string) || "",
       eventType: claim.event_type as EventType,
       amount: Number(claim.amount) || 0,
@@ -177,6 +183,30 @@ export default function MyReliefPage() {
       reviewNotes: claim.review_notes as string | undefined,
     };
   });
+
+  const handleWithdrawClaim = async (claimId: string, expectedVersion: number) => {
+    if (!groupId) return;
+    setWithdrawError("");
+    setWithdrawingClaimId(claimId);
+    try {
+      const { error } = await supabase.rpc("decide_relief_claim", {
+        p_command: {
+          group_id: groupId,
+          claim_id: claimId,
+          request_id: crypto.randomUUID(),
+          expected_version: expectedVersion,
+          status: "withdrawn",
+        },
+      });
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["my-relief-claims", membershipId] });
+      await queryClient.invalidateQueries({ queryKey: ["relief-claims", groupId] });
+    } catch {
+      setWithdrawError(t("relief.withdrawClaimFailed"));
+    } finally {
+      setWithdrawingClaimId(null);
+    }
+  };
 
   const openClaimDialog = (planId: string, maxPayout: number) => {
     setClaimPlanId(planId);
@@ -197,12 +227,17 @@ export default function MyReliefPage() {
     setClaimError("");
     try {
       const { error } = await supabase.from("relief_claims").insert({
+        group_id: groupId,
         plan_id: claimPlanId,
         membership_id: membershipId,
+        claimant_membership_id: membershipId,
         event_type: claimEventType,
+        incident_date: new Date().toISOString().slice(0, 10),
         description: claimDescription.trim() || null,
         supporting_doc_url: claimDocUrl || null,
         amount: claimPlanPayout,
+        amount_requested: claimPlanPayout,
+        currency,
         status: "submitted",
       });
       if (error) throw error;
@@ -434,6 +469,7 @@ export default function MyReliefPage() {
       {/* Claim History */}
       <div>
         <h2 className="text-lg font-semibold mb-3">{t("relief.claimHistory")}</h2>
+        {withdrawError && <p role="alert" className="mb-3 text-sm text-destructive">{withdrawError}</p>}
         {myClaims.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-sm text-muted-foreground">
@@ -454,16 +490,25 @@ export default function MyReliefPage() {
                           <span className="font-medium text-sm">{t(`relief.eventTypes.${claim.eventType}`)}</span>
                           <Badge className={config.color}>
                             <StatusIcon className="mr-1 h-3 w-3" />
-                            {t(`relief.claimStatus.${claim.status}`)}
+                            {t(`relief.claimStatuses.${claim.status === "reviewing" ? "underReview" : claim.status === "denied" ? "rejected" : claim.status}`)}
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">{claim.planName} · {claim.date}</p>
                         {claim.description && <p className="text-xs text-muted-foreground mt-1">{claim.description}</p>}
-                        {claim.status === "denied" && claim.reviewNotes && (
+                        {(claim.status === "denied" || claim.status === "rejected") && claim.reviewNotes && (
                           <p className="text-xs text-destructive mt-1">{t("relief.denyReason")}: {claim.reviewNotes}</p>
                         )}
                       </div>
-                      <span className="text-lg font-bold text-primary">{formatAmount(claim.amount, currency)}</span>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className="text-lg font-bold text-primary">{formatAmount(claim.amount, currency)}</span>
+                        {(claim.status === "submitted" || claim.status === "reviewing") && (
+                          <Button variant="outline" size="sm"
+                            disabled={withdrawingClaimId === claim.id}
+                            onClick={() => handleWithdrawClaim(claim.id, claim.decisionVersion)}>
+                            {t("relief.withdrawClaim")}
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

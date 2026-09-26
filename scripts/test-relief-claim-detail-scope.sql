@@ -89,9 +89,22 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.relief_claims
     WHERE id='00000000-0000-4000-8000-00000000e911')
   THEN RAISE EXCEPTION 'ACTIVE_REVIEWER_LOST_CLAIM_DETAIL'; END IF;
-  UPDATE public.relief_claims SET review_notes='Fictional authorized review'
-    WHERE id='00000000-0000-4000-8000-00000000e911';
-  IF NOT FOUND THEN RAISE EXCEPTION 'ACTIVE_REVIEWER_LOST_UPDATE'; END IF;
+  IF to_regprocedure('public.decide_relief_claim(jsonb)') IS NOT NULL THEN
+    PERFORM public.decide_relief_claim(pg_catalog.jsonb_build_object(
+      'group_id','00000000-0000-4000-8000-00000000b911',
+      'claim_id','00000000-0000-4000-8000-00000000e911',
+      'request_id','00000000-0000-4000-8000-00000000f911',
+      'expected_version',0,'status','reviewing',
+      'review_notes','Fictional authorized review'));
+    IF NOT EXISTS (SELECT 1 FROM public.relief_claims
+       WHERE id='00000000-0000-4000-8000-00000000e911'
+         AND status='reviewing' AND decision_version=1)
+    THEN RAISE EXCEPTION 'ACTIVE_REVIEWER_LOST_DECISION'; END IF;
+  ELSE
+    UPDATE public.relief_claims SET review_notes='Fictional authorized review'
+      WHERE id='00000000-0000-4000-8000-00000000e911';
+    IF NOT FOUND THEN RAISE EXCEPTION 'ACTIVE_REVIEWER_LOST_UPDATE'; END IF;
+  END IF;
 END
 $test$;
 RESET ROLE;

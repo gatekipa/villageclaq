@@ -39,6 +39,7 @@ export interface SubmitReliefClaimInput {
 export interface ReviewReliefClaimInput {
   groupId: string;
   claimId: string;
+  expectedVersion: number;
   status: "approved" | "rejected";
   amountApproved?: number;
   reviewNotes?: string;
@@ -236,23 +237,17 @@ export function useReviewReliefClaim() {
         throw new Error("staleTenantAborted");
       }
 
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError || !userData?.user) throw new Error("Auth required");
-
-      const { data, error } = await supabase
-        .from("relief_claims")
-        .update({
+      const { data, error } = await supabase.rpc("decide_relief_claim", {
+        p_command: {
+          group_id: input.groupId,
+          claim_id: input.claimId,
+          request_id: crypto.randomUUID(),
+          expected_version: input.expectedVersion,
           status: input.status,
-          amount_approved: input.amountApproved,
+          ...(input.status === "approved" ? { amount_approved: input.amountApproved } : {}),
           review_notes: input.reviewNotes,
-          reviewed_by: userData.user.id,
-          reviewed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", input.claimId)
-        .eq("group_id", input.groupId)
-        .select()
-        .single();
+        },
+      });
 
       if (error) throw error;
       return data;

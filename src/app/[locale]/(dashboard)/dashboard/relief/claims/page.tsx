@@ -94,7 +94,7 @@ export default function ReliefClaimsPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "submitted": return "bg-gray-100 text-gray-800";
-      case "under_review": return "bg-blue-100 text-blue-800";
+      case "reviewing": return "bg-blue-100 text-blue-800";
       case "approved": return "bg-green-100 text-green-800";
       case "rejected": return "bg-red-100 text-red-800";
       case "paid": return "bg-purple-100 text-purple-800";
@@ -119,7 +119,7 @@ export default function ReliefClaimsPage() {
         <TabsList className="w-full sm:w-auto overflow-x-auto justify-start h-auto p-1 mb-4">
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="submitted">{t("claimStatuses.submitted")}</TabsTrigger>
-          <TabsTrigger value="under_review">{t("claimStatuses.underReview")}</TabsTrigger>
+          <TabsTrigger value="reviewing">{t("claimStatuses.underReview")}</TabsTrigger>
           <TabsTrigger value="approved">{t("claimStatuses.approved")}</TabsTrigger>
           <TabsTrigger value="paid">{t("claimStatuses.paid")}</TabsTrigger>
           <TabsTrigger value="rejected">{t("claimStatuses.rejected")}</TabsTrigger>
@@ -147,7 +147,7 @@ export default function ReliefClaimsPage() {
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold text-lg">{claimant?.display_name || claimant?.user_id || 'Unknown Member'}</h3>
                           <Badge variant="outline" className={getStatusColor(claim.status)}>
-                            {t(`claimStatuses.${claim.status === 'under_review' ? 'underReview' : claim.status}`)}
+                            {t(`claimStatuses.${claim.status === 'reviewing' ? 'underReview' : claim.status}`)}
                           </Badge>
                           {claim.financial_event_id && (
                             <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
@@ -165,7 +165,7 @@ export default function ReliefClaimsPage() {
                       </div>
                       
                       <div className="flex gap-2">
-                        {canManage && (claim.status === "submitted" || claim.status === "under_review") && (
+                        {canManage && (claim.status === "submitted" || claim.status === "reviewing") && (
                           <Button variant="outline" onClick={() => setReviewClaimId(claim.id)}>{t("actions.reviewClaim")}</Button>
                         )}
                         {canManage && claim.status === "approved" && !claim.financial_event_id && (
@@ -337,6 +337,7 @@ function ReviewClaimDialog({ open, onOpenChange, claim }: { open: boolean, onOpe
       await reviewClaim.mutateAsync({
         groupId,
         claimId: claim.id,
+        expectedVersion: claim.decision_version ?? 0,
         status,
         amountApproved: status === 'approved' ? parseFloat(amountApproved) : undefined,
         reviewNotes

@@ -38,6 +38,12 @@ INSERT INTO public.relief_plans(id,group_id,name,created_by,
 VALUES ('00000000-0000-4000-8000-00000000e931',
  '00000000-0000-4000-8000-00000000b931','Scoped Plan',
  '00000000-0000-4000-8000-00000000a931',true,'active','USD',true);
+INSERT INTO public.relief_enrollments
+ (plan_id,membership_id,group_id,collecting_group_id,status,is_active)
+VALUES ('00000000-0000-4000-8000-00000000e931',
+ '00000000-0000-4000-8000-00000000c932',
+ '00000000-0000-4000-8000-00000000b932',
+ '00000000-0000-4000-8000-00000000b932','active',true);
 INSERT INTO public.payments
   (id,group_id,membership_id,amount,currency,payment_method,
    recorded_by,relief_plan_id,status)
@@ -93,6 +99,9 @@ BEGIN
      (public.get_relief_plan_scope('00000000-0000-4000-8000-00000000e931')
        ->>'version')::integer<>1
   THEN RAISE EXCEPTION 'PLAN_SCOPE_NOT_POSTED'; END IF;
+  IF (SELECT count(*) FROM public.get_relief_branch_summary()
+      WHERE relief_plan_id='00000000-0000-4000-8000-00000000e931')<>1
+  THEN RAISE EXCEPTION 'AUTHORIZED_SCOPED_REPORT_HIDDEN'; END IF;
   IF public.configure_relief_plan_scope(v_command)->>'decision'<>'recovered'
   THEN RAISE EXCEPTION 'PLAN_SCOPE_RETRY_NOT_RECOVERED'; END IF;
   v_denied:=false;
@@ -141,6 +150,34 @@ BEGIN
      (public.get_relief_plan_scope('00000000-0000-4000-8000-00000000e931')
        ->>'version')::integer<>2
   THEN RAISE EXCEPTION 'PLAN_SCOPE_VERSION_REPLACEMENT_FAILED'; END IF;
+END
+$test$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a932',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.get_relief_branch_summary()
+      WHERE relief_plan_id='00000000-0000-4000-8000-00000000e931')
+  THEN RAISE EXCEPTION 'BRANCH_REPORT_WITHOUT_GRANT_VISIBLE'; END IF;
+END
+$test$;
+RESET ROLE;
+INSERT INTO public.organization_scoped_grants
+ (organization_id,user_id,unit_id,capability,scope_mode,granted_by)
+VALUES ('00000000-0000-4000-8000-00000000d931',
+ '00000000-0000-4000-8000-00000000a932',
+ current_setting('qual.scope_branch')::uuid,'reports.view','unit',
+ '00000000-0000-4000-8000-00000000a931');
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a932',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+BEGIN
+  IF (SELECT count(*) FROM public.get_relief_branch_summary()
+      WHERE relief_plan_id='00000000-0000-4000-8000-00000000e931')<>1
+  THEN RAISE EXCEPTION 'GRANTED_BRANCH_REPORT_HIDDEN'; END IF;
 END
 $test$;
 RESET ROLE;
@@ -220,9 +257,20 @@ BEGIN
     'participation_unit_id',v_root,'participation_mode','subtree',
     'collection_unit_id',v_root,'collection_mode','subtree',
     'review_unit_id',v_root,'payout_unit_id',v_root,
-    'reporting_unit_id',v_root,'reporting_mode','organization'));
+    'reporting_unit_id',v_root,'reporting_mode','unit'));
   IF (v_result->>'version')::integer<>3
   THEN RAISE EXCEPTION 'SUBTREE_SCOPE_NOT_ACTIVATED'; END IF;
+END
+$test$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a932',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.get_relief_branch_summary()
+      WHERE relief_plan_id='00000000-0000-4000-8000-00000000e931')
+  THEN RAISE EXCEPTION 'OUT_OF_AUDIENCE_BRANCH_REPORT_VISIBLE'; END IF;
 END
 $test$;
 RESET ROLE;

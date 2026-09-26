@@ -30,6 +30,7 @@ export interface EnrollMemberInPlanInput {
   groupId: string;
   planId: string;
   membershipId: string;
+  enrollmentType?: "full_member" | "relief_only" | "external";
 }
 
 export interface SubmitReliefClaimInput {
@@ -45,6 +46,7 @@ export interface SubmitReliefClaimInput {
 
 export interface ReviewReliefClaimInput {
   groupId: string;
+  claimGroupId: string;
   claimId: string;
   expectedVersion: number;
   status: "approved" | "rejected";
@@ -135,6 +137,7 @@ export function useCreateReliefPlan() {
     },
     onSuccess: (_, input) => {
       queryClient.invalidateQueries({ queryKey: ["relief-plans", input.groupId] });
+      queryClient.invalidateQueries({ queryKey: ["relief-plans-available", input.groupId] });
       queryClient.invalidateQueries({ queryKey: ["relief-plan-scopes", input.groupId] });
     },
   });
@@ -150,15 +153,31 @@ export function useEnrollMemberInPlan() {
         throw new Error("staleTenantAborted");
       }
 
-      // 1. Fetch the plan to get the waiting_period_days
-      const { data: plan, error: planError } = await supabase
-        .from("relief_plans")
-        .select("waiting_period_days")
-        .eq("id", input.planId)
-        .eq("group_id", input.groupId)
-        .single();
-        
-      if (planError || !plan) throw planError || new Error("Plan not found");
+      const { data: availablePlans, error: planError } = await supabase.rpc(
+        "list_relief_plans_for_group", { p_group: input.groupId });
+      if (planError) throw planError;
+      const plan = (availablePlans || []).find((candidate: { id: string }) =>
+        candidate.id === input.planId);
+      if (!plan) throw new Error("Plan not found");
+      const { data: contracted, error: contractError } = await supabase.rpc(
+        "relief_plan_is_contracted", { p_plan: input.planId });
+      if (contractError) throw contractError;
+      if (contracted) {
+        const { data, error } = await supabase.rpc("enroll_relief_person", {
+          p_command: {
+            request_id: crypto.randomUUID(),
+            plan_id: input.planId,
+            membership_id: input.membershipId,
+            group_id: input.groupId,
+            enrollment_type: input.enrollmentType ?? "full_member",
+          },
+        });
+        if (error) throw error;
+        return { id: (data as { enrollment_id: string }).enrollment_id };
+      }
+      if (plan.group_id !== input.groupId) {
+        throw new Error("Plan not available in this group");
+      }
 
       // 1.5. Check for existing active enrollment
       const { data: existing } = await supabase
@@ -183,6 +202,7 @@ export function useEnrollMemberInPlan() {
           membership_id: input.membershipId,
           enrolled_at: enrolledAt.toISOString(),
           matures_at: maturesAt.toISOString(),
+          enrollment_type: input.enrollmentType ?? "full_member",
           is_active: true,
           status: "active",
         })
@@ -210,11 +230,17 @@ export function useSubmitReliefClaim() {
       if (!groupId || input.groupId !== groupId) {
         throw new Error("staleTenantAborted");
       }
+      const { data: plans, error: planError } = await supabase.rpc(
+        "list_relief_plans_for_group", { p_group: input.groupId });
+      if (planError) throw planError;
+      const plan = (plans || []).find((candidate: { id: string }) =>
+        candidate.id === input.planId);
+      if (!plan) throw new Error("Plan not available in this group");
 
       const { data, error } = await supabase
         .from("relief_claims")
         .insert({
-          group_id: input.groupId,
+          group_id: plan.group_id,
           plan_id: input.planId,
           claimant_membership_id: input.claimantMembershipId,
           membership_id: input.claimantMembershipId,
@@ -250,7 +276,7 @@ export function useReviewReliefClaim() {
 
       const { data, error } = await supabase.rpc("decide_relief_claim", {
         p_command: {
-          group_id: input.groupId,
+          group_id: input.claimGroupId,
           claim_id: input.claimId,
           request_id: crypto.randomUUID(),
           expected_version: input.expectedVersion,

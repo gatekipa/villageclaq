@@ -869,14 +869,13 @@ export function useLatestMinutes() {
 export function useReliefPlans() {
   const { groupId } = useGroup();
   return useQuery({
-    queryKey: ["relief-plans", groupId],
+    queryKey: ["relief-plans-available", groupId],
     staleTime: 5 * 60 * 1000, // WS3 (B11): invalidated by useCreateReliefPlan
     queryFn: async () => {
       if (!groupId) return [];
-      const { data, error } = await supabase
-        .from("relief_plans")
-        .select("*")
-        .eq("group_id", groupId);
+      const { data, error } = await supabase.rpc("list_relief_plans_for_group", {
+        p_group: groupId,
+      });
       if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },

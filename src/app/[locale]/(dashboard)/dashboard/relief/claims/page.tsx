@@ -25,10 +25,10 @@ const supabase = createClient();
 
 function useReliefPlans(groupId: string | null) {
   return useQuery({
-    queryKey: ["relief-plans", groupId],
+    queryKey: ["relief-plans-available", groupId],
     queryFn: async () => {
       if (!groupId) return [];
-      const { data, error } = await supabase.from("relief_plans").select("*").eq("group_id", groupId);
+      const { data, error } = await supabase.rpc("list_relief_plans_for_group", { p_group: groupId });
       if (error) throw error;
       return data;
     },
@@ -36,16 +36,36 @@ function useReliefPlans(groupId: string | null) {
   });
 }
 
-function useReliefClaims(groupId: string | null) {
+function useReliefClaims(groupId: string | null, planIds: string[]) {
   return useQuery({
-    queryKey: ["relief-claims", groupId],
+    queryKey: ["relief-claims", groupId, planIds],
     queryFn: async () => {
-      if (!groupId) return [];
-      const { data, error } = await supabase.from("relief_claims").select("*").eq("group_id", groupId).order("created_at", { ascending: false });
+      if (!groupId || planIds.length === 0) return [];
+      const { data, error } = await supabase.from("relief_claims").select("*")
+        .in("plan_id", planIds).order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
     enabled: !!groupId,
+  });
+}
+
+function useReliefPlanActions(groupId: string | null, planIds: string[]) {
+  return useQuery({
+    queryKey: ["relief-plan-actions", groupId, planIds],
+    queryFn: async () => {
+      const entries = await Promise.all(planIds.map(async (planId) => {
+        const [review, payout] = await Promise.all([
+          supabase.rpc("can_review_relief_plan", { p_plan: planId }),
+          supabase.rpc("can_pay_relief_plan", { p_plan: planId }),
+        ]);
+        if (review.error) throw review.error;
+        if (payout.error) throw payout.error;
+        return [planId, { review: review.data === true, payout: payout.data === true }] as const;
+      }));
+      return Object.fromEntries(entries) as Record<string, { review: boolean; payout: boolean }>;
+    },
+    enabled: !!groupId && planIds.length > 0,
   });
 }
 
@@ -64,7 +84,7 @@ function useFinancialAccounts(groupId: string | null) {
 
 export default function ReliefClaimsPage() {
   const t = useTranslations("relief");
-  const { groupId, isAdmin, isOwner } = useGroup();
+  const { groupId } = useGroup();
   
   const [prevGroupId, setPrevGroupId] = useState(groupId);
   const [activeTab, setActiveTab] = useState("all");
@@ -74,11 +94,12 @@ export default function ReliefClaimsPage() {
   const [reviewClaimId, setReviewClaimId] = useState<string | null>(null);
   const [disburseClaimId, setDisburseClaimId] = useState<string | null>(null);
 
-  const { data: claims = [], isLoading: claimsLoading } = useReliefClaims(groupId);
   const { data: plans = [] } = useReliefPlans(groupId);
+  const { data: claims = [], isLoading: claimsLoading } = useReliefClaims(
+    groupId, plans.map((plan: { id: string }) => plan.id));
+  const { data: planActions = {} } = useReliefPlanActions(
+    groupId, plans.map((plan: { id: string }) => plan.id));
   const { data: members = [] } = useMembers();
-  
-  const canManage = isAdmin || isOwner;
 
   useEffect(() => {
     if (groupId !== prevGroupId) {
@@ -166,10 +187,10 @@ export default function ReliefClaimsPage() {
                       </div>
                       
                       <div className="flex gap-2">
-                        {canManage && (claim.status === "submitted" || claim.status === "reviewing") && (
+                        {planActions[claim.plan_id]?.review && (claim.status === "submitted" || claim.status === "reviewing") && (
                           <Button variant="outline" onClick={() => setReviewClaimId(claim.id)}>{t("actions.reviewClaim")}</Button>
                         )}
-                        {canManage && claim.status === "approved" && !claim.financial_event_id && (
+                        {planActions[claim.plan_id]?.payout && claim.status === "approved" && !claim.financial_event_id && (
                           <Button onClick={() => setDisburseClaimId(claim.id)}>{t("actions.disbursePayout")}</Button>
                         )}
                       </div>
@@ -337,6 +358,7 @@ function ReviewClaimDialog({ open, onOpenChange, claim }: { open: boolean, onOpe
     try {
       await reviewClaim.mutateAsync({
         groupId,
+        claimGroupId: claim.group_id,
         claimId: claim.id,
         expectedVersion: claim.decision_version ?? 0,
         status,

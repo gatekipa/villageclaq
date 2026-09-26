@@ -94,13 +94,41 @@ export default function ReliefEnrollmentPage() {
   }
 
   async function handleEnrollMembers() {
-    if (!enrollPlanId || selectedMemberIds.length === 0) return;
+    if (!groupId || !enrollPlanId || selectedMemberIds.length === 0) return;
     setEnrollSaving(true);
     setEnrollError(null);
     try {
       const supabase = createClient();
-      // Compute eligible_date from plan's waiting_period_days (trigger will also auto-compute as safety net)
       const selectedPlan = (plans || []).find((p: Record<string, unknown>) => (p.id as string) === enrollPlanId);
+      if (!selectedPlan) throw new Error("Plan not found");
+      const { data: contracted, error: contractError } = await supabase.rpc(
+        "relief_plan_is_contracted", { p_plan: enrollPlanId });
+      if (contractError) throw contractError;
+      let newEnrollments: { id: string }[] = [];
+      let successfulMemberIds = selectedMemberIds;
+      let failedCount = 0;
+      if (contracted) {
+        const results = await Promise.allSettled(selectedMemberIds.map(async (membershipId) => {
+          const { data, error } = await supabase.rpc("enroll_relief_person", {
+            p_command: {
+              request_id: crypto.randomUUID(),
+              plan_id: enrollPlanId,
+              membership_id: membershipId,
+              group_id: groupId,
+              enrollment_type: enrollmentType,
+            },
+          });
+          if (error) throw error;
+          return { id: (data as { enrollment_id: string }).enrollment_id };
+        }));
+        newEnrollments = results.filter((result): result is PromiseFulfilledResult<{ id: string }> =>
+          result.status === "fulfilled").map((result) => result.value);
+        successfulMemberIds = selectedMemberIds.filter((_, index) =>
+          results[index].status === "fulfilled");
+        failedCount = results.length - newEnrollments.length;
+      } else {
+      // Legacy plans retain their existing batch enrollment path until R-012.
+      if (selectedPlan.group_id !== groupId) throw new Error("Plan not available in this group");
       const waitDays = selectedPlan ? Number((selectedPlan as Record<string, unknown>).waiting_period_days) || 180 : 180;
       const enrollDate = new Date();
       const eligibleDate = new Date(enrollDate.getTime() + waitDays * 86400000).toISOString().split("T")[0];
@@ -113,11 +141,13 @@ export default function ReliefEnrollmentPage() {
         collecting_group_id: groupId || null,
         eligible_date: eligibleDate,
       }));
-      const { data: newEnrollments, error: insertError } = await supabase
+      const { data, error: insertError } = await supabase
         .from("relief_enrollments")
         .insert(rows)
         .select("id");
       if (insertError) throw insertError;
+      newEnrollments = data || [];
+      }
 
       // WhatsApp enrollment notice — server-side, queue-backed producer
       // resolves per-recipient memberName/planName/groupName (the shared
@@ -141,7 +171,7 @@ export default function ReliefEnrollmentPage() {
         const { notifyBulkFromClient } = await import("@/lib/notify-client");
         const planName = selectedPlan ? (locale === "fr" && (selectedPlan as Record<string, unknown>).name_fr ? (selectedPlan as Record<string, unknown>).name_fr as string : (selectedPlan as Record<string, unknown>).name as string) : "";
         const groupName = currentGroup?.name || "";
-        const recipients = selectedMemberIds.map((mid) => {
+        const recipients = successfulMemberIds.map((mid) => {
           const m = (membersList || []).find((mem: Record<string, unknown>) => (mem.id as string) === mid) as Record<string, unknown> | undefined;
           const uid = (m?.user_id as string) || null;
           // profile.phone no longer in useMembers cache. /api/sms/send
@@ -169,6 +199,9 @@ export default function ReliefEnrollmentPage() {
       }
 
       await queryClient.invalidateQueries({ queryKey: ["relief-enrollments", groupId] });
+      if (failedCount > 0) {
+        throw new Error(`${newEnrollments.length} enrolled; ${failedCount} failed. Review the list before retrying.`);
+      }
       setEnrollDialogOpen(false);
       resetEnrollForm();
     } catch (err) {

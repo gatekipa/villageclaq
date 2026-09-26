@@ -4,7 +4,8 @@ INSERT INTO auth.users(id,email) VALUES
  ('00000000-0000-4000-8000-00000000a931','scope-owner@example.test'),
  ('00000000-0000-4000-8000-00000000a932','branch-admin@example.test'),
  ('00000000-0000-4000-8000-00000000a933','other-admin@example.test'),
- ('00000000-0000-4000-8000-00000000a934','local-admin@example.test');
+ ('00000000-0000-4000-8000-00000000a934','local-admin@example.test'),
+ ('00000000-0000-4000-8000-00000000a935','covered-person@example.test');
 INSERT INTO public.organizations(id,name,slug,owner_id) VALUES
  ('00000000-0000-4000-8000-00000000d931','Scope Union',
   'scope-union','00000000-0000-4000-8000-00000000a931'),
@@ -30,14 +31,17 @@ VALUES
   '00000000-0000-4000-8000-00000000b933','admin','active'),
  ('00000000-0000-4000-8000-00000000c934',
   '00000000-0000-4000-8000-00000000a934',
-  '00000000-0000-4000-8000-00000000b931','admin','active');
+  '00000000-0000-4000-8000-00000000b931','admin','active'),
+ ('00000000-0000-4000-8000-00000000c935',
+  '00000000-0000-4000-8000-00000000a935',
+  '00000000-0000-4000-8000-00000000b932','member','active');
 INSERT INTO public.group_subscriptions(group_id,tier,status)
 VALUES ('00000000-0000-4000-8000-00000000b931','pro','active');
 INSERT INTO public.relief_plans(id,group_id,name,created_by,
-  is_active,status,currency,shared_from_org)
+  is_active,status,currency,shared_from_org,waiting_period_days)
 VALUES ('00000000-0000-4000-8000-00000000e931',
  '00000000-0000-4000-8000-00000000b931','Scoped Plan',
- '00000000-0000-4000-8000-00000000a931',true,'active','USD',true);
+ '00000000-0000-4000-8000-00000000a931',true,'active','USD',true,0);
 INSERT INTO public.relief_enrollments
  (plan_id,membership_id,group_id,collecting_group_id,status,is_active)
 VALUES ('00000000-0000-4000-8000-00000000e931',
@@ -191,6 +195,7 @@ BEGIN
 END
 $test$;
 RESET ROLE;
+
 SELECT set_config('request.jwt.claim.sub',
  '00000000-0000-4000-8000-00000000a932',true);
 SET LOCAL ROLE authenticated;
@@ -330,6 +335,378 @@ END
 $test$;
 RESET ROLE;
 SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a931',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_denied boolean:=false;
+BEGIN
+  BEGIN
+    INSERT INTO public.relief_enrollments
+      (plan_id,membership_id,group_id,collecting_group_id,status,is_active)
+    VALUES ('00000000-0000-4000-8000-00000000e931',
+      '00000000-0000-4000-8000-00000000c935',
+      '00000000-0000-4000-8000-00000000b932',
+      '00000000-0000-4000-8000-00000000b932','active',true);
+  EXCEPTION WHEN insufficient_privilege THEN v_denied:=true; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'DIRECT_CONTRACTED_ENROLLMENT_ALLOWED'; END IF;
+END
+$test$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a932',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_command jsonb; v_result jsonb; v_denied boolean:=false;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.list_relief_plans_for_group(
+      '00000000-0000-4000-8000-00000000b932')
+      WHERE id='00000000-0000-4000-8000-00000000e931')
+  THEN RAISE EXCEPTION 'BRANCH_CONTRACTED_PLAN_NOT_DISCOVERABLE'; END IF;
+  v_command:=pg_catalog.jsonb_build_object(
+    'request_id','00000000-0000-4000-8000-00000000f960',
+    'plan_id','00000000-0000-4000-8000-00000000e931',
+    'membership_id','00000000-0000-4000-8000-00000000c935',
+    'group_id','00000000-0000-4000-8000-00000000b932',
+    'enrollment_type','full_member');
+  v_result:=public.enroll_relief_person(v_command);
+  IF v_result->>'decision'<>'posted' OR v_result->>'enrollment_id' IS NULL
+  THEN RAISE EXCEPTION 'PERSON_COVERAGE_NOT_POSTED'; END IF;
+  IF public.enroll_relief_person(v_command)->>'decision'<>'recovered'
+  THEN RAISE EXCEPTION 'PERSON_COVERAGE_RETRY_DUPLICATED'; END IF;
+  IF public.enroll_relief_person(pg_catalog.jsonb_set(v_command,
+       '{request_id}','"00000000-0000-4000-8000-00000000f961"'))
+       ->>'decision'<>'recovered'
+  THEN RAISE EXCEPTION 'FRESH_INTENT_DUPLICATED_COVERAGE'; END IF;
+  BEGIN
+    PERFORM public.enroll_relief_person(pg_catalog.jsonb_set(v_command,
+      '{enrollment_type}','"external"'));
+  EXCEPTION WHEN OTHERS THEN
+    v_denied:=SQLERRM LIKE '%IDENTITY_CONFLICT%'; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'ENROLLMENT_IDENTITY_MUTATED'; END IF;
+END
+$test$;
+RESET ROLE;
+DO $test$
+BEGIN
+  IF (SELECT count(*) FROM public.relief_coverage_contracts
+      WHERE plan_id='00000000-0000-4000-8000-00000000e931')<>1
+     OR (SELECT count(*) FROM public.relief_enrollments
+       WHERE plan_id='00000000-0000-4000-8000-00000000e931'
+         AND membership_id='00000000-0000-4000-8000-00000000c935')<>1
+  THEN RAISE EXCEPTION 'PERSON_COVERAGE_EFFECT_COUNT_INVALID'; END IF;
+END
+$test$;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a933',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_denied boolean:=false;
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.list_relief_plans_for_group(
+      '00000000-0000-4000-8000-00000000b932'))
+  THEN RAISE EXCEPTION 'CROSS_TENANT_PLAN_DISCOVERY_ALLOWED'; END IF;
+  BEGIN
+    PERFORM public.enroll_relief_person(pg_catalog.jsonb_build_object(
+      'request_id','00000000-0000-4000-8000-00000000f960',
+      'plan_id','00000000-0000-4000-8000-00000000e931',
+      'membership_id','00000000-0000-4000-8000-00000000c935',
+      'group_id','00000000-0000-4000-8000-00000000b932'));
+  EXCEPTION WHEN insufficient_privilege THEN v_denied:=true; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'CROSS_TENANT_ENROLLMENT_RECOVERY_ALLOWED'; END IF;
+END
+$test$;
+RESET ROLE;
+UPDATE public.memberships SET membership_status='suspended'
+  WHERE id='00000000-0000-4000-8000-00000000c932';
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a932',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_denied boolean:=false;
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.list_relief_plans_for_group(
+      '00000000-0000-4000-8000-00000000b932'))
+  THEN RAISE EXCEPTION 'REVOKED_PLAN_DISCOVERY_ALLOWED'; END IF;
+  BEGIN
+    PERFORM public.enroll_relief_person(pg_catalog.jsonb_build_object(
+      'request_id','00000000-0000-4000-8000-00000000f960',
+      'plan_id','00000000-0000-4000-8000-00000000e931',
+      'membership_id','00000000-0000-4000-8000-00000000c935',
+      'group_id','00000000-0000-4000-8000-00000000b932'));
+  EXCEPTION WHEN insufficient_privilege THEN v_denied:=true; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'REVOKED_ENROLLMENT_RECOVERY_ALLOWED'; END IF;
+END
+$test$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a931',true);
+UPDATE public.memberships SET membership_status='active'
+  WHERE id='00000000-0000-4000-8000-00000000c932';
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a935',true);
+SET LOCAL ROLE authenticated;
+INSERT INTO public.relief_claims
+  (id,plan_id,membership_id,claimant_membership_id,group_id,
+   event_type,incident_date,amount,amount_requested,currency,
+   description,status)
+VALUES ('00000000-0000-4000-8000-00000000e938',
+ '00000000-0000-4000-8000-00000000e931',
+ '00000000-0000-4000-8000-00000000c935',
+ '00000000-0000-4000-8000-00000000c935',
+ '00000000-0000-4000-8000-00000000b931',
+ 'illness',CURRENT_DATE,12,12,'USD','Fictional branch claim','submitted');
+RESET ROLE;
+DO $test$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.relief_claims
+    WHERE id='00000000-0000-4000-8000-00000000e938'
+      AND group_id='00000000-0000-4000-8000-00000000b931'
+      AND membership_id='00000000-0000-4000-8000-00000000c935')
+  THEN RAISE EXCEPTION 'BRANCH_CLAIM_NOT_FILED_AT_OWNER'; END IF;
+END
+$test$;
+DO $test$
+DECLARE v_coverage uuid; v_maturity timestamptz;
+BEGIN
+  SELECT id,matures_at INTO v_coverage,v_maturity
+    FROM public.relief_coverage_contracts
+    WHERE plan_id='00000000-0000-4000-8000-00000000e931'
+      AND current_membership_id='00000000-0000-4000-8000-00000000c935';
+  IF v_coverage IS NULL THEN RAISE EXCEPTION 'COVERAGE_FOR_TRANSFER_MISSING'; END IF;
+  PERFORM set_config('qual.coverage_id',v_coverage::text,true);
+  PERFORM set_config('qual.matures_at',v_maturity::text,true);
+END
+$test$;
+INSERT INTO public.member_transfers
+    (id,member_id,source_group_id,dest_group_id,status,requested_by,
+     approved_by_source,approved_by_dest)
+  VALUES ('00000000-0000-4000-8000-00000000f962',
+    '00000000-0000-4000-8000-00000000a935',
+    '00000000-0000-4000-8000-00000000b932',
+    '00000000-0000-4000-8000-00000000b931','approved',
+    '00000000-0000-4000-8000-00000000a932',
+    '00000000-0000-4000-8000-00000000a932',
+    '00000000-0000-4000-8000-00000000a931');
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a932',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_result jsonb;
+BEGIN
+  v_result:=public.execute_member_transfer(
+    '00000000-0000-4000-8000-00000000f962');
+  IF v_result->>'ok'<>'true' THEN
+    RAISE EXCEPTION 'MEMBER_TRANSFER_FAILED: %',v_result; END IF;
+  IF public.execute_member_transfer(
+      '00000000-0000-4000-8000-00000000f962')
+      ->>'new_membership_id' IS DISTINCT FROM v_result->>'new_membership_id'
+  THEN RAISE EXCEPTION 'MEMBER_TRANSFER_RETRY_DUPLICATED'; END IF;
+  PERFORM set_config('qual.new_member_id',v_result->>'new_membership_id',true);
+END
+$test$;
+RESET ROLE;
+DO $test$
+DECLARE v_coverage uuid:=current_setting('qual.coverage_id')::uuid;
+  v_maturity timestamptz:=current_setting('qual.matures_at')::timestamptz;
+  v_new_member uuid:=current_setting('qual.new_member_id')::uuid;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.relief_coverage_contracts
+      WHERE id=v_coverage AND current_membership_id=v_new_member
+        AND status='active' AND matures_at=v_maturity AND version=2)
+     OR (SELECT count(*) FROM public.relief_coverage_contracts
+       WHERE plan_id='00000000-0000-4000-8000-00000000e931')<>1
+     OR (SELECT count(*) FROM public.relief_coverage_responsibilities
+       WHERE contract_id=v_coverage)<>2
+     OR NOT EXISTS (SELECT 1 FROM public.relief_enrollments
+       WHERE plan_id='00000000-0000-4000-8000-00000000e931'
+         AND membership_id=v_new_member AND is_active AND matures_at=v_maturity)
+     OR EXISTS (SELECT 1 FROM public.relief_enrollments
+       WHERE plan_id='00000000-0000-4000-8000-00000000e931'
+         AND membership_id='00000000-0000-4000-8000-00000000c935'
+         AND is_active)
+  THEN RAISE EXCEPTION 'COVERAGE_TRANSFER_PROJECTION_INVALID'; END IF;
+  RAISE NOTICE 'RELIEF_PERSON_TRANSFER_PASS: coverage and maturity retained';
+END
+$test$;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a932',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+BEGIN
+  IF public.decide_relief_claim(pg_catalog.jsonb_build_object(
+      'group_id','00000000-0000-4000-8000-00000000b931',
+      'claim_id','00000000-0000-4000-8000-00000000e938',
+      'request_id','00000000-0000-4000-8000-00000000f963',
+      'expected_version',0,'status','reviewing'))
+      ->>'decision'<>'posted'
+  THEN RAISE EXCEPTION 'HISTORICAL_BRANCH_CLAIM_NOT_REVIEWED'; END IF;
+  IF public.decide_relief_claim(pg_catalog.jsonb_build_object(
+      'group_id','00000000-0000-4000-8000-00000000b931',
+      'claim_id','00000000-0000-4000-8000-00000000e938',
+      'request_id','00000000-0000-4000-8000-00000000f964',
+      'expected_version',1,'status','approved','amount_approved',10))
+      ->>'decision'<>'posted'
+  THEN RAISE EXCEPTION 'HISTORICAL_BRANCH_CLAIM_NOT_APPROVED'; END IF;
+END
+$test$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a931',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_result jsonb; v_event uuid;
+BEGIN
+  v_result:=public.post_relief_claim_payout(pg_catalog.jsonb_build_object(
+    'claim_id','00000000-0000-4000-8000-00000000e938',
+    'account_id','00000000-0000-4000-8000-00000000e937',
+    'fund_id','00000000-0000-4000-8000-00000000f938'));
+  v_event:=(v_result->>'financial_event_id')::uuid;
+  IF v_event IS NULL THEN RAISE EXCEPTION 'BRANCH_CLAIM_OWNER_PAYOUT_FAILED'; END IF;
+  PERFORM set_config('qual.branch_claim_event',v_event::text,true);
+  IF public.post_relief_claim_payout(pg_catalog.jsonb_build_object(
+    'claim_id','00000000-0000-4000-8000-00000000e938',
+    'account_id','00000000-0000-4000-8000-00000000e937'))
+    ->>'financial_event_id' IS DISTINCT FROM v_event::text
+  THEN RAISE EXCEPTION 'BRANCH_CLAIM_PAYOUT_RETRY_DUPLICATED'; END IF;
+END
+$test$;
+RESET ROLE;
+DO $test$
+DECLARE v_event uuid:=current_setting('qual.branch_claim_event')::uuid;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.relief_claims
+      WHERE id='00000000-0000-4000-8000-00000000e938'
+        AND membership_id='00000000-0000-4000-8000-00000000c935'
+        AND financial_event_id=v_event AND status='paid')
+     OR (SELECT count(*) FROM public.financial_postings
+       WHERE event_id=v_event)<>2
+     OR (SELECT count(*) FROM financial_core.financial_event_audit_links
+       WHERE event_id=v_event)<>1
+  THEN RAISE EXCEPTION 'BRANCH_CLAIM_OWNER_PAYOUT_FAILED'; END IF;
+END
+$test$;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a931',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.get_relief_branch_summary()
+      WHERE relief_plan_id='00000000-0000-4000-8000-00000000e931'
+        AND collecting_group_id='00000000-0000-4000-8000-00000000b931'
+        AND enrolled_count=2)
+     OR NOT EXISTS (SELECT 1 FROM public.get_relief_branch_summary()
+      WHERE relief_plan_id='00000000-0000-4000-8000-00000000e931'
+        AND collecting_group_id='00000000-0000-4000-8000-00000000b932'
+        AND enrolled_count=1)
+  THEN RAISE EXCEPTION 'TRANSFER_DOUBLE_COUNTED_OR_HIDDEN'; END IF;
+END
+$test$;
+RESET ROLE;
+SAVEPOINT relief_out_of_scope_transfer;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a931',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_result jsonb;
+BEGIN
+  v_result:=public.configure_relief_plan_scope(pg_catalog.jsonb_build_object(
+    'plan_id','00000000-0000-4000-8000-00000000e931',
+    'request_id','00000000-0000-4000-8000-00000000f965',
+    'expected_version',3,
+    'owning_unit_id',current_setting('qual.scope_root')::uuid,
+    'financial_owner_group_id','00000000-0000-4000-8000-00000000b931',
+    'participation_unit_id',current_setting('qual.scope_root')::uuid,
+    'participation_mode','unit',
+    'collection_unit_id',current_setting('qual.scope_root')::uuid,
+    'collection_mode','unit',
+    'review_unit_id',current_setting('qual.scope_branch')::uuid,
+    'payout_unit_id',current_setting('qual.scope_root')::uuid,
+    'reporting_unit_id',current_setting('qual.scope_root')::uuid,
+    'reporting_mode','unit'));
+  IF (v_result->>'version')::integer<>4
+  THEN RAISE EXCEPTION 'UNIT_SCOPE_FOR_SUSPENSION_FAILED'; END IF;
+END
+$test$;
+RESET ROLE;
+INSERT INTO public.member_transfers
+  (id,member_id,source_group_id,dest_group_id,status,requested_by,
+   approved_by_source,approved_by_dest)
+VALUES ('00000000-0000-4000-8000-00000000f966',
+  '00000000-0000-4000-8000-00000000a935',
+  '00000000-0000-4000-8000-00000000b931',
+  '00000000-0000-4000-8000-00000000b932','approved',
+  '00000000-0000-4000-8000-00000000a931',
+  '00000000-0000-4000-8000-00000000a931',
+  '00000000-0000-4000-8000-00000000a932');
+SET LOCAL ROLE authenticated;
+DO $test$
+BEGIN
+  IF public.execute_member_transfer(
+      '00000000-0000-4000-8000-00000000f966')->>'ok'<>'true'
+  THEN RAISE EXCEPTION 'OUT_OF_SCOPE_TRANSFER_FAILED'; END IF;
+END
+$test$;
+RESET ROLE;
+DO $test$
+DECLARE v_suspended uuid;
+BEGIN
+  SELECT suspended_membership_id INTO v_suspended
+    FROM public.relief_coverage_contracts
+    WHERE id=current_setting('qual.coverage_id')::uuid
+      AND status='suspended_out_of_scope'
+      AND current_membership_id IS NULL
+      AND matures_at=current_setting('qual.matures_at')::timestamptz
+      AND version=3;
+  IF v_suspended IS NULL OR NOT EXISTS (
+      SELECT 1 FROM public.relief_coverage_responsibilities
+      WHERE contract_id=current_setting('qual.coverage_id')::uuid
+        AND membership_id=v_suspended
+        AND coverage_status='suspended_out_of_scope'
+        AND effective_to IS NULL)
+  THEN RAISE EXCEPTION 'OUT_OF_SCOPE_COVERAGE_NOT_SUSPENDED'; END IF;
+END
+$test$;
+INSERT INTO public.member_transfers
+  (id,member_id,source_group_id,dest_group_id,status,requested_by,
+   approved_by_source,approved_by_dest)
+VALUES ('00000000-0000-4000-8000-00000000f967',
+  '00000000-0000-4000-8000-00000000a935',
+  '00000000-0000-4000-8000-00000000b932',
+  '00000000-0000-4000-8000-00000000b931','approved',
+  '00000000-0000-4000-8000-00000000a931',
+  '00000000-0000-4000-8000-00000000a932',
+  '00000000-0000-4000-8000-00000000a931');
+SET LOCAL ROLE authenticated;
+DO $test$
+BEGIN
+  IF public.execute_member_transfer(
+      '00000000-0000-4000-8000-00000000f967')->>'ok'<>'true'
+  THEN RAISE EXCEPTION 'RETURN_TO_SCOPE_TRANSFER_FAILED'; END IF;
+END
+$test$;
+RESET ROLE;
+DO $test$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.relief_coverage_contracts
+      WHERE id=current_setting('qual.coverage_id')::uuid
+        AND status='active' AND current_membership_id IS NOT NULL
+        AND suspended_membership_id IS NULL
+        AND matures_at=current_setting('qual.matures_at')::timestamptz
+        AND version=4)
+     OR (SELECT count(*) FROM public.relief_coverage_responsibilities
+       WHERE contract_id=current_setting('qual.coverage_id')::uuid)<>4
+     OR (SELECT count(*) FROM public.relief_enrollments
+       WHERE plan_id='00000000-0000-4000-8000-00000000e931'
+         AND membership_id=(SELECT current_membership_id
+           FROM public.relief_coverage_contracts
+           WHERE id=current_setting('qual.coverage_id')::uuid)
+         AND is_active)<>1
+  THEN RAISE EXCEPTION 'RETURN_TO_SCOPE_RESET_COVERAGE'; END IF;
+  RAISE NOTICE 'RELIEF_OUT_OF_SCOPE_TRANSFER_PASS: suspension and return retain maturity';
+END
+$test$;
+ROLLBACK TO SAVEPOINT relief_out_of_scope_transfer;
+SELECT set_config('request.jwt.claim.sub',
  '00000000-0000-4000-8000-00000000a932',true);
 SET LOCAL ROLE authenticated;
 DO $test$
@@ -356,9 +733,11 @@ SET LOCAL ROLE authenticated;
 DO $test$
 DECLARE v_denied boolean:=false;
 BEGIN
-  IF EXISTS (SELECT 1 FROM public.relief_claims
+  IF NOT public.can_pay_relief_plan(
+      '00000000-0000-4000-8000-00000000e931')
+     OR NOT EXISTS (SELECT 1 FROM public.relief_claims
       WHERE id='00000000-0000-4000-8000-00000000e936')
-  THEN RAISE EXCEPTION 'UNDESIGNATED_OWNER_ADMIN_SAW_CLAIM'; END IF;
+  THEN RAISE EXCEPTION 'AUTHORIZED_PAYER_CANNOT_VIEW_CLAIM'; END IF;
   BEGIN
     PERFORM public.list_relief_claim_decisions(
       '00000000-0000-4000-8000-00000000e936');

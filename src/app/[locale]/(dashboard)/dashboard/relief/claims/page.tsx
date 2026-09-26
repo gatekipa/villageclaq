@@ -434,9 +434,29 @@ function DisburseClaimDialog({ open, onOpenChange, claim, plan, claimant }: { op
   const disburseClaim = useDisburseReliefClaim();
   const { data: accounts = [], isLoading: accountsLoading } = useFinancialAccounts(groupId);
   const { data: funds = [], isLoading: fundsLoading } = useFinancialFunds(groupId);
+  const { data: payoutScope, isPending: scopePending, isError: scopeError } = useQuery({
+    queryKey: ["relief-payout-scope", groupId, claim?.plan_id],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_relief_plan_scope", { p_plan: claim.plan_id });
+      if (error) throw error;
+      return data as { financial_owner_group_id: string; topology_stale: boolean } | null;
+    },
+    enabled: !!groupId && !!claim?.plan_id,
+  });
+  const delegated = !!payoutScope && payoutScope.financial_owner_group_id !== groupId;
+  const { data: ownerFunds = [], isPending: ownerFundsPending, isError: ownerFundsError } = useQuery({
+    queryKey: ["relief-delegated-owner-funds", groupId, claim?.plan_id],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("list_relief_delegated_owner_funds", { p_plan: claim.plan_id });
+      if (error) throw error;
+      return data as Array<{ id: string; name: string }>;
+    },
+    enabled: !!groupId && !!claim?.plan_id && delegated && !payoutScope?.topology_stale,
+  });
 
   const [accountId, setAccountId] = useState("");
   const [fundId, setFundId] = useState("");
+  const [ownerFundId, setOwnerFundId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const matchingAccounts = accounts.filter((a:any) => a.currency === claim?.currency);
@@ -445,13 +465,15 @@ function DisburseClaimDialog({ open, onOpenChange, claim, plan, claimant }: { op
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!groupId || !claim || !accountId || !fundId) return;
+    if (!groupId || !claim || !accountId || !fundId || scopePending || scopeError ||
+        payoutScope?.topology_stale || (delegated && (!ownerFundId || ownerFundsPending || ownerFundsError))) return;
     try {
       await disburseClaim.mutateAsync({
         groupId,
         claimId: claim.id,
         accountId,
-        fundId
+        fundId,
+        ...(delegated ? { ownerFundId } : {}),
       });
       handleOpenChange(false);
     } catch (err: any) {
@@ -463,6 +485,7 @@ function DisburseClaimDialog({ open, onOpenChange, claim, plan, claimant }: { op
     if (!isOpen) {
       setAccountId("");
       setFundId("");
+      setOwnerFundId("");
       setError(null);
     }
     onOpenChange(isOpen);
@@ -515,10 +538,26 @@ function DisburseClaimDialog({ open, onOpenChange, claim, plan, claimant }: { op
               <p className="text-sm text-amber-600">{t("fields.restrictedFundUnavailable")}</p>
             )}
           </div>
+          {delegated && (
+            <div className="space-y-2">
+              <Label>{t("fields.ownerRestrictedFund")}</Label>
+              <Select required value={ownerFundId} onValueChange={value => setOwnerFundId(value || "")}
+                disabled={ownerFundsPending || ownerFundsError || payoutScope?.topology_stale}>
+                <SelectTrigger><SelectValue placeholder={t("fields.selectRestrictedFund")} /></SelectTrigger>
+                <SelectContent>{ownerFunds.map(f =>
+                  <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          )}
+          {(scopeError || payoutScope?.topology_stale || ownerFundsError) &&
+            <p className="text-sm text-red-600">{t("fields.payoutScopeUnavailable")}</p>}
           
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={disburseClaim.isPending || !accountId || accountId === 'none' || !fundId}>
+            <Button type="submit" disabled={disburseClaim.isPending || scopePending || scopeError ||
+              payoutScope?.topology_stale || ownerFundsError ||
+              !accountId || accountId === 'none' || !fundId ||
+              (delegated && (!ownerFundId || ownerFundsPending))}>
               {disburseClaim.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Disburse Now
             </Button>

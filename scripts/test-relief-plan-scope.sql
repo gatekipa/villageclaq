@@ -313,11 +313,12 @@ BEGIN
       'participation_unit_id',v_root,'participation_mode','subtree',
       'collection_unit_id',v_root,'collection_mode','subtree',
       'review_unit_id',current_setting('qual.scope_branch')::uuid,
-      'payout_unit_id',current_setting('qual.scope_branch')::uuid,
+      'payout_unit_id',current_setting('qual.scope_other')::uuid,
       'reporting_unit_id',v_root,'reporting_mode','unit'));
-    RAISE EXCEPTION 'DELEGATED_PAYOUT_FALSELY_CONFIGURED';
+    RAISE EXCEPTION 'CROSS_TENANT_PAYOUT_CONFIGURED';
   EXCEPTION WHEN OTHERS THEN
-    IF SQLERRM NOT LIKE '%DELEGATED_PAYOUT_ADAPTER_PENDING%'
+    IF SQLERRM NOT LIKE '%RELIEF_SCOPE_CROSS_ORGANIZATION%'
+       AND SQLERRM NOT LIKE '%RELIEF_PAYOUT_SCOPE_DENIED%'
     THEN RAISE; END IF;
   END;
 END

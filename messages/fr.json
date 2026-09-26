@@ -2995,7 +2995,9 @@
       "custodyAccount": "Compte de garde",
       "restrictedFund": "Fonds de secours affecté",
       "selectRestrictedFund": "Sélectionner un fonds affecté",
-      "restrictedFundUnavailable": "Créez un fonds affecté actif dans les paramètres financiers avant de payer cette demande."
+      "restrictedFundUnavailable": "Créez un fonds affecté actif dans les paramètres financiers avant de payer cette demande.",
+      "ownerRestrictedFund": "Fonds de secours affecté du propriétaire",
+      "payoutScopeUnavailable": "Le périmètre de paiement est indisponible ou périmé. Actualisez le périmètre du plan avant de payer."
     },
     "actions": {
       "createPlan": "Créer un plan",

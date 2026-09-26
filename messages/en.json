@@ -2995,7 +2995,9 @@
       "custodyAccount": "Custody Account",
       "restrictedFund": "Restricted relief fund",
       "selectRestrictedFund": "Select a restricted fund",
-      "restrictedFundUnavailable": "Create an active restricted fund in Finance settings before paying this claim."
+      "restrictedFundUnavailable": "Create an active restricted fund in Finance settings before paying this claim.",
+      "ownerRestrictedFund": "Owner restricted relief fund",
+      "payoutScopeUnavailable": "Payout scope is unavailable or stale. Refresh the plan scope before paying."
     },
     "actions": {
       "createPlan": "Create Plan",

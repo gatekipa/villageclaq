@@ -218,6 +218,7 @@ export function useEnrollMemberInPlan() {
     },
     onSuccess: (_, input) => {
       queryClient.invalidateQueries({ queryKey: ["relief-enrollments", input.groupId] });
+      queryClient.invalidateQueries({ queryKey: ["relief-receipt-catalog", input.groupId] });
     },
   });
 }

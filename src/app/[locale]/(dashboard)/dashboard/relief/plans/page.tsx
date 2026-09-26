@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
@@ -106,8 +106,8 @@ export default function ReliefPlansPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Relief Plans</h1>
-          <p className="text-muted-foreground">Manage group relief policies and active enrollments.</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("plansTitle")}</h1>
+          <p className="text-muted-foreground">{t("plansDescription")}</p>
         </div>
         {canManage && (
           <Button onClick={() => setCreatePlanOpen(true)}>
@@ -122,8 +122,8 @@ export default function ReliefPlansPage() {
       ) : plans.length === 0 ? (
         <Card className="p-8 text-center bg-muted/50 border-dashed">
           <ShieldAlert className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium">No Relief Plans</h3>
-          <p className="text-muted-foreground mb-4">You haven't created any relief plans yet.</p>
+          <h3 className="text-lg font-medium">{t("noPlansTitle")}</h3>
+          <p className="text-muted-foreground mb-4">{t("noPlansDescription")}</p>
           {canManage && (
             <Button onClick={() => setCreatePlanOpen(true)}>{t("actions.createPlan")}</Button>
           )}
@@ -159,17 +159,18 @@ export default function ReliefPlansPage() {
                     </div>
                     <div className="flex justify-between">
                       <dt className="text-muted-foreground">{t("fields.waitingPeriod")}</dt>
-                      <dd className="font-medium">{plan.waiting_period_days} Days</dd>
+                      <dd className="font-medium">{plan.waiting_period_days} {t("days")}</dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Active Enrollments</dt>
+                      <dt className="text-muted-foreground">{t("activeEnrollments")}</dt>
                       <dd className="font-medium flex items-center">
                         <Users className="w-3 h-3 mr-1 text-muted-foreground" />
                         {planEnrollments.filter((e:any) => e.status === 'active').length}
                       </dd>
                     </div>
                   </dl>
-                  {canManage && plan.status === 'active' && (
+                  {canManage && plan.status === 'active' &&
+                    planScopes[plan.id] && !planScopes[plan.id]?.topology_stale && (
                     <Button variant="outline" className="w-full" onClick={() => setEnrollPlanId(plan.id)}>
                       {t("actions.enrollMember")}
                     </Button>
@@ -184,7 +185,9 @@ export default function ReliefPlansPage() {
       {canManage && groupId && user && plans.some((plan: any) =>
         plan.group_id === groupId) && <OwnerReliefReceiptPanel
         key={groupId} groupId={groupId} userId={user.id}
-        plans={plans} currency={currentGroup?.currency || "USD"} />}
+        plans={plans.filter((plan: any) => planScopes[plan.id] &&
+          !planScopes[plan.id]?.topology_stale)}
+        currency={currentGroup?.currency || "USD"} />}
       {canManage && groupId && user && currentGroup?.organization_id &&
         <BranchReliefReceiptPanel key={`${groupId}:agency`}
           groupId={groupId} userId={user.id}
@@ -363,6 +366,7 @@ function CreatePlanDialog({ open, onOpenChange }: { open: boolean, onOpenChange:
 
 function EnrollMemberDialog({ open, onOpenChange, plan, members }: { open: boolean, onOpenChange: (open: boolean) => void, plan: any, members: any[] }) {
   const t = useTranslations("relief");
+  const locale = useLocale();
   const { groupId } = useGroup();
   const enrollMember = useEnrollMemberInPlan();
   
@@ -389,8 +393,8 @@ function EnrollMemberDialog({ open, onOpenChange, plan, members }: { open: boole
   };
 
   const calculatedMaturity = useMemo(() => {
-    return new Date(Date.now() + (plan?.waiting_period_days || 0) * 24 * 60 * 60 * 1000).toLocaleDateString();
-  }, [plan?.waiting_period_days]);
+    return new Date(Date.now() + (plan?.waiting_period_days || 0) * 24 * 60 * 60 * 1000).toLocaleDateString(locale);
+  }, [plan?.waiting_period_days, locale]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -402,9 +406,9 @@ function EnrollMemberDialog({ open, onOpenChange, plan, members }: { open: boole
           {error && <div className="text-sm text-red-500 bg-red-50 p-2 rounded">{error}</div>}
           
           <div className="space-y-2">
-            <Label>Select Member</Label>
+            <Label>{t("selectMember")}</Label>
             <Select required value={memberId} onValueChange={(v: any) => setMemberId(v)}>
-              <SelectTrigger><SelectValue placeholder="Select active member..." /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("selectActiveMember")} /></SelectTrigger>
               <SelectContent>
                 {activeMembers.map(m => (
                   <SelectItem key={m.id} value={m.id}>{m.display_name || m.user_id}</SelectItem>
@@ -414,12 +418,12 @@ function EnrollMemberDialog({ open, onOpenChange, plan, members }: { open: boole
           </div>
 
           <div className="bg-muted p-4 rounded-md text-sm">
-            <p className="text-muted-foreground mb-1">Maturity Date Preview</p>
-            <p className="font-medium text-foreground">Enrolls today, matures on {calculatedMaturity} ({plan?.waiting_period_days} days)</p>
+            <p className="text-muted-foreground mb-1">{t("maturityPreview")}</p>
+            <p className="font-medium text-foreground">{t("maturityDescription", {date: calculatedMaturity, days: plan?.waiting_period_days || 0})}</p>
           </div>
           
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t("cancel")}</Button>
             <Button type="submit" disabled={enrollMember.isPending || !memberId}>
               {enrollMember.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               {t("actions.enrollMember")}

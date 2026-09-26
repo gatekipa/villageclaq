@@ -14,12 +14,13 @@ type Plan = { id: string; name: string; group_id: string; currency: string | nul
   status: string | null; is_active: boolean };
 type Receipt = { id: string; amount: number; currency: string; status: string;
   financial_event_id: string | null; relief_plan_id: string; membership_id: string;
-  cash_class: string; audit_verified: boolean };
+  cash_class: string; settlement_status: string; audit_verified: boolean };
 type Member = { id: string; display_name: string | null; membership_status: string;
   profiles: { full_name: string | null }[] };
 type Enrollment = { plan_id: string; membership_id: string };
 type AgencyReceipt = { payment_id: string; branch_group_id: string;
   owner_event_id: string | null; amount: number; currency: string;
+  cash_class: string; settlement_status: string;
   branch_audit_verified: boolean };
 
 const copy = {
@@ -41,6 +42,12 @@ const copy = {
     agencyTitle: "Branch receipts awaiting owner recognition",
     agencyPending: "Awaiting owner recognition", agencyDone: "Owner income recognized",
     agencyAccept: "Recognize owner income", agencyAudit: "Branch audit needs review",
+    agencyLiability: "Acknowledge owner liability", liabilityOpen: "Open liability",
+    recognized: "Recognized", refunded: "Refunded",
+    settleRecognize: "Recognize liability as income",
+    settleRefund: "Refund from owner cash",
+    settlementSuccess: "Settlement posted with ledger and audit.",
+    settlementFailure: "Settlement could not finish. Refresh before retrying; owner refunds require confirmed owner-held cash.",
   },
   fr: {
     title: "Cotisations de secours reçues par l’unité responsable", member: "Membre",
@@ -62,6 +69,12 @@ const copy = {
     agencyTitle: "Reçus des antennes en attente de reconnaissance",
     agencyPending: "En attente de reconnaissance", agencyDone: "Revenu reconnu par l’unité responsable",
     agencyAccept: "Reconnaître le revenu", agencyAudit: "L’audit de l’antenne doit être vérifié",
+    agencyLiability: "Constater la dette de l’unité responsable",
+    liabilityOpen: "Dette ouverte", recognized: "Reconnue", refunded: "Remboursée",
+    settleRecognize: "Reconnaître la dette comme revenu",
+    settleRefund: "Rembourser depuis l’unité responsable",
+    settlementSuccess: "Règlement comptabilisé avec journal et audit.",
+    settlementFailure: "Le règlement a échoué. Actualisez avant de réessayer ; le remboursement exige des fonds reçus par l’unité responsable.",
   },
 };
 
@@ -191,7 +204,8 @@ export function OwnerReliefReceiptPanel({ groupId, userId, plans, currency }: {
   }
 
   async function acceptAgency(receipt: AgencyReceipt) {
-    if (agencyError || !receipt.branch_audit_verified || !fundId || !categoryId ||
+    if (agencyError || !receipt.branch_audit_verified || !fundId ||
+      (receipt.cash_class === "non_refundable" && !categoryId) ||
       new URL(window.location.href).searchParams.get("group") !== groupId) {
       setMessage(t.failed); return;
     }
@@ -199,7 +213,8 @@ export function OwnerReliefReceiptPanel({ groupId, userId, plans, currency }: {
     try {
       const { error } = await supabase.rpc("post_agency_owner_recognition", {
         p_command: { payment_id: receipt.payment_id, fund_id: fundId,
-          category_id: categoryId },
+          ...(receipt.cash_class === "non_refundable" ?
+            { category_id: categoryId } : {}) },
       });
       if (error) throw error;
       setMessage(t.success);
@@ -208,6 +223,33 @@ export function OwnerReliefReceiptPanel({ groupId, userId, plans, currency }: {
       await queryClient.invalidateQueries({
         queryKey: ["relief-agency-owner-receipts", groupId],
       });
+      setBusy(false);
+    }
+  }
+
+  async function settle(paymentId: string, action: "recognize" | "refund") {
+    if (!fundId || (action === "recognize" && !categoryId) ||
+      (action === "refund" && !accountId) ||
+      new URL(window.location.href).searchParams.get("group") !== groupId) {
+      setMessage(t.required); return;
+    }
+    setBusy(true); setMessage("");
+    try {
+      const { error } = await supabase.rpc("settle_relief_receipt", {
+        p_command: { payment_id: paymentId, action, fund_id: fundId,
+          ...(action === "recognize" ? { category_id: categoryId } :
+            { account_id: accountId, custodian_group_id: groupId }) },
+      });
+      if (error) throw error;
+      setMessage(t.settlementSuccess);
+    } catch { setMessage(t.settlementFailure); }
+    finally {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["relief-owner-receipts", groupId] }),
+        queryClient.invalidateQueries({
+          queryKey: ["relief-agency-owner-receipts", groupId],
+        }),
+      ]);
       setBusy(false);
     }
   }
@@ -289,10 +331,22 @@ export function OwnerReliefReceiptPanel({ groupId, userId, plans, currency }: {
           className="flex flex-wrap items-center justify-between gap-2 rounded border p-3 text-sm">
           <span>{receipt.amount} {receipt.currency} · {receipt.id.slice(0, 8)} · {
             receipt.status === "confirmed" ?
-              (receipt.audit_verified ? t.confirmed : t.review) : t.pending}</span>
+              (receipt.audit_verified ? t.confirmed : t.review) : t.pending}
+            {receipt.status === "confirmed" && receipt.cash_class !== "non_refundable"
+              ? ` · ${receipt.settlement_status === "recognized" ? t.recognized :
+                receipt.settlement_status === "refunded" ? t.refunded : t.liabilityOpen}`
+              : ""}</span>
           {receipt.status === "pending_confirmation" && !receipt.financial_event_id &&
             <Button variant="outline" disabled={busy} onClick={() => recover(receipt)}>
               {t.confirm}</Button>}
+          {receipt.status === "confirmed" && receipt.audit_verified &&
+            receipt.cash_class !== "non_refundable" &&
+            receipt.settlement_status === "open" && <>
+              <Button variant="outline" disabled={busy || !fundId || !categoryId}
+                onClick={() => settle(receipt.id, "recognize")}>{t.settleRecognize}</Button>
+              <Button variant="outline" disabled={busy || !fundId || !accountId}
+                onClick={() => settle(receipt.id, "refund")}>{t.settleRefund}</Button>
+            </>}
         </div>)}
       </div>
       <div className="space-y-2 border-t pt-4">
@@ -304,10 +358,24 @@ export function OwnerReliefReceiptPanel({ groupId, userId, plans, currency }: {
           className="flex flex-wrap items-center justify-between gap-2 rounded border p-3 text-sm">
           <span>{receipt.amount} {receipt.currency} · {receipt.payment_id.slice(0, 8)} · {
             !receipt.branch_audit_verified ? t.agencyAudit :
-              receipt.owner_event_id ? t.agencyDone : t.agencyPending}</span>
+              receipt.owner_event_id ?
+                (receipt.cash_class === "non_refundable" ? t.agencyDone :
+                  receipt.settlement_status === "recognized" ? t.recognized :
+                    receipt.settlement_status === "refunded" ? t.refunded :
+                      t.liabilityOpen) : t.agencyPending}</span>
           {!receipt.owner_event_id && receipt.branch_audit_verified &&
-            <Button variant="outline" disabled={busy || agencyError || !fundId || !categoryId}
-              onClick={() => acceptAgency(receipt)}>{t.agencyAccept}</Button>}
+            <Button variant="outline" disabled={busy || agencyError || !fundId ||
+              (receipt.cash_class === "non_refundable" && !categoryId)}
+              onClick={() => acceptAgency(receipt)}>{receipt.cash_class === "non_refundable"
+                ? t.agencyAccept : t.agencyLiability}</Button>}
+          {receipt.owner_event_id && receipt.branch_audit_verified &&
+            receipt.cash_class !== "non_refundable" &&
+            receipt.settlement_status === "open" && <>
+              <Button variant="outline" disabled={busy || !fundId || !categoryId}
+                onClick={() => settle(receipt.payment_id, "recognize")}>{t.settleRecognize}</Button>
+              <Button variant="outline" disabled={busy || !fundId || !accountId}
+                onClick={() => settle(receipt.payment_id, "refund")}>{t.settleRefund}</Button>
+            </>}
         </div>)}
       </div>
     </CardContent>

@@ -16,6 +16,7 @@ type Member = { id: string; display_name: string | null;
 type Enrollment = { plan_id: string; membership_id: string };
 type Receipt = { id: string; amount: number; currency: string;
   status: string; relief_plan_id: string; cash_class: string;
+  settlement_status: string;
   financial_event_id: string | null; audit_verified: boolean;
   owner_recognized: boolean };
 
@@ -25,6 +26,10 @@ const copy = {
     member: "Enrolled member", amount: "Amount", account: "Branch custody account",
     fund: "Restricted fund", method: "Method", cash: "Cash",
     bank: "Bank transfer", mobile: "Mobile money", record: "Record and confirm",
+    cashClass: "Cash treatment", nonRefundable: "Non-refundable",
+    refundable: "Refundable", conditional: "Conditional",
+    refund: "Refund from branch cash", recognized: "Recognized",
+    refunded: "Refunded", open: "Open liability",
     refresh: "Refresh receipts", retry: "Confirm this pending receipt",
     pending: "Pending", branchPosted: "Branch custody and liability posted",
     ownerDone: "Owner recognition complete", review: "Audit needs review",
@@ -40,6 +45,10 @@ const copy = {
     account: "Compte de dépôt de l’antenne", fund: "Fonds affecté",
     method: "Méthode", cash: "Espèces", bank: "Virement bancaire",
     mobile: "Argent mobile", record: "Enregistrer et confirmer",
+    cashClass: "Traitement de la somme", nonRefundable: "Non remboursable",
+    refundable: "Remboursable", conditional: "Conditionnelle",
+    refund: "Rembourser depuis l’antenne", recognized: "Reconnue",
+    refunded: "Remboursée", open: "Dette ouverte",
     refresh: "Actualiser les reçus", retry: "Confirmer ce reçu en attente",
     pending: "En attente", branchPosted: "Dépôt et dette de l’antenne comptabilisés",
     ownerDone: "Revenu reconnu par l’unité responsable",
@@ -62,6 +71,7 @@ export function BranchReliefReceiptPanel({ groupId, userId, currency }: {
   const [accountId, setAccountId] = useState("");
   const [fundId, setFundId] = useState("");
   const [method, setMethod] = useState("cash");
+  const [cashClass, setCashClass] = useState("non_refundable");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -143,7 +153,7 @@ export function BranchReliefReceiptPanel({ groupId, userId, currency }: {
         currency: plan.currency || currency,
         payment_method: method as "cash" | "bank_transfer" | "mobile_money",
         recorded_by: userId, status: "pending_confirmation",
-        cash_class: "non_refundable",
+        cash_class: cashClass,
       });
       if (error) throw error;
       await confirm(id);
@@ -160,6 +170,28 @@ export function BranchReliefReceiptPanel({ groupId, userId, currency }: {
     setBusy(true); setMessage("");
     try { await confirm(receipt.id); setMessage(t.success); }
     catch { setMessage(t.failed); }
+    finally {
+      await queryClient.invalidateQueries({
+        queryKey: ["relief-branch-receipts", groupId],
+      });
+      setBusy(false);
+    }
+  }
+  async function refund(receipt: Receipt) {
+    if (!receipt.audit_verified || !receipt.owner_recognized ||
+      receipt.settlement_status !== "open" || !accountId || !fundId) {
+      setMessage(t.required); return;
+    }
+    setBusy(true); setMessage("");
+    try {
+      assertRouteGroup();
+      const { error } = await supabase.rpc("settle_relief_receipt", {
+        p_command: { payment_id: receipt.id, action: "refund",
+          custodian_group_id: groupId, account_id: accountId, fund_id: fundId },
+      });
+      if (error) throw error;
+      setMessage(t.success);
+    } catch { setMessage(t.failed); }
     finally {
       await queryClient.invalidateQueries({
         queryKey: ["relief-branch-receipts", groupId],
@@ -206,6 +238,14 @@ export function BranchReliefReceiptPanel({ groupId, userId, currency }: {
             <option value="bank_transfer">{t.bank}</option>
             <option value="mobile_money">{t.mobile}</option></select>
         </label>
+        <label className="space-y-1 text-sm">{t.cashClass}
+          <select className="w-full min-h-11 rounded border bg-background"
+            value={cashClass} onChange={(event) => setCashClass(event.target.value)}>
+            <option value="non_refundable">{t.nonRefundable}</option>
+            <option value="refundable">{t.refundable}</option>
+            <option value="conditional">{t.conditional}</option>
+          </select>
+        </label>
         <label className="space-y-1 text-sm">{t.account}
           <select className="w-full min-h-11 rounded border bg-background" value={accountId}
             onChange={(event) => setAccountId(event.target.value)}>
@@ -230,10 +270,18 @@ export function BranchReliefReceiptPanel({ groupId, userId, currency }: {
           <span>{receipt.amount} {receipt.currency} · {receipt.id.slice(0, 8)} · {
             receipt.status === "confirmed" ?
               !receipt.audit_verified ? t.review :
-                receipt.owner_recognized ? t.ownerDone : t.branchPosted : t.pending}</span>
+                receipt.owner_recognized ? t.ownerDone : t.branchPosted : t.pending}
+            {receipt.status === "confirmed" && receipt.cash_class !== "non_refundable"
+              ? ` · ${receipt.settlement_status === "recognized" ? t.recognized :
+                receipt.settlement_status === "refunded" ? t.refunded : t.open}` : ""}</span>
           {receipt.status === "pending_confirmation" && !receipt.financial_event_id &&
             <Button variant="outline" disabled={busy}
               onClick={() => recover(receipt)}>{t.retry}</Button>}
+          {receipt.status === "confirmed" && receipt.cash_class !== "non_refundable" &&
+            receipt.settlement_status === "open" && receipt.audit_verified &&
+            receipt.owner_recognized &&
+            <Button variant="outline" disabled={busy || !accountId || !fundId}
+              onClick={() => refund(receipt)}>{t.refund}</Button>}
         </div>)}
       </div>
     </CardContent>

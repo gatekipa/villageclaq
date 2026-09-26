@@ -52,11 +52,11 @@ export function AccountBalancesCard({
   const currencies = Array.from(new Set(accountBalances.map((a) => a.currency)));
 
   const kindLabels: Record<string, string> = {
-    bank: tConfig("kinds.bank"),
-    cash: tConfig("kinds.cash"),
-    mobile_money: tConfig("kinds.mobile_money"),
-    wallet: tConfig("kinds.wallet"),
-    other: tConfig("kinds.other"),
+    bank: tConfig("accounts.kinds.bank"),
+    cash: tConfig("accounts.kinds.cash"),
+    mobile_money: tConfig("accounts.kinds.mobile_money"),
+    wallet: tConfig("accounts.kinds.wallet"),
+    other: tConfig("accounts.kinds.other"),
   };
 
   const statusLabels: Record<string, string> = {
@@ -79,7 +79,7 @@ export function AccountBalancesCard({
             </CardDescription>
           </div>
           <Badge variant="outline" className="text-xs">
-            {accountBalances.length} {tConfig("sections.accounts").toLowerCase()}
+            {accountBalances.length} {tConfig("tabs.accounts").toLowerCase()}
           </Badge>
         </div>
       </CardHeader>
@@ -147,7 +147,7 @@ export function AccountBalancesCard({
                     {t("sections.fundAllocation")}
                   </p>
                   <span className="text-[11px] text-muted-foreground">
-                    {fundCash.length} {tConfig("sections.funds").toLowerCase()}
+                    {fundCash.length} {tConfig("tabs.funds").toLowerCase()}
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -165,7 +165,7 @@ export function AccountBalancesCard({
                         <span className="font-medium truncate">{f.fund_name}</span>
                         {f.fund_is_restricted && (
                           <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 text-amber-600 border-amber-300">
-                            {tConfig("funds.restricted")}
+                            {tConfig("funds.restrictedBadge")}
                           </Badge>
                         )}
                       </div>

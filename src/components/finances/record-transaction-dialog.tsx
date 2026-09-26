@@ -370,7 +370,7 @@ export function RecordTransactionDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleDialogClose}>
-      <DialogContent className="sm:max-w-lg max-h-[92vh] overflow-y-auto w-full p-4 sm:p-6">
+      <DialogContent className="sm:max-w-lg max-h-[92vh] grid-cols-[minmax(0,1fr)] overflow-y-auto w-full p-4 sm:p-6">
         {successResult ? (
           // Success Confirmation Screen
           <div className="space-y-4 py-4 text-center">
@@ -491,7 +491,7 @@ export function RecordTransactionDialog({
           </div>
         ) : (
           // Transaction Entry Form
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="min-w-0 space-y-4">
             <DialogHeader>
               <DialogTitle className="text-lg font-bold">{t("title")}</DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
@@ -521,7 +521,7 @@ export function RecordTransactionDialog({
             <Tabs
               value={action}
               onValueChange={(val) => handleTabChange(val as FinancialCommandAction)}
-              className="w-full"
+              className="min-w-0 w-full"
             >
               <TabsList className="grid grid-cols-3 w-full">
                 <TabsTrigger

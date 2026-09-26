@@ -1,0 +1,157 @@
+<truncated 7195 lines>
++    'description',CASE WHEN v_saved.id IS NULL THEN v_description ELSE v_saved.source_description END,
++    'reference_metadata',CASE WHEN v_saved.id IS NULL THEN v_metadata ELSE v_saved.reference_metadata END));
++
++  -- Existing occurrence replay/conflict uses frozen F3-02 payload before current catalog checks.
++  IF v_existing_event IS NOT NULL THEN
++    IF v_existing_provenance=v_provenance_id AND v_saved.id IS NULL
++    THEN RAISE EXCEPTION 'PROVENANCE_INTEGRITY'; END IF;
++    RETURN financial_core.post_f3_command(v_inner,pg_catalog.jsonb_build_object(
++      'group_id',v_group,'occurrence_id',v_occurrence,
++      'provenance',pg_catalog.jsonb_build_object('id',v_provenance_id,'group_id',v_group)));
++  END IF;
++
++  IF v_saved.id IS NULL THEN
++    INSERT INTO financial_core.opening_provenances(
++      id,group_id,source_description,source_at,reference_metadata,recorded_by)
++    VALUES(v_provenance_id,v_group,v_description,v_source_at,v_metadata,v_actor)
++    RETURNING * INTO v_saved;
++  END IF;
++
++  -- Lock configuration rows before the private engine resolves them again.
++  SELECT a.* INTO v_account FROM public.financial_accounts a
++    WHERE a.id=v_account_id AND a.group_id=v_group FOR SHARE;
++  IF v_account.id IS NULL THEN RAISE EXCEPTION 'ACCOUNT_NOT_FOUND'; END IF;
++  IF v_account.kind NOT IN ('bank','cash') THEN RAISE EXCEPTION 'ACCOUNT_KIND_NOT_ALLOWED'; END IF;
++  IF v_account.status<>'active' OR v_account.closed_at IS NOT NULL
++  THEN RAISE EXCEPTION 'ACCOUNT_INACTIVE'; END IF;
++
++  SELECT f.* INTO v_fund FROM public.financial_funds f
++    WHERE f.id=v_fund_id AND f.group_id=v_group FOR SHARE;
++  IF v_fund.id IS NULL THEN RAISE EXCEPTION 'FUND_NOT_FOUND'; END IF;
++  IF v_fund.status<>'active' THEN RAISE EXCEPTION 'FUND_INACTIVE'; END IF;
++
++  SELECT pg_catalog.count(*) INTO v_epoch_count FROM public.financial_ledger_epochs e
++    WHERE e.group_id=v_group
++      AND financial_core.f3_timestamp(p_command->'occurred_at')>=e.effective_from
++      AND (e.effective_to IS NULL OR financial_core.f3_timestamp(p_command->'occurred_at')<e.effective_to);
++  IF v_epoch_count<>1 THEN
++    RAISE EXCEPTION '%',CASE WHEN v_epoch_count=0 THEN 'EPOCH_NOT_FOUND' ELSE 'EPOCH_AMBIGUOUS' END;
++  END IF;
++  SELECT e.* INTO v_epoch FROM public.financial_ledger_epochs e
++    WHERE e.group_id=v_group
++      AND financial_core.f3_timestamp(p_command->'occurred_at')>=e.effective_from
++      AND (e.effective_to IS NULL OR financial_core.f3_timestamp(p_command->'occurred_at')<e.effective_to)
++    FOR SHARE;
++
++  -- Use only the committed provenance snapshot for the event narrative.
++  v_inner := pg_catalog.jsonb_strip_nulls(pg_catalog.jsonb_build_object(
++    'action','opening','group_id',v_group,'occurred_at',p_command->'occurred_at',
++    'amount',p_command->'amount','currency',p_command->'currency',
++    'account_id',v_account_id,'fund_id',v_fund_id,
++    'description',v_saved.source_description,'reference_metadata',v_saved.reference_metadata));
++  RETURN financial_core.post_f3_command(v_inner,pg_catalog.jsonb_build_object(
++    'group_id',v_group,'occurrence_id',v_occurrence,
++    'provenance',pg_catalog.jsonb_build_object('id',v_provenance_id,'group_id',v_group)));
++END;
++$$;
++
++CREATE FUNCTION public.post_financial_opening_cash(p_command jsonb)
++RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
++BEGIN
++  RETURN financial_core.post_f3_opening_cash(p_command);
++END;
++$$;
++
++REVOKE ALL ON FUNCTION financial_core.guard_f3_opening_provenance(),
++  financial_core.f3_opening_safe_text(text,integer,boolean),
++  financial_core.post_f3_opening_cash(jsonb)
++  FROM PUBLIC, anon, authenticated, service_role;
++REVOKE ALL ON FUNCTION public.post_financial_opening_cash(jsonb)
++  FROM PUBLIC, anon, authenticated, service_role;
++GRANT EXECUTE ON FUNCTION public.post_financial_opening_cash(jsonb) TO authenticated;
++
++
++DO $f3_hgp_post$
++DECLARE
++  v_hgp_def_md5 text;
++  v_hgp_src_md5 text;
++  v_hgp_count int;
++BEGIN
++  SELECT count(*) INTO v_hgp_count
++  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
++  WHERE n.nspname = 'public' AND p.proname = 'has_group_permission';
++  IF v_hgp_count IS DISTINCT FROM 1 THEN
++    RAISE EXCEPTION 'F3_ABORT: has_group_permission overload count changed to %', v_hgp_count;
++  END IF;
++  SELECT md5(pg_get_functiondef(p.oid)), md5(p.prosrc)
++    INTO v_hgp_def_md5, v_hgp_src_md5
++  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
++  WHERE n.nspname = 'public' AND p.proname = 'has_group_permission';
++  IF v_hgp_def_md5 IS DISTINCT FROM '695368464e97297fbf0f90ce7345162f'
++     OR v_hgp_src_md5 IS DISTINCT FROM '96a296dfd541c7fc75ec68c4da1d92ff' THEN
++    RAISE EXCEPTION 'F3_ABORT: has_group_permission fingerprint changed by F3 migration';
++  END IF;
++END
++$f3_hgp_post$;
++
++
++-- Pin F3 SECURITY DEFINER owner to postgres (M2/Cut 1 disposable parity).
++-- Never touches has_group_permission or enqueue_outbound_notification.
++DO $f3_owner_pin$
++DECLARE
++  r record;
++BEGIN
++  FOR r IN
++    SELECT n.nspname, p.proname, pg_get_function_identity_arguments(p.oid) AS ident
++    FROM pg_proc p
++    JOIN pg_namespace n ON n.oid = p.pronamespace
++    WHERE p.prosecdef
++      AND n.nspname IN ('public','financial_core','financial_private')
++      AND p.proname NOT IN ('has_group_permission','enqueue_outbound_notification')
++  LOOP
++    EXECUTE format(
++      'ALTER FUNCTION %I.%I(%s) OWNER TO postgres',
++      r.nspname, r.proname, r.ident
++    );
++  END LOOP;
++END
++$f3_owner_pin$;
++
++SET ROLE postgres;
++DO $f3_owner_acl$
++BEGIN
++  IF to_regprocedure('public.post_financial_command(jsonb)') IS NOT NULL THEN
++    EXECUTE 'REVOKE ALL ON FUNCTION public.post_financial_command(jsonb) FROM PUBLIC, anon, authenticated, service_role';
++    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ubuntu') THEN
++      EXECUTE 'REVOKE ALL ON FUNCTION public.post_financial_command(jsonb) FROM ubuntu';
++    END IF;
++    EXECUTE 'GRANT EXECUTE ON FUNCTION public.post_financial_command(jsonb) TO authenticated';
++  END IF;
++  IF to_regprocedure('public.correct_financial_event(jsonb)') IS NOT NULL THEN
++    EXECUTE 'REVOKE ALL ON FUNCTION public.correct_financial_event(jsonb) FROM PUBLIC, anon, authenticated, service_role';
++    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ubuntu') THEN
++      EXECUTE 'REVOKE ALL ON FUNCTION public.correct_financial_event(jsonb) FROM ubuntu';
++    END IF;
++    EXECUTE 'GRANT EXECUTE ON FUNCTION public.correct_financial_event(jsonb) TO authenticated';
++  END IF;
++  IF to_regprocedure('public.post_financial_opening_cash(jsonb)') IS NOT NULL THEN
++    EXECUTE 'REVOKE ALL ON FUNCTION public.post_financial_opening_cash(jsonb) FROM PUBLIC, anon, authenticated, service_role';
++    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ubuntu') THEN
++      EXECUTE 'REVOKE ALL ON FUNCTION public.post_financial_opening_cash(jsonb) FROM ubuntu';
++    END IF;
++    EXECUTE 'GRANT EXECUTE ON FUNCTION public.post_financial_opening_cash(jsonb) TO authenticated';
++  END IF;
++  IF to_regprocedure('public.get_financial_projection_bundle(uuid,timestamptz,timestamptz,timestamptz)') IS NOT NULL THEN
++    EXECUTE 'REVOKE ALL ON FUNCTION public.get_financial_projection_bundle(uuid,timestamptz,timestamptz,timestamptz), public.get_financial_cashbook(uuid,timestamptz,timestamptz,uuid,text,integer,integer) FROM PUBLIC, anon, authenticated, service_role';
++    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ubuntu') THEN
++      EXECUTE 'REVOKE ALL ON FUNCTION public.get_financial_projection_bundle(uuid,timestamptz,timestamptz,timestamptz), public.get_financial_cashbook(uuid,timestamptz,timestamptz,uuid,text,integer,integer) FROM ubuntu';
++    END IF;
++    EXECUTE 'GRANT EXECUTE ON FUNCTION public.get_financial_projection_bundle(uuid,timestamptz,timestamptz,timestamptz), public.get_financial_cashbook(uuid,timestamptz,timestamptz,uuid,text,integer,integer) TO authenticated';
++  END IF;
++END
++$f3_owner_acl$;
++RESET ROLE;
++
++COMMIT;
+

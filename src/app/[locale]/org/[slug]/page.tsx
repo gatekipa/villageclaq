@@ -1,14 +1,15 @@
 "use client";
-import React from 'react';
+import React, { use } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePublicOrganizationView } from '@/lib/hooks/use-public-profile';
 import { MembershipRequestForm } from '@/components/public/membership-request-form';
 import { ProfileAbuseReport } from '@/components/public/profile-abuse-report';
 import { Link } from '@/i18n/routing';
 
-export default function PublicOrganizationPage({ params }: { params: { slug: string, locale: string } }) {
+export default function PublicOrganizationPage({ params }: { params: Promise<{ slug: string, locale: string }> }) {
   const t = useTranslations('publicProfile');
-  const { data: profile, isLoading, error } = usePublicOrganizationView(params.slug);
+  const { slug } = use(params);
+  const { data: profile, isLoading, error } = usePublicOrganizationView(slug);
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center p-8 text-gray-500">{t('loading')}</div>;

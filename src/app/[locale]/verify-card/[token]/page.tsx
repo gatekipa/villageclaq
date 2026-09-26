@@ -1,13 +1,14 @@
 "use client";
-import React from 'react';
+import React, { use } from 'react';
 import { usePublicCardVerification } from '@/lib/hooks/use-community-card';
 import { sanitizePublicCardPayload } from '@/lib/community-card-payload';
 import { useLocale, useTranslations } from 'next-intl';
 
-export default function VerifyCardPage({ params }: { params: { token: string } }) {
+export default function VerifyCardPage({ params }: { params: Promise<{ token: string }> }) {
   const locale = useLocale();
   const t = useTranslations('communityCard');
-  const { data, isLoading, error } = usePublicCardVerification(params.token);
+  const { token } = use(params);
+  const { data, isLoading, error } = usePublicCardVerification(token);
 
   if (isLoading) return <div className="p-8 text-center">{t('verificationLoading')}</div>;
   if (error || !data || !data.valid) {

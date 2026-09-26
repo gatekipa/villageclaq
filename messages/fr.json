@@ -5205,8 +5205,8 @@
     "electionNotOpen": "Cette élection n'est pas ouverte au vote pour le moment.",
     "openElectionConfirmTitle": "Ouvrir le vote pour cette élection ?",
     "openElectionConfirmBody": "Chaque membre actif du groupe sera notifié que le vote est ouvert. Vous pourrez clore le vote plus tard, mais une notification partira maintenant.",
-    "closeElectionConfirmTitle": "Clore le vote et annoncer les résultats ?",
-    "closeElectionConfirmBody": "Le vote se terminera immédiatement, les résultats seront visibles par tous les membres et chaque membre recevra une notification. Cette action est irréversible.",
+    "closeElectionConfirmTitle": "Clore le vote ?",
+    "closeElectionConfirmBody": "Le vote se terminera immédiatement. Les résultats restent privés jusqu’à leur publication séparée par une personne autorisée. Cette action est irréversible.",
     "cancelElectionConfirmTitle": "Annuler cette élection ?",
     "cancelElectionConfirmBody": "Le vote s'arrêtera et l'élection sera marquée comme annulée. Les bulletins déjà exprimés restent consignés pour audit mais aucun gagnant ne sera déclaré.",
     "overlappingElectionForPosition": "Une autre élection active existe déjà pour ce poste. Fermez-la ou annulez-la avant d'en ouvrir une nouvelle."

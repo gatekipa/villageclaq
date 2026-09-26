@@ -63,7 +63,12 @@ export function formatDateWithGroupFormat(
   groupDateFormat = "DD/MM/YYYY",
   locale = "en",
 ): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+  // SQL DATE values are calendar days. Parsing YYYY-MM-DD as UTC shifts the
+  // displayed day backward for users west of UTC (including due dates).
+  const dateOnly = typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date);
+  const d = dateOnly
+    ? new Date(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)), 12)
+    : typeof date === "string" ? new Date(date) : date;
   if (isNaN(d.getTime())) return String(date);
   const day = String(d.getDate()).padStart(2, "0");
   const month = String(d.getMonth() + 1).padStart(2, "0");

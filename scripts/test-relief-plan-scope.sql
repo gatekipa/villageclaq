@@ -44,6 +44,23 @@ VALUES ('00000000-0000-4000-8000-00000000e931',
  '00000000-0000-4000-8000-00000000c932',
  '00000000-0000-4000-8000-00000000b932',
  '00000000-0000-4000-8000-00000000b932','active',true);
+INSERT INTO public.relief_enrollments
+ (plan_id,membership_id,group_id,collecting_group_id,status,is_active,matures_at)
+VALUES ('00000000-0000-4000-8000-00000000e931',
+ '00000000-0000-4000-8000-00000000c931',
+ '00000000-0000-4000-8000-00000000b931',
+ '00000000-0000-4000-8000-00000000b931','active',true,
+ now()-interval '1 day');
+INSERT INTO public.relief_claims
+ (id,plan_id,membership_id,claimant_membership_id,group_id,
+  event_type,incident_date,amount,amount_requested,currency,
+  description,status)
+VALUES ('00000000-0000-4000-8000-00000000e936',
+ '00000000-0000-4000-8000-00000000e931',
+ '00000000-0000-4000-8000-00000000c931',
+ '00000000-0000-4000-8000-00000000c931',
+ '00000000-0000-4000-8000-00000000b931',
+ 'illness',CURRENT_DATE,20,20,'USD','Fictional scoped claim','submitted');
 INSERT INTO public.payments
   (id,group_id,membership_id,amount,currency,payment_method,
    recorded_by,relief_plan_id,status)
@@ -100,7 +117,7 @@ BEGIN
        ->>'version')::integer<>1
   THEN RAISE EXCEPTION 'PLAN_SCOPE_NOT_POSTED'; END IF;
   IF (SELECT count(*) FROM public.get_relief_branch_summary()
-      WHERE relief_plan_id='00000000-0000-4000-8000-00000000e931')<>1
+      WHERE relief_plan_id='00000000-0000-4000-8000-00000000e931')<>2
   THEN RAISE EXCEPTION 'AUTHORIZED_SCOPED_REPORT_HIDDEN'; END IF;
   IF public.configure_relief_plan_scope(v_command)->>'decision'<>'recovered'
   THEN RAISE EXCEPTION 'PLAN_SCOPE_RETRY_NOT_RECOVERED'; END IF;
@@ -256,7 +273,8 @@ BEGIN
     'financial_owner_group_id','00000000-0000-4000-8000-00000000b931',
     'participation_unit_id',v_root,'participation_mode','subtree',
     'collection_unit_id',v_root,'collection_mode','subtree',
-    'review_unit_id',v_root,'payout_unit_id',v_root,
+    'review_unit_id',current_setting('qual.scope_branch')::uuid,
+    'payout_unit_id',v_root,
     'reporting_unit_id',v_root,'reporting_mode','unit'));
   IF (v_result->>'version')::integer<>3
   THEN RAISE EXCEPTION 'SUBTREE_SCOPE_NOT_ACTIVATED'; END IF;
@@ -271,6 +289,98 @@ BEGIN
   IF EXISTS (SELECT 1 FROM public.get_relief_branch_summary()
       WHERE relief_plan_id='00000000-0000-4000-8000-00000000e931')
   THEN RAISE EXCEPTION 'OUT_OF_AUDIENCE_BRANCH_REPORT_VISIBLE'; END IF;
+END
+$test$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a932',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_result jsonb;
+BEGIN
+  v_result:=public.decide_relief_claim(pg_catalog.jsonb_build_object(
+    'group_id','00000000-0000-4000-8000-00000000b931',
+    'claim_id','00000000-0000-4000-8000-00000000e936',
+    'request_id','00000000-0000-4000-8000-00000000f950',
+    'expected_version',0,'status','reviewing'));
+  IF v_result->>'decision'<>'posted' THEN
+    RAISE EXCEPTION 'DESIGNATED_BRANCH_REVIEWER_DENIED'; END IF;
+  IF (SELECT count(*) FROM public.relief_claims
+      WHERE id='00000000-0000-4000-8000-00000000e936')<>1
+     OR (SELECT count(*) FROM public.list_relief_claim_decisions(
+       '00000000-0000-4000-8000-00000000e936'))<>1
+  THEN RAISE EXCEPTION 'DESIGNATED_REVIEWER_DETAIL_OR_HISTORY_HIDDEN'; END IF;
+END
+$test$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a934',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_denied boolean:=false;
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.relief_claims
+      WHERE id='00000000-0000-4000-8000-00000000e936')
+  THEN RAISE EXCEPTION 'UNDESIGNATED_OWNER_ADMIN_SAW_CLAIM'; END IF;
+  BEGIN
+    PERFORM public.list_relief_claim_decisions(
+      '00000000-0000-4000-8000-00000000e936');
+  EXCEPTION WHEN OTHERS THEN v_denied:=SQLERRM LIKE '%UNAUTHORIZED%'; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'UNDESIGNATED_OWNER_ADMIN_SAW_HISTORY'; END IF;
+END
+$test$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a931',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_denied boolean:=false;
+BEGIN
+  BEGIN
+    PERFORM public.decide_relief_claim(pg_catalog.jsonb_build_object(
+      'group_id','00000000-0000-4000-8000-00000000b931',
+      'claim_id','00000000-0000-4000-8000-00000000e936',
+      'request_id','00000000-0000-4000-8000-00000000f951',
+      'expected_version',1,'status','approved','amount_approved',15));
+  EXCEPTION WHEN insufficient_privilege THEN v_denied:=true; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'UNDESIGNATED_OWNER_REVIEWED'; END IF;
+END
+$test$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a932',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_result jsonb;
+BEGIN
+  v_result:=public.decide_relief_claim(pg_catalog.jsonb_build_object(
+    'group_id','00000000-0000-4000-8000-00000000b931',
+    'claim_id','00000000-0000-4000-8000-00000000e936',
+    'request_id','00000000-0000-4000-8000-00000000f951',
+    'expected_version',1,'status','approved','amount_approved',15));
+  IF v_result->>'decision'<>'posted' THEN
+    RAISE EXCEPTION 'DESIGNATED_BRANCH_APPROVAL_DENIED'; END IF;
+END
+$test$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a931',true);
+UPDATE public.memberships SET membership_status='suspended'
+  WHERE id='00000000-0000-4000-8000-00000000c932';
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a932',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_denied boolean:=false;
+BEGIN
+  BEGIN
+    PERFORM public.decide_relief_claim(pg_catalog.jsonb_build_object(
+      'group_id','00000000-0000-4000-8000-00000000b931',
+      'claim_id','00000000-0000-4000-8000-00000000e936',
+      'request_id','00000000-0000-4000-8000-00000000f951',
+      'expected_version',1,'status','approved','amount_approved',15));
+  EXCEPTION WHEN insufficient_privilege THEN v_denied:=true; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'REVOKED_REVIEW_REPLAY_ALLOWED'; END IF;
 END
 $test$;
 RESET ROLE;
@@ -295,6 +405,8 @@ END
 $test$;
 UPDATE public.organizations SET topology_version=topology_version+1
   WHERE id='00000000-0000-4000-8000-00000000d931';
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a931',true);
 DO $test$
 DECLARE v_denied boolean:=false;
 BEGIN

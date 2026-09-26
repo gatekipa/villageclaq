@@ -89,6 +89,7 @@ export function parseDuesPostingRpcError(error: unknown): Error {
   if (rawMessage.includes("ACCOUNT_REQUIRED")) return new Error("ACCOUNT_REQUIRED");
   if (rawMessage.includes("AMOUNT_NOT_POSITIVE")) return new Error("AMOUNT_NOT_POSITIVE");
   if (rawMessage.includes("INVALID_AMOUNT")) return new Error("INVALID_AMOUNT");
+  if (rawMessage.includes("OCCURRENCE_INTEGRITY")) return new Error("RECEIPT_VOUCHER_CONFLICT");
   if (rawMessage.includes("DENY") || rawMessage.includes("42501")) return new Error("DENY");
   if (rawMessage.includes("CONFLICT") || rawMessage.includes("REQUEST_ID_REUSED")) return new Error("CONFLICT");
   if (rawMessage.includes("staleTenantAborted")) return new Error("staleTenantAborted");

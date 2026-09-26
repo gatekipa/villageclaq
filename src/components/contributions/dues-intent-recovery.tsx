@@ -50,7 +50,10 @@ export function DuesIntentRecovery({ groupId }: { groupId: string | null }) {
               </li>
             ))}
           </ul>
-          {retry.isError && <p role="alert">{t("retryFailed")}</p>}
+          {retry.isError && <p role="alert">{t(
+            retry.error?.message === "RECEIPT_VOUCHER_CONFLICT"
+              ? "receiptVoucherConflict" : "retryFailed"
+          )}</p>}
           {retry.isSuccess && <p role="status">{t("retrySucceeded")}</p>}
         </>
       )}

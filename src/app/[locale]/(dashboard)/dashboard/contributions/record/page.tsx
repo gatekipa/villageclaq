@@ -1164,6 +1164,8 @@ export default function RecordPaymentPage() {
                   ? t("contributions.duesPosting.errors.noActiveEpoch")
                   : recordAndPostDues.error?.message === "CONCURRENT_PAYMENT_CONFLICT"
                   ? t("contributions.concurrentConflict")
+                  : recordAndPostDues.error?.message === "RECEIPT_VOUCHER_CONFLICT"
+                  ? t("contributions.receiptVoucherConflict")
                   : t("contributions.recordFailed")}
               </p>
             )}

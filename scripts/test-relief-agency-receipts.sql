@@ -421,4 +421,169 @@ BEGIN
   RAISE NOTICE 'RELIEF_REMITTANCE_PASS: branch liability/custody, owner custody/receivable, audit, retries, maker/checker, no TRUNCATE';
 END
 $test$;
+DO $test$
+DECLARE v_root uuid;
+BEGIN
+  SELECT id INTO v_root FROM public.organization_units
+    WHERE group_id='00000000-0000-4000-8000-00000000b801';
+  IF v_root IS NULL THEN RAISE EXCEPTION 'PROJECTION_ROOT_MISSING'; END IF;
+  PERFORM set_config('qual.relief_projection_root',v_root::text,true);
+  PERFORM set_config('qual.relief_event_count',
+    (SELECT count(*)::text FROM public.financial_events),true);
+END
+$test$;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a801',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_result jsonb; v_projection record;
+BEGIN
+  v_result:=public.configure_relief_plan_scope(pg_catalog.jsonb_build_object(
+    'plan_id','00000000-0000-4000-8000-00000000d803',
+    'request_id','00000000-0000-4000-8000-00000000f810',
+    'expected_version',0,
+    'owning_unit_id',current_setting('qual.relief_projection_root')::uuid,
+    'financial_owner_group_id','00000000-0000-4000-8000-00000000b801',
+    'participation_unit_id',current_setting('qual.relief_projection_root')::uuid,
+    'participation_mode','subtree',
+    'collection_unit_id',current_setting('qual.relief_projection_root')::uuid,
+    'collection_mode','subtree',
+    'review_unit_id',current_setting('qual.relief_projection_root')::uuid,
+    'payout_unit_id',current_setting('qual.relief_projection_root')::uuid,
+    'reporting_unit_id',current_setting('qual.relief_projection_root')::uuid,
+    'reporting_mode','subtree'));
+  IF v_result->>'decision'<>'posted'
+  THEN RAISE EXCEPTION 'PROJECTION_SCOPE_NOT_CONFIGURED'; END IF;
+  SELECT * INTO v_projection FROM public.get_relief_management_projection(
+    '00000000-0000-4000-8000-00000000d801',
+    current_setting('qual.relief_projection_root')::uuid,
+    'USD',transaction_timestamp())
+    WHERE plan_id='00000000-0000-4000-8000-00000000d803'
+      AND branch_group_id='00000000-0000-4000-8000-00000000b802';
+  IF v_projection.branch_due<>20 OR v_projection.owner_receivable<>20
+     OR v_projection.eliminated_internal<>20
+     OR v_projection.branch_after_elimination<>0
+     OR v_projection.owner_after_elimination<>0
+  THEN RAISE EXCEPTION 'RELIEF_MANAGEMENT_ELIMINATION_INVALID: %',
+    row_to_json(v_projection); END IF;
+  IF EXISTS (SELECT 1 FROM public.get_relief_management_projection(
+      '00000000-0000-4000-8000-00000000d801',
+      current_setting('qual.relief_projection_root')::uuid,
+      'EUR',transaction_timestamp()))
+  THEN RAISE EXCEPTION 'RELIEF_MANAGEMENT_CURRENCY_MIXED'; END IF;
+  IF EXISTS (SELECT 1 FROM public.get_relief_management_projection(
+      '00000000-0000-4000-8000-00000000d801',
+      current_setting('qual.relief_projection_root')::uuid,
+      'USD','2000-01-01'::timestamptz)
+      WHERE branch_due<>0 OR owner_receivable<>0 OR eliminated_internal<>0)
+  THEN RAISE EXCEPTION 'RELIEF_MANAGEMENT_AS_OF_LEAK'; END IF;
+  RAISE NOTICE 'RELIEF_MANAGEMENT_PASS: local due 20/receivable 20, projection eliminates 20';
+END
+$test$;
+RESET ROLE;
+INSERT INTO public.payments(id,group_id,membership_id,amount,currency,
+  payment_method,recorded_by,relief_plan_id,status,cash_class)
+VALUES ('00000000-0000-4000-8000-00000000e809',
+ '00000000-0000-4000-8000-00000000b802',
+ '00000000-0000-4000-8000-00000000c803',10,'USD','cash',
+ '00000000-0000-4000-8000-00000000a802',
+ '00000000-0000-4000-8000-00000000d803',
+ 'pending_confirmation','non_refundable');
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a802',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+BEGIN
+  IF public.post_branch_relief_receipt(pg_catalog.jsonb_build_object(
+    'payment_id','00000000-0000-4000-8000-00000000e809',
+    'account_id','00000000-0000-4000-8000-00000000e801',
+    'fund_id','00000000-0000-4000-8000-00000000f802'))
+    ->>'decision' IS NULL
+  THEN RAISE EXCEPTION 'UNMATCHED_BRANCH_RECEIPT_NOT_POSTED'; END IF;
+END
+$test$;
+RESET ROLE;
+DO $test$
+BEGIN
+  PERFORM set_config('qual.relief_event_count',
+    (SELECT count(*)::text FROM public.financial_events),true);
+END
+$test$;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a801',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_projection record;
+BEGIN
+  SELECT * INTO v_projection FROM public.get_relief_management_projection(
+    '00000000-0000-4000-8000-00000000d801',
+    current_setting('qual.relief_projection_root')::uuid,
+    'USD',transaction_timestamp())
+    WHERE plan_id='00000000-0000-4000-8000-00000000d803'
+      AND branch_group_id='00000000-0000-4000-8000-00000000b802';
+  IF v_projection.branch_due<>30 OR v_projection.owner_receivable<>20
+     OR v_projection.eliminated_internal<>20
+     OR v_projection.branch_after_elimination<>10
+     OR v_projection.owner_after_elimination<>0
+  THEN RAISE EXCEPTION 'UNMATCHED_AGENCY_BALANCE_HIDDEN: %',
+    row_to_json(v_projection); END IF;
+  RAISE NOTICE 'RELIEF_MANAGEMENT_UNMATCHED_PASS: branch due 30, owner receivable 20, residual 10';
+END
+$test$;
+RESET ROLE;
+DO $test$
+BEGIN
+  IF (SELECT count(*) FROM public.financial_events)::text
+       IS DISTINCT FROM current_setting('qual.relief_event_count')
+  THEN RAISE EXCEPTION 'RELIEF_MANAGEMENT_CHANGED_LOCAL_LEDGER'; END IF;
+END
+$test$;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a804',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_denied boolean:=false;
+BEGIN
+  BEGIN
+    PERFORM public.get_relief_management_projection(
+      '00000000-0000-4000-8000-00000000d801',
+      current_setting('qual.relief_projection_root')::uuid,
+      'USD',transaction_timestamp());
+  EXCEPTION WHEN insufficient_privilege THEN v_denied:=true; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'CROSS_TENANT_RELIEF_MANAGEMENT_READ'; END IF;
+END
+$test$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a802',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+DECLARE v_denied boolean:=false;
+BEGIN
+  BEGIN
+    PERFORM public.get_relief_management_projection(
+      '00000000-0000-4000-8000-00000000d801',
+      current_setting('qual.relief_projection_root')::uuid,
+      'USD',transaction_timestamp());
+  EXCEPTION WHEN insufficient_privilege THEN v_denied:=true; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'BRANCH_RELIEF_MANAGEMENT_READ'; END IF;
+END
+$test$;
+RESET ROLE;
+UPDATE public.organizations SET topology_version=topology_version+1
+  WHERE id='00000000-0000-4000-8000-00000000d801';
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-00000000a801',true);
+SET LOCAL ROLE authenticated;
+DO $test$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.get_relief_management_projection(
+    '00000000-0000-4000-8000-00000000d801',
+    current_setting('qual.relief_projection_root')::uuid,
+    'USD',transaction_timestamp()))
+  THEN RAISE EXCEPTION 'STALE_RELIEF_MANAGEMENT_SCOPE_VISIBLE'; END IF;
+  RAISE NOTICE 'RELIEF_MANAGEMENT_AUTH_PASS: branch and cross-tenant denied; stale topology empty';
+END
+$test$;
+RESET ROLE;
 ROLLBACK;

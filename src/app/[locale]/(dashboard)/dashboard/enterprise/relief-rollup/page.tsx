@@ -47,9 +47,45 @@ export default function HqReliefRollupPage() {
   const { currentGroup, groupId } = useGroup();
   const { hasPermission } = usePermissions();
   const [planFilter, setPlanFilter] = useState("all");
+  const [projectionAsOf, setProjectionAsOf] = useState(() => new Date().toISOString());
 
   const isHq = currentGroup?.group_level === "hq";
   const currency = currentGroup?.currency || "XAF";
+  const organizationId = currentGroup?.organization_id;
+
+  const { data: reportingUnitId } = useQuery({
+    queryKey: ["relief-reporting-unit", organizationId, groupId],
+    queryFn: async () => {
+      const { data, error } = await createClient()
+        .from("organization_units")
+        .select("id")
+        .eq("organization_id", organizationId!)
+        .eq("group_id", groupId!)
+        .is("archived_at", null)
+        .single();
+      if (error) throw error;
+      return data.id as string;
+    },
+    enabled: isHq && !!groupId && !!organizationId,
+  });
+
+  const { data: managementRows = [], error: managementError,
+    isLoading: managementLoading } = useQuery({
+    queryKey: ["relief-management-projection", organizationId, reportingUnitId,
+      currency, projectionAsOf],
+    queryFn: async () => {
+      const { data, error } = await createClient().rpc(
+        "get_relief_management_projection", {
+          p_organization: organizationId!,
+          p_reporting_unit: reportingUnitId!,
+          p_currency: currency,
+          p_as_of: projectionAsOf,
+        });
+      if (error) throw error;
+      return (data || []) as ManagementProjectionRow[];
+    },
+    enabled: isHq && !!organizationId && !!reportingUnitId,
+  });
 
   // Fetch shared relief plans
   const { data: sharedPlans = [] } = useQuery({
@@ -113,6 +149,11 @@ export default function HqReliefRollupPage() {
   const totalCollected = summaryRows.reduce((s, r) => s + Number(r.collected_this_month || 0), 0);
   const totalRemitted = summaryRows.reduce((s, r) => s + Number(r.total_remitted || 0), 0);
   const branchCount = new Set(summaryRows.map((r) => r.collecting_group_id).filter(Boolean)).size;
+  const visibleManagementRows = planFilter === "all"
+    ? managementRows
+    : managementRows.filter((row) => row.plan_id === planFilter);
+  const planNames = new Map(sharedPlans.map((plan) => [plan.id,
+    locale === "fr" && plan.name_fr ? plan.name_fr : plan.name]));
 
   return (
     <div className="space-y-6">
@@ -232,6 +273,64 @@ export default function HqReliefRollupPage() {
           )}
         </CardContent>
       </Card>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">{t("managementProjection")}</CardTitle>
+          <p className="text-sm text-muted-foreground">{t("managementProjectionDesc", {
+            currency, asOf: new Date(projectionAsOf).toLocaleString(locale),
+          })}</p>
+        </CardHeader>
+        <CardContent>
+          <button type="button" className="text-sm underline"
+            onClick={() => setProjectionAsOf(new Date().toISOString())}>
+            {t("refreshProjection")}
+          </button>
+          {managementError ? (
+            <p role="alert" className="mt-3 text-sm text-destructive">
+              {t("managementProjectionUnavailable")}: {(managementError as Error).message}
+            </p>
+          ) : managementLoading ? (
+            <p className="mt-3 text-sm text-muted-foreground">{t("scopeLoading")}</p>
+          ) : visibleManagementRows.length === 0 ? (
+            <p className="mt-3 text-sm text-muted-foreground">{t("noManagementBalances")}</p>
+          ) : (
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b text-left">
+                  <th className="p-2">{t("planName")}</th>
+                  <th className="p-2">{t("branchName")}</th>
+                  <th className="p-2 text-right">{t("branchDue")}</th>
+                  <th className="p-2 text-right">{t("ownerReceivable")}</th>
+                  <th className="p-2 text-right">{t("internalElimination")}</th>
+                  <th className="p-2 text-right">{t("unmatchedBalance")}</th>
+                </tr></thead>
+                <tbody>{visibleManagementRows.map((row) => (
+                  <tr key={`${row.plan_id}-${row.branch_group_id}`} className="border-b">
+                    <td className="p-2">{planNames.get(row.plan_id) || row.plan_id}</td>
+                    <td className="p-2">{summaryRows.find((summary) =>
+                      summary.collecting_group_id === row.branch_group_id)?.branch_name || row.branch_group_id}</td>
+                    <td className="p-2 text-right">{formatAmount(row.branch_due, currency)}</td>
+                    <td className="p-2 text-right">{formatAmount(row.owner_receivable, currency)}</td>
+                    <td className="p-2 text-right">{formatAmount(row.eliminated_internal, currency)}</td>
+                    <td className="p-2 text-right">{formatAmount(
+                      Number(row.branch_after_elimination) + Number(row.owner_after_elimination), currency)}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
+}
+
+interface ManagementProjectionRow {
+  plan_id: string;
+  branch_group_id: string;
+  branch_due: number;
+  owner_receivable: number;
+  eliminated_internal: number;
+  branch_after_elimination: number;
+  owner_after_elimination: number;
 }

@@ -88,6 +88,32 @@ $$;
 CREATE TRIGGER trg_qual_fail_paid_claim_history
   BEFORE INSERT ON public.relief_claim_decisions FOR EACH ROW
   EXECUTE FUNCTION public.qual_fail_paid_claim_history();
+CREATE FUNCTION pg_temp.reject_claim_audit()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.action='financial_event.posted'
+     AND current_setting('qual.fail_claim_audit',true)='on' THEN
+    RAISE EXCEPTION 'QUAL_CLAIM_AUDIT_FAULT';
+  END IF;
+  RETURN NEW;
+END
+$$;
+CREATE TRIGGER trg_qual_fail_claim_audit
+  BEFORE INSERT ON public.group_audit_logs FOR EACH ROW
+  EXECUTE FUNCTION pg_temp.reject_claim_audit();
+CREATE FUNCTION public.qual_claim_payout_counts()
+RETURNS jsonb LANGUAGE sql SECURITY DEFINER SET search_path='' AS $$
+  SELECT pg_catalog.jsonb_build_object(
+    'events',(SELECT count(*) FROM public.financial_events
+      WHERE source_module='relief' AND source_record_id=
+        '00000000-0000-4000-8000-00000000e921'
+        AND effect_kind='claim_payout'),
+    'paid_decisions',(SELECT count(*) FROM public.relief_claim_decisions
+      WHERE claim_id='00000000-0000-4000-8000-00000000e921'
+        AND new_status='paid'));
+$$;
+REVOKE ALL ON FUNCTION public.qual_claim_payout_counts() FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.qual_claim_payout_counts() TO authenticated;
 
 SELECT set_config('request.jwt.claim.sub',
  '00000000-0000-4000-8000-00000000a921',true);
@@ -175,6 +201,20 @@ BEGIN
   EXCEPTION WHEN OTHERS THEN
     v_conflict:=SQLERRM LIKE '%RESTRICTED_RELIEF_FUND_REQUIRED%'; END;
   IF NOT v_conflict THEN RAISE EXCEPTION 'MISSING_PAYOUT_FUND_ACCEPTED'; END IF;
+  PERFORM pg_catalog.set_config('qual.fail_claim_audit','on',true);
+  v_conflict:=false;
+  BEGIN
+    PERFORM public.post_relief_claim_payout(pg_catalog.jsonb_build_object(
+      'claim_id','00000000-0000-4000-8000-00000000e921',
+      'account_id','00000000-0000-4000-8000-00000000e925',
+      'fund_id','00000000-0000-4000-8000-00000000f926'));
+  EXCEPTION WHEN OTHERS THEN
+    v_conflict:=SQLERRM LIKE '%QUAL_CLAIM_AUDIT_FAULT%'; END;
+  PERFORM pg_catalog.set_config('qual.fail_claim_audit','off',true);
+  IF NOT v_conflict OR
+     (public.qual_claim_payout_counts()->>'events')::integer<>0 OR
+     (public.qual_claim_payout_counts()->>'paid_decisions')::integer<>0
+  THEN RAISE EXCEPTION 'PAYOUT_AUDIT_FAULT_DID_NOT_ROLL_BACK'; END IF;
   PERFORM pg_catalog.set_config('qual.fail_paid_history','on',true);
   v_conflict:=false;
   BEGIN

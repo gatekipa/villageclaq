@@ -40,6 +40,7 @@ export default function SignupPage() {
   const t = useTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const founderTestMode = process.env.NEXT_PUBLIC_FOUNDER_TEST_ENVIRONMENT === "true";
   const redirectTo = safeRedirect(searchParams.get("redirectTo") || searchParams.get("next"));
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -63,6 +64,7 @@ export default function SignupPage() {
   const { allMet } = usePasswordRequirements(password);
 
   async function handleGoogleSignup() {
+    if (founderTestMode) return;
     setError(null);
     setIsGoogleLoading(true);
     try {
@@ -207,12 +209,14 @@ export default function SignupPage() {
                 <Button
                   variant="outline"
                   className="mb-3"
-                  disabled={resending}
+                  disabled={resending || founderTestMode}
                   onClick={async () => {
                     setResending(true);
                     try {
-                      const supabase = createClient();
-                      await supabase.auth.resend({ type: "signup", email });
+                      if (!founderTestMode) {
+                        const supabase = createClient();
+                        await supabase.auth.resend({ type: "signup", email });
+                      }
                     } finally { setResending(false); }
                   }}
                 >
@@ -238,7 +242,14 @@ export default function SignupPage() {
             )}
 
             <div className="grid gap-2.5">
-              <Button variant="outline" className="w-full justify-center gap-2.5 h-11" disabled={isGoogleLoading} onClick={handleGoogleSignup} aria-label="Continue with Google">
+              <Button
+                variant="outline"
+                className="w-full justify-center gap-2.5 h-11"
+                disabled={isGoogleLoading || founderTestMode}
+                onClick={handleGoogleSignup}
+                aria-label="Continue with Google"
+                title={founderTestMode ? "Use a fictional password account in this test environment" : undefined}
+              >
                 {isGoogleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />} {t("auth.continueWithGoogle")}
               </Button>
               <Button variant="outline" className="w-full justify-center gap-2.5 h-11 opacity-50 cursor-not-allowed" disabled aria-label="OAuth login" title="">

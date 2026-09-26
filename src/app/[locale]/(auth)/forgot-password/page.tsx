@@ -11,9 +11,9 @@ import { Loader2, ArrowLeft, CheckCircle2, AlertCircle, Mail } from "lucide-reac
 
 export default function ForgotPasswordPage() {
   const t = useTranslations("forgotPassword");
-  const tc = useTranslations("common");
   const ta = useTranslations("auth");
   const locale = useLocale();
+  const founderTestMode = process.env.NEXT_PUBLIC_FOUNDER_TEST_ENVIRONMENT === "true";
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -21,6 +21,7 @@ export default function ForgotPasswordPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (founderTestMode) return;
     if (!email.trim()) { setError(ta("allFieldsRequired")); return; }
 
     setIsLoading(true);
@@ -63,6 +64,16 @@ export default function ForgotPasswordPage() {
             </div>
           ) : (
             <>
+              {founderTestMode && (
+                <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    {locale === "fr"
+                      ? "La récupération par e-mail est désactivée dans cet environnement de test. Utilisez le compte fictif fourni."
+                      : "Email recovery is disabled in this test environment. Use the provided fictional account."}
+                  </span>
+                </div>
+              )}
               {error && (
                 <div className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -79,13 +90,13 @@ export default function ForgotPasswordPage() {
                     required
                     autoComplete="email"
                     autoFocus
-                    disabled={isLoading}
+                    disabled={isLoading || founderTestMode}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="h-11"
                   />
                 </div>
-                <Button type="submit" className="w-full h-11 font-semibold" disabled={isLoading || !email.trim()}>
+                <Button type="submit" className="w-full h-11 font-semibold" disabled={founderTestMode || isLoading || !email.trim()}>
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {t("sendLink")}
                 </Button>

@@ -42,6 +42,7 @@ export default function LoginPage() {
   const t = useTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const founderTestMode = process.env.NEXT_PUBLIC_FOUNDER_TEST_ENVIRONMENT === "true";
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +60,7 @@ export default function LoginPage() {
   }, []);
 
   async function handleGoogleLogin() {
+    if (founderTestMode) return;
     setError(null);
     setIsGoogleLoading(true);
     try {
@@ -188,7 +190,14 @@ export default function LoginPage() {
             )}
 
             <div className="grid gap-2.5">
-              <Button variant="outline" className="w-full justify-center gap-2.5 h-11" disabled={isGoogleLoading} onClick={handleGoogleLogin} aria-label="Continue with Google">
+              <Button
+                variant="outline"
+                className="w-full justify-center gap-2.5 h-11"
+                disabled={isGoogleLoading || founderTestMode}
+                onClick={handleGoogleLogin}
+                aria-label="Continue with Google"
+                title={founderTestMode ? "Use a fictional password account in this test environment" : undefined}
+              >
                 {isGoogleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />} {t("auth.continueWithGoogle")}
               </Button>
               <Button variant="outline" className="w-full justify-center gap-2.5 h-11 opacity-50 cursor-not-allowed" disabled aria-label="OAuth login" title="">

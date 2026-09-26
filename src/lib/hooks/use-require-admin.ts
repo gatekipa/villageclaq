@@ -16,8 +16,9 @@ export function useRequireAdmin() {
   // Stable ref for router — useRouter() may return a new object on every render.
   // Including router directly in useEffect deps would re-trigger the effect.
   const routerRef = useRef(router);
-  routerRef.current = router;
-
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
   useEffect(() => {
     if (!loading && currentMembership && !isAdmin) {
       routerRef.current.replace("/dashboard");

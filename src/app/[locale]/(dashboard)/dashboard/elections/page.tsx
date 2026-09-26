@@ -175,6 +175,23 @@ export default function ElectionsPage() {
   const queryClient = useQueryClient();
   const supabase = createClient();
 
+  const { data: effectiveStanding } = useQuery({
+    queryKey: ["effective-member-standing", currentMembership?.id],
+    queryFn: async () => {
+      if (!currentMembership?.id) return null;
+      const { data, error } = await supabase.rpc("effective_member_standing", {
+        p_membership_id: currentMembership.id,
+        p_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+      return data as "good" | "warning" | "suspended" | "banned" | null;
+    },
+    enabled: !!currentMembership?.id,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  });
+
   const { data: elections, isLoading, isError, error, refetch } = useElections();
   const createElection = useCreateElection();
   const { data: members } = useMembers();
@@ -569,15 +586,25 @@ export default function ElectionsPage() {
   const handleSubmitVote = async () => {
     if (!selectedElectionId || !currentMembership?.id || !selectedVote) return;
     if (voteLoading) return;
-    // UI-level standing gate (defence in depth; the RPC is authoritative)
-    if (currentMembership.standing !== "good") {
-      showError(t("notEligible"));
-      return;
-    }
     setVoteLoading(true);
     try {
       const election = selectedElection;
       if (!election) return;
+
+      // Refresh the time-sensitive override immediately before submission.
+      // The ballot RPC repeats this check as the authoritative boundary.
+      const { data: currentStanding, error: standingError } = await supabase.rpc(
+        "effective_member_standing",
+        {
+          p_membership_id: currentMembership.id,
+          p_at: new Date().toISOString(),
+        },
+      );
+      if (standingError) throw standingError;
+      if (currentStanding !== "good") {
+        showError(t("notEligible"));
+        return;
+      }
 
       // cast_ballot() RPC writes both the anonymous ballot and the voter
       // receipt atomically inside the DB; we never insert into either
@@ -737,7 +764,7 @@ export default function ElectionsPage() {
           {electionsList.map((election) => {
             const isSelected = selectedElectionId === election.id;
             const withinPeriod = isWithinVotingPeriod(election);
-            const isGoodStanding = currentMembership?.standing === "good";
+            const isGoodStanding = effectiveStanding === "good";
             const canVote = election.status === "open" && !existingVote && !!currentMembership && isGoodStanding;
             const hasVoted = isSelected && !!existingVote;
 

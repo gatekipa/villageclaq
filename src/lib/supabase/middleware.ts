@@ -88,14 +88,26 @@ export async function updateSession(request: NextRequest) {
     const locale = isLocalePrefix ? pathnameLocale : "en";
     const url = request.nextUrl.clone();
     const redirectParam = request.nextUrl.searchParams.get("redirectTo");
-    if (redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")) {
-      // Preserve locale prefix if the redirect doesn't already have one
-      const hasLocale = redirectParam.startsWith(`/${locale}/`) || redirectParam.startsWith("/en/") || redirectParam.startsWith("/fr/");
-      url.pathname = hasLocale ? redirectParam : `/${locale}${redirectParam}`;
+    let destination: URL | null = null;
+    if (redirectParam?.startsWith("/") && !redirectParam.startsWith("//") &&
+        !redirectParam.includes("\\")) {
+      try {
+        const parsed = new URL(redirectParam, request.nextUrl.origin);
+        if (parsed.origin === request.nextUrl.origin) destination = parsed;
+      } catch { /* Invalid return path falls back to dashboard. */ }
+    }
+    if (destination) {
+      // Parse the path and query separately; assigning `?ref=` to pathname
+      // percent-encodes the question mark and breaks referral onboarding.
+      const targetPath = destination.pathname;
+      const hasLocale = targetPath.startsWith(`/${locale}/`) || targetPath.startsWith("/en/") || targetPath.startsWith("/fr/");
+      url.pathname = hasLocale ? targetPath : `/${locale}${targetPath}`;
+      url.search = destination.search;
     } else {
       url.pathname = `/${locale}/dashboard`;
+      url.search = "";
     }
-    url.search = ""; // Clear query params (especially redirectTo) from the destination
+    url.hash = "";
     return NextResponse.redirect(url);
   }
 

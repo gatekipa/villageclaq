@@ -7,10 +7,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Share2, Calendar, Shield, Loader2, MessageCircle } from "lucide-react";
+import { Download, Share2, Calendar, Shield, Loader2 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
-import { QRCodeSVG } from "qrcode.react";
 // WS4 (B11): html2canvas (~80KB) is loaded lazily inside the Download/Share
 // handlers, not at module load — most members never click those, so it stays
 // off the first-paint critical path on low-end phones / slow links.
@@ -80,7 +79,6 @@ export default function MembershipCardPage() {
 
   const [side, setSide] = useState<"front" | "back">("front");
   const [downloading, setDownloading] = useState(false);
-  const [sharing, setSharing] = useState(false);
   const [publicShareOpen, setPublicShareOpen] = useState(false);
 
   const isLoading = loading || permsLoading || (allowTargetFetch && targetLoading);
@@ -152,9 +150,6 @@ export default function MembershipCardPage() {
     ? new Date(joinedAt).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "long", year: "numeric" })
     : "—";
   const groupName = currentGroup?.name || "—";
-  const verifyUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/verify/${membershipId}`
-    : `https://villageclaq.vercel.app/verify/${membershipId}`;
 
   async function handleDownload() {
     const card = document.getElementById("membership-card");
@@ -175,34 +170,6 @@ export default function MembershipCardPage() {
     } finally {
       setDownloading(false);
     }
-  }
-
-  async function handleShare() {
-    const card = document.getElementById("membership-card");
-    setSharing(true);
-    try {
-      if (card && navigator.share) {
-        const html2canvas = (await import("html2canvas")).default; // WS4 (B11): lazy
-        const canvas = await html2canvas(card, { scale: 3, backgroundColor: null, useCORS: true });
-        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-        if (blob) {
-          await navigator.share({
-            title: `${fullName} - ${groupName}`,
-            text: `${fullName} is a member of ${groupName}`,
-            files: [new File([blob], "membership-card.png", { type: "image/png" })],
-          });
-          return;
-        }
-      }
-      await navigator.clipboard.writeText(verifyUrl);
-    } finally {
-      setSharing(false);
-    }
-  }
-
-  function handleWhatsApp() {
-    const text = encodeURIComponent(`Verify my ${groupName} membership: ${verifyUrl}`);
-    window.open(`https://wa.me/?text=${text}`, "_blank");
   }
 
   return (
@@ -300,11 +267,9 @@ export default function MembershipCardPage() {
             style={{ aspectRatio: "3.375 / 2.125" }}
           >
             <div className="flex h-full flex-col items-center justify-center gap-3 p-6">
-              {/* QR Code */}
-              <div className="rounded-lg bg-white p-2">
-                <QRCodeSVG value={verifyUrl} size={140} level="M" />
-              </div>
-              <p className="text-xs text-muted-foreground">{t("verifyText")}</p>
+              {/* Public verification requires a consented, revocable M14 token. */}
+              <Shield className="h-14 w-14 text-muted-foreground" aria-hidden="true" />
+              <p className="text-xs text-muted-foreground">{t("publicSafeShare")}</p>
               <div className="text-center text-[10px] text-muted-foreground space-y-0.5">
                 <p className="font-medium text-foreground">{groupName}</p>
                 <p>{fullName} &middot; {memberId}</p>
@@ -322,19 +287,10 @@ export default function MembershipCardPage() {
             {downloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
             {t("downloadCard")}
           </Button>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" onClick={handleShare} disabled={sharing}>
-              {sharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />}
-              {t("shareCard")}
-            </Button>
-            <Button variant="outline" onClick={handleWhatsApp}>
-              <MessageCircle className="mr-2 h-4 w-4" />
-              {t("shareViaWhatsApp")}
-            </Button>
-          </div>
           {isOwnCard && currentGroup?.id && (
             <Button variant="outline" className="w-full"
               onClick={() => setPublicShareOpen(true)}>
+              <Share2 className="mr-2 h-4 w-4" />
               {t("publicSafeShare")}
             </Button>
           )}

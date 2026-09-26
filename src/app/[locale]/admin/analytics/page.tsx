@@ -46,7 +46,7 @@ export default function UsageAnalyticsPage() {
     return () => { active = false; };
   }, []);
 
-  const { results, loading } = useAdminQuery([
+  const { results, loading, error: queryError } = useAdminQuery([
     { key: "users", table: "profiles", select: "id", count: "exact", limit: 1 },
     { key: "attendance", table: "event_attendances", select: "id", count: "exact", limit: 1, filters: [{ column: "created_at", op: "gte", value: thirtyDaysAgo }] },
     { key: "payments", table: "payments", select: "id", count: "exact", limit: 1, filters: [{ column: "created_at", op: "gte", value: thirtyDaysAgo }] },
@@ -54,6 +54,7 @@ export default function UsageAnalyticsPage() {
     { key: "members", table: "memberships", select: "id", count: "exact", limit: 1, filters: [{ column: "created_at", op: "gte", value: thirtyDaysAgo }] },
   ]);
 
+  const countError = queryError || Object.values(results).find((result) => result.error)?.error;
   const totalUsers = results.users?.count ?? 0;
   const featureData = useMemo(() => [
     { name: "Attendance", count: results.attendance?.count ?? 0 },
@@ -76,6 +77,9 @@ export default function UsageAnalyticsPage() {
     <div className="space-y-6">
       {reliefError && <p role="alert" className="text-sm text-red-600">
         {t("queryErrors")}: {reliefError}
+      </p>}
+      {countError && <p role="alert" className="text-sm text-red-600">
+        {t("queryErrors")}: {countError}
       </p>}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{t("usageAnalytics")}</h1>
@@ -111,7 +115,7 @@ export default function UsageAnalyticsPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">{t("totalUsers")}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>{loading ? <Skeleton className="h-8 w-20" /> : <div className="text-2xl font-bold">{totalUsers}</div>}</CardContent>
+          <CardContent>{loading ? <Skeleton className="h-8 w-20" /> : <div className="text-2xl font-bold">{countError ? "—" : totalUsers}</div>}</CardContent>
         </Card>
         {unavailableMetrics.slice(0, 2).map((metric) => (
           <Card key={metric}>
@@ -128,7 +132,9 @@ export default function UsageAnalyticsPage() {
       <Card>
         <CardHeader><CardTitle className="text-sm">{t("featureUsage")} (30d)</CardTitle></CardHeader>
         <CardContent>
-          {loading ? <Skeleton className="h-[300px]" /> : (
+          {loading ? <Skeleton className="h-[300px]" /> : countError ? (
+            <p className="text-sm text-muted-foreground">{t("queryErrors")}</p>
+          ) : (
             <FeatureBarChart data={featureData} />
           )}
         </CardContent>

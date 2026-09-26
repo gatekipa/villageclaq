@@ -39,7 +39,7 @@ const READ_ALLOWLIST: Record<PlatformRole, Set<string> | "*"> = {
     "platform_audit_logs", "platform_staff", "platform_config", "platform_permissions",
     "contact_enquiries", "testimonials", "faqs",
     "group_subscriptions", "subscription_plans",
-    "events", "payments", "contribution_obligations",
+    "events", "event_attendances", "payments", "contribution_obligations",
     "announcements", "meeting_minutes", "relief_plans",
     "fines", "loans", "hosting_assignments",
   ]),

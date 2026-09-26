@@ -63,6 +63,9 @@ export function isCut2RawMetaDrainContext(): boolean {
 }
 
 function denyIfNotDrain(): WhatsAppResult | null {
+  if (process.env.FOUNDER_TEST_MODE === "true") {
+    return { success: false, error: "founder_test_external_delivery_suppressed" };
+  }
   if (isCut2RawMetaDrainContext()) return null;
   return { success: false, error: "cut2_raw_meta_drain_only" };
 }

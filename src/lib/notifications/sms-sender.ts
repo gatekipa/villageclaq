@@ -12,6 +12,14 @@ interface SendSMSParams {
  * Safe to call fire-and-forget — never throws.
  */
 export async function sendSMS({ to, message }: SendSMSParams): Promise<{ sent: boolean; queued: boolean; error?: string }> {
+  if (process.env.FOUNDER_TEST_MODE === "true") {
+    return {
+      sent: false,
+      queued: false,
+      error: "founder_test_external_delivery_suppressed",
+    };
+  }
+
   const apiKey = process.env.AFRICASTALKING_API_KEY;
   const username = process.env.AFRICASTALKING_USERNAME || "villageclaq";
 

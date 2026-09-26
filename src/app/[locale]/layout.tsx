@@ -113,6 +113,8 @@ export default async function LocaleLayout({
   }
 
   const messages = (await import(`../../../messages/${locale}.json`)).default;
+  const isFounderTestEnvironment =
+    process.env.NEXT_PUBLIC_FOUNDER_TEST_ENVIRONMENT === "true";
 
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -131,6 +133,14 @@ export default async function LocaleLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <Providers>
+            {isFounderTestEnvironment ? (
+              <div
+                role="status"
+                className="sticky top-0 z-[100] bg-amber-300 px-4 py-2 text-center text-sm font-semibold text-amber-950 shadow-sm"
+              >
+                Test environment — fictional data only
+              </div>
+            ) : null}
             {children}
             <CookieConsent />
             <ServiceWorkerRegister />

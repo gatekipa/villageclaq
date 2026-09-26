@@ -133,8 +133,14 @@ Other linked artifacts:
     - Client Ingress & Hooks: `useGroupReferral` and `useReferralIngress` correctly buffer tokens in `sessionStorage` and claim atomically during organization provisioning.
     - Edge Defenses: WhatsApp & SMS deep links gracefully strip injected query trackers and encode UTF-8 correctly.
     - Verification: Full UI mock and API algorithmic simulations in `test-m13-client-ingress.mjs` and `test-m13-referrals-ingress.mjs` successfully executed.
-17. **Next Master Milestone: M14 (Share a Community Card or Achievement)** — Designated as the next major work package.
-18. **Production migration release gate** — Production deployment remains separately founder-authorized.
+17. **Milestone M14 Completion: Share a Community Card or Achievement** — **COMPLETE / VERIFIED.**
+    - Schema & Projections: `00135_m14_01_community_cards.sql` defines `community_share_cards` with a strict `display_data` sanitization boundary and consent assertions.
+    - Privacy Invariants: Financial data, PII, and internal UUIDs are completely omitted from edge projections.
+    - Opaque Verification & Revocation: `verify_public_share_token` allows public read-only assertions, while `revoke_share_card` enforces strict RLS-like ownership checks.
+    - Client Hardening: Hooks, payload parsing (`sanitizePublicCardPayload`), and the public verification UI were constructed to fail closed and drop anomalous schema fields.
+    - Verification: Adversarial execution in `test-m14-community-cards.mjs` and `test-m14-ui-flows.mjs` confirmed zero-leakage constraints.
+18. **Next Master Milestone: M15 (Optional Public Organization Page)** — Designated as the next major work package.
+19. **Production migration release gate** — Production deployment remains separately founder-authorized.
 ## Local versus hosted / production
 
 | Surface | Status |
@@ -149,12 +155,12 @@ Other linked artifacts:
 | Field | Value |
 |-------|-------|
 | Owner | Jude Anyere |
-| Next bounded action | Advance to **M14 (Share a Community Card or Achievement)** per PRD Section 31 sequence. |
-| Permitted scope | Growth logic, social proof cards, and public URL rendering. No direct mutation of production. |
-| Remaining acceptance | M14 product execution and validation checklist. |
+| Next bounded action | Advance to **M15 (Optional Public Organization Page)** per PRD Section 31 sequence. |
+| Permitted scope | Organization directory schema, public edge rendering, and SEO optimizations. No direct mutation of production. |
+| Remaining acceptance | M15 public directory validation and zero-leakage security checks. |
 
 ---
 **QUALIFIED / PASS — F3 FOUNDATION HOSTED REQUALIFICATION COMPLETE**  
 Candidate: `e0c10c04d4bdc287385ea1392e1aae97b458fe1c`  
 Floor: `DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT`  
-Next Milestone: `M14 (Share a Community Card or Achievement)`
+Next Milestone: `M15 (Optional Public Organization Page)`

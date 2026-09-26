@@ -139,8 +139,13 @@ Other linked artifacts:
     - Opaque Verification & Revocation: `verify_public_share_token` allows public read-only assertions, while `revoke_share_card` enforces strict RLS-like ownership checks.
     - Client Hardening: Hooks, payload parsing (`sanitizePublicCardPayload`), and the public verification UI were constructed to fail closed and drop anomalous schema fields.
     - Verification: Adversarial execution in `test-m14-community-cards.mjs` and `test-m14-ui-flows.mjs` confirmed zero-leakage constraints.
-18. **Next Master Milestone: M15 (Optional Public Organization Page)** — Designated as the next major work package.
-19. **Production migration release gate** — Production deployment remains separately founder-authorized.
+18. **Milestone M15 Completion: Optional Public Organization Page** — **COMPLETE / VERIFIED.**
+    - Schema & Ingress: `00136_m15_01_public_org_profiles.sql` enforces private-by-default profiles and isolates membership requests.
+    - Hooks & Validation: `useOrganizationPublicProfile` and `useMembershipRequestSubmission` successfully trap route drift and enforce XSS/length sanitization client-side.
+    - SEO & Edge Rendering: The dynamic `/org/[slug]` page safely renders public data without exposing internal invariants, generating strict metadata bounds.
+    - Verification: Full UI mock and API algorithmic simulations in `test-m15-ui-flows.mjs` and `test-m15-client-hooks.mjs` validated all edge defenses.
+19. **VILLAGECLAQ MASTER REBUILD PROGRAM (M0 - M15) — FULLY SEALED AND QUALIFIED.**
+20. **Production migration release gate** — Production deployment remains separately founder-authorized.
 ## Local versus hosted / production
 
 | Surface | Status |
@@ -155,12 +160,12 @@ Other linked artifacts:
 | Field | Value |
 |-------|-------|
 | Owner | Jude Anyere |
-| Next bounded action | Advance to **M15 (Optional Public Organization Page)** per PRD Section 31 sequence. |
-| Permitted scope | Organization directory schema, public edge rendering, and SEO optimizations. No direct mutation of production. |
-| Remaining acceptance | M15 public directory validation and zero-leakage security checks. |
+| Next bounded action | None. The Master Rebuild Program is complete. Await founder deployment authorization. |
+| Permitted scope | Program sealed. |
+| Remaining acceptance | Master Rebuild successfully concluded. |
 
 ---
 **QUALIFIED / PASS — F3 FOUNDATION HOSTED REQUALIFICATION COMPLETE**  
 Candidate: `e0c10c04d4bdc287385ea1392e1aae97b458fe1c`  
 Floor: `DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT`  
-Next Milestone: `M15 (Optional Public Organization Page)`
+Next Milestone: `PROGRAM COMPLETE / SEALED`

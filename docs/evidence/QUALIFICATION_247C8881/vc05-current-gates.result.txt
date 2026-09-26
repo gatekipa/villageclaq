@@ -1,0 +1,19 @@
+Exact tested commit: 4f90266e9716ad11c55fce6443359a1260f9e172
+Branch: codex/qualification-repair-247c8881
+Date: 2026-09-26 America/New_York
+
+npx tsc --noEmit: exit 0
+npx eslint src/lib/hooks/use-record-transaction.ts src/components/finances/record-transaction-dialog.tsx src/lib/audit-log.ts: exit 0
+npm run build: exit 0 (network-enabled Next.js 16.2.1 build)
+npm run test:product-money: 30/30 pass
+npm run test:payment-receipt-producer: 13/13 pass
+npm run test:product-p0-bulk-receipts: 9/9 pass
+npm run lint: exit 1, 480 problems (82 errors, 398 warnings)
+  - 53 errors in src
+  - 0 errors in the three changed TS/TSX files or new regression driver
+  - prior candidate report recorded 82 total and 53 source errors; no new error count on this repair
+
+GitHub contains no checked-in .github workflow at this SHA. GitHub exposed no ruleset;
+branch-protection read was denied to the integration. Vercel returned success for
+this exact SHA at https://vercel.com/gatekipas/villageclaq/Ch3S9EdXKCposqAEGR4zBWzaE2VR .
+The actual mandatory protected/security gate set remains unverified.

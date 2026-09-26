@@ -247,4 +247,47 @@ BEGIN
 END
 $test$;
 RESET ROLE;
+DO $test$
+DECLARE v_denied boolean:=false;
+BEGIN
+  IF (SELECT count(*) FROM public.election_ballots WHERE election_id IN (
+      '00000000-0000-4000-8000-00000000e701',
+      '00000000-0000-4000-8000-00000000e702',
+      '00000000-0000-4000-8000-00000000e703'))<>3
+    OR (SELECT count(*) FROM public.election_vote_receipts WHERE election_id IN (
+      '00000000-0000-4000-8000-00000000e701',
+      '00000000-0000-4000-8000-00000000e702',
+      '00000000-0000-4000-8000-00000000e703'))<>3
+    OR (SELECT status::text FROM public.elections WHERE id=
+      '00000000-0000-4000-8000-00000000e702')<>'cancelled'
+  THEN RAISE EXCEPTION 'ELECTION_CLOSE_CANCEL_EVIDENCE_LOST'; END IF;
+  BEGIN
+    DELETE FROM public.elections WHERE id='00000000-0000-4000-8000-00000000e702';
+  EXCEPTION WHEN OTHERS THEN v_denied:=SQLERRM LIKE '%ELECTION_HISTORY_IMMUTABLE%'; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'ELECTION_HISTORY_DELETE_ACCEPTED'; END IF;
+END
+$test$;
+-- Match the existing platform-admin archive action's persisted group state.
+UPDATE public.groups SET status='archived',is_active=false,
+  archived_at=now(),archived_reason='Fictional retention probe'
+ WHERE id='00000000-0000-4000-8000-00000000b701';
+DO $test$
+BEGIN
+  IF (SELECT count(*) FROM public.election_ballots WHERE election_id IN (
+      '00000000-0000-4000-8000-00000000e701',
+      '00000000-0000-4000-8000-00000000e702',
+      '00000000-0000-4000-8000-00000000e703'))<>3
+    OR (SELECT count(*) FROM public.election_vote_receipts WHERE election_id IN (
+      '00000000-0000-4000-8000-00000000e701',
+      '00000000-0000-4000-8000-00000000e702',
+      '00000000-0000-4000-8000-00000000e703'))<>3
+    OR (SELECT count(*) FROM public.elections WHERE id IN (
+      '00000000-0000-4000-8000-00000000e701',
+      '00000000-0000-4000-8000-00000000e702',
+      '00000000-0000-4000-8000-00000000e703'))<>3
+  THEN RAISE EXCEPTION 'ELECTION_ARCHIVE_EVIDENCE_LOST'; END IF;
+  RAISE NOTICE 'ELECTION_RETENTION_PASS: close, cancel and group archive retain ballots and receipts';
+END
+$test$;
 ROLLBACK;
+SELECT 'E010_RETENTION_PASS' AS result;

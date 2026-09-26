@@ -53,7 +53,8 @@ export default function HqReliefRollupPage() {
   const currency = currentGroup?.currency || "XAF";
   const organizationId = currentGroup?.organization_id;
 
-  const { data: reportingUnitId } = useQuery({
+  const { data: reportingUnitId, error: reportingUnitError,
+    isLoading: reportingUnitLoading } = useQuery({
     queryKey: ["relief-reporting-unit", organizationId, groupId],
     queryFn: async () => {
       const { data, error } = await createClient()
@@ -285,11 +286,13 @@ export default function HqReliefRollupPage() {
             onClick={() => setProjectionAsOf(new Date().toISOString())}>
             {t("refreshProjection")}
           </button>
-          {managementError ? (
+          {reportingUnitError || managementError || !organizationId ? (
             <p role="alert" className="mt-3 text-sm text-destructive">
-              {t("managementProjectionUnavailable")}: {(managementError as Error).message}
+              {t("managementProjectionUnavailable")}
+              {reportingUnitError || managementError
+                ? `: ${((reportingUnitError || managementError) as Error).message}` : ""}
             </p>
-          ) : managementLoading ? (
+          ) : reportingUnitLoading || managementLoading ? (
             <p className="mt-3 text-sm text-muted-foreground">{t("scopeLoading")}</p>
           ) : visibleManagementRows.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">{t("noManagementBalances")}</p>

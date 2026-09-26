@@ -357,6 +357,7 @@ export default function MembersPage() {
   const [editOriginalDisplayName, setEditOriginalDisplayName] = useState("");
   const [editOriginalStanding, setEditOriginalStanding] = useState("");
   const [editStanding, setEditStanding] = useState("");
+  const [editStandingReason, setEditStandingReason] = useState("");
   const [editIsProxy, setEditIsProxy] = useState(false);
   const [editUserId, setEditUserId] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
@@ -955,6 +956,7 @@ export default function MembersPage() {
     setEditOriginalRole((member.role as string) || "member");
     setEditStanding((member.standing as string) || "good");
     setEditOriginalStanding((member.standing as string) || "good");
+    setEditStandingReason("");
     setEditIsProxy(isProxy);
     setEditUserId(isProxy ? null : (profile?.id as string || null));
     setEditMemberId(member.id as string);
@@ -976,6 +978,10 @@ export default function MembersPage() {
     // Prevent demoting the owner — must transfer ownership first
     if (editOriginalRole === "owner" && editRole !== "owner") {
       setEditError(t("cannotDemoteOwner"));
+      return;
+    }
+    if (editStanding !== editOriginalStanding && !editStandingReason.trim()) {
+      setEditError(ts("overrideReason"));
       return;
     }
     setEditSaving(true);
@@ -1002,10 +1008,16 @@ export default function MembersPage() {
       // 3. Standing update if changed
       if (editStanding !== editOriginalStanding) {
         const supabase = createClient();
-        const { error: standingErr } = await supabase
-          .from("memberships")
-          .update({ standing: editStanding })
-          .eq("id", editMemberId);
+        const { error: standingErr } = await supabase.rpc("execute_standing_decision", {
+          p_request_id: crypto.randomUUID(),
+          p_command: {
+            action: "override",
+            group_id: groupId,
+            membership_id: editMemberId,
+            standing: editStanding,
+            reason: editStandingReason.trim(),
+          },
+        });
         if (standingErr) throw standingErr;
       }
 
@@ -2142,6 +2154,18 @@ export default function MembersPage() {
                 <option value="suspended">{t("standingSuspended")}</option>
                 <option value="banned">{t("standingBanned")}</option>
               </select>
+              {editStanding !== editOriginalStanding && (
+                <div className="space-y-2">
+                  <Label htmlFor="edit-standing-reason">{ts("overrideReason")}</Label>
+                  <Input
+                    id="edit-standing-reason"
+                    value={editStandingReason}
+                    onChange={(event) => setEditStandingReason(event.target.value)}
+                    placeholder={ts("overrideReasonPlaceholder")}
+                  />
+                  <p className="text-xs text-muted-foreground">{ts("overrideSavedNote")}</p>
+                </div>
+              )}
             </div>
             {editError && <p className="text-sm text-destructive">{editError}</p>}
           </div>

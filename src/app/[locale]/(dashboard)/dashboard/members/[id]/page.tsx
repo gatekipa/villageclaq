@@ -37,7 +37,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PhoneInput, getDefaultCountryCode, isCompletePhoneNumber } from "@/components/ui/phone-input";
 import { useMemberStandingDetailed, useRecalculateStanding } from "@/lib/hooks/use-member-standing";
-import { logActivity } from "@/lib/audit-log";
 import { cn } from "@/lib/utils";
 import { PermissionGate, RequirePermission } from "@/components/ui/permission-gate";
 import { DashboardSkeleton } from "@/components/ui/page-skeleton";
@@ -338,6 +337,8 @@ function useMemberStandingHistory(membershipId: string | null, groupId: string |
           "member.standing_changed",
           "member.standing_recalculated",
           "member.standing_overridden",
+          "member.standing_override",
+          "member.standing_revoke",
         ])
         .order("created_at", { ascending: false })
         .limit(8);
@@ -439,12 +440,10 @@ function MemberDetailContent() {
   const [editDisplayName, setEditDisplayName] = useState("");
   const [editOriginalDisplayName, setEditOriginalDisplayName] = useState("");
   const [editOriginalRole, setEditOriginalRole] = useState("");
-  const [editOriginalStanding, setEditOriginalStanding] = useState("");
   const [editTitle, setEditTitle] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editRole, setEditRole] = useState("");
-  const [editStanding, setEditStanding] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
 
   // Engine-owned recalc mutation (explicit, admin-gated action).
@@ -501,8 +500,6 @@ function MemberDetailContent() {
     setEditPhone(isProxy ? ((privSettings?.proxy_phone as string) || "") : ((prof?.phone as string) || ""));
     setEditRole((member.role as string) || "member");
     setEditOriginalRole((member.role as string) || "member");
-    setEditStanding((member.standing as string) || "good");
-    setEditOriginalStanding((member.standing as string) || "good");
     setEditError(null);
     setShowEditDialog(true);
   }
@@ -544,16 +541,8 @@ function MemberDetailContent() {
         });
       }
 
-      // 3. Standing update if changed
-      if (editStanding !== editOriginalStanding) {
-        const { error: standingErr } = await supabase
-          .from("memberships")
-          .update({ standing: editStanding })
-          .eq("id", membershipId);
-        if (standingErr) throw standingErr;
-      }
 
-      // 4. Proxy phone update if changed
+      // 3. Proxy phone update if changed
       if (isProxy) {
         const { error: privErr } = await supabase
           .from("memberships")
@@ -620,46 +609,31 @@ function MemberDetailContent() {
   }
 
   async function handleStandingOverride() {
-    // Reason is required so the override is never silently discarded — the
-    // confirm button is also disabled until this is satisfied.
     if (!newStanding || !overrideReason.trim() || !groupId) return;
     setActionSaving(true);
     try {
-      const oldStanding = (member?.standing as string) || "good";
-      const overriddenName = member ? getMemberName(member as Record<string, unknown>) : "";
-      const { error } = await supabase.from("memberships").update({ standing: newStanding }).eq("id", membershipId);
-      if (error) throw error;
-
-      // Persist the override REASON to the member's history. No schema column
-      // exists for it, so it lives in the audit log details. Best-effort —
-      // logActivity never throws. No notification is dispatched here.
-      await logActivity(supabase, {
-        groupId,
-        action: "member.standing_overridden",
-        entityType: "membership",
-        entityId: membershipId,
-        description: `${overriddenName} standing overridden from ${oldStanding} to ${newStanding}`,
-        metadata: { oldStanding, newStanding, reason: overrideReason.trim() },
+      const { error } = await supabase.rpc("execute_standing_decision", {
+        p_request_id: crypto.randomUUID(),
+        p_command: {
+          action: "override",
+          group_id: groupId,
+          membership_id: membershipId,
+          standing: newStanding,
+          reason: overrideReason.trim(),
+        },
       });
-
-      await queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] });
-      await queryClient.invalidateQueries({ queryKey: ["member-standing", membershipId, groupId] });
-      // The card renders the DETAILED query first, so refresh it too or the
-      // badge + breakdown keep showing the pre-override value.
-      await queryClient.invalidateQueries({ queryKey: ["member-standing-detailed", membershipId, groupId] });
-      // B11: refresh the members LIST standing badge (["members", groupId],
-      // staleTime 5min) so an override shows immediately, not after the window.
-      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
-      await refetchStanding();
-      await refetchHistory();
-      setShowStandingDialog(false);
-    } catch (err) {
-      showError((err as Error).message || t("common.error"));
-    } finally {
-      setActionSaving(false);
-    }
+      if (error) throw error;
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] }),
+        queryClient.invalidateQueries({ queryKey: ["member-standing", membershipId, groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["member-standing-detailed", membershipId, groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["members", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["member-standing-history", membershipId, groupId] }),
+      ]);
+      await refetchStanding(); await refetchHistory(); setShowStandingDialog(false);
+    } catch (err) { showError((err as Error).message || t("common.error")); }
+    finally { setActionSaving(false); }
   }
-
   // ─── Family handlers ─────────────────────────────────────────────────────
 
   function openFamilyDialog(fm?: { id: string; name: string; relationship: string; date_of_birth: string | null; notes: string | null }) {
@@ -1180,10 +1154,10 @@ function MemberDetailContent() {
             <div className="divide-y">
               {standingHistory.map((row) => {
                 const details = (row.details || {}) as Record<string, unknown>;
-                const oldS = details.oldStanding as string | undefined;
-                const newS = details.newStanding as string | undefined;
+                const oldS = (details.old_effective || details.oldStanding) as string | undefined;
+                const newS = (details.new_effective || details.newStanding || details.standing) as string | undefined;
                 const reason = (details.reason as string | undefined)?.trim() || "";
-                const isOverride = row.action === "member.standing_overridden";
+                const isOverride = row.action === "member.standing_overridden" || row.action === "member.standing_override" || row.action === "member.standing_revoke";
                 return (
                   <div key={row.id} className="flex items-start gap-3 px-4 py-3">
                     <Shield className={`mt-0.5 h-4 w-4 shrink-0 ${isOverride ? "text-amber-500" : "text-muted-foreground"}`} />

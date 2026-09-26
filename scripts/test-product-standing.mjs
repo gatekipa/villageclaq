@@ -26,6 +26,7 @@ const TAB = "src/components/settings/standing-rules-tab.tsx";
 const BADGE = "src/components/standing-badge.tsx";
 const MEMBERS = "src/app/[locale]/(dashboard)/dashboard/members/page.tsx";
 const MEMBER_DETAIL = "src/app/[locale]/(dashboard)/dashboard/members/[id]/page.tsx";
+const STANDING_COMMAND = "supabase/migrations/00193_standing_recalculation_command.sql";
 
 const rules = read(RULES);
 const calc = read(CALC);
@@ -34,6 +35,7 @@ const tab = read(TAB);
 const badge = present(BADGE) ? read(BADGE) : "";
 const members = read(MEMBERS);
 const memberDetail = read(MEMBER_DETAIL);
+const standingCommand = read(STANDING_COMMAND);
 const en = JSON.parse(read("messages/en.json"));
 const fr = JSON.parse(read("messages/fr.json"));
 
@@ -225,12 +227,15 @@ test("settings tab renders a per-factor toggle for every STANDING_FACTOR_KEY", (
   assert.ok(tab.includes("Switch") || tab.includes("Checkbox"), "uses a toggle control");
 });
 
-test("settings tab persists factors + exclusions via serializeStandingRules", () => {
+test("settings tab persists factors + exclusions through the authoritative atomic RPC", () => {
   assert.ok(tab.includes("serializeStandingRules"), "persists via serializeStandingRules");
-  // Must NOT save through apply_standing_rules, which drops factors/exclusions.
   assert.ok(
-    !tab.includes('rpc("apply_standing_rules"'),
-    "factors/exclusions must not be saved through apply_standing_rules (it drops them)",
+    tab.includes('rpc("apply_standing_rules"'),
+    "rules, recalculation, and audit use apply_standing_rules",
+  );
+  assert.ok(
+    !/from\("groups"\)[\s\S]{0,400}\.update\(/.test(tab),
+    "settings tab does not bypass the standing command with a direct groups update",
   );
 });
 
@@ -267,10 +272,17 @@ test("override requires a non-empty reason before it can run", () => {
   );
 });
 
-test("override writes a logActivity audit with the reason (standing_overridden)", () => {
-  assert.ok(memberDetail.includes("logActivity"), "override calls logActivity");
-  assert.ok(memberDetail.includes("standing_overridden"), "audit action is standing_overridden");
-  assert.ok(memberDetail.includes("overrideReason"), "the reason is carried into the audit");
+test("override uses the authoritative decision command with the reason", () => {
+  assert.ok(memberDetail.includes("execute_standing_decision"), "override uses the server command");
+  assert.ok(memberDetail.includes("overrideReason.trim()"), "the reason is carried into the command");
+  assert.ok(members.includes("execute_standing_decision"), "roster editor uses the same command boundary");
+});
+
+test("persisted recalculation uses the authorized atomic server command", () => {
+  assert.ok(calc.includes("recalculate_standing_command"));
+  assert.ok(standingCommand.includes("has_group_permission(p_group_id, 'members.manage')"));
+  assert.ok(standingCommand.includes("has_group_permission(p_group_id, 'finances.manage')"));
+  assert.ok(standingCommand.includes("bind_governance_command"));
 });
 
 test("members detail override path is admin-gated (no member-self standing edit)", () => {

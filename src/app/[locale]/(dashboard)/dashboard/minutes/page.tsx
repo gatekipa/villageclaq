@@ -62,6 +62,7 @@ import {
   ErrorState,
 } from "@/components/ui/page-skeleton";
 import { cn, normalizeSearch } from "@/lib/utils";
+import { signedUrlFor } from "@/lib/storage-urls";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -109,13 +110,17 @@ interface MinutesRecord {
   decisions_json: DecisionItem[];
   action_items_json: ActionItem[];
   attendees_json: unknown[];
-  status: "draft" | "published";
+  status: "draft" | "provisional" | "published" | "superseded" | "withdrawn";
+  record_id: string;
+  revision_number: number;
   published_at?: string;
   published_by?: string;
   created_by: string;
   created_at: string;
   updated_at: string;
   file_url?: string | null;
+  attachment_bucket?: "group-documents" | null;
+  attachment_object_key?: string | null;
   event?: EventRecord;
 }
 
@@ -450,88 +455,53 @@ export default function MinutesPage() {
         ? contentEditableRef.current?.innerText || ""
         : editorPlainText;
 
-    // Upload file attachment if present
-    let fileUrl: string | null = null;
-    if (uploadedFile) {
-      try {
-        const path = `minutes/${groupId}/${Date.now()}-${uploadedFile.name}`;
-        const { error: uploadErr } = await supabase.storage
-          .from("group-documents")
-          .upload(path, uploadedFile);
-        if (uploadErr) throw uploadErr;
-        // group-documents bucket is private — sign a short-lived URL.
-        const { data: urlData, error: signErr } = await supabase.storage
-          .from("group-documents")
-          .createSignedUrl(path, 3600);
-        if (signErr || !urlData?.signedUrl) {
-          throw new Error(signErr?.message || "Failed to sign minutes attachment URL");
-        }
-        fileUrl = urlData.signedUrl;
-      } catch (err) {
-        showError((err as Error).message || tc("error"));
-        setSaving(false);
-        return false;
-      }
-    }
-
     const payload: Record<string, unknown> = {
+      action: "save_draft",
       group_id: groupId,
       title: standaloneMode ? standaloneTitle.trim() : selectedEvent!.title,
       title_fr: standaloneMode ? null : (selectedEvent!.title_fr || null),
-      content_json: {
-        text: textContent,
-        chaired_by: editorChairedBy,
-        location: editorLocation,
-      },
+      content_json: { text: textContent, chaired_by: editorChairedBy, location: editorLocation },
       decisions_json: editorDecisions,
       action_items_json: editorActionItems,
       attendees_json: editorAttendees,
-      status,
-      created_by: user.id,
     };
-
-    if (fileUrl) {
-      payload.file_url = fileUrl;
-    }
-
-    if (!standaloneMode && selectedEvent) {
-      payload.event_id = selectedEvent.id;
-    }
-
-    if (status === "published") {
-      payload.published_at = new Date().toISOString();
-      payload.published_by = user.id;
+    if (!standaloneMode && selectedEvent) payload.event_id = selectedEvent.id;
+    if (selectedMinutes?.record_id) {
+      payload.record_id = selectedMinutes.record_id;
+      payload.expected_revision = selectedMinutes.revision_number;
     }
 
     try {
-      let savedMinutesId: string | null = null;
-      if (selectedMinutes?.id && (standaloneMode || selectedMinutes.event_id === selectedEvent?.id)) {
-        // Update existing
-        const { error } = await supabase
-          .from("meeting_minutes")
-          .update(payload)
-          .eq("id", selectedMinutes.id);
-        if (error) throw error;
-        savedMinutesId = selectedMinutes.id;
-      } else if (!standaloneMode) {
-        // Upsert by event_id — return the row so we can deep-link
-        const { data: upserted, error } = await supabase
-          .from("meeting_minutes")
-          .upsert(payload, { onConflict: "event_id" })
-          .select("id")
-          .single();
-        if (error) throw error;
-        savedMinutesId = (upserted?.id as string) || null;
-      } else {
-        // Insert standalone — return the row so we can deep-link
-        const { data: inserted, error } = await supabase
-          .from("meeting_minutes")
-          .insert(payload)
-          .select("id")
-          .single();
-        if (error) throw error;
-        savedMinutesId = (inserted?.id as string) || null;
+      const { data: saved, error: saveError } = await supabase.rpc("execute_minutes_command", {
+        p_request_id: crypto.randomUUID(),
+        p_command: payload,
+      });
+      if (saveError) throw saveError;
+      let savedResult = saved as { id: string; record_id: string; revision_number: number; status: string };
+
+      if (uploadedFile) {
+        const objectKey = `minutes/${groupId}/${savedResult.record_id}/${crypto.randomUUID()}-${uploadedFile.name}`;
+        const { error: uploadErr } = await supabase.storage.from("group-documents").upload(objectKey, uploadedFile);
+        if (uploadErr) throw uploadErr;
+        const { data: attached, error: attachError } = await supabase.rpc("execute_minutes_command", {
+          p_request_id: crypto.randomUUID(),
+          p_command: { action: "attach", group_id: groupId, record_id: savedResult.record_id,
+            expected_revision: savedResult.revision_number, attachment_bucket: "group-documents", attachment_object_key: objectKey },
+        });
+        if (attachError) throw attachError;
+        savedResult = attached as typeof savedResult;
       }
+
+      if (status === "published") {
+        const { data: published, error: publishError } = await supabase.rpc("execute_minutes_command", {
+          p_request_id: crypto.randomUUID(),
+          p_command: { action: "publish", group_id: groupId, record_id: savedResult.record_id,
+            expected_revision: savedResult.revision_number },
+        });
+        if (publishError) throw publishError;
+        savedResult = published as typeof savedResult;
+      }
+      const savedMinutesId = savedResult.id;
 
       // In-app on publish via notifyBulkFromClient. SMS/WA/email enqueue
       // via /api/minutes/published-notifications (ids only).
@@ -607,22 +577,6 @@ export default function MinutesPage() {
         requestMinutesPublishedNotifications(supabase, savedMinutesId, locale);
       }
 
-      // Audit log for publish
-      if (status === "published") {
-        try {
-          const { logActivity } = await import("@/lib/audit-log");
-          await logActivity(supabase, {
-            groupId: groupId!,
-            action: "minutes.published",
-            entityType: "meeting_minutes",
-            entityId: savedMinutesId || undefined,
-            description: `Meeting minutes published: ${payload.title}`,
-            metadata: { title: payload.title, minutesId: savedMinutesId },
-          });
-        } catch (err) {
-          console.warn("[Minutes:Audit] activity log failed:", err instanceof Error ? err.message : err);
-        }
-      }
 
       queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
       setEditMode(false);
@@ -641,10 +595,11 @@ export default function MinutesPage() {
     if (!selectedMinutes || !groupId) return;
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("meeting_minutes")
-        .update({ status: "draft", published_at: null, published_by: null })
-        .eq("id", selectedMinutes.id);
+      const { error } = await supabase.rpc("execute_minutes_command", {
+        p_request_id: crypto.randomUUID(),
+        p_command: { action: "withdraw", group_id: groupId, record_id: selectedMinutes.record_id,
+          expected_revision: selectedMinutes.revision_number },
+      });
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
     } catch (err) {
@@ -670,10 +625,14 @@ export default function MinutesPage() {
     };
 
     try {
-      const { error } = await supabase
-        .from("meeting_minutes")
-        .update({ action_items_json: items })
-        .eq("id", minutesRecord.id);
+      const { error } = await supabase.rpc("execute_minutes_command", {
+        p_request_id: crypto.randomUUID(),
+        p_command: { action: "save_draft", group_id: groupId, record_id: minutesRecord.record_id,
+          expected_revision: minutesRecord.revision_number, event_id: minutesRecord.event_id,
+          title: minutesRecord.title, title_fr: minutesRecord.title_fr,
+          content_json: minutesRecord.content_json, decisions_json: minutesRecord.decisions_json,
+          action_items_json: items, attendees_json: minutesRecord.attendees_json },
+      });
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
     } catch (err) {
@@ -687,10 +646,13 @@ export default function MinutesPage() {
     if (!deleteMinutesId || !groupId) return;
     setDeleting(true);
     try {
-      const { error: err } = await supabase
-        .from("meeting_minutes")
-        .delete()
-        .eq("id", deleteMinutesId);
+      const target = minutes.find((m) => m.id === deleteMinutesId) as MinutesRecord | undefined;
+      if (!target) throw new Error("Minutes record not found");
+      const { error: err } = await supabase.rpc("execute_minutes_command", {
+        p_request_id: crypto.randomUUID(),
+        p_command: { action: "withdraw", group_id: groupId, record_id: target.record_id,
+          expected_revision: target.revision_number },
+      });
       if (err) throw err;
       queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
       // Clear selection if the deleted minutes were open
@@ -863,28 +825,34 @@ export default function MinutesPage() {
 
   // ─── Status badge helper ────────────────────────────────────────────────
 
+  const minutesStatusLabel = (status: MinutesRecord["status"]) => {
+    switch (status) {
+      case "published": return t("published");
+      case "provisional": return t("provisional");
+      case "superseded": return t("superseded");
+      case "withdrawn": return t("withdrawn");
+      default: return t("draft");
+    }
+  };
+
+  const minutesStatusClass = (status: MinutesRecord["status"]) => {
+    switch (status) {
+      case "published": return "bg-emerald-600 text-white";
+      case "provisional": return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
+      case "superseded": return "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300";
+      case "withdrawn": return "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200";
+      default: return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
+    }
+  };
+
   const getStatusBadge = (eventId: string) => {
     const m = minutesByEventId[eventId];
     if (!m) return null;
-    if (m.status === "published")
-      return (
-        <Badge
-          variant="default"
-          className="bg-emerald-600 text-white hover:bg-emerald-700"
-        >
-          {tc("published")}
-        </Badge>
-      );
-    if (m.status === "draft")
-      return (
-        <Badge
-          variant="secondary"
-          className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-        >
-          {tc("draft")}
-        </Badge>
-      );
-    return null;
+    return (
+      <Badge variant="secondary" className={minutesStatusClass(m.status)}>
+        {minutesStatusLabel(m.status)}
+      </Badge>
+    );
   };
 
   const actionStatusColor = (s: string) => {
@@ -1034,8 +1002,8 @@ export default function MinutesPage() {
                           <span>{formatDate(m.created_at)}</span>
                         </div>
                       </div>
-                      <Badge variant={m.status === "published" ? "default" : "secondary"} className={m.status === "published" ? "bg-emerald-600 text-white" : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"}>
-                        {m.status === "published" ? t("published") : t("draft")}
+                      <Badge variant="secondary" className={minutesStatusClass(m.status)}>
+                        {minutesStatusLabel(m.status)}
                       </Badge>
                     </div>
                   </CardContent>
@@ -1583,16 +1551,10 @@ export default function MinutesPage() {
                     <CardTitle className="flex items-center gap-2">
                       {selectedMinutes.title || selectedEvent?.title || t("newStandalone")}
                       <Badge
-                        variant="default"
-                        className={cn(
-                          selectedMinutes.status === "published"
-                            ? "bg-emerald-600 text-white"
-                            : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-                        )}
+                        variant="secondary"
+                        className={minutesStatusClass(selectedMinutes.status)}
                       >
-                        {selectedMinutes.status === "published"
-                          ? tc("published")
-                          : tc("draft")}
+                        {minutesStatusLabel(selectedMinutes.status)}
                       </Badge>
                     </CardTitle>
                     {selectedMinutes.published_at && (
@@ -1714,21 +1676,22 @@ export default function MinutesPage() {
                 )}
 
                 {/* File Attachment */}
-                {selectedMinutes.file_url && (
+                {(selectedMinutes.attachment_object_key || selectedMinutes.file_url) && (
                   <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
                     <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{t("uploadFile")}</p>
-                    </div>
-                    <a
-                      href={selectedMinutes.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{t("uploadFile")}</p></div>
+                    <button
+                      type="button"
                       className="inline-flex items-center gap-1 text-sm text-primary hover:underline shrink-0"
+                      onClick={async () => {
+                        const objectKey = selectedMinutes.attachment_object_key || selectedMinutes.file_url;
+                        if (!objectKey) return;
+                        const url = await signedUrlFor(supabase, "group-documents", objectKey);
+                        if (url) window.open(url, "_blank", "noopener,noreferrer");
+                      }}
                     >
-                      {t("downloadPDF")}
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
+                      {t("downloadPDF")}<ExternalLink className="h-3 w-3" />
+                    </button>
                   </div>
                 )}
 

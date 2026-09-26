@@ -240,16 +240,15 @@ export default function InvitationsPage() {
     setRegenerating(true);
     const supabase = createClient();
     try {
-      // Atomic RPC: deactivates old codes + creates new one in a single transaction
-      await supabase.rpc("regenerate_join_code", {
+      // The authoritative RPC checks current members.invite permission, rotates
+      // the code and writes its audit evidence in one transaction.
+      const { error } = await supabase.rpc("regenerate_join_code", {
         p_group_id: groupId,
         p_created_by: user.id,
       });
+      if (error) throw error;
     } catch (err) {
-      // Fallback to non-atomic approach if RPC not deployed yet
-      console.warn("[Invitations] regenerate_join_code RPC failed, using fallback:", err instanceof Error ? err.message : err);
-      await supabase.from("join_codes").update({ is_active: false }).eq("group_id", groupId);
-      await supabase.from("join_codes").insert({ group_id: groupId, created_by: user.id, is_active: true });
+      console.warn("[Invitations] regenerate_join_code failed:", err instanceof Error ? err.message : err);
     }
     queryClient.invalidateQueries({ queryKey: ["join-codes", groupId] });
     setRegenerating(false);

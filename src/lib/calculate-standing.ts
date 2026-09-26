@@ -572,30 +572,22 @@ async function persistAndNotify(
     .single();
   const oldStanding = oldMembership?.standing as string | null;
 
-  await supabase
-    .from("memberships")
-    .update({ standing, standing_updated_at: new Date().toISOString() })
-    .eq("id", membershipId);
+  const { data: recalculated, error: recalcError } = await supabase.rpc(
+    "recalculate_standing_command",
+    {
+      p_request_id: crypto.randomUUID(),
+      p_group_id: groupId,
+      p_membership_id: membershipId,
+    },
+  );
+  if (recalcError) throw recalcError;
+  const effectiveStanding =
+    ((recalculated as { effective_standing?: StandingResult["standing"] } | null)
+      ?.effective_standing) || standing;
 
   // No change → nothing to record.
-  if (oldStanding === standing) {
+  if (oldStanding === effectiveStanding) {
     return;
-  }
-
-  // Audit EVERY change, including the first-ever computation (null → X), to
-  // match the SQL engine (which uses IS DISTINCT FROM). Best-effort.
-  try {
-    const { logActivity } = await import("@/lib/audit-log");
-    await logActivity(supabase, {
-      groupId,
-      action: "member.standing_changed",
-      entityType: "membership",
-      entityId: membershipId,
-      description: `Member standing changed from ${oldStanding ?? "none"} to ${standing}`,
-      metadata: { oldStanding, newStanding: standing },
-    });
-  } catch {
-    /* best-effort */
   }
 
   // Notifications fire only for a genuine transition FROM a prior standing —
@@ -651,7 +643,7 @@ async function persistAndNotify(
     // namespace; lazy-loads both en.json and fr.json on first call.
     const bt = await getBilingualTranslator("standingChange");
 
-    const transitionKey = `${oldStanding}To${standing.charAt(0).toUpperCase()}${standing.slice(1)}`;
+    const transitionKey = `${oldStanding}To${effectiveStanding.charAt(0).toUpperCase()}${effectiveStanding.slice(1)}`;
     const VALID_KEYS = new Set([
       "goodToWarning",
       "goodToSuspended",

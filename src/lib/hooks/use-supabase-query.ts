@@ -793,34 +793,11 @@ export function useCreateHostingRoster() {
   });
 }
 
-// ─── Meeting Minutes ───────────────────────────────────────────────────────
-
-export function useCreateMeetingMinutes() {
-  const queryClient = useQueryClient();
-  const { groupId, user } = useGroup();
-  return useMutation({
-    mutationFn: async (values: { event_id: string; title: string; content_json: unknown; status: string; published_at?: string; published_by?: string }) => {
-      if (!groupId || !user) throw new Error("No group/user");
-      const { data, error } = await supabase.from("meeting_minutes").insert({
-        ...values,
-        group_id: groupId,
-        created_by: user.id,
-      }).select().single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
-      queryClient.invalidateQueries({ queryKey: ["aggregated-feed", groupId] });
-    },
-  });
-}
-
 export function useMeetingMinutes() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["meeting-minutes", groupId],
-    staleTime: 5 * 60 * 1000, // WS3 (B11): invalidated by useCreateMeetingMinutes
+    staleTime: 5 * 60 * 1000, // Invalidated by the mounted authoritative command caller.
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase

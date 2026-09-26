@@ -149,60 +149,28 @@ export function StandingRulesTab() {
     }
   }
 
-  // Save writes the FULL serialized rules directly to groups.settings —
-  // the apply_standing_rules RPC normalizes away unknown keys and would drop
-  // the factor toggles and exclusion list, so we merge + update here instead.
-  // Admins can update their own group's row under RLS.
-  //
-  // The read-merge-write below is last-write-wins on the whole settings blob.
-  // The read happens immediately before the write to keep the window tiny.
-  // Once migration 00101 is applied, switch this to the apply_standing_rules
-  // RPC, which merges only the standing_rules key server-side (atomic, no
-  // cross-tab clobber) AND recalculates persisted standing in one call.
+  // Apply through the authoritative database command so rule persistence,
+  // recalculation, effective overrides, and required audit share one transaction.
   async function handleApply() {
     if (!groupId || applying) return;
-    setApplying(true);
-    setError(null);
-    setSuccessMsg(null);
+    setApplying(true); setError(null); setSuccessMsg(null);
     try {
       const supabase = createClient();
-
-      // Read the current settings so we only replace the standing_rules key.
-      const { data: current, error: readErr } = await supabase
-        .from("groups")
-        .select("settings")
-        .eq("id", groupId)
-        .single();
-      if (readErr) throw readErr;
-
-      const existingSettings =
-        (current?.settings as Record<string, unknown> | null) ?? {};
-      const nextSettings = {
-        ...existingSettings,
-        standing_rules: serializeStandingRules(rules),
-      };
-
-      const { error: updateErr } = await supabase
-        .from("groups")
-        .update({ settings: nextSettings })
-        .eq("id", groupId);
-      if (updateErr) throw updateErr;
-
+      const { error } = await supabase.rpc("apply_standing_rules", {
+        p_group_id: groupId,
+        p_rules: serializeStandingRules(rules),
+      });
+      if (error) throw error;
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["group-settings", groupId] }),
         queryClient.invalidateQueries({ queryKey: ["group-settings"] }),
         queryClient.invalidateQueries({ queryKey: ["members", groupId] }),
         queryClient.invalidateQueries({ queryKey: ["member-standing"] }),
       ]);
-
       setSuccessMsg(t("standingSavedImmediate"));
-      setShowPreview(false);
-      setPreview(null);
-    } catch {
-      setError(t("standingError"));
-    } finally {
-      setApplying(false);
-    }
+      setShowPreview(false); setPreview(null);
+    } catch { setError(t("standingError")); }
+    finally { setApplying(false); }
   }
 
   const disabled = !canManageSettings || loading || applying || previewing;

@@ -39,6 +39,7 @@ import {
   FileText,
 } from "lucide-react";
 import { EmptyState, ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
+import { signedUrlFor } from "@/lib/storage-urls";
 
 const supabase = createClient();
 
@@ -256,80 +257,31 @@ export default function ConstitutionPage() {
 
   const handleSave = async () => {
     if (!groupId || !currentMembership) return;
-    setSaving(true);
-    setActionError(null);
+    setSaving(true); setActionError(null);
     try {
-      if (draft) {
-        // Update the existing draft record
-        const { error: upErr } = await supabase
-          .from("group_constitutions")
-          .update({ content: editorContent, title: editorTitle })
-          .eq("id", draft.id);
-        if (upErr) throw upErr;
-      } else {
-        // Check-then-insert: avoids the 409 "no unique constraint" UPSERT error
-        const docType = activeTitle || "Constitution";
-        // Broader check: find ANY draft for this group+docType (including old rows with NULL document_type)
-        const { data: existingDrafts } = await supabase
-          .from("group_constitutions")
-          .select("id, document_type")
-          .eq("group_id", groupId)
-          .eq("status", "draft")
-          .limit(10);
-        const existingDraft = (existingDrafts || []).find(
-          (d: Record<string, unknown>) => d.document_type === docType || d.document_type === null
-        );
-        if (existingDraft) {
-          const { error: upErr } = await supabase
-            .from("group_constitutions")
-            .update({ content: editorContent, title: editorTitle, document_type: docType })
-            .eq("id", existingDraft.id);
-          if (upErr) throw upErr;
-        } else {
-          const { error: insErr } = await supabase
-            .from("group_constitutions")
-            .insert({
-              group_id: groupId,
-              document_type: docType,
-              title: editorTitle,
-              content: editorContent,
-              version_number: currentVersion + 1,
-              status: "draft",
-            });
-          // If conflict (concurrent insert), fall back to update
-          if (insErr && insErr.code === "23505") {
-            const { data: conflictRow } = await supabase
-              .from("group_constitutions")
-              .select("id")
-              .eq("group_id", groupId)
-              .eq("status", "draft")
-              .limit(1)
-              .maybeSingle();
-            if (conflictRow) {
-              const { error: upErr } = await supabase
-                .from("group_constitutions")
-                .update({ content: editorContent, title: editorTitle, document_type: docType })
-                .eq("id", conflictRow.id);
-              if (upErr) throw upErr;
-            } else {
-              throw insErr;
-            }
-          } else if (insErr) {
-            throw insErr;
-          }
-        }
+      const source = draft || constitution;
+      const command: Record<string, unknown> = {
+        action: "save_draft", group_id: groupId,
+        document_type: activeTitle || "Constitution",
+        title: editorTitle, content: editorContent,
+      };
+      if (source?.document_id) {
+        command.document_id = source.document_id;
+        command.expected_version = source.version_number;
       }
-      queryClient.invalidateQueries({ queryKey: ["constitution-draft"] });
-      queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] });
+      const { error } = await supabase.rpc("execute_governing_document_command", {
+        p_request_id: crypto.randomUUID(), p_command: command,
+      });
+      if (error) throw error;
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["constitution-draft"] }),
+        queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] }),
+      ]);
       if (!selectedTitle) setSelectedTitle(editorTitle);
       setEditing(false);
-    } catch (err) {
-      setActionError((err as Error).message || tc("error"));
-    } finally {
-      setSaving(false);
-    }
+    } catch (err) { setActionError((err as Error).message || tc("error")); }
+    finally { setSaving(false); }
   };
-
   const handleCreateNewDoc = () => {
     const title = newDocType === "Other" ? newDocCustomTitle.trim() : newDocType;
     if (!title) return;
@@ -354,121 +306,94 @@ export default function ConstitutionPage() {
   };
 
   const handlePublish = async () => {
-    if (!groupId || !currentMembership) return;
-    setPublishing(true);
+    if (!groupId || !draft?.document_id) return;
+    setPublishing(true); setActionError(null);
     try {
-      const source = draft || constitution;
-      if (!source) return;
-      if (source.status === "draft") {
-        if (constitution?.id) {
-          await supabase.from("group_constitutions").update({ status: "archived" }).eq("id", constitution.id);
-        }
-        await supabase.from("group_constitutions").update({
-          status: "published", published_at: new Date().toISOString(), published_by: currentMembership.id,
-        }).eq("id", source.id);
-      }
+      const { error } = await supabase.rpc("execute_governing_document_command", {
+        p_request_id: crypto.randomUUID(),
+        p_command: { action: "publish", group_id: groupId, document_id: draft.document_id,
+          expected_version: draft.version_number },
+      });
+      if (error) throw error;
       const memberList = (members || []) as Array<Record<string, unknown>>;
       if (memberList.length > 0) {
-        await supabase.from("notifications").insert(
-          memberList.filter((m) => m.user_id).map((m) => ({
-            group_id: groupId, user_id: m.user_id as string, type: "system" as const,
-            title: t("constitutionUpdatedNotif"), body: t("constitutionUpdatedNotifMsg"), is_read: false,
-            data: { link: "/dashboard/constitution" },
-          }))
-        );
+        await supabase.from("notifications").insert(memberList.filter((m) => m.user_id).map((m) => ({
+          group_id: groupId, user_id: m.user_id as string, type: "system" as const,
+          title: t("constitutionUpdatedNotif"), body: t("constitutionUpdatedNotifMsg"), is_read: false,
+          data: { link: "/dashboard/constitution" },
+        })));
       }
-      queryClient.invalidateQueries({ queryKey: ["constitution"] });
-      queryClient.invalidateQueries({ queryKey: ["constitution-draft"] });
-      queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] });
-    } finally { setPublishing(false); }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["constitution"] }),
+        queryClient.invalidateQueries({ queryKey: ["constitution-draft"] }),
+        queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] }),
+      ]);
+    } catch (err) { setActionError((err as Error).message || tc("error")); }
+    finally { setPublishing(false); }
   };
-
   const handleAcknowledge = async () => {
-    if (!constitution?.id || !currentMembership) return;
+    if (!groupId || !constitution?.id || !currentMembership) return;
     setAcknowledging(true);
     try {
-      await supabase.from("constitution_acknowledgments").insert({
-        constitution_id: constitution.id, membership_id: currentMembership.id, version_number: constitution.version_number,
+      const { error } = await supabase.rpc("execute_governing_document_command", {
+        p_request_id: crypto.randomUUID(),
+        p_command: { action: "acknowledge", group_id: groupId, revision_id: constitution.id },
       });
+      if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["acknowledgments", constitution.id] });
-    } finally { setAcknowledging(false); }
+    } catch (err) { setActionError((err as Error).message || tc("error")); }
+    finally { setAcknowledging(false); }
   };
-
   const handleProposeAmendment = async () => {
     if (!groupId || !constitution?.id || !currentMembership || !amendTitle.trim()) return;
     setAmendSaving(true);
     try {
-      await supabase.from("constitution_amendments").insert({
-        constitution_id: constitution.id, group_id: groupId, amendment_number: amendments.length + 1,
-        title: amendTitle.trim(), section_affected: amendSection.trim() || null,
-        old_text: amendOldText.trim() || null, new_text: amendNewText.trim() || null,
-        reason: amendReason.trim() || null, proposed_by: currentMembership.id, status: "proposed",
+      const { error } = await supabase.rpc("execute_governing_document_command", {
+        p_request_id: crypto.randomUUID(), p_command: {
+          action: "propose_amendment", group_id: groupId, revision_id: constitution.id,
+          title: amendTitle.trim(), section_affected: amendSection.trim() || null,
+          old_text: amendOldText.trim() || null, new_text: amendNewText.trim() || null,
+          reason: amendReason.trim() || null,
+        },
       });
-      queryClient.invalidateQueries({ queryKey: ["amendments", groupId] });
-      setShowAmendDialog(false);
-      setAmendTitle(""); setAmendSection(""); setAmendOldText(""); setAmendNewText(""); setAmendReason("");
-    } finally { setAmendSaving(false); }
-  };
-
-  const handleAmendmentAction = async (amendId: string, action: "approved" | "rejected") => {
-    if (amendmentActionId) return;
-    setAmendmentActionId(amendId);
-    try {
-      setActionError(null);
-      const { error } = await supabase.from("constitution_amendments").update({
-        status: action, approved_at: new Date().toISOString(), approved_by: currentMembership?.id,
-      }).eq("id", amendId);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["amendments", groupId] });
-    } catch {
-      setActionError(tc("error"));
-    } finally {
-      setAmendmentActionId(null);
-    }
+      setShowAmendDialog(false); setAmendTitle(""); setAmendSection(""); setAmendOldText(""); setAmendNewText(""); setAmendReason("");
+    } catch (err) { setActionError((err as Error).message || tc("error")); }
+    finally { setAmendSaving(false); }
   };
-
+  const handleAmendmentAction = async (amendId: string, action: "approved" | "rejected") => {
+    if (!groupId || amendmentActionId) return;
+    setAmendmentActionId(amendId); setActionError(null);
+    try {
+      const { error } = await supabase.rpc("execute_governing_document_command", {
+        p_request_id: crypto.randomUUID(),
+        p_command: { action: "decide_amendment", group_id: groupId, amendment_id: amendId, decision: action },
+      });
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["amendments", groupId] });
+    } catch (err) { setActionError((err as Error).message || tc("error")); }
+    finally { setAmendmentActionId(null); }
+  };
   const handleApplyAmendment = async (amend: Record<string, unknown>) => {
     if (!constitution?.id || !groupId || !currentMembership) return;
-    setApplyingAmendment(true);
-    setActionError(null);
+    setApplyingAmendment(true); setActionError(null);
     try {
-      const oldText = amend.old_text as string;
-      const newText = amend.new_text as string;
-      const currentContent = (constitution.content as string) || "";
-
-      // Apply text replacement if both old and new text are provided
-      let updatedContent = currentContent;
-      if (oldText && newText) {
-        updatedContent = currentContent.replace(oldText, newText);
-      } else if (newText) {
-        // Append new text if no old text specified
-        updatedContent = currentContent + "\n\n" + newText;
-      }
-
-      // Archive current published version
-      await supabase.from("group_constitutions").update({ status: "archived" }).eq("id", constitution.id);
-
-      // Create new published version
-      const newVersion = (constitution.version_number as number) + 1;
-      await supabase.from("group_constitutions").insert({
-        group_id: groupId, title: constitution.title, content: updatedContent,
-        version_number: newVersion, status: "published",
-        published_at: new Date().toISOString(), published_by: currentMembership.id,
+      const { error } = await supabase.rpc("execute_governing_document_command", {
+        p_request_id: crypto.randomUUID(), p_command: {
+          action: "apply_amendment", group_id: groupId, amendment_id: amend.id,
+          expected_version: constitution.version_number,
+        },
       });
-
-      // Mark amendment as applied
-      await supabase.from("constitution_amendments").update({ status: "applied" }).eq("id", amend.id as string);
-
-      queryClient.invalidateQueries({ queryKey: ["constitution"] });
-      queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] });
-      queryClient.invalidateQueries({ queryKey: ["amendments", groupId] });
-    } catch {
-      setActionError(tc("error"));
-    } finally {
-      setApplyingAmendment(false);
-    }
+      if (error) throw error;
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["constitution"] }),
+        queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["amendments", groupId] }),
+      ]);
+    } catch (err) { setActionError((err as Error).message || tc("error")); }
+    finally { setApplyingAmendment(false); }
   };
-
   const handleSendReminder = async () => {
     if (!groupId || !constitution?.id) return;
     setSendingReminder(true);
@@ -489,99 +414,43 @@ export default function ConstitutionPage() {
 
   const handleFileUpload = async (file: File) => {
     if (!groupId) return;
-    if (file.size > 10 * 1024 * 1024) {
-      setActionError(t("fileTooLarge"));
-      return;
-    }
-    setFileUploading(true);
+    if (file.size > 10 * 1024 * 1024) { setActionError(t("fileTooLarge")); return; }
+    setFileUploading(true); setActionError(null);
     try {
-      const path = `constitutions/${groupId}/${Date.now()}-${file.name}`;
-      const { error: uploadErr } = await supabase.storage.from("group-documents").upload(path, file, { upsert: true });
-      if (uploadErr) {
-        setActionError(uploadErr.message);
-        return;
-      }
-      // group-documents bucket is private — sign a short-lived URL. Display
-      // code regenerates from the stored path via normaliseObjectPath().
-      const { data: urlData, error: signErr } = await supabase.storage
-        .from("group-documents")
-        .createSignedUrl(path, 3600);
-      if (signErr || !urlData?.signedUrl) {
-        setActionError(signErr?.message || "Failed to sign document URL");
-        return;
-      }
+      const source = draft || constitution;
       const fileTitle = file.name.replace(/\.[^.]+$/, "");
-      const docType = activeTitle || "Constitution";
-      // Check for existing draft for this group+docType (including old rows with NULL document_type)
-      const { data: existingFileDrafts } = await supabase
-        .from("group_constitutions")
-        .select("id, document_type")
-        .eq("group_id", groupId)
-        .eq("status", "draft")
-        .limit(10);
-      const existingFileDraft = (existingFileDrafts || []).find(
-        (d: Record<string, unknown>) => d.document_type === docType || d.document_type === null
-      );
-      if (existingFileDraft) {
-        const { error: upErr } = await supabase
-          .from("group_constitutions")
-          .update({ title: fileTitle, file_url: urlData.signedUrl, document_type: docType })
-          .eq("id", existingFileDraft.id);
-        if (upErr) throw upErr;
-      } else {
-        // Query the actual MAX version_number from DB (not stale React state)
-        // to avoid duplicate key violations when uploading multiple files
-        const { data: maxRow } = await supabase
-          .from("group_constitutions")
-          .select("version_number")
-          .eq("group_id", groupId)
-          .order("version_number", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        const nextVersion = ((maxRow?.version_number as number) || 0) + 1;
-
-        const { error: insErr } = await supabase
-          .from("group_constitutions")
-          .insert({
-            group_id: groupId,
-            document_type: docType,
-            title: fileTitle,
-            file_url: urlData.signedUrl,
-            version_number: nextVersion,
-            status: "draft",
-          });
-        if (insErr && insErr.code === "23505") {
-          // Concurrent insert — fall back to update the existing row
-          const { data: conflictRow } = await supabase
-            .from("group_constitutions")
-            .select("id")
-            .eq("group_id", groupId)
-            .eq("status", "draft")
-            .limit(1)
-            .maybeSingle();
-          if (conflictRow) {
-            const { error: upErr } = await supabase
-              .from("group_constitutions")
-              .update({ title: fileTitle, file_url: urlData.signedUrl, document_type: docType })
-              .eq("id", conflictRow.id);
-            if (upErr) throw upErr;
-          } else {
-            throw insErr;
-          }
-        } else if (insErr) {
-          throw insErr;
-        }
+      const saveCommand: Record<string, unknown> = {
+        action: "save_draft", group_id: groupId,
+        document_type: activeTitle || "Constitution", title: fileTitle,
+        content: (source?.content as string) || "",
+      };
+      if (source?.document_id) {
+        saveCommand.document_id = source.document_id;
+        saveCommand.expected_version = source.version_number;
       }
-      queryClient.invalidateQueries({ queryKey: ["constitution-draft"] });
-      queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] });
-    } catch {
-      setActionError(tc("error"));
-    } finally {
-      setFileUploading(false);
-      setUploadProgress("");
-    }
+      const { data: saved, error: saveError } = await supabase.rpc("execute_governing_document_command", {
+        p_request_id: crypto.randomUUID(), p_command: saveCommand,
+      });
+      if (saveError) throw saveError;
+      const result = saved as { document_id: string; version_number: number };
+      const objectKey = `constitutions/${groupId}/${result.document_id}/${crypto.randomUUID()}-${file.name}`;
+      const { error: uploadErr } = await supabase.storage.from("group-documents").upload(objectKey, file);
+      if (uploadErr) throw uploadErr;
+      const { error: attachError } = await supabase.rpc("execute_governing_document_command", {
+        p_request_id: crypto.randomUUID(), p_command: {
+          action: "attach_draft", group_id: groupId, document_id: result.document_id,
+          expected_version: result.version_number, attachment_bucket: "group-documents",
+          attachment_object_key: objectKey,
+        },
+      });
+      if (attachError) throw attachError;
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["constitution-draft"] }),
+        queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] }),
+      ]);
+    } catch (err) { setActionError((err as Error).message || tc("error")); }
+    finally { setFileUploading(false); setUploadProgress(""); }
   };
-
   const handleMultipleFiles = async (files: FileList | File[]) => {
     const fileArray = Array.from(files).filter((f) =>
       /\.(pdf|docx?|txt|png|jpg|jpeg|webp)$/i.test(f.name)
@@ -622,7 +491,7 @@ export default function ConstitutionPage() {
   }
 
   const activeDoc = draft || constitution;
-  const hasContent = !!(activeDoc?.content || activeDoc?.file_url);
+  const hasContent = !!(activeDoc?.content || activeDoc?.attachment_object_key || activeDoc?.file_url);
 
   if (docsLoading) return <ListSkeleton rows={4} />;
   if (constError) return <ErrorState message={(constError as Error).message} onRetry={() => queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] })} />;
@@ -739,8 +608,12 @@ export default function ConstitutionPage() {
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input placeholder={t("searchConstitution")} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
               </div>
-              {activeDoc?.file_url ? (
-                <Card><CardContent className="p-4"><a href={activeDoc.file_url as string} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline"><FileText className="h-5 w-5" />{(activeDoc.title as string) || t("title")}</a></CardContent></Card>
+              {(activeDoc?.attachment_object_key || activeDoc?.file_url) ? (
+                <Card><CardContent className="p-4"><button type="button" onClick={async () => {
+                  const objectKey = (activeDoc.attachment_object_key || activeDoc.file_url) as string;
+                  const url = await signedUrlFor(supabase, "group-documents", objectKey);
+                  if (url) window.open(url, "_blank", "noopener,noreferrer");
+                }} className="flex items-center gap-2 text-primary hover:underline"><FileText className="h-5 w-5" />{(activeDoc.title as string) || t("title")}</button></CardContent></Card>
               ) : activeDoc?.content ? (
                 <Card><CardContent className="p-6"><h2 className="text-xl font-bold mb-4">{activeDoc.title as string}</h2><HighlightedText content={activeDoc.content as string} query={searchQuery} /></CardContent></Card>
               ) : null}
@@ -757,8 +630,7 @@ export default function ConstitutionPage() {
                     )}
                   </CardContent>
                 </Card>
-              )}
-            </>
+              )}            </>
           )}
         </TabsContent>
 

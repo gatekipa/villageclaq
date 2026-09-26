@@ -1819,6 +1819,19 @@
   "transactionEntry": {
     "title": "Record Financial Transaction",
     "subtitle": "Authoritative double-entry ledger commands for manual receipts, disbursements, and transfers",
+    "recovery": {
+      "title": "Review recent transaction intents",
+      "explanation": "If a previous submission lost its response, recover it here before starting a separate transaction. Retrying an intent cannot post it twice.",
+      "loading": "Checking recent transactions...",
+      "loadFailed": "Recent transactions could not be checked. Retry before recording a new transaction.",
+      "retryLoad": "Retry check",
+      "posted": "Posted",
+      "prepared": "Not posted yet",
+      "retryIntent": "Recover / retry",
+      "retrying": "Checking...",
+      "loadOlder": "Load older transactions",
+      "recordSeparate": "Record a separate transaction"
+    },
     "actions": {
       "record": "Record Transaction",
       "recording": "Recording...",
@@ -1874,7 +1887,7 @@
       "sameCurrencyTransfer": "Transfers require both source and destination accounts to have the same currency. Cross-currency transfers require currency exchange settlement.",
       "descriptionRequiredForExpense": "Expenditures require an explicit description explaining the business or operational purpose of the outflow.",
       "fundDefault": "If no fund is selected, the transaction will automatically be recorded against the group's default operational fund.",
-      "idempotentSubmission": "Every transaction is protected by a unique cryptographic request token. Resubmitting will never create a duplicate entry."
+      "idempotentSubmission": "This intent is saved before posting. Use Recover / retry on another device; choose a separate transaction only for a new operation."
     },
     "validation": {
       "invalidAmount": "Invalid amount format. Please enter a valid positive decimal number.",

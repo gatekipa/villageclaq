@@ -1819,6 +1819,19 @@
   "transactionEntry": {
     "title": "Enregistrer une transaction financière",
     "subtitle": "Commandes du grand livre à partie double pour les encaissements, décaissements et virements manuels",
+    "recovery": {
+      "title": "Vérifier les transactions récentes",
+      "explanation": "Si la réponse d’un enregistrement précédent a été perdue, récupérez cette opération avant d’en créer une autre. Une reprise ne peut pas l’enregistrer deux fois.",
+      "loading": "Vérification des transactions récentes...",
+      "loadFailed": "Impossible de vérifier les transactions récentes. Réessayez avant d’enregistrer une nouvelle opération.",
+      "retryLoad": "Réessayer la vérification",
+      "posted": "Enregistrée",
+      "prepared": "Pas encore enregistrée",
+      "retryIntent": "Récupérer / réessayer",
+      "retrying": "Vérification...",
+      "loadOlder": "Charger les transactions plus anciennes",
+      "recordSeparate": "Enregistrer une opération distincte"
+    },
     "actions": {
       "record": "Enregistrer la transaction",
       "recording": "Enregistrement...",
@@ -1874,7 +1887,7 @@
       "sameCurrencyTransfer": "Les virements exigent que les comptes source et destination aient la même devise. Les virements multidevises nécessitent un règlement de change.",
       "descriptionRequiredForExpense": "Les décaissements exigent une description explicite justifiant la finalité opérationnelle de la dépense.",
       "fundDefault": "Si aucun fonds n'est sélectionné, la transaction sera automatiquement imputée au fonds d'exploitation par défaut du groupe.",
-      "idempotentSubmission": "Chaque transaction est protégée par un jeton de requête cryptographique unique. Une réexpédition ne créera jamais de doublon."
+      "idempotentSubmission": "Cette opération est sauvegardée avant son enregistrement. Utilisez Récupérer / réessayer sur un autre appareil ; créez une opération distincte uniquement pour une nouvelle transaction."
     },
     "validation": {
       "invalidAmount": "Format de montant invalide. Veuillez saisir un nombre décimal positif valide.",

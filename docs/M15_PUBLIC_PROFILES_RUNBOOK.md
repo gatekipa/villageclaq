@@ -23,5 +23,5 @@ This document defines the architectural invariants and strict privacy guarantees
 - **SEO Safety:** `public-profile-metadata.ts` generates dynamic OpenGraph and Twitter cards exclusively from vetted, truncated fields. It instructs crawlers to `noindex` any private records.
 - **Growth Loop Attribution:** Valid public profiles securely link back to the VillageClaq ingress using safe anchor attributes (`rel="noopener noreferrer"`) wrapped in a tasteful "Powered by VillageClaq" badge.
 
-**Status:** Certified under the Universal Adversarial Audit Standard.
-**Program Status:** Master Rebuild M0–M15 Complete and SEALED.
+**Implementation status:** M15 build work is recorded as complete. This runbook supplements the controlling Master Rebuild PRD; its claims require executed qualification before release.
+**Release qualification:** HOLD for the focused repair branch based on candidate `247c8881b875b7f013254cc3efc6ddc16bcfc3c3`. See [the consolidated repair qualification](QUALIFICATION_REPAIR_247C8881.md). No M15 end-to-end browser or full-schema database certification was established in this review.

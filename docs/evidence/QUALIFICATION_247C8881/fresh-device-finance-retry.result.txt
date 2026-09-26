@@ -1,0 +1,20 @@
+BEGIN
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+SET
+SET
+{"decision": "POSTED", "event_id": "5c647780-c79e-4d8b-b140-97d6f54bbf2c", "fingerprint": "e5c02f84f72f3b351cd0797490444ac4c5c89cc50b50b1af0b1d8a1c4a9a3dc1", "ledger_epoch_id": "00000000-0000-4000-8000-000000000021", "new_event_count": 1, "new_posting_count": 2}
+{"decision": "IDEMPOTENT_RETURN_EXISTING", "event_id": "5c647780-c79e-4d8b-b140-97d6f54bbf2c", "fingerprint": "e5c02f84f72f3b351cd0797490444ac4c5c89cc50b50b1af0b1d8a1c4a9a3dc1", "ledger_epoch_id": "00000000-0000-4000-8000-000000000021", "new_event_count": 0, "new_posting_count": 0}
+{"decision": "POSTED", "event_id": "71a41cb1-3753-44be-a262-2fec8b2039ea", "fingerprint": "d3f77daeac4de3781bfd6d43bf8f95013d9e790c33d9716dffb2d96a1d1281eb", "ledger_epoch_id": "00000000-0000-4000-8000-000000000021", "new_event_count": 1, "new_posting_count": 2}
+RESET
+2
+4
+ROLLBACK

@@ -10,24 +10,22 @@ interface LogActivityParams {
 }
 
 /**
- * Best-effort audit log insert.
- * Wraps in try/catch so a failed log never breaks the calling mutation.
- * actor_id is auto-resolved from the current Supabase session.
+ * Best-effort client activity report. The server fixes actor and marks these
+ * reports unverified; consequential audit rows are written by authoritative
+ * database commands and cannot be supplied by this client helper.
  */
 export async function logActivity(
   supabase: SupabaseClient,
   params: LogActivityParams,
 ): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from("group_audit_logs").insert({
-      group_id: params.groupId,
-      actor_id: user?.id ?? null,
-      action: params.action,
-      entity_type: params.entityType ?? null,
-      entity_id: params.entityId ?? null,
-      description: params.description ?? null,
-      details: params.metadata ?? {},
+    await supabase.rpc("record_client_activity", {
+      p_group_id: params.groupId,
+      p_reported_action: params.action,
+      p_entity_type: params.entityType ?? null,
+      p_entity_id: params.entityId ?? null,
+      p_description: params.description ?? null,
+      p_metadata: params.metadata ?? {},
     });
   } catch {
     // Best-effort — never break the calling mutation

@@ -12,9 +12,12 @@ import {
 import { useMembers, useProjects } from "@/lib/hooks/use-supabase-query";
 import {
   useRecordTransaction,
+  useManualFinancialIntents,
+  useRetryManualFinancialIntent,
   isValidDecimalAmount,
   parseFinancialRpcError,
   type FinancialCommandAction,
+  type ManualFinancialIntent,
   type RecordTransactionResult,
 } from "@/lib/hooks/use-record-transaction";
 import { formatAmount } from "@/lib/currencies";
@@ -104,6 +107,9 @@ export function RecordTransactionDialog({
 
   // Mutation
   const recordTransactionMutation = useRecordTransaction();
+  const retryIntentMutation = useRetryManualFinancialIntent();
+  const intentQuery = useManualFinancialIntents(groupId, open);
+  const intents = intentQuery.data?.pages.flat() ?? [];
 
   // Filtered active assets
   const activeAccounts = accounts.filter((a) => a.status === "active");
@@ -137,6 +143,10 @@ export function RecordTransactionDialog({
 
   const [formError, setFormError] = useState<string | null>(null);
   const [successResult, setSuccessResult] = useState<RecordTransactionResult | null>(null);
+  const [successSummary, setSuccessSummary] = useState<{
+    amount: string; currency: string; action: FinancialCommandAction;
+  } | null>(null);
+  const [showNewForm, setShowNewForm] = useState(false);
   const [requestId, setRequestId] = useState(() => crypto.randomUUID());
 
   // Derived selected source account
@@ -186,8 +196,34 @@ export function RecordTransactionDialog({
     setProjectId("none");
     setFormError(null);
     setSuccessResult(null);
+    setSuccessSummary(null);
+    setShowNewForm(false);
     setRequestId(crypto.randomUUID());
     setOccurredAt(getLocalDatetimeString());
+  };
+
+  const startSeparateTransaction = () => {
+    resetForm();
+    setShowNewForm(true);
+  };
+
+  const handleRecover = async (intent: ManualFinancialIntent) => {
+    if (!groupId) return;
+    setFormError(null);
+    try {
+      const result = await retryIntentMutation.mutateAsync({ ...intent, groupId });
+      setSuccessSummary({
+        amount: intent.command.amount,
+        currency: intent.command.currency || transactionCurrency,
+        action: intent.command.action,
+      });
+      setSuccessResult(result);
+    } catch (error) {
+      const parsed = parseFinancialRpcError(error);
+      setFormError(parsed.message === "permissionDenied"
+        ? t("validation.permissionDenied")
+        : parsed.message === "conflict" ? t("validation.conflict") : t("validation.genericError"));
+    }
   };
 
   const handleDialogClose = (newOpen: boolean) => {
@@ -277,6 +313,7 @@ export function RecordTransactionDialog({
         requestId,
       });
 
+      setSuccessSummary({ amount: cleanAmount, currency: transactionCurrency, action });
       setSuccessResult(result);
     } catch (err: unknown) {
       const parsed = parseFinancialRpcError(err);
@@ -340,15 +377,15 @@ export function RecordTransactionDialog({
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">{t("fields.amount")}</span>
                 <span className="font-semibold font-mono text-sm">
-                  {formatAmount(amount, transactionCurrency)}
+                  {formatAmount(successSummary?.amount ?? amount, successSummary?.currency ?? transactionCurrency)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Action</span>
                 <Badge variant="outline" className="capitalize">
-                  {action === "money_in"
+                  {(successSummary?.action ?? action) === "money_in"
                     ? t("tabs.moneyIn")
-                    : action === "money_out"
+                    : (successSummary?.action ?? action) === "money_out"
                     ? t("tabs.moneyOut")
                     : t("tabs.transfer")}
                 </Badge>
@@ -373,7 +410,7 @@ export function RecordTransactionDialog({
             <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2">
               <Button
                 variant="outline"
-                onClick={resetForm}
+                onClick={startSeparateTransaction}
                 className="w-full sm:w-auto flex items-center justify-center gap-1.5"
               >
                 <RefreshCw className="h-4 w-4" />
@@ -383,6 +420,59 @@ export function RecordTransactionDialog({
                 {t("actions.close")}
               </Button>
             </DialogFooter>
+          </div>
+        ) : !groupId || intentQuery.isPending || intentQuery.isError ? (
+          <div className="space-y-4 py-4">
+            <DialogTitle>{t("recovery.title")}</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              {intentQuery.isError ? t("recovery.loadFailed") : t("recovery.loading")}
+            </p>
+            {intentQuery.isError && (
+              <Button type="button" variant="outline" onClick={() => void intentQuery.refetch()}>
+                {t("recovery.retryLoad")}
+              </Button>
+            )}
+          </div>
+        ) : !showNewForm && intents.length > 0 ? (
+          <div className="space-y-4 py-4">
+            <DialogHeader>
+              <DialogTitle>{t("recovery.title")}</DialogTitle>
+              <DialogDescription>{t("recovery.explanation")}</DialogDescription>
+            </DialogHeader>
+            {formError && <p role="alert" className="text-sm text-destructive">{formError}</p>}
+            <div className="max-h-64 overflow-y-auto space-y-2">
+              {intents.map((intent) => (
+                <div key={intent.request_id} className="rounded-md border p-3 text-sm flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium">
+                      {intent.command.action === "money_in" ? t("tabs.moneyIn")
+                        : intent.command.action === "money_out" ? t("tabs.moneyOut") : t("tabs.transfer")}
+                      {" · "}{formatAmount(intent.command.amount, intent.command.currency || "USD")}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(intent.created_at).toLocaleString()}{" · "}
+                      {intent.status === "posted" ? t("recovery.posted") : t("recovery.prepared")}{" · "}
+                      {intent.request_id.slice(0, 8)}
+                    </p>
+                  </div>
+                  <Button type="button" size="sm" variant="outline"
+                    disabled={retryIntentMutation.isPending}
+                    onClick={() => void handleRecover(intent)}>
+                    {retryIntentMutation.isPending ? t("recovery.retrying") : t("recovery.retryIntent")}
+                  </Button>
+                </div>
+              ))}
+            </div>
+            {intentQuery.hasNextPage && (
+              <Button type="button" variant="ghost" className="w-full"
+                disabled={intentQuery.isFetchingNextPage}
+                onClick={() => void intentQuery.fetchNextPage()}>
+                {t("recovery.loadOlder")}
+              </Button>
+            )}
+            <Button type="button" className="w-full" onClick={startSeparateTransaction}>
+              {t("recovery.recordSeparate")}
+            </Button>
           </div>
         ) : (
           // Transaction Entry Form

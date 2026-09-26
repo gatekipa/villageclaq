@@ -1,9 +1,8 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
-import { logActivity } from "@/lib/audit-log";
 
 // ─── TYPES & INTERFACES ───────────────────────────────────────────────────────
 
@@ -34,6 +33,32 @@ export interface RecordTransactionResult {
   fingerprint: string;
   new_event_count: number;
   new_posting_count: number;
+}
+
+export interface ManualFinancialCommand {
+  action: FinancialCommandAction;
+  group_id: string;
+  request_id: string;
+  occurred_at: string;
+  amount: string;
+  currency?: string;
+  account_id: string;
+  destination_account_id?: string;
+  category_id?: string;
+  fund_id?: string;
+  member_id?: string;
+  project_id?: string;
+  description?: string;
+  reference_metadata?: { reference?: string; evidence_ids?: string[] };
+}
+
+export interface ManualFinancialIntent {
+  request_id: string;
+  command: ManualFinancialCommand;
+  status: "prepared" | "posted";
+  event_id: string | null;
+  created_at: string;
+  posted_at: string | null;
 }
 
 // ─── VALIDATION & ERROR PARSING HELPERS ───────────────────────────────────────
@@ -72,7 +97,9 @@ export function parseFinancialRpcError(error: unknown): Error {
   if (rawMessage.includes("EPOCH_NOT_FOUND")) return new Error("noActiveEpoch");
   if (rawMessage.includes("ACCOUNT_EPOCH_INCOMPATIBLE")) return new Error("accountEpochIncompatible");
   if (rawMessage.includes("CONFLICT")) return new Error("conflict");
-  if (rawMessage.includes("DENY") || rawMessage.includes("insufficient_privilege")) return new Error("permissionDenied");
+  if (rawMessage.includes("AUDIT_INTEGRITY")) return new Error("genericError");
+  if (rawMessage.includes("DENY") || rawMessage.includes("ACTIVE_FINANCES_MANAGE_REQUIRED") ||
+      rawMessage.includes("insufficient_privilege")) return new Error("permissionDenied");
 
   return new Error(rawMessage || "genericError");
 }
@@ -80,8 +107,8 @@ export function parseFinancialRpcError(error: unknown): Error {
 // ─── MUTATION HOOK ───────────────────────────────────────────────────────────
 
 /**
- * Mutation hook invoking canonical `post_financial_command` via Supabase RPC.
- * - Idempotency guaranteed via durable request_id
+ * Mutation hook preparing a recoverable intent before canonical F3 posting.
+ * - Idempotency is bound to the durable, actor-scoped request_id and command
  * - Validates tenant boundary: currentGroupId === command.group_id
  * - Formats exact positive decimal strings
  * - Automatically invalidates related ledger and accounts queries on success
@@ -180,8 +207,20 @@ export function useRecordTransaction() {
 
       const supabase = createClient();
 
-      // 7. Invoke authoritative public.post_financial_command RPC
-      const { data, error } = await supabase.rpc("post_financial_command", {
+      // Persist the exact command before posting so another tab/device can
+      // recover this intent even when the commit response is lost.
+      const { error: prepareError } = await supabase.rpc("prepare_manual_financial_intent", {
+        p_command,
+      });
+
+      if (prepareError) {
+        throw parseFinancialRpcError(prepareError);
+      }
+
+      // The server locks the intent, rechecks current finance authority, posts
+      // through F3, and writes the trusted audit row in one transaction.
+      const { data, error } = await supabase.rpc("post_manual_financial_intent", {
+        p_request_id: requestId,
         p_command,
       });
 
@@ -190,22 +229,6 @@ export function useRecordTransaction() {
       }
 
       const result = data as RecordTransactionResult;
-
-      // 8. Best-effort audit log
-      await logActivity(supabase, {
-        groupId: input.groupId,
-        action: `financial_transaction.${input.action}`,
-        entityType: "financial_event",
-        entityId: result.event_id,
-        description: `Financial transaction (${input.action}) posted for ${cleanAmount} ${input.currency || ""}`,
-        metadata: {
-          action: input.action,
-          amount: cleanAmount,
-          currency: input.currency,
-          decision: result.decision,
-          requestId,
-        },
-      });
 
       return result;
     },
@@ -216,6 +239,52 @@ export function useRecordTransaction() {
       queryClient.invalidateQueries({ queryKey: ["account-balance", variables.groupId] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats", variables.groupId] });
       queryClient.invalidateQueries({ queryKey: ["money-overview", variables.groupId] });
+      queryClient.invalidateQueries({ queryKey: ["manual-financial-intents", variables.groupId] });
+    },
+  });
+}
+
+export function useManualFinancialIntents(groupId: string | null, enabled: boolean) {
+  const { groupId: currentGroupId, user } = useGroup();
+  return useInfiniteQuery({
+    queryKey: ["manual-financial-intents", groupId, user?.id],
+    enabled: enabled && !!groupId && !!user?.id && groupId === currentGroupId,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }): Promise<ManualFinancialIntent[]> => {
+      if (!groupId || groupId !== currentGroupId) throw new Error("staleTenantAborted");
+      const { data, error } = await createClient().rpc("list_manual_financial_intents", {
+        p_group_id: groupId,
+        p_offset: pageParam,
+      });
+      if (error) throw parseFinancialRpcError(error);
+      return data as ManualFinancialIntent[];
+    },
+    getNextPageParam: (lastPage, pages) => lastPage.length === 25 ? pages.length * 25 : undefined,
+  });
+}
+
+export function useRetryManualFinancialIntent() {
+  const queryClient = useQueryClient();
+  const { groupId: currentGroupId } = useGroup();
+  return useMutation({
+    mutationFn: async (intent: ManualFinancialIntent & { groupId: string }): Promise<RecordTransactionResult> => {
+      if (!currentGroupId || intent.groupId !== currentGroupId ||
+          intent.command.group_id !== currentGroupId ||
+          intent.command.request_id !== intent.request_id) {
+        throw new Error("staleTenantAborted");
+      }
+      const { data, error } = await createClient().rpc("post_manual_financial_intent", {
+        p_request_id: intent.request_id,
+        p_command: intent.command,
+      });
+      if (error) throw parseFinancialRpcError(error);
+      return data as RecordTransactionResult;
+    },
+    onSuccess: (_, intent) => {
+      for (const key of ["financial-accounts", "financial-postings", "financial-overview",
+        "account-balance", "dashboard-stats", "money-overview", "manual-financial-intents"]) {
+        queryClient.invalidateQueries({ queryKey: [key, intent.groupId] });
+      }
     },
   });
 }

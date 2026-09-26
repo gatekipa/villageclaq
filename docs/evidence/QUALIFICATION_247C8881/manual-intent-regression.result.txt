@@ -1,0 +1,21 @@
+Candidate base: 247c8881b875b7f013254cc3efc6ddc16bcfc3c3
+Repair branch: codex/qualification-repair-247c8881 (commit recorded in report after packaging)
+Environment: isolated loopback PostgreSQL 17, database f3_qual_247c8881_wait
+Schema: F3 stub floor through 00120, relevant group_audit_logs stub, migration 00137
+Not a full 00001-00136 replay or production-equivalent Supabase/browser fixture.
+
+Command: node docs/evidence/QUALIFICATION_247C8881/manual-intent-regression.mjs
+Exit: 0
+PASS lost-response same-intent recovery: one event, two postings, one trusted audit
+PASS deliberate second identical transaction: distinct intent posts separately
+PASS changed material payload under same identity conflicts
+PASS actor, tenant, and replay-time revocation boundaries
+PASS authority revoked during intent-lock wait: denied after wait, no event
+PASS direct consequential audit forgery and legacy posting bypass denied
+PASS injected audit failure rolls back financial effect; retry succeeds
+PASS concurrent retries: one effect and one trusted success audit
+PASS bridge-style financial event receives one atomic server audit
+PASS isolated F3 stub regression complete
+
+The regression script, SQL migration, and stub schema are retained alongside this result.
+The initial pre-repair reproduction and result are retained in this same directory.

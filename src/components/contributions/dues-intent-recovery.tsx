@@ -39,6 +39,9 @@ export function DuesIntentRecovery({ groupId }: { groupId: string | null }) {
                   {intent.created_at.slice(0, 16).replace("T", " ")}
                   {" · "}{t(intent.command.cash_class as "non_refundable" | "refundable" | "conditional")}
                 </p>
+                <p className="text-xs font-mono break-all">
+                  {t("receiptVoucher")}: {intent.payment_id}
+                </p>
                 <button type="button" className="mt-2 rounded border px-3 py-2 min-h-11"
                   disabled={retry.isPending}
                   onClick={() => retry.mutate(intent.request_id)}>

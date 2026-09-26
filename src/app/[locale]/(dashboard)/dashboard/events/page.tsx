@@ -197,6 +197,7 @@ export default function EventsPage() {
 
   const handlePurchaseTicket = async () => {
     if (!purchaseEventId || !purchaseTierId || !purchaseRequestId
+      || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(purchaseRequestId)
       || !currentMembership?.id ||
       (purchaseTier && !/^0(?:\.0+)?$/.test(String(purchaseTier.price))
         && (!purchaseAccountId || !purchaseCategoryId))) return;
@@ -651,6 +652,17 @@ export default function EventsPage() {
             {purchaseTier && !/^0(?:\.0+)?$/.test(String(purchaseTier.price)) && (
               <>
             <div className="grid gap-2">
+              <Label htmlFor="ticket-source-voucher">{t("ticketReceiptVoucher")}</Label>
+              <Input id="ticket-source-voucher" value={purchaseRequestId}
+                onChange={(event) => setPurchaseRequestId(event.target.value)}
+                maxLength={36} autoComplete="off" className="font-mono text-xs" />
+              <Button type="button" variant="outline" size="sm"
+                onClick={() => setPurchaseRequestId(crypto.randomUUID())}>
+                {t("ticketNewReceiptVoucher")}
+              </Button>
+              <p className="text-xs text-muted-foreground">{t("ticketReceiptVoucherHelp")}</p>
+            </div>
+            <div className="grid gap-2">
               <Label>{t("ticketCustodyAccount")}</Label>
               <Select value={purchaseAccountId} onValueChange={(val) => setPurchaseAccountId(val || "")}>
                 <SelectTrigger>
@@ -690,7 +702,8 @@ export default function EventsPage() {
             </Button>
             <Button 
               onClick={handlePurchaseTicket} 
-              disabled={postTicket.isPending || !purchaseRequestId ||
+              disabled={postTicket.isPending ||
+                !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(purchaseRequestId) ||
                 (!!purchaseTier && !/^0(?:\.0+)?$/.test(String(purchaseTier.price))
                   && (!purchaseAccountId || !purchaseCategoryId))}
             >
@@ -1083,7 +1096,7 @@ export default function EventsPage() {
                             onClick={() => {
                               setPurchaseEventId(event.id as string);
                               setPurchaseTierId(tier.id);
-                              setPurchaseRequestId(crypto.randomUUID());
+                              setPurchaseRequestId(Number(tier.price) > 0 ? "" : crypto.randomUUID());
                               setPurchaseAccountId("");
                               setPurchaseCategoryId("");
                               setShowPurchaseDialog(true);

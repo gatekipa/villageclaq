@@ -22,6 +22,7 @@ export interface RecordTransactionInput {
   projectId?: string; // Optional project attribution
   description?: string; // Required for money_out
   reference?: string; // Optional reference / receipt note
+  sourceVoucher?: string; // Shared receipt UUID; required for money_in
   evidenceIds?: string[]; // Optional UUIDs of linked evidence
   requestId?: string; // Client idempotency UUID
 }
@@ -49,7 +50,7 @@ export interface ManualFinancialCommand {
   member_id?: string;
   project_id?: string;
   description?: string;
-  reference_metadata?: { reference?: string; evidence_ids?: string[] };
+  reference_metadata?: { reference?: string; source_voucher?: string; evidence_ids?: string[] };
 }
 
 export interface ManualFinancialIntent {
@@ -97,6 +98,9 @@ export function parseFinancialRpcError(error: unknown): Error {
   if (rawMessage.includes("EPOCH_NOT_FOUND")) return new Error("noActiveEpoch");
   if (rawMessage.includes("ACCOUNT_EPOCH_INCOMPATIBLE")) return new Error("accountEpochIncompatible");
   if (rawMessage.includes("CONFLICT")) return new Error("conflict");
+  if (rawMessage.includes("RECEIPT_VOUCHER_REQUIRED") ||
+      rawMessage.includes("INVALID_RECEIPT_VOUCHER")) return new Error("receiptVoucherRequired");
+  if (rawMessage.includes("OCCURRENCE_INTEGRITY")) return new Error("receiptVoucherConflict");
   if (rawMessage.includes("AUDIT_INTEGRITY")) return new Error("genericError");
   if (rawMessage.includes("DENY") || rawMessage.includes("ACTIVE_FINANCES_MANAGE_REQUIRED") ||
       rawMessage.includes("insufficient_privilege")) return new Error("permissionDenied");
@@ -135,6 +139,11 @@ export function useRecordTransaction() {
         if (!input.description || input.description.trim().length === 0) {
           throw new Error("descriptionRequired");
         }
+      }
+      if (input.action === "money_in" &&
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            input.sourceVoucher?.trim() ?? "")) {
+        throw new Error("receiptVoucherRequired");
       }
 
       if (input.action === "transfer") {
@@ -198,8 +207,10 @@ export function useRecordTransaction() {
         p_command.description = input.description.trim();
       }
 
-      if (input.reference?.trim() || (input.evidenceIds && input.evidenceIds.length > 0)) {
+      if (input.sourceVoucher?.trim() || input.reference?.trim() ||
+          (input.evidenceIds && input.evidenceIds.length > 0)) {
         p_command.reference_metadata = {
+          ...(input.sourceVoucher?.trim() ? { source_voucher: input.sourceVoucher.trim().toLowerCase() } : {}),
           ...(input.reference?.trim() ? { reference: input.reference.trim() } : {}),
           ...(input.evidenceIds && input.evidenceIds.length > 0 ? { evidence_ids: input.evidenceIds } : {}),
         };

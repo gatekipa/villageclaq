@@ -167,6 +167,8 @@ export default function RecordPaymentPage() {
   const [method, setMethod] = useState("cash");
   const [cashClass, setCashClass] = useState<"non_refundable" | "refundable" | "conditional">("non_refundable");
   const [reference, setReference] = useState("");
+  const [receiptVoucher, setReceiptVoucher] = useState("");
+  const [receiptVoucherError, setReceiptVoucherError] = useState<string | null>(null);
   const [receiptUrl, setReceiptUrl] = useState("");
   const [notes, setNotes] = useState("");
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().split("T")[0]);
@@ -207,6 +209,8 @@ export default function RecordPaymentPage() {
     setLastSavedDetails(null);
     setPaymentDateError(null);
     setReceiptError(null);
+    setReceiptVoucher("");
+    setReceiptVoucherError(null);
   }
 
   // Pre-select primary/first active account matching the group's currency
@@ -306,6 +310,11 @@ export default function RecordPaymentPage() {
   /** Core save logic, called after duplicate check passes or is bypassed */
   async function doSave(keepTypeAndMethod: boolean, skipDuplicateCheck: boolean) {
     if (!selectedMembership || !selectedTypeId || !amount || Number(amount) <= 0) return;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(receiptVoucher.trim())) {
+      setReceiptVoucherError(t("contributions.receiptVoucherInvalid"));
+      return;
+    }
+    setReceiptVoucherError(null);
     if (!selectedAccountId) {
       setSelectedAccountError(t("contributions.duesPosting.accountRequired"));
       return;
@@ -365,6 +374,7 @@ export default function RecordPaymentPage() {
         cashClass,
         accountId: targetAccountId,
         referenceNumber: payRef || undefined,
+        requestId: receiptVoucher.trim().toLowerCase(),
         receiptUrl: receiptUrl || undefined,
         notes: notes || undefined,
         paymentDate: payDate,
@@ -389,6 +399,8 @@ export default function RecordPaymentPage() {
       setSelectedMembership(null);
       setMemberSearch("");
       setReference("");
+      setReceiptVoucher("");
+      setReceiptVoucherError(null);
       setNotes("");
       setReceiptUrl("");
       setAmount("");
@@ -1030,6 +1042,22 @@ export default function RecordPaymentPage() {
             </div>
 
             {/* Reference + Receipt Row */}
+            <div className="space-y-2">
+              <Label htmlFor="dues-source-voucher">{t("contributions.receiptVoucher")} *</Label>
+              <Input id="dues-source-voucher" value={receiptVoucher}
+                onChange={(event) => { setReceiptVoucher(event.target.value); setReceiptVoucherError(null); }}
+                maxLength={36} autoComplete="off" className="font-mono text-xs" required />
+              <Button type="button" variant="outline" size="sm"
+                onClick={() => { setReceiptVoucher(crypto.randomUUID()); setReceiptVoucherError(null); }}>
+                {t("contributions.newReceiptVoucher")}
+              </Button>
+              {receiptVoucherError && <p role="alert" className="text-xs text-destructive">
+                {receiptVoucherError}
+              </p>}
+              <p className="text-xs text-muted-foreground">
+                {t("contributions.receiptVoucherHelp")}
+              </p>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>{t("contributions.referenceNumber")}</Label>

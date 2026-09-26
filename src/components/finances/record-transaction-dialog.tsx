@@ -140,6 +140,8 @@ export function RecordTransactionDialog({
   const [projectId, setProjectId] = useState("none");
   const [description, setDescription] = useState("");
   const [reference, setReference] = useState("");
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
+  const [sourceVoucher, setSourceVoucher] = useState("");
 
   const [formError, setFormError] = useState<string | null>(null);
   const [successResult, setSuccessResult] = useState<RecordTransactionResult | null>(null);
@@ -147,7 +149,6 @@ export function RecordTransactionDialog({
     amount: string; currency: string; action: FinancialCommandAction;
   } | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
-  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
 
   // Derived selected source account
   const selectedSourceAccount = activeAccounts.find((a) => a.id === accountId);
@@ -189,16 +190,18 @@ export function RecordTransactionDialog({
   };
 
   const resetForm = () => {
+    const nextId = crypto.randomUUID();
     setAmount("");
     setDescription("");
     setReference("");
+    setSourceVoucher("");
     setMemberId("none");
     setProjectId("none");
     setFormError(null);
     setSuccessResult(null);
     setSuccessSummary(null);
     setShowNewForm(false);
-    setRequestId(crypto.randomUUID());
+    setRequestId(nextId);
     setOccurredAt(getLocalDatetimeString());
   };
 
@@ -257,6 +260,11 @@ export function RecordTransactionDialog({
       setFormError(t("validation.invalidAmount"));
       return;
     }
+    if (action === "money_in" &&
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sourceVoucher.trim())) {
+      setFormError(t("validation.receiptVoucherRequired"));
+      return;
+    }
 
     if (action === "transfer") {
       if (!destinationAccountId) {
@@ -310,6 +318,7 @@ export function RecordTransactionDialog({
         projectId: action !== "transfer" && projectId !== "none" ? projectId : undefined,
         description: description.trim() || undefined,
         reference: reference.trim() || undefined,
+        sourceVoucher: action === "money_in" ? sourceVoucher.trim() : undefined,
         requestId,
       });
 
@@ -332,6 +341,8 @@ export function RecordTransactionDialog({
         noActiveEpoch: t("validation.noActiveEpoch"),
         accountEpochIncompatible: t("validation.accountEpochIncompatible"),
         conflict: t("validation.conflict"),
+        receiptVoucherRequired: t("validation.receiptVoucherRequired"),
+        receiptVoucherConflict: t("validation.receiptVoucherConflict"),
         permissionDenied: t("validation.permissionDenied"),
         staleTenantAborted: t("validation.staleTenantAborted"),
         accountRequired: t("validation.accountRequired"),
@@ -454,6 +465,10 @@ export function RecordTransactionDialog({
                       {intent.status === "posted" ? t("recovery.posted") : t("recovery.prepared")}{" · "}
                       {intent.request_id.slice(0, 8)}
                     </p>
+                    {intent.command.reference_metadata?.source_voucher &&
+                      <p className="text-xs font-mono break-all">
+                        {t("fields.receiptVoucher")}: {intent.command.reference_metadata.source_voucher}
+                      </p>}
                   </div>
                   <Button type="button" size="sm" variant="outline"
                     disabled={retryIntentMutation.isPending}
@@ -783,7 +798,21 @@ export function RecordTransactionDialog({
                 )}
               </div>
 
-              {/* Reference */}
+              {action === "money_in" && <div>
+                <Label htmlFor="tx-voucher">{t("fields.receiptVoucher")} *</Label>
+                <Input id="tx-voucher" value={sourceVoucher}
+                  onChange={(event) => setSourceVoucher(event.target.value)}
+                  maxLength={36} autoComplete="off" className="mt-1 font-mono text-xs" required />
+                <Button type="button" variant="outline" size="sm" className="mt-2"
+                  onClick={() => setSourceVoucher(crypto.randomUUID())}>
+                  {t("actions.newReceiptVoucher")}
+                </Button>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {t("help.receiptVoucher")}
+                </p>
+              </div>}
+
+              {/* Optional provider reference */}
               <div>
                 <Label htmlFor="tx-ref">{t("fields.reference")}</Label>
                 <Input

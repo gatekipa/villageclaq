@@ -24,6 +24,10 @@ const copy = {
   en: {
     title: "Branch collection for a shared Relief plan", plan: "Shared plan",
     member: "Enrolled member", amount: "Amount", account: "Branch custody account",
+    voucher: "Shared receipt voucher",
+    voucherHelp: "Use the same voucher for an existing receipt, or generate one for a separate payment.",
+    voucherInvalid: "Enter a valid receipt voucher UUID.",
+    newVoucher: "Generate for a new receipt",
     fund: "Restricted fund", method: "Method", cash: "Cash",
     bank: "Bank transfer", mobile: "Mobile money", record: "Record and confirm",
     cashClass: "Cash treatment", nonRefundable: "Non-refundable",
@@ -42,6 +46,10 @@ const copy = {
   fr: {
     title: "Collecte de l’antenne pour un plan de secours partagé",
     plan: "Plan partagé", member: "Membre inscrit", amount: "Montant",
+    voucher: "Identifiant partagé du reçu",
+    voucherHelp: "Réutilisez l’identifiant d’un reçu existant, ou créez-en un pour un paiement distinct.",
+    voucherInvalid: "Saisissez un identifiant de reçu UUID valide.",
+    newVoucher: "Créer pour un nouveau reçu",
     account: "Compte de dépôt de l’antenne", fund: "Fonds affecté",
     method: "Méthode", cash: "Espèces", bank: "Virement bancaire",
     mobile: "Argent mobile", record: "Enregistrer et confirmer",
@@ -72,6 +80,7 @@ export function BranchReliefReceiptPanel({ groupId, userId, currency }: {
   const [fundId, setFundId] = useState("");
   const [method, setMethod] = useState("cash");
   const [cashClass, setCashClass] = useState("non_refundable");
+  const [sourceVoucher, setSourceVoucher] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -143,10 +152,12 @@ export function BranchReliefReceiptPanel({ groupId, userId, currency }: {
     }
     if (!plan || !memberId || !accountId || !fundId ||
       !Number.isFinite(value) || value <= 0) { setMessage(t.required); return; }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      sourceVoucher.trim())) { setMessage(t.voucherInvalid); return; }
     setBusy(true); setMessage("");
     try {
       assertRouteGroup();
-      const id = crypto.randomUUID();
+      const id = sourceVoucher.trim().toLowerCase();
       const { error } = await supabase.from("payments").insert({
         id, group_id: groupId, membership_id: memberId,
         relief_plan_id: plan.id, amount: value,
@@ -157,7 +168,7 @@ export function BranchReliefReceiptPanel({ groupId, userId, currency }: {
       });
       if (error) throw error;
       await confirm(id);
-      setAmount(""); setMessage(t.success);
+      setAmount(""); setSourceVoucher(""); setMessage(t.success);
     } catch { setMessage(t.failed); }
     finally {
       await queryClient.invalidateQueries({
@@ -212,6 +223,14 @@ export function BranchReliefReceiptPanel({ groupId, userId, currency }: {
       {(plansError || catalogError || receiptsError || receiptsPending) &&
         <p role="status">{t.unavailable}</p>}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <label className="space-y-1 text-sm">{t.voucher}
+          <Input value={sourceVoucher}
+            onChange={(event) => setSourceVoucher(event.target.value)}
+            maxLength={36} autoComplete="off" className="font-mono text-xs" />
+          <Button type="button" variant="outline" size="sm"
+            onClick={() => setSourceVoucher(crypto.randomUUID())}>{t.newVoucher}</Button>
+          <span className="block text-xs text-muted-foreground">{t.voucherHelp}</span>
+        </label>
         <label className="space-y-1 text-sm">{t.plan}
           <select className="w-full min-h-11 rounded border bg-background" value={planId}
             onChange={(event) => { setPlanId(event.target.value); setMemberId(""); }}>
@@ -267,13 +286,15 @@ export function BranchReliefReceiptPanel({ groupId, userId, currency }: {
           onClick={() => { refetchPlans(); refetchReceipts(); }}>{t.refresh}</Button>
         {receipts.map((receipt) => <div key={receipt.id}
           className="flex flex-wrap items-center justify-between gap-2 rounded border p-3 text-sm">
-          <span>{receipt.amount} {receipt.currency} · {receipt.id.slice(0, 8)} · {
+          <span>{receipt.amount} {receipt.currency} · {
             receipt.status === "confirmed" ?
               !receipt.audit_verified ? t.review :
                 receipt.owner_recognized ? t.ownerDone : t.branchPosted : t.pending}
             {receipt.status === "confirmed" && receipt.cash_class !== "non_refundable"
               ? ` · ${receipt.settlement_status === "recognized" ? t.recognized :
-                receipt.settlement_status === "refunded" ? t.refunded : t.open}` : ""}</span>
+                receipt.settlement_status === "refunded" ? t.refunded : t.open}` : ""}
+            <span className="block font-mono text-xs break-all">{t.voucher}: {receipt.id}</span>
+          </span>
           {receipt.status === "pending_confirmation" && !receipt.financial_event_id &&
             <Button variant="outline" disabled={busy}
               onClick={() => recover(receipt)}>{t.retry}</Button>}

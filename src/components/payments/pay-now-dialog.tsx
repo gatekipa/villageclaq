@@ -96,6 +96,7 @@ export function PayNowDialog({
 
   // Confirm form
   const [reference, setReference] = useState("");
+  const [receiptVoucher, setReceiptVoucher] = useState("");
   const [notes, setNotes] = useState("");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
 
@@ -146,6 +147,7 @@ export function PayNowDialog({
     setStep("choose");
     setSelectedMethod(null);
     setReference("");
+    setReceiptVoucher("");
     setNotes("");
     setReceiptFile(null);
     setSubmitError(null);
@@ -160,6 +162,11 @@ export function PayNowDialog({
     // can never be charged.
     if (!(amountDue > 0)) {
       setSubmitError(t("nothingDue"));
+      return;
+    }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      receiptVoucher.trim())) {
+      setSubmitError(t("receiptVoucherInvalid"));
       return;
     }
     setSubmitting(true);
@@ -196,6 +203,7 @@ export function PayNowDialog({
 
       // Insert payment with pending_confirmation status
       const { error: paymentError } = await supabase.from("payments").insert({
+        id: receiptVoucher.trim().toLowerCase(),
         group_id: groupId,
         membership_id: membershipId,
         obligation_id: obligation.id,
@@ -502,6 +510,19 @@ export function PayNowDialog({
             </Button>
 
             <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="member-receipt-voucher" className="text-xs">
+                  {t("receiptVoucher")}
+                </Label>
+                <Input id="member-receipt-voucher" value={receiptVoucher}
+                  onChange={(event) => setReceiptVoucher(event.target.value)}
+                  maxLength={36} autoComplete="off" className="font-mono text-xs" />
+                <Button type="button" variant="outline" size="sm"
+                  onClick={() => setReceiptVoucher(crypto.randomUUID())}>
+                  {t("newReceiptVoucher")}
+                </Button>
+                <p className="text-xs text-muted-foreground">{t("receiptVoucherHelp")}</p>
+              </div>
               <div className="space-y-1">
                 <Label className="text-xs">{t("referenceNumber")}</Label>
                 <Input

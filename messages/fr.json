@@ -1371,6 +1371,10 @@
     "other": "Autre",
     "referenceNumber": "Numéro de référence",
     "referenceOptional": "Référence ou ID de transaction (optionnel)",
+    "receiptVoucher": "Identifiant partagé du reçu",
+    "receiptVoucherHelp": "Réutilisez l’identifiant du même reçu, ou créez-en un pour un paiement distinct.",
+    "newReceiptVoucher": "Créer pour un nouveau reçu",
+    "receiptVoucherInvalid": "Saisissez un identifiant de reçu UUID valide.",
     "receiptPhoto": "Photo du reçu",
     "fileTooLargeReceipt": "Le fichier du reçu doit être inférieur à 5 Mo",
     "uploadReceipt": "Télécharger le reçu",
@@ -1846,6 +1850,7 @@
       "cancel": "Annuler",
       "success": "Transaction enregistrée",
       "recordAnother": "Enregistrer une autre",
+      "newReceiptVoucher": "Créer pour un nouveau reçu",
       "close": "Fermer"
     },
     "tabs": {
@@ -1875,7 +1880,8 @@
       "member": "Attribution au membre (Facultatif)",
       "project": "Attribution au projet (Facultatif)",
       "description": "Description",
-      "reference": "Référence / N° de reçu"
+      "reference": "Référence externe / N° de reçu",
+      "receiptVoucher": "Identifiant partagé du reçu"
     },
     "placeholders": {
       "selectSourceAccount": "Sélectionner le compte source...",
@@ -1895,7 +1901,8 @@
       "sameCurrencyTransfer": "Les virements exigent que les comptes source et destination aient la même devise. Les virements multidevises nécessitent un règlement de change.",
       "descriptionRequiredForExpense": "Les décaissements exigent une description explicite justifiant la finalité opérationnelle de la dépense.",
       "fundDefault": "Si aucun fonds n'est sélectionné, la transaction sera automatiquement imputée au fonds d'exploitation par défaut du groupe.",
-      "idempotentSubmission": "Cette opération est sauvegardée avant son enregistrement. Utilisez Récupérer / réessayer sur un autre appareil ; créez une opération distincte uniquement pour une nouvelle transaction."
+      "idempotentSubmission": "Cette opération est sauvegardée avant son enregistrement. Utilisez Récupérer / réessayer sur un autre appareil ; créez une opération distincte uniquement pour une nouvelle transaction.",
+      "receiptVoucher": "Réutilisez cet identifiant si le même reçu passe par un autre module, ou créez-en un pour un reçu distinct. Le montant et la date ne suffisent pas."
     },
     "validation": {
       "invalidAmount": "Format de montant invalide. Veuillez saisir un nombre décimal positif valide.",
@@ -1912,6 +1919,8 @@
       "noActiveEpoch": "Aucune époque de grand livre active trouvée pour cette date. Les transactions doivent s'inscrire dans une époque ouverte.",
       "accountEpochIncompatible": "Le compte sélectionné a été ouvert après la date de la transaction ou appartient à une époque incompatible.",
       "conflict": "Une transaction contradictoire portant cet identifiant de requête a déjà été enregistrée. Veuillez actualiser.",
+      "receiptVoucherRequired": "Saisissez un identifiant de reçu UUID valide avant l'enregistrement.",
+      "receiptVoucherConflict": "Cet identifiant de reçu possède déjà un effet financier. Récupérez ou examinez le reçu existant.",
       "permissionDenied": "Vous n'avez pas la permission d'enregistrer des transactions financières.",
       "genericError": "Échec de l'enregistrement de la transaction. Veuillez vérifier vos données et réessayer."
     },
@@ -2214,6 +2223,9 @@
     "purchaseTicket": "Enregistrer l’achat d’un billet",
     "confirmPurchase": "Confirmer l’achat",
     "ticketCustodyAccount": "Compte de trésorerie",
+    "ticketReceiptVoucher": "Identifiant partagé du reçu",
+    "ticketNewReceiptVoucher": "Créer pour un nouveau reçu",
+    "ticketReceiptVoucherHelp": "Réutilisez l’identifiant du même paiement de billet, ou créez-en un pour un paiement distinct.",
     "ticketChooseAccount": "Choisir un compte",
     "ticketNoAccount": "Configurez d’abord un compte caisse ou banque actif dans cette devise.",
     "ticketIncomeCategory": "Catégorie de recettes",
@@ -3166,6 +3178,10 @@
     "includeReference": "Veuillez inclure votre nom et le type de cotisation comme référence de paiement.",
     "ivePaid": "J'ai payé",
     "referenceNumber": "Numéro de référence / confirmation",
+    "receiptVoucher": "Identifiant partagé du reçu",
+    "newReceiptVoucher": "Créer pour un nouveau reçu",
+    "receiptVoucherHelp": "Réutilisez l’identifiant du même paiement, ou créez-en un pour un paiement distinct.",
+    "receiptVoucherInvalid": "Saisissez un identifiant de reçu UUID valide.",
     "referencePlaceholder": "ex. code de confirmation CashApp",
     "screenshot": "Capture d'écran du paiement",
     "uploadScreenshot": "Télécharger une capture (optionnel)",
@@ -5916,6 +5932,11 @@
     "scheduleStatus_partial": "Partiel",
     "scheduleStatus_overdue": "En retard",
     "recordRepayment": "Enregistrer un remboursement",
+    "receiptVoucher": "Identifiant partagé du reçu",
+    "newReceiptVoucher": "Créer pour un nouveau reçu",
+    "receiptVoucherHelp": "Réutilisez l’identifiant du même remboursement, ou créez-en un pour un paiement distinct.",
+    "receiptVoucherInvalid": "Saisissez un identifiant de reçu UUID valide.",
+    "receiptVoucherConflict": "Cet identifiant possède déjà un effet financier. Récupérez ou examinez le remboursement existant.",
     "paymentMethod": "Mode de paiement",
     "notes": "Notes",
     "notesPlaceholder": "Notes optionnelles...",
@@ -7079,6 +7100,7 @@
     "conditional": "Crédit conditionnel du membre",
     "explanation": "La cotisation non remboursable devient un produit une seule fois à la confirmation. Un encaissement remboursable ou conditionnel reste un passif jusqu'à sa reconnaissance ou son remboursement.",
     "reviewAttempts": "Examiner les tentatives récentes",
+    "receiptVoucher": "Identifiant partagé du reçu",
     "recoveryHelp": "Après une réponse perdue, relancez la même tentative. Utilisez le formulaire pour un nouvel encaissement distinct, même si les détails sont identiques.",
     "loading": "Chargement des tentatives...",
     "loadFailed": "Impossible de charger les tentatives.",

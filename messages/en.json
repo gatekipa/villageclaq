@@ -1371,6 +1371,10 @@
     "other": "Other",
     "referenceNumber": "Reference Number",
     "referenceOptional": "Optional reference or transaction ID",
+    "receiptVoucher": "Shared receipt voucher",
+    "receiptVoucherHelp": "Use an existing voucher for the same real-world receipt, or generate one for a separate payment.",
+    "newReceiptVoucher": "Generate for a new receipt",
+    "receiptVoucherInvalid": "Enter a valid receipt voucher UUID.",
     "receiptPhoto": "Receipt Photo",
     "fileTooLargeReceipt": "Receipt file must be under 5MB",
     "uploadReceipt": "Upload Receipt",
@@ -1846,6 +1850,7 @@
       "cancel": "Cancel",
       "success": "Transaction Recorded",
       "recordAnother": "Record Another",
+      "newReceiptVoucher": "Generate for a new receipt",
       "close": "Close"
     },
     "tabs": {
@@ -1875,7 +1880,8 @@
       "member": "Member Attribution (Optional)",
       "project": "Project Attribution (Optional)",
       "description": "Description",
-      "reference": "Reference / Receipt #"
+      "reference": "External reference / Receipt #",
+      "receiptVoucher": "Shared receipt voucher"
     },
     "placeholders": {
       "selectSourceAccount": "Select source account...",
@@ -1895,7 +1901,8 @@
       "sameCurrencyTransfer": "Transfers require both source and destination accounts to have the same currency. Cross-currency transfers require currency exchange settlement.",
       "descriptionRequiredForExpense": "Expenditures require an explicit description explaining the business or operational purpose of the outflow.",
       "fundDefault": "If no fund is selected, the transaction will automatically be recorded against the group's default operational fund.",
-      "idempotentSubmission": "This intent is saved before posting. Use Recover / retry on another device; choose a separate transaction only for a new operation."
+      "idempotentSubmission": "This intent is saved before posting. Use Recover / retry on another device; choose a separate transaction only for a new operation.",
+      "receiptVoucher": "Use the same voucher if this receipt has another entry path, or generate one for a separate receipt. Amount and date do not identify it."
     },
     "validation": {
       "invalidAmount": "Invalid amount format. Please enter a valid positive decimal number.",
@@ -1912,6 +1919,8 @@
       "noActiveEpoch": "No active ledger epoch found for this transaction date. Transactions must fall within an open financial epoch.",
       "accountEpochIncompatible": "The selected account was opened after the transaction date or belongs to an incompatible ledger epoch.",
       "conflict": "A conflicting transaction with this request identity has already been posted. Please refresh.",
+      "receiptVoucherRequired": "Enter a valid receipt voucher UUID before posting this receipt.",
+      "receiptVoucherConflict": "This receipt voucher already has a financial effect. Recover or review the existing receipt instead.",
       "permissionDenied": "You do not have permission to record financial transactions.",
       "genericError": "Failed to record transaction. Please verify your inputs and try again."
     },
@@ -2214,6 +2223,9 @@
     "purchaseTicket": "Record ticket purchase",
     "confirmPurchase": "Confirm purchase",
     "ticketCustodyAccount": "Custody account",
+    "ticketReceiptVoucher": "Shared receipt voucher",
+    "ticketNewReceiptVoucher": "Generate for a new receipt",
+    "ticketReceiptVoucherHelp": "Reuse an existing voucher for the same ticket payment, or generate one for a separate payment.",
     "ticketChooseAccount": "Choose an account",
     "ticketNoAccount": "Configure an active cash or bank account in this currency first.",
     "ticketIncomeCategory": "Income category",
@@ -3124,6 +3136,10 @@
     "includeReference": "Please include your name and contribution type as the payment reference.",
     "ivePaid": "I've Paid",
     "referenceNumber": "Reference / Confirmation Number",
+    "receiptVoucher": "Shared receipt voucher",
+    "newReceiptVoucher": "Generate for a new receipt",
+    "receiptVoucherHelp": "Reuse the voucher for the same payment, or generate one for a separate payment.",
+    "receiptVoucherInvalid": "Enter a valid receipt voucher UUID.",
     "referencePlaceholder": "e.g. CashApp confirmation code",
     "screenshot": "Payment Screenshot",
     "uploadScreenshot": "Upload screenshot (optional)",
@@ -5916,6 +5932,11 @@
     "scheduleStatus_partial": "Partial",
     "scheduleStatus_overdue": "Overdue",
     "recordRepayment": "Record Repayment",
+    "receiptVoucher": "Shared receipt voucher",
+    "newReceiptVoucher": "Generate for a new receipt",
+    "receiptVoucherHelp": "Reuse an existing voucher for the same repayment, or generate one for a separate payment.",
+    "receiptVoucherInvalid": "Enter a valid receipt voucher UUID.",
+    "receiptVoucherConflict": "This voucher already has a financial effect. Recover or review the existing repayment.",
     "paymentMethod": "Payment Method",
     "notes": "Notes",
     "notesPlaceholder": "Optional notes...",
@@ -7079,6 +7100,7 @@
     "conditional": "Conditional member credit",
     "explanation": "Non-refundable cash becomes income once at confirmation. Refundable or conditional cash stays a liability until recognized or refunded.",
     "reviewAttempts": "Review recent recording attempts",
+    "receiptVoucher": "Shared receipt voucher",
     "recoveryHelp": "After a lost response, retry the same attempt. Use the form for a separate new receipt, even if its details match.",
     "loading": "Loading attempts...",
     "loadFailed": "Could not load attempts.",

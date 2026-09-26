@@ -308,6 +308,7 @@ export default function LoansAdminPage() {
   const [repayAmount, setRepayAmount] = useState("");
   const [repayMethod, setRepayMethod] = useState("cash");
   const [repayReference, setRepayReference] = useState("");
+  const [repayVoucher, setRepayVoucher] = useState("");
   const [repayNotes, setRepayNotes] = useState("");
   const [repayAccountId, setRepayAccountId] = useState("");
   const [repayError, setRepayError] = useState<string | null>(null);
@@ -816,6 +817,7 @@ export default function LoansAdminPage() {
     setRepayAmount(nextInstallment ? String(Number(nextInstallment.amount_due) - Number(nextInstallment.amount_paid || 0)) : "");
     setRepayMethod("cash");
     setRepayReference("");
+    setRepayVoucher("");
     setRepayNotes("");
     setRepayError(null);
     setRepayDialogOpen(true);
@@ -828,6 +830,8 @@ export default function LoansAdminPage() {
     try {
       const paymentAmount = Number(repayAmount);
       if (paymentAmount <= 0) throw new Error(t("invalidAmount"));
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        repayVoucher.trim())) throw new Error(t("receiptVoucherInvalid"));
       const loanId = detailLoan.id as string;
 
       await recordRepaymentHook.mutateAsync({
@@ -838,6 +842,7 @@ export default function LoansAdminPage() {
         paymentMethod: repayMethod,
         notes: repayNotes.trim() || undefined,
         referenceNumber: repayReference.trim() || undefined,
+        requestId: repayVoucher.trim().toLowerCase(),
       });
 
       const supabase = createClient();
@@ -882,7 +887,9 @@ export default function LoansAdminPage() {
 
       setRepayDialogOpen(false);
     } catch (err) {
-      setRepayError(parseLoanRpcError(err));
+      const code = parseLoanRpcError(err);
+      setRepayError(code.includes("OCCURRENCE_INTEGRITY")
+        ? t("receiptVoucherConflict") : code);
     } finally {
       setRepaySaving(false);
     }
@@ -1634,6 +1641,7 @@ export default function LoansAdminPage() {
               setRepayAmount("");
               setRepayAccountId("");
               setRepayReference("");
+              setRepayVoucher("");
               setRepayNotes("");
               setRepayError(null);
             }
@@ -1678,6 +1686,17 @@ export default function LoansAdminPage() {
                           <SelectItem value="bank_transfer">{t("methodBankTransfer")}</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="loan-repayment-voucher">{t("receiptVoucher")}</Label>
+                      <Input id="loan-repayment-voucher" value={repayVoucher}
+                        onChange={(event) => setRepayVoucher(event.target.value)}
+                        maxLength={36} autoComplete="off" className="font-mono text-xs" />
+                      <Button type="button" variant="outline" size="sm"
+                        onClick={() => setRepayVoucher(crypto.randomUUID())}>
+                        {t("newReceiptVoucher")}
+                      </Button>
+                      <p className="text-xs text-muted-foreground">{t("receiptVoucherHelp")}</p>
                     </div>
                     <div className="space-y-2">
                       <Label>{t("referenceNumber")}</Label>

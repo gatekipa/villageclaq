@@ -1,0 +1,9 @@
+# M13 existing-account referral return — 2026-09-26
+
+Executor: Daybreak Blue. Application code `6895bd7737c794151122d85e2e1c52b4724f8856`, local French mobile browser at 390×844 on localhost:3017, bound only to isolated Supabase branch `nisipxbuvndobyxqqglf`. Fictional owner and group data; external messaging suppressed. No production write.
+
+Before repair, a fictional HQ introduction opened `/fr/onboard?ref=…`, but **Continue with an existing account** sent the authenticated user to `/fr/dashboard/onboarding/group%3Fref=…` and returned 404. The middleware assigned a path containing `?ref=` to `url.pathname`, encoding the question mark.
+
+The repair parses a same-origin relative return target, assigns pathname and search separately, and rejects protocol-relative, backslash, or foreign-origin targets. After repair, the same journey reached `/fr/dashboard/onboarding/group?ref=…`. The guided French wizard created fictional village development group `ff70ac2a-e3b8-4daa-b720-434236f82a68` and recorded referral `44ca7f3d-3125-417f-ade7-209778ea16ff` as `claimed` for HQ `00000000-0000-4000-8000-00000000b801`. Hosted SQL showed one active owner membership in each group; no additional HQ membership was created. `activated_at` stayed null because the new group has no non-owner active member or qualifying posted financial event/completed attendance. A direct authenticated `/fr/login?redirectTo=//evil.example/` browser probe returned the local `/fr/dashboard`.
+
+`npx tsc --noEmit --incremental false`, targeted ESLint on `src/lib/supabase/middleware.ts --quiet`, and `git diff --check` passed. This closes the reproduced return-path defect and existing-account claim slice; expired/revoked claim, two-tab, positive activation and the remaining M13 EN/FR mobile/keyboard/operator acceptance remain in VC-04. Financial VC-01/02 checks were not rerun because this change does not affect their paths.

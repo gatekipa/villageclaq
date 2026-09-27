@@ -300,6 +300,15 @@ export default function InvitationsPage() {
         role: role as "admin" | "moderator" | "member",
       });
 
+      // The authoritative command intentionally returns the existing active
+      // invitation for a same-recipient retry. In an interactive create flow
+      // that is a duplicate, so keep the form populated and show the specific
+      // recovery message without enqueueing another notice or audit entry.
+      if (result.is_existing) {
+        setSendError(t("invitations.duplicateInviteError"));
+        return;
+      }
+
       let emailSent = false;
       try {
         emailSent = result.invitation_id
@@ -336,8 +345,9 @@ export default function InvitationsPage() {
       if (errKey !== "GENERIC_ERROR") {
         setSendError(t(`members.errors.${errKey}` as "members.errors.GENERIC_ERROR"));
       } else {
-        const msg = (err as Error).message || "";
-        if (msg.includes("23505")) {
+        const rpcError = err as { code?: string | null; message?: string | null };
+        const msg = rpcError.message || "";
+        if (rpcError.code === "23505" || msg.includes("23505")) {
           setSendError(t("invitations.duplicateInviteError"));
         } else {
           setSendError(t("invitations.sendFailed"));

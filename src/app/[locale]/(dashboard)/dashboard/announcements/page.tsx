@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQueryClient } from "@tanstack/react-query";
@@ -161,14 +161,6 @@ export default function AnnouncementsPage() {
   const { data: announcements, isLoading, error, refetch } = useAnnouncements();
   const { data: membersList } = useMembers();
   const createAnnouncement = useCreateAnnouncement(groupId || "");
-  const [prevGroupId, setPrevGroupId] = useState<string | null>(null);
-
-  // Enforce render-phase state hygiene
-  if (groupId !== prevGroupId) {
-    setPrevGroupId(groupId);
-    resetForm();
-  }
-
   const [saving, setSaving] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
 
@@ -199,6 +191,27 @@ export default function AnnouncementsPage() {
   const [scheduledDate, setScheduledDate] = useState("");
   // Confirmation dialog before the notification blast
   const [sendConfirmOpen, setSendConfirmOpen] = useState(false);
+
+  // Clear group-scoped draft state after the selected group changes. Doing
+  // this during render calls setters before their declarations on the first
+  // render and crashes the announcements route.
+  useEffect(() => {
+    setTitleEn("");
+    setTitleFr("");
+    setContentEn("");
+    setContentFr("");
+    setChannels({ in_app: true, email: false, sms: false, whatsapp: false });
+    setAudience("all");
+    setSelectedRoles([]);
+    setMemberSearch("");
+    setSelectedMembers([]);
+    setSchedule("now");
+    setScheduledDate("");
+    setEditAnnId(null);
+    setDialogOpen(false);
+    setSendConfirmOpen(false);
+    setMutationError(null);
+  }, [groupId]);
 
   function toggleChannel(key: keyof ChannelSelection) {
     if (key === "in_app") return;

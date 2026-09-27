@@ -610,22 +610,34 @@ export default function MembersPage() {
 
     for (const email of validEmails) {
       try {
-        await createInvitationMutation.mutateAsync({
+        const result = await createInvitationMutation.mutateAsync({
           groupId,
           email,
           role: "member",
         });
+        if (result.is_existing) {
+          failed++;
+          errors.push(`${email}: ${tInv("duplicateInviteError")}`);
+          continue;
+        }
         succeeded++;
       } catch (invErr) {
         const errKey = parseMembershipRpcError(invErr);
         if (errKey === "staleTenantAborted") {
-          setBulkInviteError(t("errors.staleTenantAborted"));
+          errors.push(t("errors.staleTenantAborted"));
           break;
+        }
+        const rpcError = invErr as { code?: string; message?: string };
+        if (rpcError.code === "23505" || rpcError.message?.includes("duplicate key")) {
+          failed++;
+          errors.push(`${email}: ${tInv("duplicateInviteError")}`);
+          continue;
         }
         failed++;
       }
     }
 
+    setBulkInviteError(errors.length > 0 ? errors.join("\n") : null);
     setBulkInviteResult({ succeeded, failed });
     setBulkInviteSending(false);
   }

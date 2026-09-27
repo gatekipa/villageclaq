@@ -11,7 +11,7 @@ interface SendSMSParams {
  * Callers: trusted drain (and leftover server renderers). Not a browser API.
  * Safe to call fire-and-forget — never throws.
  */
-export async function sendSMS({ to, message }: SendSMSParams): Promise<{ sent: boolean; queued: boolean; error?: string }> {
+export async function sendSMS({ to, message }: SendSMSParams): Promise<{ sent: boolean; queued: boolean; messageId?: string; error?: string }> {
   if (process.env.FOUNDER_TEST_MODE === "true") {
     return {
       sent: false,
@@ -66,7 +66,7 @@ export async function sendSMS({ to, message }: SendSMSParams): Promise<{ sent: b
     } else {
       console.log("[SMS DIAG] AT success — status 101 (sent to carrier)", { to: maskPhoneNumber(to) });
     }
-    return { sent: true, queued: false };
+    return { sent: true, queued: false, messageId: recipients[0]?.messageId as string | undefined };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown SMS error";
     console.error(`[SMS DIAG] Africa's Talking SDK EXCEPTION for ${maskPhoneNumber(to)}:`, msg);

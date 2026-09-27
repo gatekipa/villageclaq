@@ -34,8 +34,11 @@ export async function sendEmail({
   template,
   data,
   locale = "en",
-}: SendEmailParams): Promise<{ success: boolean; error?: string }> {
+}: SendEmailParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
+    if (process.env.FOUNDER_TEST_MODE === "true") {
+      return { success: false, error: "founder_test_external_delivery_suppressed" };
+    }
     const resend = getResendClient();
     if (!resend) {
       return { success: false, error: "RESEND_API_KEY not configured" };
@@ -89,7 +92,7 @@ export async function sendEmail({
         return { success: false, error: `Unknown template: ${template}` };
     }
 
-    const { error } = await resend.emails.send({
+    const { data: sendData, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to,
       subject,
@@ -101,7 +104,7 @@ export async function sendEmail({
       return { success: false, error: error.message };
     }
 
-    return { success: true };
+    return { success: true, messageId: sendData?.id };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.warn(`[Email] Exception sending ${template} to ${to}:`, msg);

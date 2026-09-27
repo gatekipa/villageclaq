@@ -3,6 +3,17 @@ import { createClient } from "@supabase/supabase-js";
 import { renderTemplate, type TemplateKey } from "@/lib/communications/template-engine";
 import crypto from "crypto";
 import { recheckPaymentReminderDelivery } from "@/lib/payment-reminder-delivery-recheck";
+import {
+  dispatchWhatsAppWithResult,
+  type WhatsAppNotificationType,
+} from "@/lib/whatsapp-dispatcher";
+import { sendEmail, type EmailTemplate } from "@/lib/send-email";
+import { sendSmsNotification, type SmsTemplate } from "@/lib/send-sms-notification";
+import {
+  CUT2_EMAIL_TEMPLATE,
+  CUT2_SMS_TEMPLATE,
+  type Cut2NotificationType,
+} from "@/lib/cut2-channel-matrix";
 
 // CUT2_RAW_META_CONTEXT: this worker remains the only approved boundary for
 // provider dispatch after an outbox row has been claimed and revalidated.
@@ -78,13 +89,56 @@ export async function GET(request: Request) {
       
       // Dispatch via channel
       if (item.channel === "email") {
-        // Mock email dispatch
-        console.log(`[DrainQueue] Sending Email to ${payload.recipient || "unknown"}`);
-        providerMessageId = `mock_email_${crypto.randomUUID()}`;
-      } else if (item.channel === "sms" || item.channel === "whatsapp") {
-        // Mock SMS/WA dispatch
-        console.log(`[DrainQueue] Sending ${item.channel} to ${payload.recipient || "unknown"}`);
-        providerMessageId = `mock_${item.channel}_${crypto.randomUUID()}`;
+        const recipient = typeof payload.recipient === "string" ? payload.recipient : "";
+        if (!recipient) throw new Error("EMAIL_RECIPIENT_REQUIRED");
+        const emailTemplate = CUT2_EMAIL_TEMPLATE[item.template as Cut2NotificationType] as EmailTemplate | undefined;
+        if (!emailTemplate) throw new Error("EMAIL_TEMPLATE_NOT_ALLOWED");
+        const result = await sendEmail({ to: recipient, template: emailTemplate, data: payload, locale });
+        if (!result.success) throw new Error(result.error || "EMAIL_PROVIDER_DISPATCH_FAILED");
+        if (!result.messageId) throw new Error("EMAIL_PROVIDER_MESSAGE_ID_MISSING");
+        providerMessageId = result.messageId;
+      } else if (item.channel === "whatsapp") {
+        const recipient = typeof payload.recipient === "string" ? payload.recipient : "";
+        if (!recipient) throw new Error("WHATSAPP_RECIPIENT_REQUIRED");
+
+        const dispatchData = Object.fromEntries(
+          Object.entries(payload).map(([key, value]) => [
+            key,
+            typeof value === "string" ? value : value == null ? "" : String(value),
+          ]),
+        );
+        const previousDrainContext = process.env.CUT2_RAW_META_CONTEXT;
+        process.env.CUT2_RAW_META_CONTEXT = "drain";
+        try {
+          const result = await dispatchWhatsAppWithResult(
+            item.template as WhatsAppNotificationType,
+            recipient,
+            locale,
+            dispatchData,
+          );
+          if (!result.success) {
+            throw new Error(result.error || "WHATSAPP_PROVIDER_DISPATCH_FAILED");
+          }
+          if (!result.messageId) {
+            throw new Error("WHATSAPP_PROVIDER_MESSAGE_ID_MISSING");
+          }
+          providerMessageId = result.messageId;
+        } finally {
+          if (previousDrainContext === undefined) {
+            delete process.env.CUT2_RAW_META_CONTEXT;
+          } else {
+            process.env.CUT2_RAW_META_CONTEXT = previousDrainContext;
+          }
+        }
+      } else if (item.channel === "sms") {
+        const recipient = typeof payload.recipient === "string" ? payload.recipient : "";
+        if (!recipient) throw new Error("SMS_RECIPIENT_REQUIRED");
+        const smsTemplate = CUT2_SMS_TEMPLATE[item.template as Cut2NotificationType] as SmsTemplate | undefined;
+        if (!smsTemplate) throw new Error("SMS_TEMPLATE_NOT_ALLOWED");
+        const result = await sendSmsNotification({ to: recipient, template: smsTemplate, data: payload, locale });
+        if (!result.sent) throw new Error(result.error || (result.skipped ? "SMS_PROVIDER_SKIPPED" : "SMS_PROVIDER_DISPATCH_FAILED"));
+        if (!result.messageId) throw new Error("SMS_PROVIDER_MESSAGE_ID_MISSING");
+        providerMessageId = result.messageId;
       } else if (item.channel === "in_app") {
         // Insert into notifications
         const { error: insErr } = await supabase.from("notifications").insert({

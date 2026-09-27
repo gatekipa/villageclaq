@@ -62,7 +62,7 @@ export async function sendSmsNotification({
   template,
   data,
   locale = "en",
-}: SendSmsNotificationParams): Promise<{ sent: boolean; skipped: boolean; error?: string }> {
+}: SendSmsNotificationParams): Promise<{ sent: boolean; skipped: boolean; messageId?: string; error?: string }> {
   // Diagnostics never log the raw phone — maskPhoneNumber() keeps enough
   // prefix/suffix to debug country/recipient matching (repo-wide rule).
   console.log("[SMS DIAG] sendSmsNotification called", { to: maskPhoneNumber(to), template, locale });
@@ -86,7 +86,7 @@ export async function sendSmsNotification({
     console.log("[SMS DIAG] Built message, calling sendSMS", { to: maskPhoneNumber(to), messageLength: message.length });
     const result = await sendSMS({ to, message });
     console.log("[SMS DIAG] sendSMS result", { sent: result.sent, queued: result.queued, error: result.error });
-    return { sent: result.sent, skipped: false, error: result.error };
+    return { sent: result.sent, skipped: false, messageId: result.messageId, error: result.error };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.error(`[SMS DIAG] sendSmsNotification EXCEPTION for ${template} to ${maskPhoneNumber(to)}:`, msg);

@@ -63,7 +63,7 @@ Focused results:
 - **FA-05:** Elections rendered, Hierarchy rendered the honest no-organization-scope state for the selected group, and member Relief rendered no plans/claims. Existing governance/election/Relief evidence remains reusable. Remaining finite lifecycle cases are **PENDING**; only historical R-012 activation is **BLOCKED** on finance-owner reconciliation.
 - **FA-06:** Constitution and Document Vault rendered honest empty states. Announcements reproduced `Cannot access 'setTitleEn' before initialization`; moving group-change cleanup into an effect repaired the browser route, which now renders `No announcements yet` locally and on the deployed preview. Projects and the remaining governance lifecycle are **PENDING**. Only attachment operations are **BLOCKED** on the Storage-owner action.
 - **FA-07:** Badges rendered `No badges yet`; the digital membership card rendered the fictional member. Referrals, public-profile publication/revocation, remaining direct links, and full EN/FR/mobile cases are **PENDING**.
-- **FA-08:** Feedback and Help Center rendered their empty states; the communications worker repair passes as above. The broader activity role matrix and settings cases not covered by earlier valid evidence remain **PENDING**.
+- **FA-08:** Feedback and Help Center rendered their empty states; the communications worker repair passes as above. React reported nested Feedback dialog-trigger buttons during the route check, with no observed failure; it is recorded once in the shared advisory backlog. The broader activity role matrix and settings cases not covered by earlier valid evidence remain **PENDING**.
 
 ## Verification
 

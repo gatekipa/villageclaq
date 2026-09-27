@@ -172,8 +172,9 @@ export function useConfirmDuesPayment() {
 }
 
 /**
- * Hook for direct admin recording: inserts payment record and atomically executes
- * canonical F3 posting via `post_dues_payment_confirmation`.
+ * Hook for direct admin recording: persists a durable command intent and lets
+ * the authoritative database command create the payment, ledger entries, and
+ * audit evidence atomically.
  */
 export function useRecordAndPostDuesPayment() {
   const queryClient = useQueryClient();

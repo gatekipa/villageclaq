@@ -8,6 +8,7 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
 
 const M7_01 = "supabase/migrations/00128_m7_01_relief_canonical.sql";
+const M7_EFFECTIVE = "supabase/migrations/00169_relief_delegated_payout_adapter.sql";
 const HOOKS = "src/lib/hooks/use-relief-mutations.ts";
 const CLAIMS_UI = "src/app/[locale]/(dashboard)/dashboard/relief/claims/page.tsx";
 
@@ -21,6 +22,7 @@ class MockM7ReliefEngine {
     this.enrollments = new Map();
     this.events = new Map();
     this.expenseAccounts = new Map();
+    this.funds = new Map();
   }
 
   seedInitialState() {
@@ -46,10 +48,11 @@ class MockM7ReliefEngine {
     });
 
     this.expenseAccounts.set("exp-1", { id: "exp-1", group_id: "group-1", code: "relief_expense", status: "active" });
+    this.funds.set("fund-1", { id: "fund-1", group_id: "group-1", status: "active", is_restricted: true });
   }
 
   post_relief_claim_payout(p_command) {
-    const { claim_id, account_id } = p_command;
+    const { claim_id, account_id, fund_id } = p_command;
     const claim = this.claims.get(claim_id);
     if (!claim) throw new Error("CLAIM_NOT_FOUND");
     
@@ -62,7 +65,14 @@ class MockM7ReliefEngine {
     const account = this.accounts.get(account_id);
     if (!account || account.status !== "active") throw new Error("ACCOUNT_NOT_FOUND_OR_INVALID");
 
-    if (account.currency !== claim.currency) throw new Error("CURRENCY_MISMATCH");
+    if (account.group_id !== claim.group_id || account.currency !== claim.currency) {
+      throw new Error("ACCOUNT_NOT_FOUND_OR_INVALID");
+    }
+
+    const fund = this.funds.get(fund_id);
+    if (!fund || fund.group_id !== claim.group_id || fund.status !== "active" || !fund.is_restricted) {
+      throw new Error("RESTRICTED_RELIEF_FUND_REQUIRED");
+    }
 
     let expId = [...this.expenseAccounts.values()].find(e => e.group_id === claim.group_id && e.code === "relief_expense" && e.status === "active")?.id;
     if (!expId) {
@@ -120,8 +130,8 @@ test("Test A: Fuzzing negative & zero claim amounts (assert DB check constraint 
   }), /CHECK_VIOLATION/);
 
   const sql = read(M7_01);
-  assert.match(sql, /amount_requested numeric\(15,2\) NOT NULL CHECK \(amount_requested > 0\)/);
-  assert.match(sql, /amount_approved numeric\(15,2\) CHECK \(amount_approved > 0\)/);
+  assert.match(sql, /relief_claims_requested_positive CHECK \(amount_requested IS NULL OR amount_requested>0\)/);
+  assert.match(sql, /relief_claims_approved_positive CHECK \(amount_approved IS NULL OR amount_approved>0\)/);
 
   const ui = read(CLAIMS_UI);
   assert.match(ui, /if \(parseFloat\(val\) <= 0\) return;/);
@@ -141,9 +151,9 @@ test("Test B: Database maturation trigger test", () => {
 
   const sql = read(M7_01);
   assert.match(sql, /CREATE OR REPLACE FUNCTION public\.assert_claim_eligibility\(\)/);
-  assert.match(sql, /IF NEW\.incident_date < v_enrollment\.matures_at::date THEN/);
+  assert.match(sql, /IF NEW\.incident_date\s*<\s*v_enrollment\.matures_at::date THEN/);
   assert.match(sql, /RAISE EXCEPTION 'CLAIM_PREMATURE_WAITING_PERIOD_NOT_MET'/);
-  assert.match(sql, /BEFORE INSERT OR UPDATE ON public\.relief_claims/);
+  assert.match(sql, /BEFORE INSERT ON public\.relief_claims/);
 
   const hooks = read(HOOKS);
   assert.match(hooks, /CLAIM_PREMATURE_WAITING_PERIOD_NOT_MET/);
@@ -154,10 +164,10 @@ test("Test C: Missing expense account defense", () => {
   engine.seedInitialState();
   engine.expenseAccounts.clear(); // Remove all expense accounts
   
-  assert.throws(() => engine.post_relief_claim_payout({ claim_id: "claim-1", account_id: "acc-1" }), /RELIEF_EXPENSE_ACCOUNT_NOT_CONFIGURED/);
+  assert.throws(() => engine.post_relief_claim_payout({ claim_id: "claim-1", account_id: "acc-1", fund_id: "fund-1" }), /RELIEF_EXPENSE_ACCOUNT_NOT_CONFIGURED/);
 
-  const sql = read(M7_01);
-  assert.match(sql, /AND c\.code = 'relief_expense'/);
+  const sql = read(M7_EFFECTIVE);
+  assert.match(sql, /c\.category_class='expense'/);
   assert.match(sql, /RAISE EXCEPTION 'RELIEF_EXPENSE_ACCOUNT_NOT_CONFIGURED'/);
 
   const hooks = read(HOOKS);
@@ -168,30 +178,33 @@ test("Test D: Currency mismatch failure path", () => {
   const engine = new MockM7ReliefEngine();
   engine.seedInitialState();
   
-  assert.throws(() => engine.post_relief_claim_payout({ claim_id: "claim-1", account_id: "acc-2" }), /CURRENCY_MISMATCH/);
+  assert.throws(() => engine.post_relief_claim_payout({ claim_id: "claim-1", account_id: "acc-2", fund_id: "fund-1" }), /ACCOUNT_NOT_FOUND_OR_INVALID/);
 
-  const sql = read(M7_01);
-  assert.match(sql, /IF v_account\.currency <> v_claim\.currency THEN/);
-  assert.match(sql, /RAISE EXCEPTION 'CURRENCY_MISMATCH'/);
+  const sql = read(M7_EFFECTIVE);
+  assert.match(sql, /v_account\.currency<>v_claim\.currency/);
+  assert.match(sql, /RAISE EXCEPTION 'ACCOUNT_NOT_FOUND_OR_INVALID'/);
 });
 
 test("Test E: Idempotency replay with zero postings", () => {
   const engine = new MockM7ReliefEngine();
   engine.seedInitialState();
   
-  engine.post_relief_claim_payout({ claim_id: "claim-1", account_id: "acc-1" });
-  const res = engine.post_relief_claim_payout({ claim_id: "claim-1", account_id: "acc-1" });
+  engine.post_relief_claim_payout({ claim_id: "claim-1", account_id: "acc-1", fund_id: "fund-1" });
+  const res = engine.post_relief_claim_payout({ claim_id: "claim-1", account_id: "acc-1", fund_id: "fund-1" });
   
   assert.strictEqual(res.decision, "IDEMPOTENT_RETURN_EXISTING");
   assert.strictEqual(res.posting_count, 0);
 
-  const sql = read(M7_01);
-  assert.match(sql, /IF v_claim\.status = 'paid' AND v_claim\.financial_event_id IS NOT NULL THEN/);
-  assert.match(sql, /'decision',\s*'IDEMPOTENT_RETURN_EXISTING'/);
+  const sql = read(M7_EFFECTIVE);
+  assert.match(sql, /IF v_claim\.status='paid' THEN/);
+  assert.match(sql, /posting_command_payloads/);
+  assert.match(sql, /'decision',v_result->'decision'/);
 });
 
 test("Test F: Missing custody account state handling", () => {
   const ui = read(CLAIMS_UI);
   assert.match(ui, /No active custody accounts found in this currency/);
-  assert.match(ui, /disabled=\{disburseClaim\.isPending \|\| !accountId \|\| accountId === 'none'\}/);
+  assert.match(ui, /disabled=\{disburseClaim\.isPending \|\| scopePending \|\| scopeError/);
+  assert.match(ui, /!accountId \|\| accountId === 'none' \|\| !fundId/);
+  assert.match(ui, /delegated && \(!ownerFundId \|\| ownerFundsPending\)/);
 });

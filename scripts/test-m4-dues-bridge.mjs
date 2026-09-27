@@ -600,8 +600,13 @@ test("M4 Bridge Static Audit: Client Mutation Hooks Invariants", () => {
     "Hooks must validate CURRENCY_MISMATCH"
   );
   assert.ok(
-    hookSource.includes(".delete().eq(\"id\", insertedPayment.id)"),
-    "Hook must clean up pending payment on RPC posting failure"
+    hookSource.includes('rpc("prepare_dues_record_intent"') &&
+      hookSource.includes('rpc("post_dues_record_intent"'),
+    "Hook must use the durable authoritative dues intent pipeline"
+  );
+  assert.ok(
+    !/from\(["']payments["']\)\s*\.insert/.test(hookSource),
+    "Hook must not create a client-side payment outside the authoritative transaction"
   );
 });
 

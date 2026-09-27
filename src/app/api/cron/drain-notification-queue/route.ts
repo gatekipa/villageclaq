@@ -22,6 +22,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 const VERCEL_TIMEOUT_MS = 60000;
 const TIMEOUT_GUARD_MS = 5000; // Leave 5 seconds for cleanup/response
+const FOUNDER_DELIVERY_SUPPRESSED = "founder_test_external_delivery_suppressed";
 
 export async function GET(request: Request) {
   const startTime = Date.now();
@@ -172,8 +173,28 @@ export async function GET(request: Request) {
         succeeded++;
       }
     } catch (err) {
-      // Settle failure
       const errorMsg = err instanceof Error ? err.message : String(err);
+
+      // Founder mode is an intentional terminal delivery decision. Record it
+      // as skipped/dead-lettered so it cannot look delivered or consume the
+      // provider retry budget. Provider failures continue through the normal
+      // failed -> retry -> dead-letter settlement path below.
+      if (errorMsg === FOUNDER_DELIVERY_SUPPRESSED) {
+        const { error: skipError } = await supabase.rpc("skip_notification_delivery", {
+          p_command: {
+            notification_id: item.id,
+            worker_id: workerId,
+            reason: errorMsg,
+          },
+        });
+        if (!skipError) {
+          skipped++;
+          continue;
+        }
+        console.warn(`[DrainQueue] Settle suppression failed for ${item.id}:`, skipError.message);
+      }
+
+      // Actual provider or contract failure: retain bounded retry behavior.
       console.warn(`[DrainQueue] Item ${item.id} failed:`, errorMsg);
       
       const { error: settleErr } = await supabase.rpc("settle_notification_delivery", {

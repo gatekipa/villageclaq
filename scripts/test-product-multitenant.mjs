@@ -123,12 +123,13 @@ test("major group-scoped hooks filter by group_id (.eq or relation filter)", () 
     const start = hooks.indexOf(`export function ${name}`);
     const after = hooks.indexOf("\nexport function ", start + 1);
     const body = hooks.slice(start, after === -1 ? undefined : after);
-    // Accept either a direct group_id filter or a relation-scoped variant
-    // (e.g. .eq("relief_plan.group_id", groupId) / .eq("event.group_id", ...)).
+    // Accept a direct/relation group_id filter or a server-side scoped RPC that
+    // receives the route-authoritative group identifier.
     assert.ok(
       body.includes('"group_id", groupId') ||
         /\.eq\("[a-z_]+\.group_id",\s*groupId\)/.test(body) ||
-        body.includes(".eq('group_id', groupId)"),
+        body.includes(".eq('group_id', groupId)") ||
+        (/\.rpc\("list_[a-z_]+_for_group"/.test(body) && body.includes("p_group: groupId")),
       `${name} must filter the query by group_id`,
     );
   }

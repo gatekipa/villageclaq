@@ -56,7 +56,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEvents } from "@/lib/hooks/use-supabase-query";
-import { useManageEvent, useDeleteEvent, useRecordRsvp, usePostTicketPurchase, parseEventRpcError } from "@/lib/hooks/use-events-mutations";
+import { useManageEvent, useDeleteEvent, useRecordRsvp, usePostTicketPurchase } from "@/lib/hooks/use-events-mutations";
 import { useFinancialAccounts, useFinancialCategories } from "@/lib/hooks/use-financial-config";
 import { useRef, useEffect } from "react";
 import { useGroup } from "@/lib/group-context";
@@ -189,7 +189,7 @@ export default function EventsPage() {
       });
     } catch (err) {
       console.warn("[Events] RSVP update failed:", err);
-      showError(t("rsvpFailed") || parseEventRpcError(err));
+      showError(t("actionFailed"));
     } finally {
       setRsvpLoading(null);
     }
@@ -215,7 +215,7 @@ export default function EventsPage() {
       setPurchaseEventId(null);
     } catch (err) {
       console.warn("[Events] Ticket purchase failed:", err);
-      showError(parseEventRpcError(err));
+      showError(t("actionFailed"));
     }
   };
 
@@ -285,7 +285,8 @@ export default function EventsPage() {
       setTierPrice("");
       setTierCapacity("");
     } catch (error) {
-      showError(error instanceof Error ? error.message : t("ticketTierFailed"));
+      console.warn("[Events] Ticket tier creation failed:", error);
+      showError(t("actionFailed"));
     } finally {
       setTierSaving(false);
     }
@@ -462,7 +463,7 @@ export default function EventsPage() {
       resetForm();
     } catch (err) {
       console.warn("[Events] create failed:", err);
-      showError(parseEventRpcError(err));
+      showError(t("actionFailed"));
     } finally {
       setCreating(false);
     }
@@ -519,7 +520,7 @@ export default function EventsPage() {
       setEditEventId(null);
     } catch (err) {
       console.warn("[Events] update failed:", err);
-      showError(parseEventRpcError(err));
+      showError(t("actionFailed"));
     } finally {
       setEditSaving(false);
     }
@@ -578,7 +579,7 @@ export default function EventsPage() {
 
     } catch (err) {
       console.warn("[Events] cancel failed:", err);
-      showError(parseEventRpcError(err));
+      showError(t("actionFailed"));
     } finally {
       setCancellingId(null);
     }
@@ -591,7 +592,7 @@ export default function EventsPage() {
       setShowDeleteConfirm(null);
     } catch (err) {
       console.warn("[Events] delete failed:", err);
-      showError(parseEventRpcError(err));
+      showError(t("actionFailed"));
     } finally {
       setDeletingId(null);
     }

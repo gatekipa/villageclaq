@@ -92,13 +92,13 @@ test("audit-log action is split by real state (not always 'sent')", () => {
   assert.ok(/announcement\.created/.test(model) && /announcement\.scheduled/.test(model), "model returns created/scheduled actions");
 });
 
-// ── 6. Cron stays direct-dispatch + allowlisted; gap documented ─────────────
+// ── 6. Scheduled external delivery uses the durable per-recipient queue ─────
 
-test("scheduled cron documents the per-recipient idempotency gap (no producerization in this build)", () => {
-  assert.ok(/ROW-LEVEL ONLY|per-recipient idempotency/i.test(cron), "cron documents row-level-only idempotency gap");
-  assert.ok(/00106/.test(cron), "cron points to the created-not-applied migration");
-  // behavior unchanged: still flips sent_at after dispatch
-  assert.ok(/sent_at/.test(cron), "cron still gates on sent_at");
+test("scheduled cron queues each external recipient with a stable idempotency key", () => {
+  assert.ok(/queue_transactional_notification/.test(cron), "cron uses the durable notification queue");
+  assert.ok(/idempotency_key:\s*`\$\{announcementId\}_\$\{membershipId\}_\$\{ch\}`/.test(cron),
+    "cron binds idempotency to announcement, membership, and channel");
+  assert.ok(/\.is\("sent_at", null\)/.test(cron), "cron atomically gates announcement claiming on sent_at");
 });
 
 // ── 7. Migration created, NOT applied ───────────────────────────────────────

@@ -7,6 +7,10 @@ import { computeReminderDecisions, type MoneyObligation, type MoneyPayment, type
 import { getEnabledChannels } from "@/lib/notification-prefs";
 import type { EnabledChannels } from "@/lib/notification-prefs";
 import { fetchMemberDispatchContacts } from "@/lib/cron-member-contacts";
+import {
+  evaluatePaymentReminderEligibility,
+  paymentReminderSettingsFromGroup,
+} from "@/lib/payment-reminder-eligibility";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -41,6 +45,10 @@ export async function GET(request: Request) {
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   const now = new Date();
+  // Include the next UTC date so groups east of UTC are not skipped when their
+  // local calendar has already reached the due date. Eligibility below applies
+  // the exact persisted group timezone and removes early/late candidates.
+  const candidateDueCutoff = new Date(now.getTime() + 36 * 60 * 60 * 1000).toISOString().slice(0, 10);
   let sent = 0;
   let failed = 0;
   let smsSent = 0;
@@ -57,7 +65,7 @@ export async function GET(request: Request) {
   // env flag AFTER reviewing a ?dryRun=true preview. dryRun always previews the
   // confirmed basis (the proposed behavior) and SENDS/QUEUES nothing.
   const dryRun = new URL(request.url).searchParams.get("dryRun") === "true";
-  const useConfirmed = process.env.PAYMENT_REMINDER_CONFIRMED_BASIS === "true" || dryRun;
+  const useConfirmed = true;
   let wouldEmail = 0;
   let wouldSms = 0;
   let confirmedSuppressed = 0; // candidates the engine deems NOT eligible (vs legacy)
@@ -88,6 +96,7 @@ export async function GET(request: Request) {
           user_id,
           display_name,
           is_proxy,
+          membership_status,
           group_id,
           profiles!memberships_user_id_fkey(
             full_name,
@@ -100,7 +109,8 @@ export async function GET(request: Request) {
           is_flexible
         ),
         group:groups!inner(
-          name
+          name,
+          settings
         )
       `)
           .neq("status", "waived")
@@ -112,7 +122,7 @@ export async function GET(request: Request) {
           // TRUE); that JS filter is kept as defense-in-depth.
           .not("membership.user_id", "is", null)
           .not("membership.is_proxy", "is", true)
-          .lt("due_date", now.toISOString().split("T")[0])
+          .lte("due_date", candidateDueCutoff)
           .order("due_date", { ascending: true })
           .order("id", { ascending: true })
           .limit(CANDIDATE_CEILING)
@@ -227,7 +237,9 @@ export async function GET(request: Request) {
         if (ct?.is_flexible && o.contribution_type_id) flexibleTypeIds.add(o.contribution_type_id as string);
       }
       const excludedTypeIds = new Set<string>();
-      for (const g of ((groupsRes.data || []) as Array<{ settings?: Record<string, unknown> }>)) {
+      const groupSettings = new Map<string, Record<string, unknown> | null>();
+      for (const g of ((groupsRes.data || []) as Array<{ id: string; settings?: Record<string, unknown> }>)) {
+        groupSettings.set(g.id, g.settings || null);
         const rules = g.settings?.standing_rules as Record<string, unknown> | undefined;
         for (const id of ((rules?.excluded_contribution_type_ids as string[] | undefined) || [])) excludedTypeIds.add(id);
       }
@@ -240,7 +252,19 @@ export async function GET(request: Request) {
       eligibleObligationIds = new Set<string>();
       for (const o of realObligations as Record<string, unknown>[]) {
         const oid = o.id as string;
-        const confirmedEligible = !!reminderDecisions.get(oid)?.eligible;
+        const decision = reminderDecisions.get(oid);
+        const membership = (Array.isArray(o.membership) ? (o.membership as Record<string, unknown>[])[0] : o.membership) as Record<string, unknown> | null;
+        const eligibility = evaluatePaymentReminderEligibility({
+          dueDate: o.due_date as string,
+          contributionTypeId: o.contribution_type_id as string | null,
+          obligationStatus: o.status as string | null,
+          membershipStatus: membership?.membership_status as string | null,
+          userId: membership?.user_id as string | null,
+          isProxy: membership?.is_proxy as boolean | null,
+          confirmedRemaining: decision?.remaining ?? 0,
+          at: now,
+        }, paymentReminderSettingsFromGroup(groupSettings.get(membership?.group_id as string)));
+        const confirmedEligible = !!decision?.eligible && eligibility.eligible;
         // Legacy eligibility (polluted) — only for the dry-run delta counters.
         const legacyEligible = ["pending", "partial", "overdue"].includes((o.status as string) || "")
           && (Number(o.amount) - Number(o.amount_paid || 0)) > 0;

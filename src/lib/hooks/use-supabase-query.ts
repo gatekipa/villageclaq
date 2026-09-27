@@ -67,7 +67,7 @@ export function useMembers() {
         // Proxy phones live in memberships.privacy_settings.proxy_phone
         // (admin-typed, visible to group admins) and remain available
         // here for proxy dispatch.
-        .select("id, user_id, role, standing, display_name, joined_at, is_proxy, proxy_manager_id, privacy_settings, membership_status, profiles!memberships_user_id_fkey(id, full_name, avatar_url)")
+        .select("id, user_id, role, standing, display_name, title, joined_at, is_proxy, proxy_manager_id, privacy_settings, membership_status, profiles!memberships_user_id_fkey(id, full_name, avatar_url)")
         .eq("group_id", groupId)
         .order("joined_at", { ascending: true });
       if (error) {
@@ -176,10 +176,20 @@ export function useCreateContributionType() {
       } catch { /* best-effort */ }
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
-      queryClient.invalidateQueries({ queryKey: ["obligations", groupId] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-stats", groupId] });
+    onSuccess: (created) => {
+      // Publish the authoritative returned row immediately so the dialog close
+      // cannot briefly reveal the stale list. The refetch below remains the
+      // source of truth and reconciles trigger-side fields.
+      queryClient.setQueryData<Record<string, unknown>[]>(["all-contribution-types", groupId], (old = []) => {
+        if (old.some((row) => row.id === created.id)) return old;
+        return [...old, created as Record<string, unknown>];
+      });
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["all-contribution-types", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["obligations", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard-stats", groupId] }),
+      ]);
     },
   });
 }

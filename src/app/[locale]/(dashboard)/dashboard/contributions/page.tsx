@@ -128,6 +128,7 @@ export default function ContributionsPage() {
   // counts (not excluded). The Settings → Standing tab edits the same setting.
   const [formCountsTowardStanding, setFormCountsTowardStanding] = useState(true);
   const [formError, setFormError] = useState<string | null>(null);
+  const [createSuccessName, setCreateSuccessName] = useState<string | null>(null);
 
   const currency = currentGroup?.currency || "XAF";
   const locale = useLocale();
@@ -253,9 +254,12 @@ export default function ContributionsPage() {
         }
       }
       setShowCreate(false);
+      setCreateSuccessName(
+        locale === "fr" && formNameFr.trim() ? formNameFr.trim() : formName.trim(),
+      );
       resetForm();
-    } catch {
-      // error is available via createMutation.error
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : t("contributions.createFailed"));
     }
   }
 
@@ -726,6 +730,14 @@ export default function ContributionsPage() {
       <ContributionsSubNav active="types" />
 
       {/* Enroll Error */}
+      {createSuccessName && (
+        <div role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400 flex items-center justify-between">
+          <span>{t("contributions.createSuccess", { name: createSuccessName })}</span>
+          <button onClick={() => setCreateSuccessName(null)} className="ml-2 hover:opacity-80" aria-label={t("common.close")}>&times;</button>
+        </div>
+      )}
+
+      {/* Enroll Error */}
       {enrollError && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive flex items-center justify-between">
           <span>{enrollError}</span>
@@ -781,7 +793,9 @@ export default function ContributionsPage() {
               <CardHeader className="flex flex-row items-start justify-between pb-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <CardTitle className="text-base truncate">{type.name}</CardTitle>
+                    <CardTitle className="text-base truncate">
+                      {locale === "fr" && type.name_fr ? type.name_fr : type.name}
+                    </CardTitle>
                     {!type.is_active && (
                       <Badge variant="secondary" className="shrink-0">
                         <Lock className="mr-1 h-3 w-3" />
@@ -789,8 +803,10 @@ export default function ContributionsPage() {
                       </Badge>
                     )}
                   </div>
-                  {type.name_fr && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{type.name_fr}</p>
+                  {((locale === "fr" && type.name_fr && type.name) || (locale !== "fr" && type.name_fr)) && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {locale === "fr" ? type.name : type.name_fr}
+                    </p>
                   )}
                 </div>
                 {canManageContributions && (

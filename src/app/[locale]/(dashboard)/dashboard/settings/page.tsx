@@ -54,6 +54,7 @@ import { RequirePermission } from "@/components/ui/permission-gate";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { PaymentsTab } from "@/components/settings/payments-tab";
 import { StandingRulesTab } from "@/components/settings/standing-rules-tab";
+import { PaymentReminderSettingsTab } from "@/components/settings/payment-reminder-settings-tab";
 import { getMemberName } from "@/lib/get-member-name";
 import { PublicProfileSettings } from "@/components/settings/public-profile-settings";
 
@@ -497,6 +498,7 @@ export default function GroupSettingsPage() {
           <TabsTrigger value="localization" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("localizationTab")}</TabsTrigger>
           <TabsTrigger value="payments" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("paymentsTab")}</TabsTrigger>
           <TabsTrigger value="standing" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("standingTab")}</TabsTrigger>
+          <TabsTrigger value="reminders" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("remindersTab")}</TabsTrigger>
           <TabsTrigger value="positions" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("positionsTab")}</TabsTrigger>
           <TabsTrigger value="notifications" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("notificationsTab")}</TabsTrigger>
           {canPublish && <TabsTrigger value="public" className="px-3 py-1.5 text-sm font-medium">{t("publicTab")}</TabsTrigger>}
@@ -817,6 +819,10 @@ export default function GroupSettingsPage() {
         {/* Standing Rules Tab */}
         <TabsContent value="standing" className="mt-6">
           <StandingRulesTab />
+        </TabsContent>
+
+        <TabsContent value="reminders" className="mt-6">
+          <PaymentReminderSettingsTab />
         </TabsContent>
 
         {/* Positions Tab */}

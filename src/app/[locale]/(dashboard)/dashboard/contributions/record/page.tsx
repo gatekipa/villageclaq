@@ -69,6 +69,7 @@ export default function RecordPaymentPage() {
   const { data: financialAccounts = [], isLoading: accountsLoading } = useFinancialAccounts(groupId);
   const recordAndPostDues = useRecordAndPostDuesPayment();
   const queryClient = useQueryClient();
+  const founderTestMode = process.env.NEXT_PUBLIC_FOUNDER_TEST_ENVIRONMENT === "true";
 
   const currency = currentGroup?.currency || "XAF";
 
@@ -384,7 +385,12 @@ export default function RecordPaymentPage() {
       await produceServerSideReceiptNotifications(result.payment?.id);
 
       // Email/SMS/WhatsApp receipts enqueue via receipt-notifications.
-      const typeName = contributionTypes?.find((ct: Record<string, unknown>) => ct.id === typeId)?.name as string || "";
+      const savedType = contributionTypes?.find((ct: Record<string, unknown>) => ct.id === typeId);
+      const typeName = (
+        locale === "fr" && savedType?.name_fr
+          ? savedType.name_fr
+          : savedType?.name
+      ) as string || "";
       const formattedAmt = formatAmount(payAmount, currency);
       const dateStr = formatDateWithGroupFormat(new Date(), groupDateFormat, locale);
 
@@ -740,7 +746,11 @@ export default function RecordPaymentPage() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold">{t("contributions.paymentSaved")}</p>
               <p className="text-xs text-muted-foreground mt-0.5">{lastSavedName}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{t("contributions.receiptSentNote")}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {t(founderTestMode
+                  ? "contributions.receiptSavedFounderTestNote"
+                  : "contributions.receiptSentNote")}
+              </p>
             </div>
             <Button
               variant="ghost"
@@ -1189,7 +1199,9 @@ export default function RecordPaymentPage() {
               )}
               <p className="flex items-start gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300">
                 <Info className="mt-0.5 size-3.5 shrink-0" />
-                <span>{t("contributions.recordSendsReceiptNote")}</span>
+                <span>{t(founderTestMode
+                  ? "contributions.recordSavesFounderTestReceiptNote"
+                  : "contributions.recordSendsReceiptNote")}</span>
               </p>
             </div>
 

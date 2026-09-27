@@ -92,6 +92,21 @@ function loadProducer() {
       }, { filename: moneyPath.pathname });
       return moneyModule.exports;
     }
+    if (id === "@/lib/payment-reminder-eligibility") {
+      const eligibilityPath = new URL("../src/lib/payment-reminder-eligibility.ts", import.meta.url);
+      const eligibilitySource = fs.readFileSync(eligibilityPath, "utf8");
+      const eligibilityCompiled = ts.transpileModule(eligibilitySource, {
+        compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
+      }).outputText;
+      const eligibilityModule = { exports: {} };
+      vm.runInNewContext(eligibilityCompiled, {
+        console,
+        exports: eligibilityModule.exports,
+        module: eligibilityModule,
+        require,
+      }, { filename: eligibilityPath.pathname });
+      return eligibilityModule.exports;
+    }
     if (id === "@/lib/enqueue-outbound-notification") {
       return {
         enqueueCut2ProducerChannels: async (args, supabase) => {
@@ -171,8 +186,13 @@ function createMockSupabase(options = {}) {
       phone: fullPhone,
       preferred_locale: "en",
     },
-    group: { id: ids.group, name: "Njimafor Diaspora" },
+    group: {
+      id: ids.group,
+      name: "Njimafor Diaspora",
+      settings: { payment_reminders: { mode: "overdue_daily", timezone: "UTC" } },
+    },
     contributionType: { id: ids.contributionType, name: "Monthly Dues", name_fr: "Cotisation mensuelle" },
+    payments: [],
     // existingQueueRows: array of { obligationId, reminderDate } — the mock
     // honors the producer's day-bucket filters, so the dedupe logic is
     // genuinely exercised (same-day blocks, different day does not).
@@ -209,6 +229,11 @@ function createMockSupabase(options = {}) {
       return this;
     }
 
+    is(column, value) {
+      this.filters.push({ column, value });
+      return this;
+    }
+
     limit() {
       return this;
     }
@@ -223,7 +248,11 @@ function createMockSupabase(options = {}) {
       if ((state.selectErrorTables || []).includes(this.table)) {
         return Promise.resolve({ data: null, error: { message: "transient lookup failure" } });
       }
-      return Promise.resolve({ data: selectRow(this.table, this.filters, state), error: null });
+      const row = selectRow(this.table, this.filters, state);
+      if (this.table === "contribution_obligations" && filterValue(this.filters, "id")) {
+        state.currentObligation = row;
+      }
+      return Promise.resolve({ data: row, error: null });
     }
 
     single() {
@@ -237,7 +266,7 @@ function createMockSupabase(options = {}) {
         }
         return Promise.resolve(resolve({ data: [{ id: "new-row" }], error: null }));
       }
-      return Promise.resolve(resolve({ data: [selectRow(this.table, this.filters, state)].filter(Boolean), error: null }));
+      return Promise.resolve(resolve({ data: selectRows(this.table, this.filters, state), error: null }));
     }
   }
 
@@ -258,6 +287,14 @@ function createMockSupabase(options = {}) {
       return new Builder(table);
     },
   };
+}
+
+function selectRows(table, filters, state) {
+  if (table === "contribution_obligations" && filterValue(filters, "membership_id")) {
+    return [state.currentObligation || state.obligation].filter(Boolean);
+  }
+  if (table === "payments") return state.payments;
+  return [selectRow(table, filters, state)].filter(Boolean);
 }
 
 function filterValue(filters, column) {
@@ -345,17 +382,25 @@ test("recipient's French preferred locale wins and picks name_fr", async () => {
   assert.equal(supabase._cut2Enqueues[0].locale, "fr");
 });
 
-test("paid, waived, future, and settled obligations are never reminded", async () => {
+test("paid, waived, future, and confirmed-settled obligations are never reminded", async () => {
   const { producePaymentReminderNotification } = loadProducer();
   const cases = [
-    [ids.paidObligation, "obligation_not_remindable"],
-    [ids.waivedObligation, "obligation_not_remindable"],
-    [ids.futureObligation, "obligation_not_due"],
-    [ids.settledObligation, "obligation_settled"],
+    [ids.paidObligation, "obligation_not_remindable", []],
+    [ids.waivedObligation, "obligation_not_remindable", []],
+    [ids.futureObligation, "before_due_date", []],
+    [ids.settledObligation, "obligation_settled_confirmed", [{
+      id: "payment-confirmed",
+      amount: "1000",
+      status: "confirmed",
+      obligation_id: ids.settledObligation,
+      contribution_type_id: ids.contributionType,
+      membership_id: ids.membership,
+      relief_plan_id: null,
+    }]],
   ];
 
-  for (const [obligationId, reason] of cases) {
-    const supabase = createMockSupabase();
+  for (const [obligationId, reason, payments] of cases) {
+    const supabase = createMockSupabase({ payments });
     const result = await producePaymentReminderNotification(supabase, obligationId, {
       reminderDate: REMINDER_DATE,
     });
@@ -508,7 +553,7 @@ test("transient related-lookup failures are errors, not silent skips", async () 
   });
 
   assert.equal(result.status, "error");
-  assert.equal(result.reason, "related_lookup_failed");
+  assert.equal(result.reason, "confirmed_basis_lookup_failed");
   assert.equal(supabase.calls.some((c) => c.op === "insert"), false);
 });
 

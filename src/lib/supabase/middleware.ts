@@ -57,8 +57,13 @@ export async function updateSession(request: NextRequest) {
     // Redirect unauthenticated users to login
     const locale = isLocalePrefix ? pathnameLocale : "en";
     const url = request.nextUrl.clone();
+    const localeFreePath = isLocalePrefix
+      ? (pathname.replace(/^\/(?:en|fr)(?=\/|$)/, "") || "/")
+      : pathname;
+    const returnPath = `${localeFreePath}${request.nextUrl.search}`;
     url.pathname = `/${locale}/login`;
-    url.searchParams.set("redirectTo", pathname);
+    url.search = "";
+    url.searchParams.set("redirectTo", returnPath);
     return NextResponse.redirect(url);
   }
 

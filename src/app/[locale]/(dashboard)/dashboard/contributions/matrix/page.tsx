@@ -281,7 +281,9 @@ export default function DuesMatrixPage() {
           className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 sm:w-60"
         >
           {contributionTypes?.map((ct) => (
-            <option key={ct.id} value={ct.id}>{ct.name}</option>
+            <option key={ct.id} value={ct.id}>
+              {(locale === "fr" && ct.name_fr) || ct.name}
+            </option>
           ))}
           {(!contributionTypes || contributionTypes.length === 0) && (
             <option value="">--</option>

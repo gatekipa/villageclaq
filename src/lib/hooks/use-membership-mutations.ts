@@ -81,6 +81,7 @@ export interface UpdateMemberDisplayNameInput {
   groupId: string;
   membershipId: string;
   displayName: string;
+  title?: string | null;
 }
 
 export interface UpdateMemberDisplayNameResult {
@@ -88,6 +89,7 @@ export interface UpdateMemberDisplayNameResult {
   membership_id: string;
   group_id: string;
   display_name: string;
+  title: string | null;
 }
 
 // ============================================================================
@@ -289,6 +291,7 @@ export function useUpdateMemberDisplayName() {
         p_command: {
           membership_id: input.membershipId,
           display_name: input.displayName.trim(),
+          title: input.title?.trim() || null,
         },
       });
 

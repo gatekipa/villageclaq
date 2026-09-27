@@ -258,6 +258,15 @@ export default function MembersPage() {
   const tCommon = useTranslations("common");
   const tr = useTranslations("roles");
   const tt = useTranslations("transfers");
+
+  function roleLabel(role: string): string {
+    switch (role) {
+      case "owner": return t("filterOwner");
+      case "admin": return t("filterAdmin");
+      case "moderator": return t("filterModerator");
+      default: return t("filterMember");
+    }
+  }
   const tInv = useTranslations("invitations");
   const router = useRouter();
   const { groupId, user, currentGroup, currentMembership, isAdmin } = useGroup();
@@ -355,6 +364,7 @@ export default function MembersPage() {
   const [editRole, setEditRole] = useState("");
   const [editOriginalRole, setEditOriginalRole] = useState("");
   const [editOriginalDisplayName, setEditOriginalDisplayName] = useState("");
+  const [editOriginalTitle, setEditOriginalTitle] = useState("");
   const [editOriginalStanding, setEditOriginalStanding] = useState("");
   const [editStanding, setEditStanding] = useState("");
   const [editStandingReason, setEditStandingReason] = useState("");
@@ -938,12 +948,10 @@ export default function MembersPage() {
 
     // For display name: proxy members have display_name on membership; real members use profile.full_name
     const name = (member.display_name as string) || profile?.full_name || "";
-    // Extract title if display_name contains a title prefix (e.g., "Chief John Doe")
-    // We store title in privacy_settings.proxy_name for proxy members, but there's no separate title field
-    // So we just use the full display name
     setEditDisplayName(name);
     setEditOriginalDisplayName(name);
-    setEditTitle("");
+    setEditTitle((member.title as string) || "");
+    setEditOriginalTitle((member.title as string) || "");
     setEditEmail("");
     // Real-member phone for the edit form comes from the admin roster
     // RPC, not the useMembers cache (which no longer carries phone).
@@ -996,12 +1004,17 @@ export default function MembersPage() {
         });
       }
 
-      // 2. Display name update if changed (PII Isolation: strictly tenant-scoped memberships.display_name)
-      if (editDisplayName.trim() !== editOriginalDisplayName.trim()) {
+      // 2. Group-scoped member label update. Title and display name are stored
+      // separately so reopening the dialog cannot silently discard the title.
+      if (
+        editDisplayName.trim() !== editOriginalDisplayName.trim()
+        || editTitle.trim() !== editOriginalTitle.trim()
+      ) {
         await updateDisplayNameMutation.mutateAsync({
           groupId,
           membershipId: editMemberId,
           displayName: editDisplayName.trim(),
+          title: editTitle.trim() || null,
         });
       }
 
@@ -1144,20 +1157,20 @@ export default function MembersPage() {
 
     for (let i = 0; i < validRows.length; i++) {
       const row = validRows[i];
-      const displayName = row.title
-        ? `${row.title} ${row.display_name}`
-        : row.display_name;
       const role = VALID_ROLES.includes(row.role) ? row.role : "member";
 
       try {
-        const { data: newMembershipId, error: rpcError } = await resilientRpc<string>(
+        const { data: created, error: rpcError } = await resilientRpc<{ membership_id?: string }>(
           supabase,
-          "create_proxy_member",
+          "create_proxy_member_v2",
           {
-            p_group_id: groupId,
-            p_display_name: displayName,
-            p_phone: row.phone || null,
-            p_role: role,
+            p_command: {
+              group_id: groupId,
+              display_name: row.display_name,
+              title: row.title || null,
+              phone: row.phone || null,
+              role,
+            },
           },
         );
         if (rpcError) {
@@ -1169,8 +1182,8 @@ export default function MembersPage() {
         }
 
         // Auto-enroll in active contribution types (non-blocking)
-        if (newMembershipId) {
-          await autoEnrollMember(supabase, groupId, newMembershipId);
+        if (created?.membership_id) {
+          await autoEnrollMember(supabase, groupId, created.membership_id);
         }
         succeeded++;
       } catch (err) {
@@ -1203,17 +1216,17 @@ export default function MembersPage() {
     setAddError(null);
     try {
       const supabase = createClient();
-      const displayName = newTitle.trim()
-        ? `${newTitle.trim()} ${newFullName.trim()}`
-        : newFullName.trim();
-      const { data: newMembershipId, error: rpcError } = await resilientRpc<string>(
+      const { data: created, error: rpcError } = await resilientRpc<{ membership_id?: string }>(
         supabase,
-        "create_proxy_member",
+        "create_proxy_member_v2",
         {
-          p_group_id: groupId,
-          p_display_name: displayName,
-          p_phone: newPhone || null,
-          p_role: newRole,
+          p_command: {
+            group_id: groupId,
+            display_name: newFullName.trim(),
+            title: newTitle.trim() || null,
+            phone: newPhone || null,
+            role: newRole,
+          },
         },
       );
 
@@ -1226,8 +1239,8 @@ export default function MembersPage() {
       }
 
       // Auto-enroll new member in active contribution types (non-blocking)
-      if (newMembershipId) {
-        const enrolled = await autoEnrollMember(supabase, groupId, newMembershipId);
+      if (created?.membership_id) {
+        const enrolled = await autoEnrollMember(supabase, groupId, created.membership_id);
         if (!enrolled) {
           setAddError(t("autoEnrollWarning"));
         }
@@ -1663,26 +1676,6 @@ export default function MembersPage() {
                     {sortField === "joined" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
                   </button>
                 </TableHead>
-                <TableHead>
-                  <button
-                    onClick={() => handleSort("standing")}
-                    className="flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer"
-                  >
-                    {t("financialStanding")}
-                    {sortField === "standing" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
-                  </button>
-                </TableHead>
-                <TableHead className="hidden lg:table-cell">{tr("position")}</TableHead>
-                <TableHead className="hidden md:table-cell">{t("phone")}</TableHead>
-                <TableHead className="hidden md:table-cell">
-                  <button
-                    onClick={() => handleSort("joined")}
-                    className="flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer"
-                  >
-                    {t("joinedDate")}
-                    {sortField === "joined" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
-                  </button>
-                </TableHead>
                 <TableHead>{t("lifecycleStatus")}</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
@@ -1700,6 +1693,7 @@ export default function MembersPage() {
                   phone?: string;
                 } | undefined;
                 const name = getName(member);
+                const title = (member.title as string) || "";
                 const phone = getPhone(member);
                 const isProxy = member.is_proxy as boolean;
                 const roleStyle = roleConfig[role] || roleConfig.member;
@@ -1721,7 +1715,7 @@ export default function MembersPage() {
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                          <span className="font-medium truncate">{name}</span>
+                          <span className="font-medium truncate">{title ? `${title} ${name}` : name}</span>
                           {isProxy && (
                             <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground shrink-0">
                               {t("proxyMember")}
@@ -1732,7 +1726,7 @@ export default function MembersPage() {
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
                       <Badge variant="outline" className={`text-xs capitalize ${roleStyle.color}`}>
-                        {role}
+                        {roleLabel(role)}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -1874,6 +1868,7 @@ export default function MembersPage() {
               phone?: string;
             } | undefined;
             const name = getName(member);
+            const title = (member.title as string) || "";
             const phone = getPhone(member);
             const isProxy = member.is_proxy as boolean;
             const standingStyle = standingConfig[standing] || standingConfig.good;
@@ -1904,7 +1899,7 @@ export default function MembersPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <p className="truncate text-sm font-semibold group-hover:text-primary transition-colors">
-                          {name}
+                          {title ? `${title} ${name}` : name}
                         </p>
                         <RoleIcon className="h-3.5 w-3.5 shrink-0 text-primary" />
                       </div>
@@ -1913,7 +1908,7 @@ export default function MembersPage() {
                           variant="outline"
                           className={`text-[10px] px-1.5 py-0 capitalize ${roleStyle.color}`}
                         >
-                          {role}
+                          {roleLabel(role)}
                         </Badge>
                         <Badge
                           variant="outline"

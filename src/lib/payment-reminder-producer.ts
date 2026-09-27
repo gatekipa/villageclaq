@@ -12,12 +12,16 @@ import {
   type MoneyObligation,
   type MoneyPayment,
 } from "@/lib/money";
+import {
+  evaluatePaymentReminderEligibility,
+  paymentReminderSettingsFromGroup,
+} from "@/lib/payment-reminder-eligibility";
 
 type Locale = "en" | "fr";
 
 type Logger = Pick<Console, "log" | "warn">;
 
-type ObligationRow = {
+export type ObligationRow = {
   id: string;
   contribution_type_id: string | null;
   membership_id: string;
@@ -50,6 +54,7 @@ type ProfileRow = {
 type GroupRow = {
   id: string;
   name: string | null;
+  settings?: Record<string, unknown> | null;
 };
 
 type ContributionTypeRow = {
@@ -74,7 +79,8 @@ export type PaymentReminderProducerResult = {
 };
 
 export type PaymentReminderProducerOptions = {
-  /** UTC day bucket (YYYY-MM-DD). Defaults to today. One WhatsApp reminder
+  /** Test/local-date override (YYYY-MM-DD). Production derives the group-local
+   *  date from the persisted IANA timezone. One WhatsApp reminder
    *  per obligation per bucket — same-day reruns are idempotent while the
    *  next scheduled day reminds again, preserving the cron's daily cadence. */
   reminderDate?: string;
@@ -89,8 +95,8 @@ export type PaymentReminderProducerOptions = {
   /**
    * Build 14: when true, decide remindability + amount from CONFIRMED payments
    * (the money engine) instead of the polluted amount_paid / obligation.status.
-   * Default false → byte-for-byte the legacy behavior, so deploying this code
-   * changes NOTHING until an operator flips the flag after a dry-run preview.
+   * Defaults true under the founder-approved FQ-08 amendment. Explicit false is
+   * retained only for historical regression comparison.
    */
   confirmedBasis?: boolean;
   /**
@@ -163,7 +169,7 @@ async function maybeSingle<T>(
  * Reads NO polluted amount_paid / status for the decision. Returns "error" on a
  * transient lookup failure so the caller surfaces it instead of silently skipping.
  */
-async function computeConfirmedReminderDecision(
+export async function computeConfirmedReminderDecision(
   supabase: SupabaseClient,
   obligation: ObligationRow,
   logger: Logger,
@@ -255,7 +261,7 @@ export async function producePaymentReminderNotification(
 ): Promise<PaymentReminderProducerResult> {
   const logger = options.logger || console;
   const getChannels = options.getChannels || getEnabledChannels;
-  const reminderDate = options.reminderDate || todayUtc();
+  let reminderDate = options.reminderDate || todayUtc();
 
   if (!obligationId) {
     return { status: "skipped", reason: "missing_obligation_id", obligationId, reminderDate };
@@ -281,17 +287,22 @@ export async function producePaymentReminderNotification(
     return { status: "skipped", reason: "obligation_not_found", obligationId, reminderDate };
   }
 
-  const confirmedBasis = options.confirmedBasis === true;
+  // Founder amendment FQ-08: confirmed balances are now the default and are
+  // required for delivery eligibility. Explicit false remains only for the
+  // historical regression harness; production callers never pass it.
+  const confirmedBasis = options.confirmedBasis !== false;
+
+  // Explicit terminal states are authoritative workflow decisions. Even if a
+  // legacy row's derived payment fields are inconsistent, never demand payment
+  // from an obligation the group has marked paid or waived.
+  if (obligation.status === "paid" || obligation.status === "waived") {
+    return { status: "skipped", reason: "obligation_not_remindable", obligationId, reminderDate };
+  }
 
   // Legacy status gate (POLLUTED) — only on the legacy basis. The confirmed basis
   // decides remindability from confirmed payments below (status is trigger-driven).
   if (!confirmedBasis && (!obligation.status || !REMINDABLE_STATUSES.has(obligation.status))) {
     return { status: "skipped", reason: "obligation_not_remindable", obligationId, reminderDate };
-  }
-
-  // Due-date gate (Build 10) — applies to BOTH bases (reminders are for past-due).
-  if (!obligation.due_date || obligation.due_date >= reminderDate) {
-    return { status: "skipped", reason: "obligation_not_due", obligationId, reminderDate };
   }
 
   let amountDue: number;
@@ -359,9 +370,35 @@ export async function producePaymentReminderNotification(
     return { status: "skipped", reason: "obligation_membership_group_mismatch", obligationId, reminderDate };
   }
 
+  const policyResult = await maybeSingle<GroupRow>(
+    supabase,
+    "groups",
+    "id,name,settings",
+    "id",
+    obligation.group_id,
+  );
+  if (policyResult.error || !policyResult.data) {
+    return { status: "error", reason: "group_policy_lookup_failed", obligationId, reminderDate };
+  }
+  const reminderSettings = paymentReminderSettingsFromGroup(policyResult.data.settings);
+  const eligibility = evaluatePaymentReminderEligibility({
+    dueDate: obligation.due_date,
+    contributionTypeId: obligation.contribution_type_id,
+    obligationStatus: obligation.status,
+    membershipStatus: membership.membership_status,
+    userId: membership.user_id,
+    isProxy: membership.is_proxy,
+    confirmedRemaining: amountDue,
+    at: options.reminderDate ? new Date(`${options.reminderDate}T12:00:00Z`) : new Date(),
+  }, reminderSettings);
+  reminderDate = eligibility.localDate;
+  if (!eligibility.eligible) {
+    return { status: "skipped", reason: eligibility.reason, obligationId, reminderDate, confirmedRemaining: amountDue };
+  }
+
   const [profileResult, groupResult, typeResult] = await Promise.all([
     maybeSingle<ProfileRow>(supabase, "profiles", "id,full_name,phone,preferred_locale", "id", membership.user_id),
-    maybeSingle<GroupRow>(supabase, "groups", "id,name", "id", obligation.group_id),
+    Promise.resolve(policyResult),
     obligation.contribution_type_id
       ? maybeSingle<ContributionTypeRow>(supabase, "contribution_types", "id,name,name_fr", "id", obligation.contribution_type_id)
       : Promise.resolve({ data: null, error: null }),
@@ -530,4 +567,3 @@ function cut2QueueError(enq: Cut2ProducerEnqueueSummary): { message: string; cod
   if (!enq.anyInserted) return { message: "denied", code: "CUT2_DENIED" };
   return null;
 }
-

@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { renderTemplate, type TemplateKey } from "@/lib/communications/template-engine";
 import crypto from "crypto";
+import { recheckPaymentReminderDelivery } from "@/lib/payment-reminder-delivery-recheck";
 
+// CUT2_RAW_META_CONTEXT: this worker remains the only approved boundary for
+// provider dispatch after an outbox row has been claimed and revalidated.
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
@@ -23,8 +26,7 @@ export async function GET(request: Request) {
 
   // 1. Claim batch
   const { data: claimed, error: claimErr } = await supabase.rpc("claim_notification_batch", {
-    p_batch_size: 25,
-    p_worker_id: workerId
+    p_command: { batch_size: 25, worker_id: workerId },
   });
 
   if (claimErr) {
@@ -38,6 +40,7 @@ export async function GET(request: Request) {
 
   let succeeded = 0;
   let failed = 0;
+  let skipped = 0;
 
   for (const item of claimed) {
     // Timeout Guard: if remaining execution time < 5 seconds, exit cleanly
@@ -47,10 +50,28 @@ export async function GET(request: Request) {
     }
 
     try {
-      const templateKey = item.template_key as TemplateKey;
-      // We assume locale is passed in the payload or we default to 'en'
-      const payload = (item.payload as Record<string, unknown>) || {};
+      const templateKey = item.template as TemplateKey;
+      const payload = (item.data as Record<string, unknown>) || {};
       const locale = payload.locale === 'fr' ? 'fr' : 'en';
+
+      // Payment reminders are demands, so the queued snapshot is never enough.
+      // Recheck current membership, policy, due date, waiver and confirmed
+      // balance immediately before any provider dispatch.
+      if (item.template === "payment_reminder") {
+        const recheck = await recheckPaymentReminderDelivery(supabase, item as Record<string, unknown>);
+        if (!recheck.eligible) {
+          const { error: skipError } = await supabase.rpc("skip_notification_delivery", {
+            p_command: {
+              notification_id: item.id,
+              worker_id: workerId,
+              reason: recheck.reason,
+            },
+          });
+          if (skipError) throw skipError;
+          skipped++;
+          continue;
+        }
+      }
 
       const rendered = renderTemplate(templateKey, locale, payload);
       let providerMessageId = "";
@@ -58,11 +79,11 @@ export async function GET(request: Request) {
       // Dispatch via channel
       if (item.channel === "email") {
         // Mock email dispatch
-        console.log(`[DrainQueue] Sending Email to ${item.recipient_address || "unknown"}`);
+        console.log(`[DrainQueue] Sending Email to ${payload.recipient || "unknown"}`);
         providerMessageId = `mock_email_${crypto.randomUUID()}`;
       } else if (item.channel === "sms" || item.channel === "whatsapp") {
         // Mock SMS/WA dispatch
-        console.log(`[DrainQueue] Sending ${item.channel} to ${item.recipient_address || "unknown"}`);
+        console.log(`[DrainQueue] Sending ${item.channel} to ${payload.recipient || "unknown"}`);
         providerMessageId = `mock_${item.channel}_${crypto.randomUUID()}`;
       } else if (item.channel === "in_app") {
         // Insert into notifications
@@ -82,11 +103,13 @@ export async function GET(request: Request) {
 
       // Settle success
       const { error: settleErr } = await supabase.rpc("settle_notification_delivery", {
-        p_notification_id: item.id,
-        p_worker_id: workerId,
-        p_success: true,
-        p_provider_message_id: providerMessageId,
-        p_error_message: null
+        p_command: {
+          notification_id: item.id,
+          worker_id: workerId,
+          success: true,
+          provider_message_id: providerMessageId,
+          error_message: null,
+        },
       });
 
       if (settleErr) {
@@ -100,11 +123,13 @@ export async function GET(request: Request) {
       console.warn(`[DrainQueue] Item ${item.id} failed:`, errorMsg);
       
       const { error: settleErr } = await supabase.rpc("settle_notification_delivery", {
-        p_notification_id: item.id,
-        p_worker_id: workerId,
-        p_success: false,
-        p_provider_message_id: null,
-        p_error_message: errorMsg
+        p_command: {
+          notification_id: item.id,
+          worker_id: workerId,
+          success: false,
+          provider_message_id: null,
+          error_message: errorMsg,
+        },
       });
 
       if (settleErr) {
@@ -115,9 +140,10 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    processed: succeeded + failed,
+    processed: succeeded + failed + skipped,
     succeeded,
     failed,
+    skipped,
     worker_id: workerId
   });
 }

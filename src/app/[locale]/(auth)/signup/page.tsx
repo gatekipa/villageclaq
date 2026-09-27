@@ -33,7 +33,7 @@ function PhoneIcon() {
 
 function safeRedirect(raw: string | null): string {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
-  return raw;
+  return raw.replace(/^\/(?:en|fr)(?=\/|[?#]|$)/, "") || "/";
 }
 
 export default function SignupPage() {

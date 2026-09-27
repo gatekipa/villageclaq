@@ -134,7 +134,11 @@ export default function UnpaidReportPage() {
       const contributionType = obl.contribution_type as { id: string; name: string; name_fr?: string } | null;
       member.obligations.push({
         id: obl.id as string,
-        type: contributionType?.name || t("contributions.contribution"),
+        type:
+          (locale === "fr" ? contributionType?.name_fr : contributionType?.name)
+          || contributionType?.name
+          || contributionType?.name_fr
+          || t("contributions.contribution"),
         period: obl.period_label || obl.due_date?.slice(0, 7) || "",
         amount: c.expected,
         amountPaid: c.confirmedPaid,
@@ -143,7 +147,7 @@ export default function UnpaidReportPage() {
     }
 
     return Array.from(memberMap.values());
-  }, [allObligations, duesPayments]);
+  }, [allObligations, duesPayments, locale, t]);
 
   const sorted = useMemo(() => {
     return [...unpaidMembers].sort((a, b) =>
@@ -163,18 +167,16 @@ export default function UnpaidReportPage() {
     setSendingReminders(true);
     setRemindersError(null);
     try {
-      const notifications = eligibleMembers.map((m) => ({
-        user_id: m.userId!,
-        group_id: groupId!,
-        type: "contribution_due" as const,
-        title: t("contributions.paymentReminderTitle"),
-        body: t("contributions.paymentReminderBody", { amount: formatAmount(m.totalOutstanding, currency) }),
-        is_read: false,
-        data: { link: "/dashboard/my-payments" },
-      }));
-      const { error } = await supabase.from("notifications").insert(notifications);
-      if (error) throw error;
-      setRemindersSentCount(eligibleMembers.length);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Unauthorized");
+      const response = await fetch("/api/payment-reminders/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ groupId, locale, obligationIds: eligibleMembers.flatMap((member) => member.obligations.map((obligation) => obligation.id)) }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Reminder request failed");
+      setRemindersSentCount(result.sent || 0);
     } catch (err) {
       console.warn("[Reminders] bulk insert failed:", err instanceof Error ? err.message : err);
       setRemindersError(t("contributions.remindersSendFailed"));
@@ -190,17 +192,16 @@ export default function UnpaidReportPage() {
     setRemindersError(null);
     try {
       const supabase = createClient();
-      const { error } = await supabase.from("notifications").insert({
-        user_id: member.userId,
-        group_id: groupId,
-        type: "contribution_due" as const,
-        title: t("contributions.paymentReminderTitle"),
-        body: t("contributions.paymentReminderBody", { amount: formatAmount(member.totalOutstanding, currency) }),
-        is_read: false,
-        data: { link: "/dashboard/my-payments" },
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Unauthorized");
+      const response = await fetch("/api/payment-reminders/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ groupId, locale, obligationIds: member.obligations.map((obligation) => obligation.id) }),
       });
-      if (error) throw error;
-      setRemindersSentCount(1);
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Reminder request failed");
+      setRemindersSentCount(result.sent || 0);
     } catch (err) {
       console.warn("[Reminders] insert failed:", err instanceof Error ? err.message : err);
       setRemindersError(t("contributions.remindersSendFailed"));

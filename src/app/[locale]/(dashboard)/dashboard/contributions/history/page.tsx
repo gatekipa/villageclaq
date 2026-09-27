@@ -254,7 +254,11 @@ export default function PaymentHistoryPage() {
         id: p.id as string,
         memberName: getMemberName(membership as Record<string, unknown>),
         membershipId: (membership?.id as string) || "",
-        contributionTypeName: contributionType?.name || "-",
+        contributionTypeName:
+          (locale === "fr" ? contributionType?.name_fr : contributionType?.name)
+          || contributionType?.name
+          || contributionType?.name_fr
+          || "-",
         contributionTypeId: (contributionType?.id as string) || "",
         obligationId: (p.obligation_id as string) || "",
         amount: Number(p.amount),
@@ -270,7 +274,7 @@ export default function PaymentHistoryPage() {
         settlementStatus: (p.settlement_status as NormalizedPayment["settlementStatus"]) || "open",
       };
     });
-  }, [payments, currency]);
+  }, [payments, currency, locale]);
 
   // Count of items still awaiting an admin's confirm/reject decision — shown
   // on the "Pending confirmation" pill regardless of the active filter.

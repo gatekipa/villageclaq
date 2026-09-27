@@ -72,6 +72,9 @@ export async function GET(request: Request) {
       if (item.template === "payment_reminder") {
         const recheck = await recheckPaymentReminderDelivery(supabase, item as Record<string, unknown>);
         if (!recheck.eligible) {
+          if (recheck.retryable) {
+            throw new Error(`PAYMENT_REMINDER_RECHECK_FAILED:${recheck.reason}`);
+          }
           const { error: skipError } = await supabase.rpc("skip_notification_delivery", {
             p_command: {
               notification_id: item.id,

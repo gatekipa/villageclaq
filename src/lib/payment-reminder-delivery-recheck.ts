@@ -11,6 +11,7 @@ import {
 export type PaymentReminderDeliveryRecheck = {
   eligible: boolean;
   reason: string;
+  retryable: boolean;
 };
 
 export async function recheckPaymentReminderDelivery(
@@ -18,17 +19,18 @@ export async function recheckPaymentReminderDelivery(
   queueItem: Record<string, unknown>,
   at = new Date(),
 ): Promise<PaymentReminderDeliveryRecheck> {
-  if (queueItem.template !== "payment_reminder") return { eligible: true, reason: "not_payment_reminder" };
+  if (queueItem.template !== "payment_reminder") return { eligible: true, reason: "not_payment_reminder", retryable: false };
   const data = (queueItem.data as Record<string, unknown> | null) || {};
   const obligationId = typeof data.obligationId === "string" ? data.obligationId : null;
-  if (!obligationId) return { eligible: false, reason: "missing_obligation_id" };
+  if (!obligationId) return { eligible: false, reason: "missing_obligation_id", retryable: false };
 
   const { data: obligation, error: obligationError } = await supabase
     .from("contribution_obligations")
     .select("id,contribution_type_id,membership_id,group_id,amount,amount_paid,currency,due_date,status")
     .eq("id", obligationId)
     .maybeSingle();
-  if (obligationError || !obligation) return { eligible: false, reason: obligationError ? "obligation_lookup_failed" : "obligation_not_found" };
+  if (obligationError) return { eligible: false, reason: "obligation_lookup_failed", retryable: true };
+  if (!obligation) return { eligible: false, reason: "obligation_not_found", retryable: false };
 
   const [membershipResult, groupResult] = await Promise.all([
     supabase
@@ -38,8 +40,11 @@ export async function recheckPaymentReminderDelivery(
       .maybeSingle(),
     supabase.from("groups").select("id,settings").eq("id", obligation.group_id).maybeSingle(),
   ]);
-  if (membershipResult.error || groupResult.error || !membershipResult.data || !groupResult.data) {
-    return { eligible: false, reason: "related_lookup_failed" };
+  if (membershipResult.error || groupResult.error) {
+    return { eligible: false, reason: "related_lookup_failed", retryable: true };
+  }
+  if (!membershipResult.data || !groupResult.data) {
+    return { eligible: false, reason: "related_record_not_found", retryable: false };
   }
 
   const decision = await computeConfirmedReminderDecision(
@@ -47,7 +52,7 @@ export async function recheckPaymentReminderDelivery(
     obligation as ObligationRow,
     console,
   );
-  if (decision === "error") return { eligible: false, reason: "confirmed_balance_lookup_failed" };
+  if (decision === "error") return { eligible: false, reason: "confirmed_balance_lookup_failed", retryable: true };
 
   const eligibility = evaluatePaymentReminderEligibility({
     dueDate: obligation.due_date,
@@ -61,7 +66,7 @@ export async function recheckPaymentReminderDelivery(
   }, paymentReminderSettingsFromGroup(groupResult.data.settings as Record<string, unknown> | null));
 
   if (!decision.eligible) {
-    return { eligible: false, reason: decision.suppressed || "obligation_settled_confirmed" };
+    return { eligible: false, reason: decision.suppressed || "obligation_settled_confirmed", retryable: false };
   }
-  return { eligible: eligibility.eligible, reason: eligibility.reason };
+  return { eligible: eligibility.eligible, reason: eligibility.reason, retryable: false };
 }

@@ -5,6 +5,26 @@ interface SendSMSParams {
   message: string;
 }
 
+export function classifyAfricasTalkingRecipient(
+  recipient: Record<string, unknown> | undefined,
+): { sent: boolean; queued: false; messageId?: string; error?: string } {
+  const statusCode = typeof recipient?.statusCode === "number" ? recipient.statusCode : undefined;
+  const status = typeof recipient?.status === "string" ? recipient.status : "Unknown status";
+  const messageId = typeof recipient?.messageId === "string" ? recipient.messageId : undefined;
+
+  if (statusCode !== 101) {
+    return {
+      sent: false,
+      queued: false,
+      error: `AFRICASTALKING_RECIPIENT_REJECTED:${statusCode ?? "missing"}:${status}`,
+    };
+  }
+  if (!messageId) {
+    return { sent: false, queued: false, error: "AFRICASTALKING_MESSAGE_ID_MISSING" };
+  }
+  return { sent: true, queued: false, messageId };
+}
+
 /**
  * Private Africa's Talking transport.
  * After Cut 2 this function MUST NOT INSERT into notifications_queue.
@@ -60,13 +80,13 @@ export async function sendSMS({ to, message }: SendSMSParams): Promise<{ sent: b
       })),
     });
     const firstStatus = recipients[0]?.statusCode as number | undefined;
-    if (firstStatus && firstStatus !== 101) {
+    if (firstStatus !== 101) {
       const statusMsg = (recipients[0]?.status as string) || "Unknown status";
       console.warn(`[SMS DIAG] AT returned non-success status ${firstStatus} for ${maskPhoneNumber(to)}: ${statusMsg}`);
     } else {
       console.log("[SMS DIAG] AT success — status 101 (sent to carrier)", { to: maskPhoneNumber(to) });
     }
-    return { sent: true, queued: false, messageId: recipients[0]?.messageId as string | undefined };
+    return classifyAfricasTalkingRecipient(recipients[0]);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown SMS error";
     console.error(`[SMS DIAG] Africa's Talking SDK EXCEPTION for ${maskPhoneNumber(to)}:`, msg);

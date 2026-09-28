@@ -1,5 +1,6 @@
 -- Transactional affected-caller probe, using the real F3 tables/policies.
 BEGIN;
+ALTER TABLE public.groups DISABLE TRIGGER group_financial_epoch_bootstrap;
 INSERT INTO auth.users(id,email) VALUES
  ('00000000-0000-4000-8000-00000000a801','ticket-officer@example.test'),
  ('00000000-0000-4000-8000-00000000a802','ticket-member@example.test'),
@@ -7,6 +8,7 @@ INSERT INTO auth.users(id,email) VALUES
 INSERT INTO public.groups(id,name,currency) VALUES
  ('00000000-0000-4000-8000-00000000b801','Fictional Ticket Group','USD'),
  ('00000000-0000-4000-8000-00000000b802','Other Ticket Group','USD');
+ALTER TABLE public.groups ENABLE TRIGGER group_financial_epoch_bootstrap;
 INSERT INTO public.memberships(id,user_id,group_id,role,membership_status) VALUES
  ('00000000-0000-4000-8000-00000000c801','00000000-0000-4000-8000-00000000a801','00000000-0000-4000-8000-00000000b801','owner','active'),
  ('00000000-0000-4000-8000-00000000c802','00000000-0000-4000-8000-00000000a802','00000000-0000-4000-8000-00000000b801','member','active'),

@@ -737,7 +737,11 @@ export default function GroupOnboardingPage() {
       setIsSubmitting(false);
       return;
     }
-    router.push("/dashboard");
+    // Finish on a fresh, route-authoritative group context. The owner
+    // membership is committed before this point, but React state propagation
+    // can lag behind the success handler and leave the completed wizard on
+    // screen. A same-origin reload also proves the new membership through RLS.
+    window.location.assign(`/${locale}/dashboard?group=${encodeURIComponent(group.id)}`);
     setIsSubmitting(false);
   }
 

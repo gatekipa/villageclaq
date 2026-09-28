@@ -325,6 +325,10 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   const tCommon = useTranslations("common");
   const [checkingInvitations, setCheckingInvitations] = useState(false);
   const [checkedInvitations, setCheckedInvitations] = useState(false);
+  // A state update inside the zero-membership effect must not cancel its own
+  // in-flight redirect check. Key the single check by actor and route instead
+  // of depending on checkingInvitations/checkedInvitations state.
+  const invitationCheckKeyRef = useRef<string | null>(null);
 
   // Stable ref for router to avoid re-triggering useEffect on every render
   // (next-intl's useRouter() may return a new object reference each render)
@@ -365,8 +369,12 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   // Uses shared utilities: acquireRedirectLock() prevents duplicate redirects,
   // logRedirectDecision() provides dev-time visibility.
   useEffect(() => {
-    if (loading || memberships.length > 0 || isOnboardingPage || isInviteSafePage || checkingInvitations || checkedInvitations) return;
+    if (loading || memberships.length > 0 || isOnboardingPage || isInviteSafePage) return;
     if (!user) return;
+
+    const checkKey = `${user.id}:${pathname}`;
+    if (invitationCheckKeyRef.current === checkKey) return;
+    invitationCheckKeyRef.current = checkKey;
 
     let cancelled = false;
     setCheckingInvitations(true);
@@ -444,7 +452,7 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   // CRITICAL: router removed from deps — useRouter() returns a new object on
   // every render, which would re-trigger this effect. Using routerRef instead.
   // pathname is included so the guard re-evaluates if user navigates while at 0 memberships.
-  }, [loading, memberships.length, isOnboardingPage, isInviteSafePage, checkingInvitations, checkedInvitations, user, pathname]);
+  }, [loading, memberships.length, isOnboardingPage, isInviteSafePage, user, pathname]);
 
   // ── Onboarding / invite-safe pages: ALWAYS render children ────────────────
   // This must come FIRST — if the pathname includes /onboarding, never show

@@ -1,5 +1,6 @@
 -- R-009 branch/owner receipt slice on the production S0/M2-compatible catalog.
 BEGIN;
+ALTER TABLE public.groups DISABLE TRIGGER group_financial_epoch_bootstrap;
 INSERT INTO auth.users(id,email) VALUES
  ('00000000-0000-4000-8000-00000000a801','owner@example.test'),
  ('00000000-0000-4000-8000-00000000a802','branch-officer@example.test'),
@@ -17,6 +18,7 @@ INSERT INTO public.groups(id,organization_id,name,slug,group_level,currency) VAL
   '00000000-0000-4000-8000-00000000d801','Branch','relief-branch','branch','USD'),
  ('00000000-0000-4000-8000-00000000b803',
   '00000000-0000-4000-8000-00000000d802','Other','other-branch','branch','USD');
+ALTER TABLE public.groups ENABLE TRIGGER group_financial_epoch_bootstrap;
 INSERT INTO public.memberships(id,user_id,group_id,role,membership_status) VALUES
  ('00000000-0000-4000-8000-00000000c801',
   '00000000-0000-4000-8000-00000000a801',

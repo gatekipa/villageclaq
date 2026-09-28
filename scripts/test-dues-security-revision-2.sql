@@ -1,5 +1,6 @@
 -- F4-001/002/FCG-1 rollback probe on the production S0/M2-to-candidate schema.
 BEGIN;
+ALTER TABLE public.groups DISABLE TRIGGER group_financial_epoch_bootstrap;
 INSERT INTO auth.users(id,email) VALUES
  ('00000000-0000-4000-8000-00000000a501','dues-officer@example.test'),
  ('00000000-0000-4000-8000-00000000a502','dues-member@example.test'),
@@ -7,6 +8,7 @@ INSERT INTO auth.users(id,email) VALUES
 INSERT INTO public.groups(id,name,currency) VALUES
  ('00000000-0000-4000-8000-00000000b501','Fictional Dues','USD'),
  ('00000000-0000-4000-8000-00000000b502','Other Group','USD');
+ALTER TABLE public.groups ENABLE TRIGGER group_financial_epoch_bootstrap;
 INSERT INTO public.memberships(id,user_id,group_id,role,membership_status)
 VALUES
  ('00000000-0000-4000-8000-00000000c501',

@@ -1,8 +1,12 @@
 # Ready-to-send Supabase owner request — isolated VillageClaq branch
 
-Open [Supabase Support](https://supabase.com/dashboard/support/new), select project `nisipxbuvndobyxqqglf`, choose the Database/Storage category, paste the subject and body below, and attach [storage-owner-repair-nisipxbuvndobyxqqglf.sql](storage-owner-repair-nisipxbuvndobyxqqglf.sql). This is the single required owner action.
+For ticket `SU-487325`, attach [the sanitized evidence package](supabase-SU-487325-storage-evidence-20260928.md), [its full sanitized readback](supabase-SU-487325-storage-readback-20260928.json), and [storage-owner-repair-nisipxbuvndobyxqqglf.sql](storage-owner-repair-nisipxbuvndobyxqqglf.sql). The package includes the preserved real Storage API request/response, the exact SQL-capture limitation, and a fresh owner/policy/effective-grant readback. This is the single required owner action.
 
-Attachment SHA-256: `F9C80F349F1974D7F97C0848DC292CD3D31A8FF63C8A09F73F503A920D3113B4`.
+Attachment SHA-256 values:
+
+- Evidence markdown: `78448D80D05C3FE716DBC832278A5581CBA2F6ED3A797EC83824BBC6B95C8705`
+- Readback JSON: `51497A237C18429824739A594AA557CDDD0E37B84503F232257235EE94571CF8`
+- Owner SQL: `F9C80F349F1974D7F97C0848DC292CD3D31A8FF63C8A09F73F503A920D3113B4`
 
 ## Subject
 

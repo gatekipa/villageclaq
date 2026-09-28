@@ -1,0 +1,59 @@
+{
+  "ticket": "SU-487325",
+  "project": "nisipxbuvndobyxqqglf",
+  "observed_date": "2026-09-28",
+  "identity": {
+    "current_user": "postgres",
+    "session_user": "postgres",
+    "postgres_member_of_storage_owner": false
+  },
+  "owners": [
+    { "schema": "storage", "table": "buckets", "owner": "supabase_storage_admin" },
+    { "schema": "storage", "table": "buckets_analytics", "owner": "supabase_storage_admin" },
+    { "schema": "storage", "table": "objects", "owner": "supabase_storage_admin" }
+  ],
+  "helper": {
+    "signature": "storage_group_documents_authorized(text,text)",
+    "result_type": "boolean",
+    "owner": "postgres",
+    "security_definer": true,
+    "config": ["search_path=\"\""],
+    "authenticated_execute": true,
+    "anon_execute": false,
+    "service_role_execute": false
+  },
+  "required_policies": [],
+  "truncate_effective": [
+    { "role": "anon", "table": "storage.buckets", "effective": true },
+    { "role": "authenticated", "table": "storage.buckets", "effective": true },
+    { "role": "postgres", "table": "storage.buckets", "effective": true },
+    { "role": "service_role", "table": "storage.buckets", "effective": true },
+    { "role": "supabase_storage_admin", "table": "storage.buckets", "effective": true },
+    { "role": "anon", "table": "storage.buckets_analytics", "effective": true },
+    { "role": "authenticated", "table": "storage.buckets_analytics", "effective": true },
+    { "role": "postgres", "table": "storage.buckets_analytics", "effective": true },
+    { "role": "service_role", "table": "storage.buckets_analytics", "effective": true },
+    { "role": "supabase_storage_admin", "table": "storage.buckets_analytics", "effective": true },
+    { "role": "anon", "table": "storage.objects", "effective": true },
+    { "role": "authenticated", "table": "storage.objects", "effective": true },
+    { "role": "postgres", "table": "storage.objects", "effective": true },
+    { "role": "service_role", "table": "storage.objects", "effective": true },
+    { "role": "supabase_storage_admin", "table": "storage.objects", "effective": true }
+  ],
+  "truncate_acl": [
+    { "table": "buckets", "grantee": "anon", "grantor": "supabase_storage_admin", "grantable": false },
+    { "table": "buckets", "grantee": "authenticated", "grantor": "supabase_storage_admin", "grantable": false },
+    { "table": "buckets", "grantee": "postgres", "grantor": "supabase_storage_admin", "grantable": true },
+    { "table": "buckets", "grantee": "service_role", "grantor": "supabase_storage_admin", "grantable": false },
+    { "table": "buckets", "grantee": "supabase_storage_admin", "grantor": "supabase_storage_admin", "grantable": true },
+    { "table": "buckets_analytics", "grantee": "anon", "grantor": "supabase_storage_admin", "grantable": false },
+    { "table": "buckets_analytics", "grantee": "authenticated", "grantor": "supabase_storage_admin", "grantable": false },
+    { "table": "buckets_analytics", "grantee": "service_role", "grantor": "supabase_storage_admin", "grantable": false },
+    { "table": "buckets_analytics", "grantee": "supabase_storage_admin", "grantor": "supabase_storage_admin", "grantable": false },
+    { "table": "objects", "grantee": "anon", "grantor": "supabase_storage_admin", "grantable": false },
+    { "table": "objects", "grantee": "authenticated", "grantor": "supabase_storage_admin", "grantable": false },
+    { "table": "objects", "grantee": "postgres", "grantor": "supabase_storage_admin", "grantable": true },
+    { "table": "objects", "grantee": "service_role", "grantor": "supabase_storage_admin", "grantable": false },
+    { "table": "objects", "grantee": "supabase_storage_admin", "grantor": "supabase_storage_admin", "grantable": true }
+  ]
+}

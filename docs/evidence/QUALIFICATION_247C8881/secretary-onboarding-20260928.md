@@ -56,6 +56,8 @@ The current Preview loaded the English member route at the route-authoritative g
 
 The browser file chooser opened, but the connected Chrome control pipe failed while transferring the local XLSX fixture and the control surface then became unavailable. The same transfer method was not retried unchanged. Therefore the final XLSX chooser-to-visible-row browser step and the changed dialog's EN/FR mobile pass remain a verification blocker owned by the browser-control environment, not a demonstrated application defect. Parser/template tests, a successful optimized build, a READY Preview, the mounted current member page and the authoritative hosted persistence/queue behavior cover the other layers.
 
+One later bounded recovery attempt was made on 2026-09-28. Rebinding the existing authenticated Chrome QA tab failed before page interaction with `Timed out after 10000ms waiting for CDP command Emulation.setFocusEmulationEnabled`. No equivalent Chrome or alternative-browser retry was made after that control-layer failure. The checklist disposition is unchanged: actual XLSX selection through an immediate and refreshed persisted row, plus the changed EN/FR mobile and dashboard-return path, are not passed by parser or database evidence.
+
 All unchanged module CRUD/navigation outcomes reuse the frozen FA-01–FA-08 evidence. This batch changed only member onboarding and the proxy-claim email channel. No evidence justified reopening financial, meeting, governance, growth or existing activation-security closures. Attachment CRUD remains blocked by the existing Supabase Storage-owner dependency.
 
 ## Gates

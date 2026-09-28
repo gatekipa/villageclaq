@@ -1137,13 +1137,21 @@ export default function MembersPage() {
           return { display_name: displayName, title, email, phone: phone.replace(/[\s().-]/g, ""), role: role || "member",
             notification_consent: notificationConsent, source_key: `${fileDigest}:${index + 1}`, status, statusMsg };
         });
-        const seen = new Map<string, number>();
+        const seenEmails = new Map<string, number>();
+        const seenPhones = new Map<string, number>();
         rows.forEach((row, index) => {
-          const contactKey = `${row.email.toLowerCase()}|${row.phone}`;
-          if (contactKey !== "|" && seen.has(contactKey)) {
+          const emailKey = row.email.toLowerCase();
+          const phoneKey = row.phone;
+          const priorRows = [
+            emailKey ? seenEmails.get(emailKey) : undefined,
+            phoneKey ? seenPhones.get(phoneKey) : undefined,
+          ].filter((value): value is number => value !== undefined);
+          if (priorRows.length > 0) {
             row.status = "error";
-            row.statusMsg = t("duplicateRows", { row: (seen.get(contactKey) || 0) + 1 });
-          } else if (contactKey !== "|") seen.set(contactKey, index);
+            row.statusMsg = t("duplicateRows", { row: Math.min(...priorRows) + 1 });
+          }
+          if (emailKey && !seenEmails.has(emailKey)) seenEmails.set(emailKey, index);
+          if (phoneKey && !seenPhones.has(phoneKey)) seenPhones.set(phoneKey, index);
         });
         setCsvRows(rows);
         setBulkStep(2);

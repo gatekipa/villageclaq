@@ -2800,7 +2800,7 @@
     "searchMinutes": "Search minutes...",
     "actionItemsTracker": "Action Items Tracker",
     "fromMeeting": "From Meeting",
-    "readOnlyNotice": "Published meeting minutes. Contact your administrator for corrections.",
+    "readOnlyNotice": "Shared drafts and officially published minutes are read-only. Contact your administrator for corrections.",
     "noMinutesYet": "No minutes for this event yet",
     "noPublishedMinutes": "No minutes published for this event yet",
     "templateHint": "Agenda\n\nDiscussion Points\n\nDecisions\n\nAction Items\n\nNext Meeting",
@@ -7277,6 +7277,6 @@
     "status": "{count} posted transaction(s)",
     "updated": "Last updated: {time}",
     "noTransactions": "No posted transactions",
-    "refreshNotice": "Changes appear after refresh or when this tab regains focus."
+    "refreshNotice": "Updates are checked automatically about every 15 seconds. Refresh or refocus this tab to check immediately."
   }
 }

@@ -110,7 +110,9 @@ export async function POST(request: Request) {
     );
 
     const requested = new Set((channels || []).map((c) => String(c)));
-    const enqueueChannels = (["whatsapp", "sms"] as const).filter((c) => requested.size === 0 || requested.has(c));
+    // An empty channel selection means "create a manual link only". It must
+    // not silently enqueue every supported channel.
+    const enqueueChannels = (["whatsapp", "sms"] as const).filter((c) => requested.has(c));
 
     const results: Record<string, { queued: boolean; result?: string; error?: string }> = {};
     if (requested.has("email")) {

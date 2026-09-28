@@ -2800,7 +2800,7 @@
     "searchMinutes": "Rechercher dans les procès-verbaux...",
     "actionItemsTracker": "Suivi des points d'action",
     "fromMeeting": "De la réunion",
-    "readOnlyNotice": "Procès-verbaux publiés. Contactez votre administrateur pour les corrections.",
+    "readOnlyNotice": "Les brouillons partagés et les procès-verbaux officiellement publiés sont en lecture seule. Contactez votre administrateur pour les corrections.",
     "noMinutesYet": "Pas encore de procès-verbal pour cet événement",
     "noPublishedMinutes": "Aucun procès-verbal publié pour cet événement",
     "templateHint": "Ordre du jour\n\nPoints de discussion\n\nDécisions\n\nPoints d'action\n\nProchaine réunion",
@@ -7277,6 +7277,6 @@
     "status": "{count} opération(s) comptabilisée(s)",
     "updated": "Dernière mise à jour : {time}",
     "noTransactions": "Aucune opération comptabilisée",
-    "refreshNotice": "Les modifications apparaissent après actualisation ou lorsque cet onglet reprend le focus."
+    "refreshNotice": "Les mises à jour sont vérifiées automatiquement environ toutes les 15 secondes. Actualisez ou revenez sur cet onglet pour vérifier immédiatement."
   }
 }

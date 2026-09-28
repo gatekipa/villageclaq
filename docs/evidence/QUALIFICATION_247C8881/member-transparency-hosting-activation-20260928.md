@@ -1,10 +1,15 @@
 # Member transparency, hosting, and optional activation — 2026-09-28
 
-**Executor:** Daybreak Blue  
-**Application artifact:** `7df1c91b4e7cb2cfa3baa623341d9fb98435183c`  
-**Preview:** `dpl_ER7cBFLcpC9nmYRXp4JFDzCY4y2y` (`https://villageclaq-kc7a9rl1e-gatekipas.vercel.app`)  
-**Backend:** isolated Supabase branch `nisipxbuvndobyxqqglf`  
-**Schema history:** `20260928012633_member_transparency_hosting_activation`, `20260928024041_restore_claim_token_verification`, and corrective `20260928024348_fix_claim_token_verification_return`  
+**Executor:** Daybreak Blue
+
+**Application artifact:** `7df1c91b4e7cb2cfa3baa623341d9fb98435183c`
+
+**Preview:** `dpl_ER7cBFLcpC9nmYRXp4JFDzCY4y2y` (`https://villageclaq-kc7a9rl1e-gatekipas.vercel.app`)
+
+**Backend:** isolated Supabase branch `nisipxbuvndobyxqqglf`
+
+**Schema history:** `20260928012633_member_transparency_hosting_activation`, `20260928024041_restore_claim_token_verification`, and corrective `20260928024348_fix_claim_token_verification_return`
+
 **Production:** unchanged. External delivery and schedules remained suppressed.
 
 The controlling requirements are the frozen master PRD at `050be86c9df3455c66b27bb5853eb786228b4009`: G-001/G-002 minutes lifecycle and retention, G-009 atomic consequential audit, G-011 independent member-transparency settings, and G-012 authoritative report observation. Membership/claim checks also use S0-001/S0-002/S0-004 and H-006. The founder's approved offline-member expectation supplements those clauses. Prior FA-02 existing-account, multigroup, revocation, expiry, and fresh-session evidence was reused; the frozen matrix was not reopened.

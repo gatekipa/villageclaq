@@ -77,8 +77,9 @@ export async function GET(request: Request) {
     // select, while the CONFIRMED basis selects ALL past-due non-waived
     // obligations plus the membership/type ids and is_flexible the money engine
     // needs to decide remindability from CONFIRMED payments. Ordering + ceiling
-    // are identical on both, and BOTH exclude proxy memberships before the cap
-    // (proxies are never reminded, so they must not consume the candidate ceiling).
+    // are identical on both. Accountless active members remain candidates when
+    // an officer recorded a contact plus explicit notification consent; account
+    // activation is not a reminder prerequisite.
     const candidateQuery = useConfirmed
       ? supabase
           .from("contribution_obligations")
@@ -97,6 +98,7 @@ export async function GET(request: Request) {
           display_name,
           is_proxy,
           membership_status,
+          privacy_settings,
           group_id,
           profiles!memberships_user_id_fkey(
             full_name,
@@ -114,14 +116,6 @@ export async function GET(request: Request) {
         )
       `)
           .neq("status", "waived")
-          // Exclude proxy obligations BEFORE the candidate ceiling. Proxies are
-          // never reminded (no account/contact — filtered out below), so fetching
-          // them only burns the 500-row budget and starves real members whose
-          // obligations sort after the proxy backlog. This mirrors the
-          // realObligations filter exactly (user_id NOT NULL AND is_proxy IS NOT
-          // TRUE); that JS filter is kept as defense-in-depth.
-          .not("membership.user_id", "is", null)
-          .not("membership.is_proxy", "is", true)
           .lte("due_date", candidateDueCutoff)
           .order("due_date", { ascending: true })
           .order("id", { ascending: true })
@@ -140,6 +134,8 @@ export async function GET(request: Request) {
           user_id,
           display_name,
           is_proxy,
+          membership_status,
+          privacy_settings,
           group_id,
           profiles!memberships_user_id_fkey(
             full_name,
@@ -155,10 +151,6 @@ export async function GET(request: Request) {
         )
       `)
           .in("status", ["pending", "partial", "overdue"])
-          // Same proxy pre-filter as the confirmed branch — keep the ceiling for
-          // real members only (defense-in-depth realObligations filter retained).
-          .not("membership.user_id", "is", null)
-          .not("membership.is_proxy", "is", true)
           .lt("due_date", now.toISOString().split("T")[0])
           .order("due_date", { ascending: true })
           .order("id", { ascending: true })
@@ -181,15 +173,23 @@ export async function GET(request: Request) {
       console.warn(`[Cron:PaymentReminders] candidate ceiling reached (${CANDIDATE_CEILING}) — obligations beyond the ceiling are NOT processed this run and will starve under a sustained backlog (see ceilingHit)`);
     }
 
-    // ── Filter out proxy members (user_id IS NULL) ──
-    const realObligations = obligations.filter((o: Record<string, unknown>) => {
+    // Keep account-backed members and consenting accountless members with a
+    // recorded contact. The producer and authoritative enqueue RPC re-check the
+    // same lifecycle/contact/consent contract before inserting any queue row.
+    const dispatchObligations = obligations.filter((o: Record<string, unknown>) => {
       const raw = o.membership;
       const m = (Array.isArray(raw) ? raw[0] : raw) as Record<string, unknown> | null;
-      return m && m.user_id && !m.is_proxy;
+      if (!m || (m.membership_status && m.membership_status !== "active")) return false;
+      if (m.user_id && !m.is_proxy) return true;
+      const privacy = (m.privacy_settings || {}) as Record<string, unknown>;
+      return m.user_id == null
+        && m.is_proxy === true
+        && privacy.proxy_contact_consent === true
+        && Boolean(privacy.proxy_phone || privacy.proxy_email);
     });
 
-    if (realObligations.length === 0) {
-      return NextResponse.json({ success: true, sent: 0, failed: 0, ceilingHit, message: "No overdue obligations for real members" });
+    if (dispatchObligations.length === 0) {
+      return NextResponse.json({ success: true, sent: 0, failed: 0, ceilingHit, message: "No overdue obligations for eligible recipients" });
     }
 
     // ── Build 14: confirmed-only decisions (when on the confirmed basis) ──
@@ -200,8 +200,8 @@ export async function GET(request: Request) {
     let reminderDecisions: Map<string, ReminderDecision> | null = null;
     let eligibleObligationIds: Set<string> | null = null;
     if (useConfirmed) {
-      const membershipIds = Array.from(new Set(realObligations.map((o: Record<string, unknown>) => o.membership_id as string).filter(Boolean)));
-      const candidateGroupIds = Array.from(new Set(realObligations.map((o: Record<string, unknown>) => {
+      const membershipIds = Array.from(new Set(dispatchObligations.map((o: Record<string, unknown>) => o.membership_id as string).filter(Boolean)));
+      const candidateGroupIds = Array.from(new Set(dispatchObligations.map((o: Record<string, unknown>) => {
         const m = (Array.isArray(o.membership) ? (o.membership as Record<string, unknown>[])[0] : o.membership) as Record<string, unknown> | null;
         return m?.group_id as string | undefined;
       }).filter(Boolean))) as string[];
@@ -232,7 +232,7 @@ export async function GET(request: Request) {
       const payments = (paysRes.data || []) as unknown as MoneyPayment[];
 
       const flexibleTypeIds = new Set<string>();
-      for (const o of realObligations as Record<string, unknown>[]) {
+      for (const o of dispatchObligations as Record<string, unknown>[]) {
         const ct = (Array.isArray(o.contribution_type) ? (o.contribution_type as Record<string, unknown>[])[0] : o.contribution_type) as Record<string, unknown> | null;
         if (ct?.is_flexible && o.contribution_type_id) flexibleTypeIds.add(o.contribution_type_id as string);
       }
@@ -245,12 +245,12 @@ export async function GET(request: Request) {
       }
 
       reminderDecisions = computeReminderDecisions(
-        realObligations as unknown as MoneyObligation[],
+        dispatchObligations as unknown as MoneyObligation[],
         payments,
         { flexibleTypeIds, excludedTypeIds },
       );
       eligibleObligationIds = new Set<string>();
-      for (const o of realObligations as Record<string, unknown>[]) {
+      for (const o of dispatchObligations as Record<string, unknown>[]) {
         const oid = o.id as string;
         const decision = reminderDecisions.get(oid);
         const membership = (Array.isArray(o.membership) ? (o.membership as Record<string, unknown>[])[0] : o.membership) as Record<string, unknown> | null;
@@ -261,6 +261,13 @@ export async function GET(request: Request) {
           membershipStatus: membership?.membership_status as string | null,
           userId: membership?.user_id as string | null,
           isProxy: membership?.is_proxy as boolean | null,
+          hasOfflineContact: membership?.user_id == null
+            && membership?.is_proxy === true
+            && (membership?.privacy_settings as Record<string, unknown> | null)?.proxy_contact_consent === true
+            && Boolean(
+              (membership?.privacy_settings as Record<string, unknown> | null)?.proxy_phone
+              || (membership?.privacy_settings as Record<string, unknown> | null)?.proxy_email,
+            ),
           confirmedRemaining: decision?.remaining ?? 0,
           at: now,
         }, paymentReminderSettingsFromGroup(groupSettings.get(membership?.group_id as string)));
@@ -288,7 +295,13 @@ export async function GET(request: Request) {
       }>;
     }>();
 
-    for (const o of realObligations) {
+    const accountObligations = dispatchObligations.filter((o: Record<string, unknown>) => {
+      const raw = o.membership;
+      const membership = (Array.isArray(raw) ? raw[0] : raw) as Record<string, unknown> | null;
+      return Boolean(membership?.user_id) && membership?.is_proxy !== true;
+    });
+
+    for (const o of accountObligations) {
       // Build 14: on the confirmed basis, only email/SMS members with a confirmed
       // OPEN, non-flexible obligation (waived/paid/pending-masked/flexible dropped).
       if (useConfirmed && eligibleObligationIds && !eligibleObligationIds.has(o.id as string)) continue;
@@ -333,7 +346,7 @@ export async function GET(request: Request) {
     // ── Resolve emails + phones via RPC — one call per group ──
     // Collect unique group_ids from obligations
     const groupIds = new Set<string>();
-    for (const o of realObligations) {
+    for (const o of accountObligations) {
       const membership = (Array.isArray(o.membership) ? o.membership[0] : o.membership) as Record<string, unknown>;
       const gid = membership.group_id as string;
       if (gid) groupIds.add(gid);
@@ -376,7 +389,7 @@ export async function GET(request: Request) {
     for (const [userId] of byUser) {
       try {
         // Use the first obligation's group_id for preference check
-        const firstObligation = realObligations.find((o: Record<string, unknown>) => {
+        const firstObligation = accountObligations.find((o: Record<string, unknown>) => {
           const m = (Array.isArray(o.membership) ? (o.membership as Record<string, unknown>[])[0] : o.membership) as Record<string, unknown>;
           return m?.user_id === userId;
         });
@@ -402,8 +415,8 @@ export async function GET(request: Request) {
     // large overdue sets are processed in batches instead of one burst.
     const WHATSAPP_BATCH_SIZE = 25;
     const whatsappResults: PromiseSettledResult<PaymentReminderProducerResult>[] = [];
-    for (let i = 0; i < realObligations.length; i += WHATSAPP_BATCH_SIZE) {
-      const batch = realObligations
+    for (let i = 0; i < dispatchObligations.length; i += WHATSAPP_BATCH_SIZE) {
+      const batch = dispatchObligations
         .slice(i, i + WHATSAPP_BATCH_SIZE)
         .map((o) => producePaymentReminderNotification(supabase, o.id as string, { reminderDate, confirmedBasis: useConfirmed, dryRun }));
       whatsappResults.push(...(await Promise.allSettled(batch)));

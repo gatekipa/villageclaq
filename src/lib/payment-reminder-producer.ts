@@ -76,6 +76,8 @@ export type PaymentReminderProducerResult = {
   dryRun?: boolean;
   /** Build 14: confirmed-only remaining (when confirmedBasis), for previews. */
   confirmedRemaining?: number;
+  /** Channels that passed the producer's recipient/contact gate. */
+  channels?: Array<"whatsapp" | "sms" | "email">;
 };
 
 export type PaymentReminderProducerOptions = {
@@ -234,11 +236,12 @@ export async function computeConfirmedReminderDecision(
 }
 
 /**
- * Queue a WhatsApp payment reminder for one overdue obligation.
+ * Queue eligible payment-reminder channels for one overdue obligation.
  *
- * WhatsApp-only producer: the recipient is the obligated member only.
- * Accountless members are eligible when they have an officer-recorded contact
- * and explicit notification consent. Provider delivery remains queue-backed.
+ * The recipient is the obligated member only. Accountless members are eligible
+ * when they have an officer-recorded email/phone and explicit notification
+ * consent. Their recorded contact determines the eligible queue channels;
+ * provider delivery remains queue-backed.
  *
  * Idempotency is a DAY BUCKET, not strict per-entity exactly-once like
  * the receipt/welcome/relief/hosting producers: reminders legitimately
@@ -376,6 +379,7 @@ export async function producePaymentReminderNotification(
   }
   const reminderSettings = paymentReminderSettingsFromGroup(policyResult.data.settings);
   const proxyPhone = (membership.privacy_settings?.proxy_phone as string | undefined) || membership.phone || null;
+  const proxyEmail = (membership.privacy_settings?.proxy_email as string | undefined) || null;
   const proxyConsent = membership.is_proxy === true
     && membership.user_id === null
     && membership.privacy_settings?.proxy_contact_consent === true;
@@ -386,7 +390,7 @@ export async function producePaymentReminderNotification(
     membershipStatus: membership.membership_status,
     userId: membership.user_id,
     isProxy: membership.is_proxy,
-    hasOfflineContact: proxyConsent && !!proxyPhone,
+    hasOfflineContact: proxyConsent && Boolean(proxyPhone || proxyEmail),
     confirmedRemaining: amountDue,
     at: options.reminderDate ? new Date(`${options.reminderDate}T12:00:00Z`) : new Date(),
   }, reminderSettings);
@@ -439,10 +443,20 @@ export async function producePaymentReminderNotification(
     return { status: "skipped", reason: "missing_template_data", obligationId, reminderDate };
   }
 
+  const offlineChannels: Array<"whatsapp" | "sms" | "email"> = [];
+  if (proxyConsent && proxyPhone && formatPhoneForWhatsApp(proxyPhone)) {
+    offlineChannels.push("whatsapp", "sms");
+  }
+  if (proxyConsent && proxyEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(proxyEmail)) {
+    offlineChannels.push("email");
+  }
   const channels = proxyConsent
-    ? { in_app: false, email: false, sms: false, whatsapp: true, push: false }
+    ? { in_app: false, email: offlineChannels.includes("email"), sms: offlineChannels.includes("sms"), whatsapp: offlineChannels.includes("whatsapp"), push: false }
     : await getChannels(supabase, userId, "payment_reminders", obligation.group_id);
-  if (!channels.whatsapp) {
+  if (proxyConsent && offlineChannels.length === 0) {
+    return { status: "skipped", reason: "recipient_unavailable", obligationId, reminderDate, confirmedRemaining: amountDue };
+  }
+  if (!proxyConsent && !channels.whatsapp) {
     logger.log("[PaymentReminderProducer] WhatsApp reminder skipped", {
       obligationId: shortId(obligationId),
       userId: shortId(userId),
@@ -451,8 +465,10 @@ export async function producePaymentReminderNotification(
     return { status: "skipped", reason: "whatsapp_disabled", obligationId, reminderDate };
   }
 
-  const recipientPhone = await resolveRecipientPhone(supabase, membership, profile);
-  if (!recipientPhone) {
+  const recipientPhone = channels.whatsapp
+    ? await resolveRecipientPhone(supabase, membership, profile)
+    : null;
+  if (channels.whatsapp && !recipientPhone) {
     logger.log("[PaymentReminderProducer] WhatsApp reminder skipped", {
       obligationId: shortId(obligationId),
       userId: shortId(userId),
@@ -461,7 +477,7 @@ export async function producePaymentReminderNotification(
     return { status: "skipped", reason: "missing_phone", obligationId, reminderDate };
   }
 
-  if (!formatPhoneForWhatsApp(recipientPhone)) {
+  if (channels.whatsapp && recipientPhone && !formatPhoneForWhatsApp(recipientPhone)) {
     logger.log("[PaymentReminderProducer] WhatsApp reminder skipped", {
       obligationId: shortId(obligationId),
       userId: shortId(userId),
@@ -471,15 +487,17 @@ export async function producePaymentReminderNotification(
     return { status: "skipped", reason: "invalid_phone", obligationId, reminderDate };
   }
 
-  const { data: existingQueue } = await supabase
-    .from("notifications_queue")
-    .select("id,status")
-    .eq("channel", "whatsapp")
-    .eq("template", "payment_reminder")
-    .eq("data->>obligationId", obligation.id)
-    .eq("data->>reminderDate", reminderDate)
-    .limit(1)
-    .maybeSingle();
+  const { data: existingQueue } = channels.whatsapp
+    ? await supabase
+        .from("notifications_queue")
+        .select("id,status")
+        .eq("channel", "whatsapp")
+        .eq("template", "payment_reminder")
+        .eq("data->>obligationId", obligation.id)
+        .eq("data->>reminderDate", reminderDate)
+        .limit(1)
+        .maybeSingle()
+    : { data: null };
 
   // Day-bucket idempotency: any existing row for this obligation+day blocks
   // re-enqueue (including failed rows). Tomorrow's run reminds again.
@@ -497,7 +515,7 @@ export async function producePaymentReminderNotification(
   // nothing (no queue row, no send, no mutation). The existence check above ran
   // read-only so the preview still respects day-bucket idempotency.
   if (options.dryRun) {
-    logger.log("[PaymentReminderProducer] DRY RUN — would queue WhatsApp reminder (no insert)", {
+    logger.log("[PaymentReminderProducer] DRY RUN — would queue payment reminder (no insert)", {
       obligationId: shortId(obligationId),
       userId: shortId(userId),
       amount,
@@ -511,13 +529,16 @@ export async function producePaymentReminderNotification(
       whatsappQueued: false,
       dryRun: true,
       confirmedRemaining: confirmedBasis ? amountDue : undefined,
+      channels: proxyConsent ? offlineChannels : undefined,
     };
   }
 
   const enq = await enqueueCut2ProducerChannels({
     notificationType: "payment_reminder",
     domainObjectId: obligation.id,
+    recipientMembershipId: membership.id,
     locale,
+    channels: proxyConsent ? offlineChannels : undefined,
   }, supabase);
   const queueError = cut2QueueError(enq);
 
@@ -532,7 +553,7 @@ export async function producePaymentReminderNotification(
         template: WA_TEMPLATES.PAYMENT_REMINDER,
       };
     }
-    logger.warn("[PaymentReminderProducer] WhatsApp reminder queue failed", {
+    logger.warn("[PaymentReminderProducer] payment reminder queue failed", {
       obligationId: shortId(obligationId),
       userId: shortId(userId),
       recipient: maskPhoneNumber(recipientPhone),
@@ -547,10 +568,10 @@ export async function producePaymentReminderNotification(
     };
   }
 
-  logger.log("[PaymentReminderProducer] WhatsApp reminder queued", {
+  logger.log("[PaymentReminderProducer] payment reminder queued", {
     obligationId: shortId(obligationId),
     userId: shortId(userId),
-    recipient: maskPhoneNumber(recipientPhone),
+    recipient: recipientPhone ? maskPhoneNumber(recipientPhone) : "email-only",
     template: WA_TEMPLATES.PAYMENT_REMINDER,
     reminderDate,
   });
@@ -560,7 +581,8 @@ export async function producePaymentReminderNotification(
     obligationId,
     reminderDate,
     template: WA_TEMPLATES.PAYMENT_REMINDER,
-    whatsappQueued: true,
+    whatsappQueued: proxyConsent ? offlineChannels.includes("whatsapp") : true,
+    channels: proxyConsent ? offlineChannels : undefined,
   };
 }
 

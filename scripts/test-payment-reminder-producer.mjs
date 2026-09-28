@@ -458,6 +458,39 @@ test("consenting offline member with a phone is eligible without an account", as
   assert.equal(result.status, "queued");
   assert.equal(supabase._cut2Enqueues.length, 1);
   assert.equal(supabase._cut2Enqueues[0].notificationType, "payment_reminder");
+  assert.deepEqual(Array.from(supabase._cut2Enqueues[0].channels), ["whatsapp", "sms"]);
+  assert.equal(supabase._cut2Enqueues[0].recipientMembershipId, ids.membership);
+});
+
+test("consenting offline member with email only queues email without an account", async () => {
+  const { producePaymentReminderNotification } = loadProducer();
+  const supabase = createMockSupabase({
+    membership: {
+      id: ids.membership,
+      group_id: ids.group,
+      user_id: null,
+      display_name: "Mama Ngozi",
+      is_proxy: true,
+      phone: null,
+      privacy_settings: {
+        proxy_name: "Mama Ngozi",
+        proxy_email: "mama.ngozi@example.invalid",
+        proxy_contact_consent: true,
+      },
+      membership_status: "active",
+    },
+    profile: null,
+  });
+
+  const result = await producePaymentReminderNotification(supabase, ids.obligation, {
+    reminderDate: REMINDER_DATE,
+  });
+
+  assert.equal(result.status, "queued");
+  assert.equal(result.whatsappQueued, false);
+  assert.deepEqual(Array.from(result.channels), ["email"]);
+  assert.deepEqual(Array.from(supabase._cut2Enqueues[0].channels), ["email"]);
+  assert.equal(supabase._cut2Enqueues[0].recipientMembershipId, ids.membership);
 });
 
 test("non-active membership is never reminded", async () => {
@@ -592,6 +625,11 @@ test("cron routes reminders through the producer enqueue path, not direct email/
   assert.doesNotMatch(source, /\/api\/sms\/send/);
   assert.doesNotMatch(source, /sendEmail\(/);
   assert.doesNotMatch(source, /sendSmsNotification\(/);
+  assert.doesNotMatch(source, /\.not\("membership\.user_id", "is", null\)/, "accountless obligations are not removed by the query");
+  assert.match(source, /const dispatchObligations = obligations\.filter/, "recipient filter is explicit");
+  assert.match(source, /privacy\.proxy_contact_consent === true/, "offline consent is required");
+  assert.match(source, /Boolean\(privacy\.proxy_phone \|\| privacy\.proxy_email\)/, "a recorded phone or email is required");
+  assert.match(source, /producePaymentReminderNotification\(supabase, o\.id as string/, "eligible offline obligations reach the authoritative producer");
 });
 
 test("cron schedule remains daily at 08:00 UTC", () => {

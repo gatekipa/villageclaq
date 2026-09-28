@@ -104,18 +104,26 @@ export async function POST(request: Request) {
 
     const { data: recipients, error: recErr } = await adminClient
       .from("memberships")
-      .select("id")
+      .select("id,user_id,is_proxy,privacy_settings")
       .eq("group_id", groupId)
       .eq("membership_status", "active")
-      .not("user_id", "is", null)
       .neq("standing", "banned");
 
     if (recErr) {
       return NextResponse.json({ error: recErr.message }, { status: 500 });
     }
 
+    const eligibleRecipients = (recipients || []).filter((membership) => {
+      if (membership.user_id && !membership.is_proxy) return true;
+      const privacy = (membership.privacy_settings || {}) as Record<string, unknown>;
+      return membership.user_id == null
+        && membership.is_proxy === true
+        && privacy.proxy_contact_consent === true
+        && Boolean(privacy.proxy_phone || privacy.proxy_email);
+    });
+
     const results: Cut2ProducerEnqueueSummary[] = [];
-    for (const m of recipients || []) {
+    for (const m of eligibleRecipients) {
       results.push(
         await enqueueCut2ProducerChannels(
           {

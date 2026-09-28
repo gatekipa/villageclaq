@@ -46,14 +46,27 @@ test("overdue mode, global stop, and per-contribution stop are explicit", () => 
   assert.equal(evaluatePaymentReminderEligibility({ ...base, at: new Date("2026-09-30T01:00:00Z") }, typeStopped).reason, "contribution_reminders_stopped");
 });
 
-test("paid, waived, revoked, proxy, and missing recipients never receive demands", () => {
+test("paid, waived, revoked, and missing-contact recipients never receive demands", () => {
   const settings = paymentReminderSettingsFromGroup({ payment_reminders: { timezone: "UTC" } });
   const at = new Date("2026-09-30T12:00:00Z");
   assert.equal(evaluatePaymentReminderEligibility({ ...base, confirmedRemaining: 0, at }, settings).reason, "obligation_settled_confirmed");
   assert.equal(evaluatePaymentReminderEligibility({ ...base, obligationStatus: "waived", at }, settings).reason, "obligation_waived");
   assert.equal(evaluatePaymentReminderEligibility({ ...base, membershipStatus: "suspended", at }, settings).reason, "membership_not_active");
-  assert.equal(evaluatePaymentReminderEligibility({ ...base, isProxy: true, at }, settings).reason, "recipient_unavailable");
+  assert.equal(evaluatePaymentReminderEligibility({ ...base, userId: null, isProxy: true, hasOfflineContact: false, at }, settings).reason, "recipient_unavailable");
   assert.equal(evaluatePaymentReminderEligibility({ ...base, userId: null, at }, settings).reason, "recipient_unavailable");
+});
+
+test("active accountless member with consented recorded contact remains eligible", () => {
+  const settings = paymentReminderSettingsFromGroup({ payment_reminders: { timezone: "UTC" } });
+  const result = evaluatePaymentReminderEligibility({
+    ...base,
+    userId: null,
+    isProxy: true,
+    hasOfflineContact: true,
+    at: new Date("2026-09-30T12:00:00Z"),
+  }, settings);
+  assert.equal(result.eligible, true);
+  assert.equal(result.reason, "eligible");
 });
 
 test("DST transitions still produce one stable local calendar day", () => {

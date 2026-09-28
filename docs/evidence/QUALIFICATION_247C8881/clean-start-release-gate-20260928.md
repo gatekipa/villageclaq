@@ -40,7 +40,9 @@ Jude explicitly approved `00168_relief_delegated_payout_pairs.sql`. The isolated
 
 Actual **GPT-6 Sol** independently reviewed `f6df21e60013663723193102ea675bd327d96a07` in the final blocker-only round. Sol found one P1 race: an interrupted zero-membership invitation check retained its key, so the same actor/route could remain on a spinner. Sol found no additional blocker in the two migrations or rollback probes and made no edits.
 
-Daybreak Blue repaired the race at `7166270603834cfccec897feea9a051f04424ef7`: cleanup releases only its matching in-flight key and the effect depends on stable `user.id`. A cancellation followed by same-route retry now passes. The review cap is exhausted, so Sol's independent verdict remains **HOLD for reviewed parent**; the repair has executor verification and requires no whole-product review restart.
+Daybreak Blue repaired the race at `7166270603834cfccec897feea9a051f04424ef7`: cleanup releases only its matching in-flight key and the effect depends on stable `user.id`. The regression asserts that the effect depends on `user?.id` rather than provider object identity, cancels the first membership check in its focused harness, and proves a check with the same actor ID and route can start again. This directly removes Sol's latched-key cause of the persistent spinner. TypeScript also passes.
+
+On 2026-09-28 Jude accepted this focused executor evidence as direct coverage of Sol's reported race and the required navigation acceptance criteria. This is **Jude's risk acceptance at the exhausted review cap**. Sol's verdict remains HOLD for the reviewed parent; no Sol PASS is claimed and no independent review was restarted. VC-06 is closed by release-authority acceptance for this delta.
 
 ## Remaining blockers
 
@@ -53,8 +55,10 @@ Exact provider/owner action on **isolated project `nisipxbuvndobyxqqglf` only**:
 3. Revoke `TRUNCATE` on `storage.objects`, `storage.buckets`, and `storage.buckets_analytics` from `PUBLIC`, `anon`, and `authenticated` (and return effective `service_role` evidence for the disclosed managed-table grant).
 4. Return the policy definitions and effective privilege evidence. Daybreak Blue then runs the prepared real Storage API upload/sign/read/update/delete matrix.
 
+Read-only owner-path inspection confirms that the available connector runs as `postgres`, all three managed tables are owned by `supabase_storage_admin`, and `postgres` is not a member of that role. The exact owner transaction and readback are in [storage-owner-repair-nisipxbuvndobyxqqglf.sql](storage-owner-repair-nisipxbuvndobyxqqglf.sql). The single supported next action is the [ready-to-send Supabase Support request](storage-owner-support-request-20260928.md); the failed privilege path must not be retried and ownership must not be changed.
+
 R-012 remains archived and quarantined without inferred settlement, deduplication, or opening balance. The finance owner retains reconciliation ownership.
 
 ## Decision
 
-**HOLD.** Founder login and non-Storage clean-start execution are restored. Promotion is withheld because the mandatory Storage owner action and real Storage API matrix remain incomplete, and the final independent verdict applies to the pre-repair parent. The current public deployment and rollback reference stay unchanged.
+**HOLD on Storage only.** Founder login and non-Storage clean-start execution are restored. Jude accepted the focused navigation repair evidence at the exhausted review cap. Promotion is withheld because the mandatory Storage owner action and real Storage API matrix remain incomplete. The current public deployment and rollback reference stay unchanged.

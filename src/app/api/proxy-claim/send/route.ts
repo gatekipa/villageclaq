@@ -112,13 +112,9 @@ export async function POST(request: Request) {
     const requested = new Set((channels || []).map((c) => String(c)));
     // An empty channel selection means "create a manual link only". It must
     // not silently enqueue every supported channel.
-    const enqueueChannels = (["whatsapp", "sms"] as const).filter((c) => requested.has(c));
+    const enqueueChannels = (["email", "whatsapp", "sms"] as const).filter((c) => requested.has(c));
 
     const results: Record<string, { queued: boolean; result?: string; error?: string }> = {};
-    if (requested.has("email")) {
-      results.email = { queued: false, result: "manual_link_only", error: "external_email_suppressed" };
-    }
-
     for (const channel of enqueueChannels) {
       const enq = await enqueueOutboundNotification(
         {

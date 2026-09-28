@@ -11,14 +11,14 @@ const claimRoute = read("src/app/api/proxy-claim/send/route.ts");
 const en = JSON.parse(read("messages/en.json"));
 const fr = JSON.parse(read("messages/fr.json"));
 
-test("member import is explicitly CSV-only in EN and FR", () => {
-  assert.match(membersPage, /accept="\.csv"/);
+test("member import explicitly supports CSV and native XLSX in EN and FR", () => {
+  assert.match(membersPage, /accept="\.csv,\.xlsx"/);
   assert.match(membersPage, /villageclaq-member-import-template\.csv/);
-  assert.doesNotMatch(membersPage, /accept="[^"]*\.xlsx/);
-  assert.match(en.members.dragOrClick, /CSV only/i);
-  assert.match(en.members.dragOrClick, /\.xlsx files are not supported/i);
-  assert.match(fr.members.dragOrClick, /CSV uniquement/i);
-  assert.match(fr.members.dragOrClick, /\.xlsx ne sont pas pris en charge/i);
+  assert.match(membersPage, /villageclaq-member-import-template\.xlsx/);
+  assert.match(en.members.dragOrClick, /\.csv or \.xlsx/i);
+  assert.match(en.members.dragOrClick, /text-formatted phone/i);
+  assert.match(fr.members.dragOrClick, /\.csv ou \.xlsx/i);
+  assert.match(fr.members.dragOrClick, /format Texte/i);
 });
 
 test("offline contribution and announcement candidates require active membership, consent, and contact", () => {
@@ -34,9 +34,9 @@ test("offline contribution and announcement candidates require active membership
 
 test("manual activation has an explicit queue action and a copyable link fallback", () => {
   assert.match(membersPage, /onClick=\{handleSendClaimInvite\}/);
-  assert.match(membersPage, /\["sms", "whatsapp"\]\.map/);
+  assert.match(membersPage, /\["email", "sms", "whatsapp"\]\.map/);
   assert.match(membersPage, /navigator\.clipboard\.writeText\(claimUrl\)/);
   assert.match(membersPage, /setClaimSuccess\(queued \? t\("claimInviteQueued"\) : t\("claimInviteLinkReady"\)\)/);
-  assert.match(claimRoute, /\(\["whatsapp", "sms"\] as const\)\.filter\(\(c\) => requested\.has\(c\)\)/);
+  assert.match(claimRoute, /\(\["email", "whatsapp", "sms"\] as const\)\.filter\(\(c\) => requested\.has\(c\)\)/);
   assert.match(claimRoute, /claimUrl/);
 });

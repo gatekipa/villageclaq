@@ -79,7 +79,6 @@ import {
   ShieldAlert,
   Clock,
 } from "lucide-react";
-import Papa from "papaparse";
 import { Textarea } from "@/components/ui/textarea";
 import { useMembers, useGroupPositions } from "@/lib/hooks/use-supabase-query";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -102,6 +101,10 @@ import {
   useTransferGroupOwnership,
   parseMembershipRpcError,
 } from "@/lib/hooks/use-membership-mutations";
+import {
+  MemberImportFileError,
+  readMemberImportFile,
+} from "@/lib/member-import";
 
 /**
  * Detect network-level fetch errors (e.g. "TypeError: Failed to fetch").
@@ -245,11 +248,13 @@ interface CsvRow {
   role: string;
   notification_consent: boolean;
   source_key: string;
+  source_kind: "csv_import" | "xlsx_import";
+  source_row: number;
   status: "valid" | "error" | "warning";
   statusMsg: string;
 }
 
-const VALID_ROLES = ["member", "admin", "moderator"];
+const VALID_ROLES = ["member", "moderator"];
 
 const ITEMS_PER_PAGE = 25;
 const VIEW_PREFERENCE_KEY = "villageclaq-members-view";
@@ -332,7 +337,7 @@ export default function MembersPage() {
   const [newTitle, setNewTitle] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newPhone, setNewPhone] = useState("");
-  const [newRole, setNewRole] = useState<"member" | "admin" | "moderator">("member");
+  const [newRole, setNewRole] = useState<"member" | "moderator">("member");
   const [newNotificationConsent, setNewNotificationConsent] = useState(false);
   const [allowSharedContact, setAllowSharedContact] = useState(false);
   const [addSaving, setAddSaving] = useState(false);
@@ -356,6 +361,7 @@ export default function MembersPage() {
   const [importTotal, setImportTotal] = useState(0);
   const [importResults, setImportResults] = useState<{ succeeded: number; skipped: number; failed: { name: string; error: string }[] }>({ succeeded: 0, skipped: 0, failed: [] });
   const [isImporting, setIsImporting] = useState(false);
+  const [bulkFileError, setBulkFileError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Edit member dialog state
@@ -490,10 +496,9 @@ export default function MembersPage() {
     const proxyPhone = (ps?.proxy_phone as string) || "";
     setClaimEmail((ps?.proxy_email as string) || "");
     setClaimPhone(proxyPhone);
-    // Default channels based on available contact info
-    const defaultChannels: string[] = [];
-    if (proxyPhone) defaultChannels.push("sms", "whatsapp");
-    setClaimChannels(defaultChannels);
+    // Link creation is the safe default. The officer must deliberately select
+    // every external channel for this invitation attempt.
+    setClaimChannels([]);
     setClaimError(null);
     setClaimSuccess(null);
     setClaimUrl(null);
@@ -1082,10 +1087,11 @@ export default function MembersPage() {
     setImportTotal(0);
     setImportResults({ succeeded: 0, skipped: 0, failed: [] });
     setIsImporting(false);
+    setBulkFileError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  function downloadTemplate() {
+  function downloadCsvTemplate() {
     const csv = `display_name,title,email,phone,role,notification_consent\n"John Doe","","john@email.com","+13014335857","member","false"\n"Mama Grace","Chief","","","member","false"`;
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -1098,65 +1104,92 @@ export default function MembersPage() {
     URL.revokeObjectURL(url);
   }
 
-  async function handleCsvFile(file: File) {
-    const digestBytes = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
-    const fileDigest = Array.from(new Uint8Array(digestBytes)).map((b) => b.toString(16).padStart(2, "0")).join("");
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const rows: CsvRow[] = (results.data as Record<string, string>[]).map((raw, index) => {
-          const displayName = (raw.display_name || raw.name || "").trim();
-          const title = (raw.title || "").trim();
-          const email = (raw.email || "").trim();
-          const phone = (raw.phone || "").trim();
-          const role = (raw.role || "member").trim().toLowerCase();
-          const consentRaw = (raw.notification_consent || "false").trim().toLowerCase();
-          const notificationConsent = ["true", "yes", "1", "oui"].includes(consentRaw);
+  function downloadXlsxTemplate() {
+    const link = document.createElement("a");
+    link.href = "/templates/villageclaq-member-import-template.xlsx";
+    link.download = "villageclaq-member-import-template.xlsx";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 
-          let status: CsvRow["status"] = "valid";
-          let statusMsg = "";
+  async function handleImportFile(file: File) {
+    setBulkFileError(null);
+    try {
+      const parsed = await readMemberImportFile(file);
+      const rows: CsvRow[] = parsed.rows.map((raw) => {
+        const displayName = raw.display_name.trim();
+        const title = raw.title.trim();
+        const email = raw.email.trim();
+        const phone = raw.phone.trim();
+        const role = raw.role.trim().toLowerCase() || "member";
+        const consentRaw = raw.notification_consent_raw.trim().toLowerCase();
+        const notificationConsent = ["true", "yes", "1", "oui"].includes(consentRaw);
+        let status: CsvRow["status"] = "valid";
+        let statusMsg = "";
 
-          if (!displayName) {
-            status = "error";
-            statusMsg = t("nameRequired");
-          } else if (role && !VALID_ROLES.includes(role)) {
-            status = "error";
-            statusMsg = t("invalidRole");
-          } else if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-            status = "error";
-            statusMsg = t("invalidEmail");
-          } else if (phone && !/^\+[1-9]\d{7,14}$/.test(phone.replace(/[\s().-]/g, ""))) {
-            status = "error";
-            statusMsg = t("phoneCountryCodeRequired");
-          } else if (consentRaw && !["true", "false", "yes", "no", "1", "0", "oui", "non"].includes(consentRaw)) {
-            status = "error";
-            statusMsg = t("invalidConsent");
-          }
+        if (raw.cell_issue === "ambiguous_phone") {
+          status = "error";
+          statusMsg = t("ambiguousSpreadsheetPhone", { row: raw.source_row });
+        } else if (raw.cell_issue === "ambiguous_value") {
+          status = "error";
+          statusMsg = t("ambiguousSpreadsheetValue", { row: raw.source_row });
+        } else if (!displayName) {
+          status = "error";
+          statusMsg = t("nameRequired");
+        } else if (/^[=+@-]/.test(displayName) || /^[=+@]/.test(title)) {
+          status = "error";
+          statusMsg = t("formulaLikeValue");
+        } else if (role && !VALID_ROLES.includes(role)) {
+          status = "error";
+          statusMsg = t("invalidRole");
+        } else if (email && (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || /^[=+@-]/.test(email))) {
+          status = "error";
+          statusMsg = t("invalidEmail");
+        } else if (phone && !/^\+[1-9]\d{7,14}$/.test(phone.replace(/[\s().-]/g, ""))) {
+          status = "error";
+          statusMsg = t("phoneCountryCodeRequired");
+        } else if (consentRaw && !["true", "false", "yes", "no", "1", "0", "oui", "non"].includes(consentRaw)) {
+          status = "error";
+          statusMsg = t("invalidConsent");
+        }
 
-          return { display_name: displayName, title, email, phone: phone.replace(/[\s().-]/g, ""), role: role || "member",
-            notification_consent: notificationConsent, source_key: `${fileDigest}:${index + 1}`, status, statusMsg };
-        });
-        const seenEmails = new Map<string, number>();
-        const seenPhones = new Map<string, number>();
-        rows.forEach((row, index) => {
-          const emailKey = row.email.toLowerCase();
-          const phoneKey = row.phone;
-          const priorRows = [
-            emailKey ? seenEmails.get(emailKey) : undefined,
-            phoneKey ? seenPhones.get(phoneKey) : undefined,
-          ].filter((value): value is number => value !== undefined);
-          if (priorRows.length > 0) {
-            row.status = "error";
-            row.statusMsg = t("duplicateRows", { row: Math.min(...priorRows) + 1 });
-          }
-          if (emailKey && !seenEmails.has(emailKey)) seenEmails.set(emailKey, index);
-          if (phoneKey && !seenPhones.has(phoneKey)) seenPhones.set(phoneKey, index);
-        });
-        setCsvRows(rows);
-        setBulkStep(2);
-      },
-    });
+        return {
+          display_name: displayName,
+          title,
+          email,
+          phone: phone.replace(/[\s().-]/g, ""),
+          role,
+          notification_consent: notificationConsent,
+          source_key: raw.source_key,
+          source_kind: raw.source_kind,
+          source_row: raw.source_row,
+          status,
+          statusMsg,
+        };
+      });
+      const seenEmails = new Map<string, number>();
+      const seenPhones = new Map<string, number>();
+      rows.forEach((row) => {
+        const emailKey = row.email.toLowerCase();
+        const phoneKey = row.phone;
+        const priorRows = [
+          emailKey ? seenEmails.get(emailKey) : undefined,
+          phoneKey ? seenPhones.get(phoneKey) : undefined,
+        ].filter((value): value is number => value !== undefined);
+        if (priorRows.length > 0) {
+          row.status = "error";
+          row.statusMsg = t("duplicateRows", { row: Math.min(...priorRows) });
+        }
+        if (emailKey && !seenEmails.has(emailKey)) seenEmails.set(emailKey, row.source_row);
+        if (phoneKey && !seenPhones.has(phoneKey)) seenPhones.set(phoneKey, row.source_row);
+      });
+      setCsvRows(rows);
+      setBulkStep(2);
+    } catch (error) {
+      const code = error instanceof MemberImportFileError ? error.code : "unreadable_file";
+      setBulkFileError(t(`importErrors.${code}` as "importErrors.unreadable_file"));
+    }
   }
 
   function updateCsvRow(index: number, field: keyof CsvRow, value: string) {
@@ -1222,7 +1255,7 @@ export default function MembersPage() {
               phone: row.phone || null,
               email: row.email || null,
               role,
-              source_kind: "csv_import",
+              source_kind: row.source_kind,
               source_key: row.source_key,
               notification_consent: row.notification_consent,
             },
@@ -2096,11 +2129,10 @@ export default function MembersPage() {
               <Label>{t("role")}</Label>
               <select
                 value={newRole}
-                onChange={(e) => setNewRole(e.target.value as "member" | "admin" | "moderator")}
+                onChange={(e) => setNewRole(e.target.value as "member" | "moderator")}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="member">{t("filterMember")}</option>
-                <option value="admin">{t("filterAdmin")}</option>
                 <option value="moderator">{t("filterModerator")}</option>
               </select>
             </div>
@@ -2272,7 +2304,7 @@ export default function MembersPage() {
             </p>
           </DialogHeader>
 
-          {/* Step 1: Upload CSV */}
+          {/* Step 1: Upload spreadsheet */}
           {bulkStep === 1 && (
             <div className="space-y-4">
               <div
@@ -2283,27 +2315,34 @@ export default function MembersPage() {
                   e.preventDefault();
                   e.stopPropagation();
                   const file = e.dataTransfer.files[0];
-                  if (file && file.name.endsWith(".csv")) handleCsvFile(file);
+                  if (file) handleImportFile(file);
                 }}
               >
                 <Upload className="h-10 w-10 text-muted-foreground/50 mb-3" />
-                <p className="text-sm font-medium">{t("uploadCsv")}</p>
+                <p className="text-sm font-medium">{t("uploadSpreadsheet")}</p>
                 <p className="text-xs text-muted-foreground mt-1">{t("dragOrClick")}</p>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv"
+                  accept=".csv,.xlsx"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file) handleCsvFile(file);
+                    if (file) handleImportFile(file);
                   }}
                 />
               </div>
-              <Button variant="outline" size="sm" onClick={downloadTemplate}>
-                <Download className="mr-2 h-4 w-4" />
-                {t("downloadTemplate")}
-              </Button>
+              {bulkFileError && <p className="text-sm text-destructive" role="alert">{bulkFileError}</p>}
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={downloadCsvTemplate}>
+                  <Download className="mr-2 h-4 w-4" />
+                  {t("downloadCsvTemplate")}
+                </Button>
+                <Button variant="outline" size="sm" onClick={downloadXlsxTemplate}>
+                  <Download className="mr-2 h-4 w-4" />
+                  {t("downloadXlsxTemplate")}
+                </Button>
+              </div>
             </div>
           )}
 
@@ -2389,7 +2428,6 @@ export default function MembersPage() {
                             className="h-7 rounded-md border border-input bg-transparent px-2 text-xs"
                           >
                             <option value="member">member</option>
-                            <option value="admin">admin</option>
                             <option value="moderator">moderator</option>
                           </select>
                         </TableCell>
@@ -2523,11 +2561,14 @@ export default function MembersPage() {
             <div className="space-y-2">
               <Label>{t("sendVia")}</Label>
               <div className="flex flex-wrap gap-3">
-                {["sms", "whatsapp"].map((ch) => (
+                {["email", "sms", "whatsapp"].map((ch) => {
+                  const available = ch === "email" ? !!claimEmail.trim() : !!claimPhone.trim();
+                  return (
                   <label key={ch} className="flex items-center gap-1.5 text-sm cursor-pointer">
                     <input
                       type="checkbox"
                       checked={claimChannels.includes(ch)}
+                      disabled={!available}
                       onChange={(e) => {
                         setClaimChannels((prev) =>
                           e.target.checked
@@ -2539,7 +2580,8 @@ export default function MembersPage() {
                     />
                     {ch === "email" ? t("channelEmail") : ch === "sms" ? t("channelSms") : t("channelWhatsapp")}
                   </label>
-                ))}
+                  );
+                })}
               </div>
               <p className="text-xs text-muted-foreground">{t("channelHint")}</p>
             </div>

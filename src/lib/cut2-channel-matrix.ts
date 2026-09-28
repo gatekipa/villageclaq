@@ -56,7 +56,7 @@ export const CUT2_CHANNEL_MATRIX: Record<
   minutes_published: { whatsapp: "ALLOW", sms: "ALLOW", email: "ALLOW", push: "DENY" },
   election_opened: { whatsapp: "ALLOW", sms: "DENY", email: "DENY", push: "DENY" },
   announcement: { whatsapp: "ALLOW", sms: "ALLOW", email: "DENY", push: "DENY" },
-  proxy_claim: { whatsapp: "ALLOW", sms: "ALLOW", email: "DENY", push: "DENY" },
+  proxy_claim: { whatsapp: "ALLOW", sms: "ALLOW", email: "ALLOW", push: "DENY" },
   hosting_swap: { whatsapp: "ALLOW", sms: "ALLOW", email: "DENY", push: "DENY" },
 };
 
@@ -72,6 +72,7 @@ export const CUT2_EMAIL_TEMPLATE: Partial<Record<Cut2NotificationType, string>> 
   event_reminder: "event-reminder",
   minutes_published: "minutes-published",
   member_invitation: "invitation",
+  proxy_claim: "proxy-claim",
 };
 
 export const CUT2_SMS_TEMPLATE: Partial<Record<Cut2NotificationType, string>> = {

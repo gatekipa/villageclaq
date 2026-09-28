@@ -13,10 +13,37 @@ const onboarding = fs.readFileSync(
 
 test("zero-membership invitation check cannot cancel itself on checking-state updates", () => {
   assert.match(layout, /const invitationCheckKeyRef = useRef<string \| null>\(null\)/);
-  assert.match(layout, /const checkKey = `\$\{user\.id\}:\$\{pathname\}`/);
+  assert.match(layout, /const userId = user\?\.id/);
+  assert.match(layout, /const checkKey = `\$\{userId\}:\$\{pathname\}`/);
   assert.match(layout, /if \(invitationCheckKeyRef\.current === checkKey\) return/);
   const effectTail = layout.match(/\/\/ CRITICAL: router removed from deps[\s\S]*?\}, \[([^\]]+)\]\);/)?.[1] ?? "";
   assert.doesNotMatch(effectTail, /checkingInvitations|checkedInvitations/);
+});
+
+test("a cancelled zero-membership check releases its key for a same-route retry", () => {
+  assert.match(
+    layout,
+    /if \(invitationCheckKeyRef\.current === checkKey\) \{\s*invitationCheckKeyRef\.current = null;\s*\}/,
+  );
+  assert.match(
+    layout,
+    /\[loading, memberships\.length, isOnboardingPage, isInviteSafePage, user\?\.id, pathname\]/,
+  );
+
+  const keyRef = { current: null };
+  const start = (userId, pathname) => {
+    const checkKey = `${userId}:${pathname}`;
+    if (keyRef.current === checkKey) return false;
+    keyRef.current = checkKey;
+    return () => {
+      if (keyRef.current === checkKey) keyRef.current = null;
+    };
+  };
+
+  const cancelFirst = start("fictional-user", "/en/dashboard");
+  assert.equal(typeof cancelFirst, "function");
+  cancelFirst();
+  assert.equal(typeof start("fictional-user", "/en/dashboard"), "function");
 });
 
 test("completed group setup reloads a route-authoritative group after forced refresh", () => {

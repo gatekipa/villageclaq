@@ -370,9 +370,10 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   // logRedirectDecision() provides dev-time visibility.
   useEffect(() => {
     if (loading || memberships.length > 0 || isOnboardingPage || isInviteSafePage) return;
-    if (!user) return;
+    const userId = user?.id;
+    if (!userId) return;
 
-    const checkKey = `${user.id}:${pathname}`;
+    const checkKey = `${userId}:${pathname}`;
     if (invitationCheckKeyRef.current === checkKey) return;
     invitationCheckKeyRef.current = checkKey;
 
@@ -447,12 +448,15 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
 
     return () => {
       cancelled = true;
+      if (invitationCheckKeyRef.current === checkKey) {
+        invitationCheckKeyRef.current = null;
+      }
       resetRedirectLock();
     };
   // CRITICAL: router removed from deps — useRouter() returns a new object on
   // every render, which would re-trigger this effect. Using routerRef instead.
   // pathname is included so the guard re-evaluates if user navigates while at 0 memberships.
-  }, [loading, memberships.length, isOnboardingPage, isInviteSafePage, user, pathname]);
+  }, [loading, memberships.length, isOnboardingPage, isInviteSafePage, user?.id, pathname]);
 
   // ── Onboarding / invite-safe pages: ALWAYS render children ────────────────
   // This must come FIRST — if the pathname includes /onboarding, never show

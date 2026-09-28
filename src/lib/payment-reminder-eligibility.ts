@@ -13,6 +13,7 @@ export type PaymentReminderEligibilityInput = {
   membershipStatus?: string | null;
   userId?: string | null;
   isProxy?: boolean | null;
+  hasOfflineContact?: boolean;
   confirmedRemaining: number;
   at?: Date;
 };
@@ -85,7 +86,9 @@ export function evaluatePaymentReminderEligibility(
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) return { ...base, eligible: false, reason: "invalid_due_date" };
   if (input.membershipStatus && input.membershipStatus !== "active") return { ...base, eligible: false, reason: "membership_not_active" };
-  if (!input.userId || input.isProxy) return { ...base, eligible: false, reason: "recipient_unavailable" };
+  if (!input.userId && !(input.isProxy && input.hasOfflineContact)) {
+    return { ...base, eligible: false, reason: "recipient_unavailable" };
+  }
   if (input.obligationStatus === "waived") return { ...base, eligible: false, reason: "obligation_waived" };
   if (input.obligationStatus === "paid") return { ...base, eligible: false, reason: "obligation_settled_confirmed" };
   if (!(input.confirmedRemaining > 0)) return { ...base, eligible: false, reason: "obligation_settled_confirmed" };

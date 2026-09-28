@@ -103,6 +103,7 @@ const adminSections: NavSection[] = [
     items: [
       { key: "contributions", href: "/dashboard/contributions", icon: HandCoins, anyPermission: ["contributions.manage", "finances.view", "finances.manage", "finances.record"] },
       { key: "finances", href: "/dashboard/finances", icon: CreditCard, anyPermission: ["finances.manage", "finances.view"] },
+      { key: "memberFinancialSummary", href: "/dashboard/financial-summary", icon: BarChart3 },
       { key: "loans", href: "/dashboard/loans", icon: Landmark, anyPermission: ["contributions.manage", "finances.manage"], proBadge: true },
     ],
   },
@@ -167,6 +168,7 @@ const memberSections: NavSection[] = [
       { key: "myInvitations", href: "/dashboard/my-invitations", icon: Mail },
       { key: "myAttendance", href: "/dashboard/my-attendance", icon: ClipboardCheck },
       { key: "myHosting", href: "/dashboard/my-hosting", icon: Home },
+      { key: "memberFinancialSummary", href: "/dashboard/financial-summary", icon: BarChart3 },
       { key: "myRelief", href: "/dashboard/relief/my", icon: Heart },
       { key: "myLoans", href: "/dashboard/my-loans", icon: Landmark },
       { key: "myFines", href: "/dashboard/my-fines", icon: Gavel },

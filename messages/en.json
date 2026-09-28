@@ -241,7 +241,8 @@
     "badgePro": "Pro",
     "launchCenter": "Launch Center",
     "myGroups": "My Groups",
-    "executionInbox": "Execution Inbox"
+    "executionInbox": "Execution Inbox",
+    "memberFinancialSummary": "Financial Summary"
   },
   "cookies": {
     "title": "Cookie Settings",
@@ -930,12 +931,12 @@
     "contributionsPaid": "Contributions Paid",
     "outstandingBalance": "Outstanding Balance",
     "memberSummary": "Member Summary",
-    "proxyHint": "This creates a proxy member record. When they sign up and join via invite code, their account can be linked later.",
-    "addProxyMember": "Add Proxy",
-    "addProxyMemberDesc": "Add a member without an email account. Ideal for elderly members or those without smartphones.",
+    "proxyHint": "This member remains active even without an online account.",
+    "addProxyMember": "Add offline member",
+    "addProxyMemberDesc": "Creates an active group membership. The online account can be activated later without losing history.",
     "fullName": "Full Name",
     "unnamed": "Unnamed Member",
-    "proxyMember": "Proxy Member",
+    "proxyMember": "Account not activated",
     "noContributions": "No contributions yet",
     "memberTitle": "Title (Optional)",
     "titlePlaceholder": "e.g., Chief, Nchinda, Pastor, Dr., Alhaji, Mama",
@@ -997,7 +998,7 @@
     "channelEmail": "Email",
     "channelSms": "SMS",
     "channelWhatsapp": "WhatsApp",
-    "channelHint": "SMS is only available for African phone numbers. WhatsApp works globally.",
+    "channelHint": "SMS and WhatsApp queue only when contact and consent allow. External delivery is suppressed in founder mode.",
     "exportMembers": "Export CSV",
     "exportingMembers": "Exporting...",
     "bulkInvite": "Bulk Invite",
@@ -1090,7 +1091,20 @@
       "TARGET_NOT_ACTIVE_MEMBER": "Target member must be an active member to receive group ownership.",
       "staleTenantAborted": "The operation was aborted because your active group changed. Please try again.",
       "GENERIC_ERROR": "An unexpected error occurred while updating membership. Please try again."
-    }
+    },
+    "notificationConsent": "The member consented to eligible notifications at this contact. External delivery remains suppressed in this environment.",
+    "sharedContactConfirmation": "This contact is shared. Create a distinct person after manual verification.",
+    "invalidEmail": "Invalid email address",
+    "phoneCountryCodeRequired": "Phone must include an explicit country code, for example +237…",
+    "invalidConsent": "notification_consent must be true or false",
+    "duplicateRows": "Same contact as row {row}",
+    "skipped": "{count} existing row(s) skipped",
+    "claimInviteQueued": "Invitation queued; the link below can also be shared manually.",
+    "claimInviteLinkReady": "Activation link created. No external delivery was reported.",
+    "activationLink": "Activation link",
+    "copyLink": "Copy",
+    "activationLinkWarning": "Share this link only with the intended person. It expires and can be used once.",
+    "verifiedContactManagedByAccount": "Verified contact details are managed in this person’s account."
   },
   "settings": {
     "title": "Group Settings",
@@ -2856,7 +2870,9 @@
     "meetingCancelled": "Meeting Cancelled",
     "meetingCancelledNotifTitle": "Meeting Cancelled",
     "meetingCancelledNotifBody": "The meeting \"{title}\" has been cancelled.",
-    "recurringHint": "To schedule recurring meetings, go to Events → Create Event → set recurrence."
+    "recurringHint": "To schedule recurring meetings, go to Events → Create Event → set recurrence.",
+    "shareProvisional": "Share provisional",
+    "minutesSharedProvisional": "Provisional minutes shared"
   },
   "standing": {
     "standingCard": "Member Standing Card",
@@ -3017,7 +3033,11 @@
     "scopeOrganization": "Entire organization",
     "planScopeNotReady": "The organization scope is not ready. Refresh and try again.",
     "planAuthorityDefault": "The plan owner reviews and pays claims; collection and reporting follow the selected area.",
-    "scopeDisplay": {"unit": "Unit plan", "subtree": "Subtree plan", "organization": "Organization plan"},
+    "scopeDisplay": {
+      "unit": "Unit plan",
+      "subtree": "Subtree plan",
+      "organization": "Organization plan"
+    },
     "scopeUnconfigured": "Legacy scope pending",
     "scopeUnavailable": "Scope unavailable",
     "scopeLoading": "Loading scope",
@@ -7241,5 +7261,22 @@
     "revoke": "Revoke",
     "revokeFailed": "Could not revoke this introduction.",
     "listFailed": "Could not load your active introductions."
+  },
+  "memberFinancialSummary": {
+    "title": "Member Financial Summary",
+    "readOnly": "Read-only view of posted financial totals permitted for this group.",
+    "notAvailable": "This summary is not available. An officer can enable member financial visibility.",
+    "refresh": "Refresh",
+    "assets": "Assets",
+    "liabilities": "Liabilities",
+    "revenue": "Revenue",
+    "expenses": "Expenses",
+    "net": "Net result",
+    "scope": "Group: {group}",
+    "period": "Period: {start} – {end}",
+    "status": "{count} posted transaction(s)",
+    "updated": "Last updated: {time}",
+    "noTransactions": "No posted transactions",
+    "refreshNotice": "Changes appear after refresh or when this tab regains focus."
   }
 }

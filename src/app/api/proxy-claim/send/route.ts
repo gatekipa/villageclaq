@@ -15,6 +15,10 @@ function dbProxyPhone(membership: {
   return proxy || membership.phone || null;
 }
 
+function dbProxyEmail(membership: { privacy_settings?: Record<string, unknown> | null }): string | null {
+  return (membership.privacy_settings?.proxy_email as string | undefined) || null;
+}
+
 /**
  * POST /api/proxy-claim/send
  * ACTIVE owner/admin of the same group only.
@@ -37,7 +41,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { membershipId, email, phone, channels, locale } = body as {
+    const { membershipId, phone, channels, locale } = body as {
       membershipId: string;
       email?: string;
       phone?: string;
@@ -89,17 +93,18 @@ export async function POST(request: Request) {
     }
 
     const authoritativePhone = dbProxyPhone(membership);
+    const authoritativeEmail = dbProxyEmail(membership);
     if (phone && authoritativePhone && phone !== authoritativePhone) {
       // A20: request phone is not authority — use DB.
     }
-    if (!authoritativePhone) {
-      return NextResponse.json({ error: "denied", reason: "no_db_phone" }, { status: 400 });
+    if (!authoritativePhone && !authoritativeEmail) {
+      return NextResponse.json({ error: "denied", reason: "no_db_activation_contact" }, { status: 400 });
     }
 
     const sendLocale = locale === "fr" || locale === "en" ? locale : null;
     const { claimUrl, expiresAt } = await generateClaimToken(
       membershipId,
-      null,
+      authoritativeEmail,
       authoritativePhone,
       user.id,
     );
@@ -109,7 +114,7 @@ export async function POST(request: Request) {
 
     const results: Record<string, { queued: boolean; result?: string; error?: string }> = {};
     if (requested.has("email")) {
-      results.email = { queued: false, result: "denied", error: "proxy_claim_email_deny" };
+      results.email = { queued: false, result: "manual_link_only", error: "external_email_suppressed" };
     }
 
     for (const channel of enqueueChannels) {

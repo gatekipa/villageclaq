@@ -73,6 +73,21 @@ import {
 type HostingStatus = "upcoming" | "completed" | "missed" | "swapped" | "exempted";
 type RotationType = "sequential" | "random" | "manual";
 
+type HostingCommandResult = { roster_id: string; assignment_ids: string[] };
+
+async function executeHostingCommand(
+  supabase: ReturnType<typeof createClient>,
+  groupId: string,
+  command: Record<string, unknown>,
+) {
+  const { data, error } = await supabase.rpc("execute_hosting_command", {
+    p_request_id: crypto.randomUUID(),
+    p_command: { ...command, group_id: groupId },
+  });
+  if (error) throw error;
+  return data as HostingCommandResult;
+}
+
 interface Assignment {
   id: string;
   roster_id: string;
@@ -409,15 +424,13 @@ export default function HostingPage() {
     setUpdatingId(assignmentId);
     try {
       const supabase = createClient();
-      const { error: updateErr } = await supabase
-        .from("hosting_assignments")
-        .update({ status: newStatus })
-        .eq("id", assignmentId);
-      if (updateErr) throw updateErr;
-
       // Find the assignment to get membership_id and date for notifications
       const assignment = allAssignments.find((a) => a.id === assignmentId);
       if (assignment && groupId) {
+        await executeHostingCommand(supabase, groupId, {
+          action: "set_status", roster_id: assignment.roster_id,
+          assignment_id: assignmentId, status: newStatus,
+        });
         const dateStr = assignment.assigned_date;
         // Resolve user_id from membership
         const memberMatch = members.find((m) => m.id === assignment.membership_id);
@@ -442,15 +455,6 @@ export default function HostingPage() {
           });
         }
 
-        // Audit log
-        await logActivity(supabase, {
-          groupId,
-          action: `hosting.${newStatus}`,
-          entityType: "hosting_assignment",
-          entityId: assignmentId,
-          description: `Hosting assignment marked as ${newStatus}`,
-          metadata: { membership_id: assignment.membership_id, date: dateStr },
-        });
       }
 
       invalidateRosters();
@@ -597,7 +601,6 @@ export default function HostingPage() {
             tc={tc}
             activeMembers={activeMembers}
             groupId={groupId!}
-            userId={user?.id || ""}
             onSuccess={invalidateRosters}
             onError={showError}
             onSuccessMsg={showSuccess}
@@ -904,7 +907,6 @@ export default function HostingPage() {
           tc={tc}
           activeMembers={activeMembers}
           groupId={groupId!}
-          userId={user?.id || ""}
           onSuccess={invalidateRosters}
           onError={showError}
           onSuccessMsg={showSuccess}
@@ -1219,7 +1221,6 @@ function CreateRosterDialog({
   tc,
   activeMembers,
   groupId,
-  userId,
   onSuccess,
   onError,
   onSuccessMsg,
@@ -1230,7 +1231,6 @@ function CreateRosterDialog({
   tc: ReturnType<typeof useTranslations>;
   activeMembers: Member[];
   groupId: string;
-  userId: string;
   onSuccess: () => void;
   onError: (msg: string) => void;
   onSuccessMsg: (msg: string) => void;
@@ -1279,24 +1279,7 @@ function CreateRosterDialog({
     setIsCreating(true);
     try {
       const supabase = createClient();
-
-      // 1. Create roster
-      const { data: roster, error: rosterErr } = await supabase
-        .from("hosting_rosters")
-        .insert({
-          group_id: groupId,
-          name: rosterName.trim(),
-          rotation_type: rotationType,
-          is_active: true,
-          created_by: userId,
-        })
-        .select("id")
-        .single();
-
-      if (rosterErr) throw rosterErr;
-      if (!roster) throw new Error("Failed to create roster");
-
-      // 2. Generate assignments for sequential/random
+      const assignments: Array<{ membership_id: string; assigned_date: string }> = [];
       if (rotationType !== "manual" && startMonth && endMonth && selectedMemberIds.length > 0) {
         const dates = generateMonthlyDates(startMonth, endMonth);
         let memberOrder = [...selectedMemberIds];
@@ -1305,46 +1288,22 @@ function CreateRosterDialog({
           memberOrder = shuffleArray(memberOrder);
         }
 
-        const assignments: {
-          roster_id: string;
-          membership_id: string;
-          assigned_date: string;
-          status: string;
-          order_index: number;
-        }[] = [];
-
         let memberIdx = 0;
-        let orderIdx = 0;
 
         for (const date of dates) {
           const hostsThisMonth = Math.min(hostsPerMonth, memberOrder.length);
           for (let h = 0; h < hostsThisMonth; h++) {
             assignments.push({
-              roster_id: roster.id,
               membership_id: memberOrder[memberIdx % memberOrder.length],
               assigned_date: date,
-              status: "upcoming",
-              order_index: orderIdx++,
             });
             memberIdx++;
           }
         }
-
-        if (assignments.length > 0) {
-          const { error: insertErr } = await supabase
-            .from("hosting_assignments")
-            .insert(assignments);
-          if (insertErr) throw insertErr;
-        }
       }
-
-      // 3. Audit log
-      await logActivity(supabase, {
-        groupId,
-        action: "hosting.roster_created",
-        entityType: "hosting_roster",
-        entityId: roster.id,
-        description: `Created hosting roster "${rosterName.trim()}" (${rotationType})`,
+      await executeHostingCommand(supabase, groupId, {
+        action: "create_roster", name: rosterName.trim(), rotation_type: rotationType,
+        assignments,
       });
 
       onOpenChange(false);
@@ -1535,39 +1494,15 @@ function AssignHostsDialog({
     setIsAssigning(true);
     try {
       const supabase = createClient();
-
-      // Get max order_index
-      const { data: maxData } = await supabase
-        .from("hosting_assignments")
-        .select("order_index")
-        .eq("roster_id", context.rosterId)
-        .order("order_index", { ascending: false })
-        .limit(1);
-      const maxOrder = (maxData?.[0]?.order_index as number) ?? -1;
-
-      const assignments = selectedIds.map((memberId, i) => ({
-        roster_id: context.rosterId,
+      const assignments = selectedIds.map((memberId) => ({
         membership_id: memberId,
         assigned_date: context.date,
-        status: "upcoming" as const,
-        order_index: maxOrder + 1 + i,
       }));
-
-      const { data: newAssignments, error: insertErr } = await supabase
-        .from("hosting_assignments")
-        .insert(assignments)
-        .select("id");
-      if (insertErr) throw insertErr;
+      const result = await executeHostingCommand(supabase, groupId!, {
+        action: "assign", roster_id: context.rosterId, assignments,
+      });
 
       if (groupId) {
-        await logActivity(supabase, {
-          groupId,
-          action: "hosting.hosts_assigned",
-          entityType: "hosting_assignment",
-          description: `Assigned ${selectedIds.length} host(s) for ${context.date}`,
-          metadata: { date: context.date, membershipIds: selectedIds },
-        });
-
         // WhatsApp assignment notices — server-side, queue-backed producer
         // resolves per-recipient memberName/hostingDate/groupName and is
         // exactly-once per assignment.
@@ -1575,7 +1510,7 @@ function AssignHostsDialog({
           const { requestHostingAssignmentWhatsApp } = await import("@/lib/notify-hosting-assignment");
           requestHostingAssignmentWhatsApp(
             supabase,
-            (newAssignments || []).map((a: { id: string }) => a.id),
+            result.assignment_ids || [],
             locale,
           );
         } catch (err) {
@@ -1896,24 +1831,15 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
     setSavingRules(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase.from("hosting_rosters").update({
+      await executeHostingCommand(supabase, groupId!, {
+        action: "set_rules", roster_id: activeRoster.id,
         compliance_rules: {
           required_interval_months: ruleInterval,
           required_for_relief: ruleRelief,
           penalty_flags_active: rulePenalty,
           penalty_flag_days: rulePenaltyDays,
         },
-      }).eq("id", activeRoster.id);
-      if (error) throw error;
-      if (groupId) {
-        await logActivity(supabase, {
-          groupId,
-          action: "hosting.rules_updated",
-          entityType: "hosting_roster",
-          entityId: activeRoster.id,
-          description: "Updated hosting compliance rules",
-        });
-      }
+      });
       onRefresh();
       setShowRulesDialog(false);
       onSuccessMsg(t("saveRulesSuccess"));
@@ -1930,24 +1856,12 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
     setSavingException(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase.from("hosting_assignments").insert({
-        roster_id: activeRoster.id,
+      await executeHostingCommand(supabase, groupId!, {
+        action: "add_exemption", roster_id: activeRoster.id,
         membership_id: exMemberId,
         assigned_date: exPermanent ? new Date().toISOString().slice(0, 10) : exStartDate || new Date().toISOString().slice(0, 10),
-        status: "exempted",
-        exemption_reason: exReason.trim(),
-        order_index: 0,
+        reason: exReason.trim(),
       });
-      if (error) throw error;
-      if (groupId) {
-        await logActivity(supabase, {
-          groupId,
-          action: "hosting.exemption_added",
-          entityType: "hosting_assignment",
-          description: `Added hosting exemption: ${exReason.trim()}`,
-          metadata: { membership_id: exMemberId, reason: exReason.trim() },
-        });
-      }
       onRefresh();
       setShowExceptionDialog(false);
       setExMemberId("");
@@ -1966,17 +1880,9 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
     setRemovingId(assignmentId);
     try {
       const supabase = createClient();
-      const { error } = await supabase.from("hosting_assignments").delete().eq("id", assignmentId);
-      if (error) throw error;
-      if (groupId) {
-        await logActivity(supabase, {
-          groupId,
-          action: "hosting.exemption_removed",
-          entityType: "hosting_assignment",
-          entityId: assignmentId,
-          description: "Removed hosting exemption",
-        });
-      }
+      await executeHostingCommand(supabase, groupId!, {
+        action: "remove_exemption", roster_id: activeRoster!.id, assignment_id: assignmentId,
+      });
       onRefresh();
       onSuccessMsg(t("removeExceptionSuccess"));
     } catch {
@@ -2496,7 +2402,7 @@ function PlanBuilder({ roster, activeMembers, groupId, t, tc, onSuccess, onError
     setBuilding(true);
     try {
       const supabase = createClient();
-      const assignments: Array<{ roster_id: string; membership_id: string; assigned_date: string; status: string; order_index: number }> = [];
+      const assignments: Array<{ membership_id: string; assigned_date: string }> = [];
       const [sy, sm] = startMonth.split("-").map(Number);
       let memberIdx = 0;
 
@@ -2513,28 +2419,15 @@ function PlanBuilder({ roster, activeMembers, groupId, t, tc, onSuccess, onError
             memberIdx++;
           }
           assignments.push({
-            roster_id: roster.id,
             membership_id: member.id,
             assigned_date: dateStr,
-            status: "upcoming",
-            order_index: assignments.length,
           });
         }
       }
 
       if (assignments.length > 0) {
-        const { error } = await supabase.from("hosting_assignments").insert(assignments);
-        if (error) throw error;
-      }
-
-      if (groupId) {
-        await logActivity(supabase, {
-          groupId,
-          action: "hosting.auto_assigned",
-          entityType: "hosting_roster",
-          entityId: roster.id,
-          description: `Auto-assigned ${assignments.length} hosting slots`,
-          metadata: { months: monthCount, hostsPerEvent },
+        await executeHostingCommand(supabase, groupId!, {
+          action: "assign", roster_id: roster.id, assignments,
         });
       }
 
@@ -2780,25 +2673,10 @@ function EditRosterDialog({
     setSaving(true);
     try {
       const supabase = createClient();
-      const updates: Record<string, unknown> = {
-        name: name.trim(),
-        name_fr: nameFr.trim() || null,
-      };
-      if (!hasAssignments) {
-        updates.rotation_type = rotationType;
-      }
-      const { error } = await supabase
-        .from("hosting_rosters")
-        .update(updates)
-        .eq("id", roster.id);
-      if (error) throw error;
-
-      await logActivity(supabase, {
-        groupId,
-        action: "hosting.roster_edited",
-        entityType: "hosting_roster",
-        entityId: roster.id,
-        description: `Edited hosting roster "${name.trim()}"`,
+      await executeHostingCommand(supabase, groupId, {
+        action: "update_roster", roster_id: roster.id, name: name.trim(),
+        name_fr: nameFr.trim() || null, rotation_type: hasAssignments ? roster.rotation_type : rotationType,
+        is_active: roster.is_active,
       });
 
       onOpenChange(false);
@@ -2816,18 +2694,9 @@ function EditRosterDialog({
     setToggling(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase
-        .from("hosting_rosters")
-        .update({ is_active: !roster.is_active })
-        .eq("id", roster.id);
-      if (error) throw error;
-
-      await logActivity(supabase, {
-        groupId,
-        action: roster.is_active ? "hosting.roster_deactivated" : "hosting.roster_activated",
-        entityType: "hosting_roster",
-        entityId: roster.id,
-        description: `${roster.is_active ? "Deactivated" : "Activated"} hosting roster "${roster.name}"`,
+      await executeHostingCommand(supabase, groupId, {
+        action: "update_roster", roster_id: roster.id, name: roster.name,
+        name_fr: roster.name_fr, rotation_type: roster.rotation_type, is_active: !roster.is_active,
       });
 
       onOpenChange(false);

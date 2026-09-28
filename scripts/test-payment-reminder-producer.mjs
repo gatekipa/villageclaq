@@ -410,7 +410,7 @@ test("paid, waived, future, and confirmed-settled obligations are never reminded
   }
 });
 
-test("proxy membership is never reminded (cron parity)", async () => {
+test("offline membership without recorded consent is not reminded", async () => {
   const { producePaymentReminderNotification } = loadProducer();
   const supabase = createMockSupabase({
     membership: {
@@ -431,8 +431,33 @@ test("proxy membership is never reminded (cron parity)", async () => {
   });
 
   assert.equal(result.status, "skipped");
-  assert.equal(result.reason, "proxy_membership");
+  assert.equal(result.reason, "recipient_unavailable");
   assert.equal(supabase.calls.some((c) => c.op === "insert"), false);
+});
+
+test("consenting offline member with a phone is eligible without an account", async () => {
+  const { producePaymentReminderNotification } = loadProducer();
+  const supabase = createMockSupabase({
+    membership: {
+      id: ids.membership,
+      group_id: ids.group,
+      user_id: null,
+      display_name: "Mama Ngozi",
+      is_proxy: true,
+      phone: null,
+      privacy_settings: { proxy_name: "Mama Ngozi", proxy_phone: fullPhone, proxy_contact_consent: true },
+      membership_status: "active",
+    },
+    profile: null,
+  });
+
+  const result = await producePaymentReminderNotification(supabase, ids.obligation, {
+    reminderDate: REMINDER_DATE,
+  });
+
+  assert.equal(result.status, "queued");
+  assert.equal(supabase._cut2Enqueues.length, 1);
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "payment_reminder");
 });
 
 test("non-active membership is never reminded", async () => {

@@ -766,7 +766,9 @@ export function useHostingRosters() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["hosting-rosters", groupId],
-    staleTime: 5 * 60 * 1000, // WS3 (B11): invalidated by useCreateHostingRoster
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: 15_000,
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -807,7 +809,9 @@ export function useMeetingMinutes() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["meeting-minutes", groupId],
-    staleTime: 5 * 60 * 1000, // Invalidated by the mounted authoritative command caller.
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: 15_000,
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase

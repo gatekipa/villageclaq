@@ -237,9 +237,8 @@ export async function computeConfirmedReminderDecision(
  * Queue a WhatsApp payment reminder for one overdue obligation.
  *
  * WhatsApp-only producer: the recipient is the obligated member only.
- * Proxy members are intentionally NOT reminded, matching the existing
- * payment-reminders cron behavior (it filters out proxy memberships
- * before any channel fires).
+ * Accountless members are eligible when they have an officer-recorded contact
+ * and explicit notification consent. Provider delivery remains queue-backed.
  *
  * Idempotency is a DAY BUCKET, not strict per-entity exactly-once like
  * the receipt/welcome/relief/hosting producers: reminders legitimately
@@ -352,11 +351,6 @@ export async function producePaymentReminderNotification(
     return { status: "skipped", reason: "membership_not_found", obligationId, reminderDate };
   }
 
-  // Parity with the cron: proxy members are never reminded.
-  if (!membership.user_id || membership.is_proxy) {
-    return { status: "skipped", reason: "proxy_membership", obligationId, reminderDate };
-  }
-
   if (membership.membership_status && membership.membership_status !== "active") {
     return { status: "skipped", reason: "membership_not_active", obligationId, reminderDate };
   }
@@ -381,6 +375,10 @@ export async function producePaymentReminderNotification(
     return { status: "error", reason: "group_policy_lookup_failed", obligationId, reminderDate };
   }
   const reminderSettings = paymentReminderSettingsFromGroup(policyResult.data.settings);
+  const proxyPhone = (membership.privacy_settings?.proxy_phone as string | undefined) || membership.phone || null;
+  const proxyConsent = membership.is_proxy === true
+    && membership.user_id === null
+    && membership.privacy_settings?.proxy_contact_consent === true;
   const eligibility = evaluatePaymentReminderEligibility({
     dueDate: obligation.due_date,
     contributionTypeId: obligation.contribution_type_id,
@@ -388,6 +386,7 @@ export async function producePaymentReminderNotification(
     membershipStatus: membership.membership_status,
     userId: membership.user_id,
     isProxy: membership.is_proxy,
+    hasOfflineContact: proxyConsent && !!proxyPhone,
     confirmedRemaining: amountDue,
     at: options.reminderDate ? new Date(`${options.reminderDate}T12:00:00Z`) : new Date(),
   }, reminderSettings);
@@ -397,7 +396,9 @@ export async function producePaymentReminderNotification(
   }
 
   const [profileResult, groupResult, typeResult] = await Promise.all([
-    maybeSingle<ProfileRow>(supabase, "profiles", "id,full_name,phone,preferred_locale", "id", membership.user_id),
+    membership.user_id
+      ? maybeSingle<ProfileRow>(supabase, "profiles", "id,full_name,phone,preferred_locale", "id", membership.user_id)
+      : Promise.resolve({ data: null, error: null }),
     Promise.resolve(policyResult),
     obligation.contribution_type_id
       ? maybeSingle<ContributionTypeRow>(supabase, "contribution_types", "id,name,name_fr", "id", obligation.contribution_type_id)
@@ -438,7 +439,9 @@ export async function producePaymentReminderNotification(
     return { status: "skipped", reason: "missing_template_data", obligationId, reminderDate };
   }
 
-  const channels = await getChannels(supabase, userId, "payment_reminders", obligation.group_id);
+  const channels = proxyConsent
+    ? { in_app: false, email: false, sms: false, whatsapp: true, push: false }
+    : await getChannels(supabase, userId, "payment_reminders", obligation.group_id);
   if (!channels.whatsapp) {
     logger.log("[PaymentReminderProducer] WhatsApp reminder skipped", {
       obligationId: shortId(obligationId),

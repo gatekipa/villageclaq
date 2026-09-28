@@ -265,11 +265,12 @@ export default function MinutesPage() {
       return eventDayStart <= todayDayStart;
     });
 
-    // Non-admins only see events with published minutes
+    // RLS is authoritative. Keep the list aligned with the member-safe
+    // published/provisional rows returned by the database.
     if (!canManageMinutes) {
       list = list.filter((e) => {
         const m = minutesByEventId[e.id];
-        return m && m.status === "published";
+        return m && (m.status === "published" || m.status === "provisional");
       });
     }
 
@@ -442,7 +443,7 @@ export default function MinutesPage() {
 
   // ─── Save / Publish ─────────────────────────────────────────────────────
 
-  const handleSave = async (status: "draft" | "published"): Promise<boolean> => {
+  const handleSave = async (status: "draft" | "provisional" | "published"): Promise<boolean> => {
     if (!groupId || !user) return false;
     if (!standaloneMode && !selectedEvent) return false;
     if (standaloneMode && !standaloneTitle.trim() && !selectedStandaloneId) return false;
@@ -492,7 +493,15 @@ export default function MinutesPage() {
         savedResult = attached as typeof savedResult;
       }
 
-      if (status === "published") {
+      if (status === "provisional") {
+        const { data: provisional, error: provisionalError } = await supabase.rpc("execute_minutes_command", {
+          p_request_id: crypto.randomUUID(),
+          p_command: { action: "share_provisional", group_id: groupId, record_id: savedResult.record_id,
+            expected_revision: savedResult.revision_number },
+        });
+        if (provisionalError) throw provisionalError;
+        savedResult = provisional as typeof savedResult;
+      } else if (status === "published") {
         const { data: published, error: publishError } = await supabase.rpc("execute_minutes_command", {
           p_request_id: crypto.randomUUID(),
           p_command: { action: "publish", group_id: groupId, record_id: savedResult.record_id,
@@ -581,7 +590,7 @@ export default function MinutesPage() {
       queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
       setEditMode(false);
       setStandaloneMode(false);
-      showSuccess(status === "published" ? t("minutesPublished") : t("minutesSaved"));
+      showSuccess(status === "published" ? t("minutesPublished") : status === "provisional" ? t("minutesSharedProvisional") : t("minutesSaved"));
       return true;
     } catch (err) {
       showError((err as Error).message || tc("error"));
@@ -977,7 +986,7 @@ export default function MinutesPage() {
           {standaloneMinutes.length > 0 && (
             <div className="space-y-2">
               {standaloneMinutes
-                .filter((m) => canManageMinutes || m.status === "published")
+                .filter((m) => canManageMinutes || m.status === "published" || m.status === "provisional")
                 .map((m) => (
                 <Card
                   key={m.id}
@@ -1529,6 +1538,14 @@ export default function MinutesPage() {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
                     {t("saveDraft")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleSave("provisional")}
+                    disabled={saving}
+                  >
+                    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {t("shareProvisional")}
                   </Button>
                   <Button
                     onClick={() => setPublishConfirmOpen(true)}

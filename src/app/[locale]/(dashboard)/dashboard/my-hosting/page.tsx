@@ -74,6 +74,9 @@ function useMyHostingAssignments(membershipId: string | null) {
       return data || [];
     },
     enabled: !!membershipId,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: 15_000,
   });
 }
 

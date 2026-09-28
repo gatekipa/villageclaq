@@ -243,6 +243,8 @@ interface CsvRow {
   email: string;
   phone: string;
   role: string;
+  notification_consent: boolean;
+  source_key: string;
   status: "valid" | "error" | "warning";
   statusMsg: string;
 }
@@ -331,6 +333,8 @@ export default function MembersPage() {
   const [newEmail, setNewEmail] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newRole, setNewRole] = useState<"member" | "admin" | "moderator">("member");
+  const [newNotificationConsent, setNewNotificationConsent] = useState(false);
+  const [allowSharedContact, setAllowSharedContact] = useState(false);
   const [addSaving, setAddSaving] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
@@ -350,7 +354,7 @@ export default function MembersPage() {
   const [csvRows, setCsvRows] = useState<CsvRow[]>([]);
   const [importProgress, setImportProgress] = useState(0);
   const [importTotal, setImportTotal] = useState(0);
-  const [importResults, setImportResults] = useState<{ succeeded: number; failed: { name: string; error: string }[] }>({ succeeded: 0, failed: [] });
+  const [importResults, setImportResults] = useState<{ succeeded: number; skipped: number; failed: { name: string; error: string }[] }>({ succeeded: 0, skipped: 0, failed: [] });
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -360,6 +364,7 @@ export default function MembersPage() {
   const [editDisplayName, setEditDisplayName] = useState("");
   const [editTitle, setEditTitle] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [editNotificationConsent, setEditNotificationConsent] = useState(false);
   const [editPhone, setEditPhone] = useState("");
   const [editRole, setEditRole] = useState("");
   const [editOriginalRole, setEditOriginalRole] = useState("");
@@ -382,6 +387,7 @@ export default function MembersPage() {
   const [claimSaving, setClaimSaving] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [claimSuccess, setClaimSuccess] = useState<string | null>(null);
+  const [claimUrl, setClaimUrl] = useState<string | null>(null);
 
   // Bulk invite state
   const [bulkInviteOpen, setBulkInviteOpen] = useState(false);
@@ -482,22 +488,21 @@ export default function MembersPage() {
     setClaimMember(member);
     const ps = member.privacy_settings as Record<string, unknown> | null;
     const proxyPhone = (ps?.proxy_phone as string) || "";
-    setClaimEmail("");
+    setClaimEmail((ps?.proxy_email as string) || "");
     setClaimPhone(proxyPhone);
     // Default channels based on available contact info
     const defaultChannels: string[] = [];
-    if (!proxyPhone) defaultChannels.push("email");
-    else defaultChannels.push("email", "sms", "whatsapp");
-    setClaimChannels(defaultChannels.length > 0 ? defaultChannels : ["email"]);
+    if (proxyPhone) defaultChannels.push("sms", "whatsapp");
+    setClaimChannels(defaultChannels);
     setClaimError(null);
     setClaimSuccess(null);
+    setClaimUrl(null);
     setClaimDialogOpen(true);
   }
 
   async function handleSendClaimInvite() {
     if (!claimMember || !groupId || !user) return;
     if (!claimEmail.trim() && !claimPhone.trim()) return;
-    if (claimChannels.length === 0) return;
 
     setClaimSaving(true);
     setClaimError(null);
@@ -525,11 +530,9 @@ export default function MembersPage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "Failed to send invitation");
 
-      setClaimSuccess(t("claimInviteSent"));
-      setTimeout(() => {
-        setClaimDialogOpen(false);
-        setClaimSuccess(null);
-      }, 2500);
+      setClaimUrl(result.claimUrl || null);
+      const queued = Object.values(result.results || {}).some((r) => (r as { queued?: boolean }).queued);
+      setClaimSuccess(queued ? t("claimInviteQueued") : t("claimInviteLinkReady"));
     } catch (err) {
       setClaimError((err as Error).message || t("claimInviteError"));
     } finally {
@@ -912,6 +915,8 @@ export default function MembersPage() {
     setNewEmail("");
     setNewPhone("");
     setNewRole("member");
+    setNewNotificationConsent(false);
+    setAllowSharedContact(false);
     setAddError(null);
   }
 
@@ -964,7 +969,8 @@ export default function MembersPage() {
     setEditOriginalDisplayName(name);
     setEditTitle((member.title as string) || "");
     setEditOriginalTitle((member.title as string) || "");
-    setEditEmail("");
+    setEditEmail(isProxy ? ((privacySettings?.proxy_email as string) || "") : "");
+    setEditNotificationConsent(!!privacySettings?.proxy_contact_consent);
     // Real-member phone for the edit form comes from the admin roster
     // RPC, not the useMembers cache (which no longer carries phone).
     setEditPhone(
@@ -1046,20 +1052,15 @@ export default function MembersPage() {
         if (standingErr) throw standingErr;
       }
 
-      // 4. For proxy members, update phone in privacy_settings if changed
+      // 4. Offline contact correction is authoritative and revokes any
+      // outstanding activation token bound to the old contact.
       if (editIsProxy) {
         const supabase = createClient();
-        const { error: privErr } = await supabase
-          .from("memberships")
-          .update({
-            privacy_settings: {
-              proxy_phone: editPhone || "",
-              proxy_name: editDisplayName.trim(),
-              show_phone: false,
-              show_email: false,
-            },
-          })
-          .eq("id", editMemberId);
+        const { error: privErr } = await supabase.rpc("update_offline_member_contact", {
+          p_request_id: crypto.randomUUID(),
+          p_command: { membership_id: editMemberId, email: editEmail.trim() || null,
+            phone: editPhone || null, notification_consent: editNotificationConsent },
+        });
         if (privErr) throw privErr;
       }
 
@@ -1079,13 +1080,13 @@ export default function MembersPage() {
     setCsvRows([]);
     setImportProgress(0);
     setImportTotal(0);
-    setImportResults({ succeeded: 0, failed: [] });
+    setImportResults({ succeeded: 0, skipped: 0, failed: [] });
     setIsImporting(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   function downloadTemplate() {
-    const csv = `display_name,title,email,phone,role\n"John Doe","","john@email.com","+13014335857","member"\n"Mama Grace","Chief","","","member"`;
+    const csv = `display_name,title,email,phone,role,notification_consent\n"John Doe","","john@email.com","+13014335857","member","false"\n"Mama Grace","Chief","","","member","false"`;
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -1097,17 +1098,21 @@ export default function MembersPage() {
     URL.revokeObjectURL(url);
   }
 
-  function handleCsvFile(file: File) {
+  async function handleCsvFile(file: File) {
+    const digestBytes = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+    const fileDigest = Array.from(new Uint8Array(digestBytes)).map((b) => b.toString(16).padStart(2, "0")).join("");
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const rows: CsvRow[] = (results.data as Record<string, string>[]).map((raw) => {
+        const rows: CsvRow[] = (results.data as Record<string, string>[]).map((raw, index) => {
           const displayName = (raw.display_name || raw.name || "").trim();
           const title = (raw.title || "").trim();
           const email = (raw.email || "").trim();
           const phone = (raw.phone || "").trim();
           const role = (raw.role || "member").trim().toLowerCase();
+          const consentRaw = (raw.notification_consent || "false").trim().toLowerCase();
+          const notificationConsent = ["true", "yes", "1", "oui"].includes(consentRaw);
 
           let status: CsvRow["status"] = "valid";
           let statusMsg = "";
@@ -1116,11 +1121,29 @@ export default function MembersPage() {
             status = "error";
             statusMsg = t("nameRequired");
           } else if (role && !VALID_ROLES.includes(role)) {
-            status = "warning";
+            status = "error";
             statusMsg = t("invalidRole");
+          } else if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+            status = "error";
+            statusMsg = t("invalidEmail");
+          } else if (phone && !/^\+[1-9]\d{7,14}$/.test(phone.replace(/[\s().-]/g, ""))) {
+            status = "error";
+            statusMsg = t("phoneCountryCodeRequired");
+          } else if (consentRaw && !["true", "false", "yes", "no", "1", "0", "oui", "non"].includes(consentRaw)) {
+            status = "error";
+            statusMsg = t("invalidConsent");
           }
 
-          return { display_name: displayName, title, email, phone, role: role || "member", status, statusMsg };
+          return { display_name: displayName, title, email, phone: phone.replace(/[\s().-]/g, ""), role: role || "member",
+            notification_consent: notificationConsent, source_key: `${fileDigest}:${index + 1}`, status, statusMsg };
+        });
+        const seen = new Map<string, number>();
+        rows.forEach((row, index) => {
+          const contactKey = `${row.email.toLowerCase()}|${row.phone}`;
+          if (contactKey !== "|" && seen.has(contactKey)) {
+            row.status = "error";
+            row.statusMsg = t("duplicateRows", { row: (seen.get(contactKey) || 0) + 1 });
+          } else if (contactKey !== "|") seen.set(contactKey, index);
         });
         setCsvRows(rows);
         setBulkStep(2);
@@ -1137,8 +1160,14 @@ export default function MembersPage() {
         row.status = "error";
         row.statusMsg = t("nameRequired");
       } else if (row.role && !VALID_ROLES.includes(row.role.toLowerCase())) {
-        row.status = "warning";
+        row.status = "error";
         row.statusMsg = t("invalidRole");
+      } else if (row.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(row.email)) {
+        row.status = "error";
+        row.statusMsg = t("invalidEmail");
+      } else if (row.phone && !/^\+[1-9]\d{7,14}$/.test(row.phone.replace(/[\s().-]/g, ""))) {
+        row.status = "error";
+        row.statusMsg = t("phoneCountryCodeRequired");
       } else {
         row.status = "valid";
         row.statusMsg = "";
@@ -1165,6 +1194,7 @@ export default function MembersPage() {
 
     const failed: { name: string; error: string }[] = [];
     let succeeded = 0;
+    let skipped = 0;
     const supabase = createClient();
 
     for (let i = 0; i < validRows.length; i++) {
@@ -1172,16 +1202,21 @@ export default function MembersPage() {
       const role = VALID_ROLES.includes(row.role) ? row.role : "member";
 
       try {
-        const { data: created, error: rpcError } = await resilientRpc<{ membership_id?: string }>(
+        const { data: created, error: rpcError } = await resilientRpc<{ membership_id?: string; outcome?: string }>(
           supabase,
-          "create_proxy_member_v2",
+          "create_offline_member",
           {
+            p_request_id: crypto.randomUUID(),
             p_command: {
               group_id: groupId,
               display_name: row.display_name,
               title: row.title || null,
               phone: row.phone || null,
+              email: row.email || null,
               role,
+              source_kind: "csv_import",
+              source_key: row.source_key,
+              notification_consent: row.notification_consent,
             },
           },
         );
@@ -1194,10 +1229,12 @@ export default function MembersPage() {
         }
 
         // Auto-enroll in active contribution types (non-blocking)
-        if (created?.membership_id) {
+        if (created?.outcome === "skipped_existing") {
+          skipped++;
+        } else if (created?.membership_id) {
           await autoEnrollMember(supabase, groupId, created.membership_id);
+          succeeded++;
         }
-        succeeded++;
       } catch (err) {
         failed.push({ name: row.display_name, error: (err as Error).message });
       }
@@ -1208,7 +1245,7 @@ export default function MembersPage() {
       }
     }
 
-    setImportResults({ succeeded, failed });
+    setImportResults({ succeeded, skipped, failed });
     setIsImporting(false);
     await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
   }
@@ -1228,16 +1265,21 @@ export default function MembersPage() {
     setAddError(null);
     try {
       const supabase = createClient();
-      const { data: created, error: rpcError } = await resilientRpc<{ membership_id?: string }>(
+      const { data: created, error: rpcError } = await resilientRpc<{ membership_id?: string; outcome?: string }>(
         supabase,
-        "create_proxy_member_v2",
+        "create_offline_member",
         {
+          p_request_id: crypto.randomUUID(),
           p_command: {
             group_id: groupId,
             display_name: newFullName.trim(),
             title: newTitle.trim() || null,
             phone: newPhone || null,
+            email: newEmail.trim() || null,
             role: newRole,
+            source_kind: "manual",
+            notification_consent: newNotificationConsent,
+            allow_shared_contact: allowSharedContact,
           },
         },
       );
@@ -2023,6 +2065,10 @@ export default function MembersPage() {
               <p className="text-[11px] text-muted-foreground">{t("titleHint")}</p>
             </div>
             <div className="space-y-2">
+              <Label>{t("email")}</Label>
+              <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="name@example.com" />
+            </div>
+            <div className="space-y-2">
               <Label>{t("phone")}</Label>
               <PhoneInput
                 value={newPhone}
@@ -2030,6 +2076,14 @@ export default function MembersPage() {
                 defaultCountryCode={getDefaultCountryCode(currentGroup?.currency)}
               />
             </div>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={newNotificationConsent} onChange={(e) => setNewNotificationConsent(e.target.checked)} className="mt-1" />
+              <span>{t("notificationConsent")}</span>
+            </label>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={allowSharedContact} onChange={(e) => setAllowSharedContact(e.target.checked)} className="mt-1" />
+              <span>{t("sharedContactConfirmation")}</span>
+            </label>
             <div className="space-y-2">
               <Label>{t("role")}</Label>
               <select
@@ -2116,10 +2170,19 @@ export default function MembersPage() {
               <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder={t("titlePlaceholder")} />
               <p className="text-[11px] text-muted-foreground">{t("titleHint")}</p>
             </div>
+            <div className="space-y-2">
+              <Label>{t("email")}</Label>
+              <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder={t("email")} disabled={!editIsProxy} />
+            </div>
+            {editIsProxy && (
+              <label className="flex items-start gap-2 text-sm">
+                <input type="checkbox" checked={editNotificationConsent} onChange={(e) => setEditNotificationConsent(e.target.checked)} className="mt-1" />
+                <span>{t("notificationConsent")}</span>
+              </label>
+            )}
             {!editIsProxy && (
               <div className="space-y-2">
-                <Label>{t("email")}</Label>
-                <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder={t("email")} />
+                <p className="text-xs text-muted-foreground">{t("verifiedContactManagedByAccount")}</p>
               </div>
             )}
             <div className="space-y-2">
@@ -2384,6 +2447,7 @@ export default function MembersPage() {
                     <p className="text-sm text-emerald-600 dark:text-emerald-400">
                       {t("imported", { count: importResults.succeeded })}
                     </p>
+                    <p className="text-sm text-muted-foreground">{t("skipped", { count: importResults.skipped })}</p>
                     {importResults.failed.length > 0 && (
                       <div className="space-y-1">
                         <p className="text-sm text-red-600 dark:text-red-400">
@@ -2451,7 +2515,7 @@ export default function MembersPage() {
             <div className="space-y-2">
               <Label>{t("sendVia")}</Label>
               <div className="flex flex-wrap gap-3">
-                {["email", "sms", "whatsapp"].map((ch) => (
+                {["sms", "whatsapp"].map((ch) => (
                   <label key={ch} className="flex items-center gap-1.5 text-sm cursor-pointer">
                     <input
                       type="checkbox"
@@ -2477,6 +2541,11 @@ export default function MembersPage() {
                 {claimSuccess}
               </div>
             )}
+            {claimUrl && <div className="space-y-2 rounded-lg border p-3">
+              <Label>{t("activationLink")}</Label>
+              <div className="flex gap-2"><Input readOnly value={claimUrl} /><Button type="button" variant="outline" onClick={() => navigator.clipboard.writeText(claimUrl)}>{t("copyLink")}</Button></div>
+              <p className="text-xs text-muted-foreground">{t("activationLinkWarning")}</p>
+            </div>}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setClaimDialogOpen(false)}>
@@ -2484,7 +2553,7 @@ export default function MembersPage() {
             </Button>
             <Button
               onClick={handleSendClaimInvite}
-              disabled={claimSaving || (!claimEmail.trim() && !claimPhone.trim()) || claimChannels.length === 0}
+              disabled={claimSaving || (!claimEmail.trim() && !claimPhone.trim())}
             >
               {claimSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("sendInvite")}

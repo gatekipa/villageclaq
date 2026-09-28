@@ -241,7 +241,8 @@
     "badgePro": "Pro",
     "launchCenter": "Centre de lancement",
     "myGroups": "Mes groupes",
-    "executionInbox": "Boîte d'exécution"
+    "executionInbox": "Boîte d'exécution",
+    "memberFinancialSummary": "Résumé financier"
   },
   "cookies": {
     "title": "Paramètres des cookies",
@@ -930,12 +931,12 @@
     "contributionsPaid": "Cotisations payées",
     "outstandingBalance": "Solde impayé",
     "memberSummary": "Résumé du membre",
-    "proxyHint": "Ceci crée un membre par procuration. Quand la personne s'inscrit et rejoint via le code d'invitation, son compte pourra être lié ultérieurement.",
-    "addProxyMember": "Ajouter un proxy",
-    "addProxyMemberDesc": "Ajouter un membre sans compte e-mail. Idéal pour les membres âgés ou ceux sans smartphone.",
+    "proxyHint": "Ce membre reste actif même sans compte en ligne.",
+    "addProxyMember": "Ajouter un membre hors ligne",
+    "addProxyMemberDesc": "Crée une adhésion active. Le compte en ligne peut être activé plus tard sans perdre l’historique.",
     "fullName": "Nom complet",
     "unnamed": "Membre sans nom",
-    "proxyMember": "Membre par procuration",
+    "proxyMember": "Compte non activé",
     "noContributions": "Aucune contribution pour le moment",
     "memberTitle": "Titre (Optionnel)",
     "titlePlaceholder": "ex: Chef, Nchinda, Pasteur, Dr., Alhaji, Mama",
@@ -997,7 +998,7 @@
     "channelEmail": "E-mail",
     "channelSms": "SMS",
     "channelWhatsapp": "WhatsApp",
-    "channelHint": "Les SMS ne sont disponibles que pour les numéros africains. WhatsApp fonctionne partout.",
+    "channelHint": "SMS et WhatsApp sont mis en file uniquement quand le contact et le consentement le permettent. La livraison externe est supprimée en mode fondateur.",
     "exportMembers": "Exporter CSV",
     "exportingMembers": "Exportation...",
     "bulkInvite": "Invitation groupée",
@@ -1090,7 +1091,20 @@
       "TARGET_NOT_ACTIVE_MEMBER": "Le membre cible doit être un membre actif pour recevoir la propriété du groupe.",
       "staleTenantAborted": "L'opération a été interrompue car votre groupe actif a changé. Veuillez réessayer.",
       "GENERIC_ERROR": "Une erreur inattendue s'est produite lors de la mise à jour de l'adhésion. Veuillez réessayer."
-    }
+    },
+    "notificationConsent": "Le membre a consenti aux notifications admissibles à ce contact. La livraison externe reste désactivée dans cet environnement.",
+    "sharedContactConfirmation": "Ce contact est partagé. Créer une personne distincte après vérification manuelle.",
+    "invalidEmail": "Adresse courriel invalide",
+    "phoneCountryCodeRequired": "Le téléphone doit inclure le code pays, par exemple +237…",
+    "invalidConsent": "notification_consent doit être true ou false",
+    "duplicateRows": "Même contact que la ligne {row}",
+    "skipped": "{count} ligne(s) existante(s) ignorée(s)",
+    "claimInviteQueued": "Invitation mise en file; le lien ci-dessous peut aussi être partagé manuellement.",
+    "claimInviteLinkReady": "Lien d’activation créé. Aucune livraison externe n’a été déclarée.",
+    "activationLink": "Lien d’activation",
+    "copyLink": "Copier",
+    "activationLinkWarning": "Partagez ce lien uniquement avec la personne prévue. Il expire et ne peut être utilisé qu’une fois.",
+    "verifiedContactManagedByAccount": "Les coordonnées vérifiées sont gérées dans le compte de cette personne."
   },
   "settings": {
     "title": "Paramètres du groupe",
@@ -2856,7 +2870,9 @@
     "meetingCancelled": "Réunion annulée",
     "meetingCancelledNotifTitle": "Réunion annulée",
     "meetingCancelledNotifBody": "La réunion \"{title}\" a été annulée.",
-    "recurringHint": "Pour planifier des réunions récurrentes, allez dans Événements → Créer un événement → définir la récurrence."
+    "recurringHint": "Pour planifier des réunions récurrentes, allez dans Événements → Créer un événement → définir la récurrence.",
+    "shareProvisional": "Partager comme provisoire",
+    "minutesSharedProvisional": "Procès-verbal provisoire partagé"
   },
   "standing": {
     "standingCard": "Fiche de statut du membre",
@@ -3017,7 +3033,11 @@
     "scopeOrganization": "Toute l'organisation",
     "planScopeNotReady": "La portée de l'organisation n'est pas prête. Actualisez et réessayez.",
     "planAuthorityDefault": "Le propriétaire du régime examine et verse les demandes; la collecte et les rapports suivent la zone choisie.",
-    "scopeDisplay": {"unit": "Régime de l'unité", "subtree": "Régime de la sous-hiérarchie", "organization": "Régime de l'organisation"},
+    "scopeDisplay": {
+      "unit": "Régime de l'unité",
+      "subtree": "Régime de la sous-hiérarchie",
+      "organization": "Régime de l'organisation"
+    },
     "scopeUnconfigured": "Portée historique à confirmer",
     "scopeUnavailable": "Portée indisponible",
     "scopeLoading": "Chargement de la portée",
@@ -7241,5 +7261,22 @@
     "revoke": "Révoquer",
     "revokeFailed": "Impossible de révoquer cette présentation.",
     "listFailed": "Impossible de charger vos présentations actives."
+  },
+  "memberFinancialSummary": {
+    "title": "Résumé financier des membres",
+    "readOnly": "Vue en lecture seule des écritures comptabilisées autorisées pour ce groupe.",
+    "notAvailable": "Ce résumé n’est pas accessible. Un responsable peut activer la visibilité financière des membres.",
+    "refresh": "Actualiser",
+    "assets": "Actifs",
+    "liabilities": "Passifs",
+    "revenue": "Produits",
+    "expenses": "Charges",
+    "net": "Résultat net",
+    "scope": "Groupe : {group}",
+    "period": "Période : {start} – {end}",
+    "status": "{count} opération(s) comptabilisée(s)",
+    "updated": "Dernière mise à jour : {time}",
+    "noTransactions": "Aucune opération comptabilisée",
+    "refreshNotice": "Les modifications apparaissent après actualisation ou lorsque cet onglet reprend le focus."
   }
 }

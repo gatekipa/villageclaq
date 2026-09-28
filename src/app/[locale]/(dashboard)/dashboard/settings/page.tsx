@@ -118,7 +118,7 @@ export default function GroupSettingsPage() {
   const t = useTranslations("settings");
   const tCountries = useTranslations("countries");
   const locale = useLocale();
-  const { groupId, currentGroup, currentMembership, user } = useGroup();
+  const { groupId, currentMembership } = useGroup();
   const { hasPermission } = usePermissions();
   const canManageSettings = hasPermission("settings.manage");
   const canPublish = currentMembership?.membership_status === "active" &&
@@ -152,7 +152,6 @@ export default function GroupSettingsPage() {
   const { data: members } = useMembers();
 
   // Data sharing controls state
-  const isBranch = currentGroup?.group_level === "branch";
   const sharingDefaults: Record<string, boolean> = {
     member_count: true,
     member_roster: false,
@@ -289,12 +288,17 @@ export default function GroupSettingsPage() {
     setSharingSaveSuccess(false);
     try {
       const supabase = createClient();
-      const { error: updateError } = await supabase
-        .from("groups")
-        .update({ sharing_controls: sharingControls })
-        .eq("id", groupId);
+      const { error: updateError } = await supabase.rpc("set_group_sharing_controls", {
+        p_request_id: crypto.randomUUID(),
+        p_group_id: groupId,
+        p_controls: sharingControls,
+      });
       if (updateError) throw updateError;
-      await queryClient.invalidateQueries({ queryKey: ["group-settings", groupId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["group-settings", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["group", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["memberships"] }),
+      ]);
       setSharingSaveSuccess(true);
       setTimeout(() => setSharingSaveSuccess(false), 3000);
     } catch (err) {
@@ -502,9 +506,7 @@ export default function GroupSettingsPage() {
           <TabsTrigger value="positions" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("positionsTab")}</TabsTrigger>
           <TabsTrigger value="notifications" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("notificationsTab")}</TabsTrigger>
           {canPublish && <TabsTrigger value="public" className="px-3 py-1.5 text-sm font-medium">{t("publicTab")}</TabsTrigger>}
-          {isBranch && (
-            <TabsTrigger value="data-sharing" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("dataSharingTab")}</TabsTrigger>
-          )}
+          <TabsTrigger value="data-sharing" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("dataSharingTab")}</TabsTrigger>
           <TabsTrigger value="danger" className="px-3 py-1.5 text-sm font-medium text-destructive/70 data-[active]:bg-destructive/10 data-[active]:text-destructive data-[active]:shadow-sm">{t("dangerZone")}</TabsTrigger>
         </TabsList>
 
@@ -940,9 +942,8 @@ export default function GroupSettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Data Sharing Tab — branch groups only */}
-        {isBranch && (
-          <TabsContent value="data-sharing" className="mt-6 space-y-6">
+        {/* Member visibility controls */}
+        <TabsContent value="data-sharing" className="mt-6 space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -981,8 +982,7 @@ export default function GroupSettingsPage() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-        )}
+        </TabsContent>
         {canPublish && groupId && (
           <TabsContent value="public" className="mt-6 space-y-6">
             <Card>

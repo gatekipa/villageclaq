@@ -109,7 +109,7 @@ export default async function LandingPage({ params }: { params: Promise<{ locale
             <figure className="vc-hero-visual">
               <div className="vc-screen-top"><span className="vc-screen-dot" /><span className="vc-screen-dot" /><span className="vc-screen-dot" /><span>{c.heroLabel}</span></div>
               <Image className="vc-hero-desktop-image" src={minutesImage} width={1288} height={570} alt={c.heroLabel} priority sizes="(max-width: 1100px) 55vw, 680px" />
-              <Image className="vc-hero-mobile-image" src={mobileMinutesImage} width={590} height={345} alt={c.heroLabel} priority sizes="(max-width: 760px) calc(100vw - 40px), 590px" />
+              <Image className="vc-hero-mobile-image" src={mobileMinutesImage} width={450} height={295} alt={c.heroLabel} priority sizes="(max-width: 760px) calc(100vw - 40px), 590px" />
               <figcaption>{c.illustrative} · <a href={minutesImage} target="_blank" rel="noopener noreferrer">{c.fullImage}</a></figcaption>
             </figure>
           </div>

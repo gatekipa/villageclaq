@@ -9,7 +9,7 @@ const sans = Hanken_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600", 
 
 const copy = {
   en: {
-    features: "What it brings together", product: "Inside VillageClaq", signIn: "Founder sign in",
+    features: "What it brings together", featureTitle: "Everything your group needs to stay in step.", product: "Inside VillageClaq", signIn: "Founder sign in",
     eyebrow: "For groups that look after their people", title: "Run your group with clarity, from the first member to the final decision.",
     intro: "Keep membership, contributions, hosting, meeting minutes and governance together—so officers can spend less time chasing records and more time moving the group forward.",
     explore: "Explore the product", preview: "Founder preview · access provided to invited testers", illustrative: "Illustrative data",
@@ -34,7 +34,7 @@ const copy = {
     footerText: "Group work, made clearer.", about: "About", contact: "Contact", privacy: "Privacy", terms: "Terms", founderNote: "Founder test environment · fictional data only",
   },
   fr: {
-    features: "Ce qui se rassemble", product: "Dans VillageClaq", signIn: "Connexion au test fondateur",
+    features: "Ce qui se rassemble", featureTitle: "Tout ce qu’il faut pour avancer ensemble.", product: "Dans VillageClaq", signIn: "Connexion au test fondateur",
     eyebrow: "Pour les groupes qui prennent soin de leurs membres", title: "Gérez votre groupe avec clarté, du premier membre à la dernière décision.",
     intro: "Réunissez les adhésions, les cotisations, l’accueil des réunions, les procès-verbaux et la gouvernance. Les responsables passent moins de temps à chercher des dossiers et davantage à faire avancer le groupe.",
     explore: "Découvrir le produit", preview: "Aperçu fondateur · accès réservé aux personnes invitées", illustrative: "Données illustratives",
@@ -102,17 +102,17 @@ export default async function LandingPage({ params }: { params: Promise<{ locale
             <figure className="vc-hero-visual">
               <div className="vc-screen-top"><span className="vc-screen-dot" /><span className="vc-screen-dot" /><span className="vc-screen-dot" /><span>{c.heroLabel}</span></div>
               <Image src="/images/product/minutes.webp" width={1288} height={570} alt={c.heroLabel} priority sizes="(max-width: 760px) 720px, (max-width: 1100px) 55vw, 680px" />
-              <figcaption>{c.illustrative}</figcaption>
+              <figcaption>{c.illustrative} · <a href="/images/product/minutes.webp" target="_blank" rel="noopener noreferrer">{c.fullImage}</a></figcaption>
             </figure>
           </div>
         </section>
         <section className="vc-intro-strip"><div className="vc-container"><h2>{c.who}</h2><p>{c.whoBody}</p></div></section>
-        <section className="vc-section" id="features"><div className="vc-container"><span className="vc-eyebrow">{c.features}</span><h2 className="vc-section-title">{c.who}</h2><div className="vc-outcomes">{outcomes.map(({ icon: Icon, title, body }) => <article className="vc-outcome" key={title}><div className="vc-icon"><Icon size={23} strokeWidth={1.8} /></div><h3>{title}</h3><p>{body}</p></article>)}</div></div></section>
+        <section className="vc-section" id="features"><div className="vc-container"><span className="vc-eyebrow">{c.features}</span><h2 className="vc-section-title">{c.featureTitle}</h2><div className="vc-outcomes">{outcomes.map(({ icon: Icon, title, body }) => <article className="vc-outcome" key={title}><div className="vc-icon"><Icon size={23} strokeWidth={1.8} /></div><h3>{title}</h3><p>{body}</p></article>)}</div></div></section>
         <section className="vc-section vc-product" id="product"><div className="vc-container"><span className="vc-eyebrow">{c.storyEyebrow}</span><h2 className="vc-section-title">{c.storyTitle}</h2><p className="vc-section-sub">{c.storyBody}</p>
           <div className="vc-story-list">
             <article className="vc-story"><div className="vc-story-copy"><span className="vc-story-number">{c.importLabel}</span><h3>{c.importTitle}</h3><p>{c.importBody}</p></div><figure className="vc-image-card"><Image src="/images/product/import.webp" width={718} height={345} alt={c.peopleBody} sizes="(max-width: 760px) 100vw, 48vw" /><figcaption>{c.illustrative} · <a href="/images/product/import.webp" target="_blank" rel="noopener noreferrer">{c.fullImage}</a></figcaption></figure></article>
             <article className="vc-story"><div className="vc-story-copy"><span className="vc-story-number">{c.financeLabel}</span><h3>{c.financeTitle}</h3><p>{c.financeBody}</p></div><figure className="vc-image-card vc-finance-image"><Image src="/images/product/summary.webp" width={425} height={337} alt={c.visibilityBody} sizes="(max-width: 760px) 100vw, 425px" /><figcaption>{c.illustrative} · <a href="/images/product/summary.webp" target="_blank" rel="noopener noreferrer">{c.fullImage}</a></figcaption></figure></article>
-            <article className="vc-story"><div className="vc-story-copy"><span className="vc-story-number">{c.hostingLabel}</span><h3>{c.hostingTitle}</h3><p>{c.hostingBody}</p></div><figure className="vc-image-card"><Image src="/images/product/hosting.webp" width={1230} height={335} alt={c.hostingBody} sizes="(max-width: 760px) 720px, 48vw" /><figcaption>{c.illustrative} · <a href="/images/product/hosting.webp" target="_blank" rel="noopener noreferrer">{c.fullImage}</a></figcaption></figure></article>
+            <article className="vc-story"><div className="vc-story-copy"><span className="vc-story-number">{c.hostingLabel}</span><h3>{c.hostingTitle}</h3><p>{c.hostingBody}</p></div><figure className="vc-image-card"><Image src="/images/product/hosting.webp" width={715} height={335} alt={c.hostingBody} sizes="(max-width: 760px) 570px, 48vw" /><figcaption>{c.illustrative} · <a href="/images/product/hosting.webp" target="_blank" rel="noopener noreferrer">{c.fullImage}</a></figcaption></figure></article>
           </div>
         </div></section>
         <section className="vc-section vc-how"><div className="vc-container"><span className="vc-eyebrow">{c.howEyebrow}</span><h2 className="vc-section-title">{c.howTitle}</h2><div className="vc-steps">{steps.map((step, index) => <article className="vc-step" key={step.title}><span>0{index + 1}</span><h3>{step.title}</h3><p>{step.body}</p></article>)}</div></div></section>

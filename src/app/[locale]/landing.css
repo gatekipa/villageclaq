@@ -134,3 +134,4 @@
   .vc-final { padding-block: 70px; }
 }
 @media (prefers-reduced-motion: reduce) { .vc-button { transition: none; } }
+.vc-hero-visual figcaption a { color: #0b6446; font-weight: 700; text-decoration: underline; }

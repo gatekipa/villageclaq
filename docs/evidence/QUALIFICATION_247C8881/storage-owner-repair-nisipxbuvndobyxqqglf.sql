@@ -1,3 +1,8 @@
+-- HISTORICAL PROPOSAL — DO NOT EXECUTE.
+-- Supabase Support SU-487325 corrected its owner/TRUNCATE premise on 2026-09-29.
+-- Four policies were restored through customer-accessible tooling; managed
+-- TRUNCATE grants are standard platform permissions and were left unchanged.
+-- See storage-support-correction-20260929.md for the executed branch-only SQL.
 -- VillageClaq isolated Storage owner repair
 -- Target project only: nisipxbuvndobyxqqglf
 -- Do not run on llbnliixczcqfftxpsmb or any other project.

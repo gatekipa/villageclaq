@@ -1,5 +1,7 @@
 # SU-487325 — isolated VillageClaq Storage evidence
 
+> **2026-09-29 correction:** Supabase Support confirmed the four missing `gdocs_*` policies caused the upload failure and that the reported managed-table `TRUNCATE` grants are standard platform permissions. The owner-only repair and privilege revocation proposed below were not run and are no longer required. The four policies were installed through customer-accessible tooling on the isolated branch and the real actor matrix passed. See [current readback and API results](storage-support-correction-20260929.md). The remainder of this file is the original ticket package, retained as historical evidence.
+
 ## Scope and target
 
 - Ticket: `SU-487325`.

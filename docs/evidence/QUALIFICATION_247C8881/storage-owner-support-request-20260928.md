@@ -1,3 +1,7 @@
+# Historical request — superseded 2026-09-29
+
+Supabase Support ticket SU-487325 confirmed customer-accessible restoration of the four policies and classified the managed `TRUNCATE` grants as standard platform permissions. The policies were restored and the real Storage actor matrix passed on `nisipxbuvndobyxqqglf`. **Do not send the owner/privilege request below.** See [current evidence](storage-support-correction-20260929.md).
+
 # Ready-to-send Supabase owner request — isolated VillageClaq branch
 
 For ticket `SU-487325`, attach [the sanitized evidence package](supabase-SU-487325-storage-evidence-20260928.md), [its full sanitized readback](supabase-SU-487325-storage-readback-20260928.json), and [storage-owner-repair-nisipxbuvndobyxqqglf.sql](storage-owner-repair-nisipxbuvndobyxqqglf.sql). The package includes the preserved real Storage API request/response, the exact SQL-capture limitation, and a fresh owner/policy/effective-grant readback. This is the single required owner action.

@@ -62,7 +62,14 @@ const copy = {
 
 export default async function LandingPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  const c = locale === "fr" ? copy.fr : copy.en;
+  const isFrench = locale === "fr";
+  const c = isFrench ? copy.fr : copy.en;
+  const productImage = (name: string) => `/images/product/${name}${isFrench ? "-fr" : ""}.webp`;
+  const minutesImage = productImage("minutes");
+  const importImage = productImage("import");
+  const summaryImage = productImage("summary");
+  const hostingImage = productImage("hosting");
+  const mobileMinutesImage = `/images/product/minutes-mobile-${isFrench ? "fr" : "en"}.webp`;
   const otherLocale = routing.locales.find((l) => l !== locale) ?? "fr";
   const outcomes = [
     { icon: UsersRound, title: c.people, body: c.peopleBody },
@@ -101,8 +108,9 @@ export default async function LandingPage({ params }: { params: Promise<{ locale
             </div>
             <figure className="vc-hero-visual">
               <div className="vc-screen-top"><span className="vc-screen-dot" /><span className="vc-screen-dot" /><span className="vc-screen-dot" /><span>{c.heroLabel}</span></div>
-              <Image src="/images/product/minutes.webp" width={1288} height={570} alt={c.heroLabel} priority sizes="(max-width: 760px) 720px, (max-width: 1100px) 55vw, 680px" />
-              <figcaption>{c.illustrative} · <a href="/images/product/minutes.webp" target="_blank" rel="noopener noreferrer">{c.fullImage}</a></figcaption>
+              <Image className="vc-hero-desktop-image" src={minutesImage} width={1288} height={570} alt={c.heroLabel} priority sizes="(max-width: 1100px) 55vw, 680px" />
+              <Image className="vc-hero-mobile-image" src={mobileMinutesImage} width={590} height={345} alt={c.heroLabel} priority sizes="(max-width: 760px) calc(100vw - 40px), 590px" />
+              <figcaption>{c.illustrative} · <a href={minutesImage} target="_blank" rel="noopener noreferrer">{c.fullImage}</a></figcaption>
             </figure>
           </div>
         </section>
@@ -110,9 +118,9 @@ export default async function LandingPage({ params }: { params: Promise<{ locale
         <section className="vc-section" id="features"><div className="vc-container"><span className="vc-eyebrow">{c.features}</span><h2 className="vc-section-title">{c.featureTitle}</h2><div className="vc-outcomes">{outcomes.map(({ icon: Icon, title, body }) => <article className="vc-outcome" key={title}><div className="vc-icon"><Icon size={23} strokeWidth={1.8} /></div><h3>{title}</h3><p>{body}</p></article>)}</div></div></section>
         <section className="vc-section vc-product" id="product"><div className="vc-container"><span className="vc-eyebrow">{c.storyEyebrow}</span><h2 className="vc-section-title">{c.storyTitle}</h2><p className="vc-section-sub">{c.storyBody}</p>
           <div className="vc-story-list">
-            <article className="vc-story"><div className="vc-story-copy"><span className="vc-story-number">{c.importLabel}</span><h3>{c.importTitle}</h3><p>{c.importBody}</p></div><figure className="vc-image-card"><Image src="/images/product/import.webp" width={718} height={345} alt={c.peopleBody} sizes="(max-width: 760px) 100vw, 48vw" /><figcaption>{c.illustrative} · <a href="/images/product/import.webp" target="_blank" rel="noopener noreferrer">{c.fullImage}</a></figcaption></figure></article>
-            <article className="vc-story"><div className="vc-story-copy"><span className="vc-story-number">{c.financeLabel}</span><h3>{c.financeTitle}</h3><p>{c.financeBody}</p></div><figure className="vc-image-card vc-finance-image"><Image src="/images/product/summary.webp" width={425} height={337} alt={c.visibilityBody} sizes="(max-width: 760px) 100vw, 425px" /><figcaption>{c.illustrative} · <a href="/images/product/summary.webp" target="_blank" rel="noopener noreferrer">{c.fullImage}</a></figcaption></figure></article>
-            <article className="vc-story"><div className="vc-story-copy"><span className="vc-story-number">{c.hostingLabel}</span><h3>{c.hostingTitle}</h3><p>{c.hostingBody}</p></div><figure className="vc-image-card"><Image src="/images/product/hosting.webp" width={715} height={335} alt={c.hostingBody} sizes="(max-width: 760px) 570px, 48vw" /><figcaption>{c.illustrative} · <a href="/images/product/hosting.webp" target="_blank" rel="noopener noreferrer">{c.fullImage}</a></figcaption></figure></article>
+            <article className="vc-story"><div className="vc-story-copy"><span className="vc-story-number">{c.importLabel}</span><h3>{c.importTitle}</h3><p>{c.importBody}</p></div><figure className="vc-image-card"><Image src={importImage} width={isFrench ? 714 : 718} height={isFrench ? 357 : 345} alt={c.peopleBody} sizes="(max-width: 760px) 100vw, 48vw" /><figcaption>{c.illustrative} · <a href={importImage} target="_blank" rel="noopener noreferrer">{c.fullImage}</a></figcaption></figure></article>
+            <article className="vc-story"><div className="vc-story-copy"><span className="vc-story-number">{c.financeLabel}</span><h3>{c.financeTitle}</h3><p>{c.financeBody}</p></div><figure className="vc-image-card vc-finance-image"><Image src={summaryImage} width={isFrench ? 430 : 425} height={isFrench ? 340 : 337} alt={c.visibilityBody} sizes="(max-width: 760px) 100vw, 425px" /><figcaption>{c.illustrative} · <a href={summaryImage} target="_blank" rel="noopener noreferrer">{c.fullImage}</a></figcaption></figure></article>
+            <article className="vc-story"><div className="vc-story-copy"><span className="vc-story-number">{c.hostingLabel}</span><h3>{c.hostingTitle}</h3><p>{c.hostingBody}</p></div><figure className="vc-image-card"><Image src={hostingImage} width={715} height={335} alt={c.hostingBody} sizes="(max-width: 760px) 100vw, 48vw" /><figcaption>{c.illustrative} · <a href={hostingImage} target="_blank" rel="noopener noreferrer">{c.fullImage}</a></figcaption></figure></article>
           </div>
         </div></section>
         <section className="vc-section vc-how"><div className="vc-container"><span className="vc-eyebrow">{c.howEyebrow}</span><h2 className="vc-section-title">{c.howTitle}</h2><div className="vc-steps">{steps.map((step, index) => <article className="vc-step" key={step.title}><span>0{index + 1}</span><h3>{step.title}</h3><p>{step.body}</p></article>)}</div></div></section>

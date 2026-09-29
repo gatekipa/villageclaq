@@ -49,6 +49,7 @@
 .vc-screen-dot { display: block; width: 7px; height: 7px; border-radius: 50%; background: #bbd4c4; }
 .vc-screen-top span:last-child { margin-left: auto; }
 .vc-hero-visual > img { width: 100%; }
+.vc-hero-mobile-image { display: none !important; }
 .vc-hero-visual figcaption { color: #496156; background: #fff; padding: 8px 14px; font-size: 12px; }
 .vc-intro-strip { background: #e8f2e9; border-bottom: 1px solid #d4e6d8; }
 .vc-intro-strip .vc-container { padding-block: 26px; display: flex; align-items: baseline; justify-content: space-between; gap: 32px; }
@@ -110,10 +111,9 @@
   .vc-nav-actions .vc-lang svg { display: none; }
   .vc-hero-inner { display: block; padding: 64px 20px 66px; }
   .vc-hero h1 { font-size: clamp(42px,9vw,58px); }
-  .vc-hero-visual { margin-top: 44px; transform: none; overflow-x: auto; }
-  .vc-hero-visual > img { width: 720px; max-width: none; }
-  .vc-hero-visual .vc-screen-top { min-width: 720px; }
-  .vc-hero-visual figcaption { min-width: 720px; }
+  .vc-hero-visual { margin-top: 44px; transform: none; }
+  .vc-hero-desktop-image { display: none !important; }
+  .vc-hero-mobile-image { display: block !important; width: 100%; }
   .vc-section { padding-block: 70px; }
   .vc-outcomes { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .vc-story { display: flex; flex-direction: column; align-items: stretch; gap: 26px; padding: 26px 20px; }
@@ -128,9 +128,7 @@
   .vc-actions { display: grid; }
   .vc-outcomes { grid-template-columns: 1fr; }
   .vc-outcome { padding: 23px; }
-  .vc-image-card { overflow-x: auto; }
-  .vc-image-card img { width: 570px; max-width: none; }
-  .vc-finance-image img { width: 100%; max-width: 100%; }
+  .vc-image-card img { width: 100%; }
   .vc-final { padding-block: 70px; }
 }
 @media (prefers-reduced-motion: reduce) { .vc-button { transition: none; } }

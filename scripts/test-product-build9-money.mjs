@@ -97,7 +97,7 @@ test("perf staleTime added without dropping the confirmed-only money basis", () 
   // list, which adds the ids and dates the per-obligation engine allocates by.
   const basis = hooks.match(/const DUES_PAYMENT_BASIS_SELECT =\s*"([^"]+)"/);
   assert.ok(basis && /\bstatus\b/.test(basis[1]) && /\brelief_plan_id\b/.test(basis[1]), "dashboard stats keep status + relief_plan_id");
-  assert.ok(/from\("payments"\)\.select\(DUES_PAYMENT_BASIS_SELECT\)/.test(hooks), "dashboard stats read payments on that basis");
+  assert.ok(/from\("payments"\)\s*\.select\(DUES_PAYMENT_BASIS_SELECT[,)]/.test(hooks), "dashboard stats read payments on that basis");
   assert.ok(/\.is\("relief_plan_id", null\)/.test(hooks), "dues views still exclude relief payments");
   assert.ok(/computeMoneyFigures/.test(hooks), "still uses the confirmed-only money engine");
   // staleTime present on the contribution/payment read hooks

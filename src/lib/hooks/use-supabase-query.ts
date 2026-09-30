@@ -10,6 +10,7 @@ import {
   type MoneyPayment,
 } from "@/lib/money";
 import { groupTodayKey } from "@/lib/payment-reminder-eligibility";
+import { fetchAllRows } from "@/lib/fetch-all-rows";
 
 const supabase = createClient();
 
@@ -37,13 +38,22 @@ export function useDashboardStats() {
         supabase.from("memberships").select("id", { count: "exact", head: true }).eq("group_id", groupId),
         supabase.from("events").select("id", { count: "exact", head: true }).eq("group_id", groupId).gte("starts_at", new Date().toISOString()),
         // Same rows as the unpaid drill-down (useObligations inner-joins the
-        // contribution type and membership), so both totals agree.
-        supabase
+        // contribution type and membership), so both totals agree. Paged past
+        // the PostgREST row cap, as the drill-down is.
+        fetchAllRows((from, to) => supabase
           .from("contribution_obligations")
-          .select("id, amount, status, due_date, membership_id, contribution_type_id, contribution_type:contribution_types!inner(id), membership:memberships!inner(id)")
-          .eq("group_id", groupId),
-        // Uncapped confirmed basis, identical to useGroupDuesPayments.
-        supabase.from("payments").select(DUES_PAYMENT_BASIS_SELECT).eq("group_id", groupId).is("relief_plan_id", null),
+          .select("id, amount, status, due_date, membership_id, contribution_type_id, contribution_type:contribution_types!inner(id), membership:memberships!inner(id)", { count: "exact" })
+          .eq("group_id", groupId)
+          .order("id")
+          .range(from, to)),
+        // Complete confirmed basis, identical to useGroupDuesPayments.
+        fetchAllRows((from, to) => supabase
+          .from("payments")
+          .select(DUES_PAYMENT_BASIS_SELECT, { count: "exact" })
+          .eq("group_id", groupId)
+          .is("relief_plan_id", null)
+          .order("id")
+          .range(from, to)),
       ]);
 
       const obligations = (obligationsRes.data || []) as unknown as MoneyObligation[];
@@ -231,16 +241,18 @@ export function useObligations(filters?: { status?: string; membershipId?: strin
     staleTime: 5 * 60 * 1000, // WS4: reuse cache on tab switch; invalidated on payment/type changes
     queryFn: async () => {
       if (!groupId) return [];
-      let q = supabase
-        .from("contribution_obligations")
-        .select("*, contribution_type:contribution_types!inner(id, name, name_fr), membership:memberships!inner(id, user_id, display_name, is_proxy, standing, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
-        .eq("group_id", groupId)
-        .order("due_date", { ascending: false });
-      if (filters?.status) q = q.eq("status", filters.status);
-      if (filters?.membershipId) q = q.eq("membership_id", filters.membershipId);
-      const { data, error } = await q;
+      // Paged past the PostgREST row cap so large groups get every obligation.
+      const { data, error } = await fetchAllRows((from, to) => {
+        let q = supabase
+          .from("contribution_obligations")
+          .select("*, contribution_type:contribution_types!inner(id, name, name_fr), membership:memberships!inner(id, user_id, display_name, is_proxy, standing, profiles!memberships_user_id_fkey(id, full_name, avatar_url))", { count: "exact" })
+          .eq("group_id", groupId);
+        if (filters?.status) q = q.eq("status", filters.status);
+        if (filters?.membershipId) q = q.eq("membership_id", filters.membershipId);
+        return q.order("due_date", { ascending: false }).order("id").range(from, to);
+      });
       if (error) { console.warn("[Query] failed:", error.message); return []; }
-      return data || [];
+      return data;
     },
     enabled: !!groupId,
   });
@@ -287,14 +299,18 @@ export function useGroupDuesPayments() {
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!groupId) return [];
-      const { data, error } = await supabase
+      // Paged past the PostgREST row cap: an incomplete payment set would
+      // understate what members have paid.
+      const { data, error } = await fetchAllRows((from, to) => supabase
         .from("payments")
-        .select(DUES_PAYMENT_BASIS_SELECT)
+        .select(DUES_PAYMENT_BASIS_SELECT, { count: "exact" })
         .eq("group_id", groupId)
         .is("relief_plan_id", null) // dues only — relief never covers dues obligations
-        .order("recorded_at", { ascending: false });
+        .order("recorded_at", { ascending: false })
+        .order("id")
+        .range(from, to));
       if (error) { console.warn("[GroupDuesPayments] query failed:", error.message); return []; }
-      return data || [];
+      return data;
     },
     enabled: !!groupId,
   });

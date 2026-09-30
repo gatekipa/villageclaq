@@ -304,6 +304,7 @@ export function useRetryDuesRecordIntent(groupId: string | null) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dues-record-intents", groupId] });
       queryClient.invalidateQueries({ queryKey: ["payments", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats", groupId] });
       queryClient.invalidateQueries({ queryKey: ["financial-projection-bundle", groupId] });
       queryClient.invalidateQueries({ queryKey: ["financial-cashbook", groupId] });
     },

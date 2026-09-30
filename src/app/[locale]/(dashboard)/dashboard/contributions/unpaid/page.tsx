@@ -3,6 +3,7 @@ import { formatAmount } from "@/lib/currencies";
 import { formatDateWithGroupFormat } from "@/lib/format";
 
 import { useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent } from "@/components/ui/card";
@@ -74,6 +75,7 @@ export default function UnpaidReportPage() {
   const t = useTranslations();
   const locale = useLocale();
   const { currentGroup, groupId } = useGroup();
+  const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
   const canWaive = hasPermission("contributions.manage");
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
@@ -241,6 +243,8 @@ export default function UnpaidReportPage() {
       });
       if (error) throw error;
       await refetchObl();
+      // FQ-11: the dashboard card must not keep counting a waived obligation.
+      void queryClient.invalidateQueries({ queryKey: ["dashboard-stats", groupId] });
       setWaiverTarget(null);
       setWaiverReason("");
     } catch (error) {

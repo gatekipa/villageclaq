@@ -5,6 +5,7 @@ import { CURRENCIES } from "../src/lib/currencies.ts";
 import { computeDuesStatusTotals } from "../src/lib/money.ts";
 import { groupTodayKey } from "../src/lib/payment-reminder-eligibility.ts";
 import { computeObligationDueDate } from "../src/lib/contribution-schedule.ts";
+import { fetchAllRows } from "../src/lib/fetch-all-rows.ts";
 
 // FQ-09/FQ-10/FQ-11 repair tests (Node >= 22.6 strips TS types on import).
 // Independent anchors:
@@ -16,6 +17,9 @@ import { computeObligationDueDate } from "../src/lib/contribution-schedule.ts";
 //  - Confirmed-only outstanding: Build-12 computeObligationStates contract.
 //  - Due-day schedule: dates produced by the repaired live trigger
 //    generate_obligations_for_type() in rolled-back probes (2026-09-30).
+//  - Row paging: PostgREST returns at most the API "Max rows" setting per
+//    request (Supabase default 1000) and truncates silently; Content-Range /
+//    count=exact reports the full total.
 
 const LEDGER_SCALE = {
   XAF: 0, XOF: 0, TZS: 0, UGX: 0, RWF: 0,
@@ -129,4 +133,45 @@ test("FQ-09: client schedule engine matches the repaired trigger's due dates", (
   }
   // No start date: the base (creation) month, no forward rollover.
   assert.equal(computeObligationDueDate({ frequency: "monthly", dueDay: 10, baseDate: "2026-09-30" }).dueISO, "2026-09-10");
+});
+
+// A fake PostgREST endpoint: `cap` rows per response at most, total in `count`.
+const pagedSource = (rows, cap, { withCount = true, failAtFrom = -1 } = {}) => {
+  const calls = [];
+  const fetchPage = (from, to) => {
+    calls.push([from, to]);
+    if (from === failAtFrom) return Promise.resolve({ data: null, error: { message: "boom" }, count: null });
+    const end = Math.min(to + 1, from + cap, rows.length);
+    return Promise.resolve({ data: rows.slice(from, end), error: null, count: withCount ? rows.length : null });
+  };
+  return { fetchPage, calls };
+};
+const ids = (n) => Array.from({ length: n }, (_, i) => ({ id: i }));
+
+test("FQ-11: money reads page past the 1000-row cap so both screens see every row", async () => {
+  const source = ids(2345);
+  const { fetchPage, calls } = pagedSource(source, 1000);
+  const { data, error } = await fetchAllRows(fetchPage);
+  assert.equal(error, null);
+  assert.deepEqual(data.map((r) => r.id), source.map((r) => r.id));
+  assert.deepEqual(calls, [[0, 999], [1000, 1999], [2000, 2999]]);
+});
+
+test("FQ-11: paging stays complete when the server caps pages below the page size", async () => {
+  const source = ids(1234);
+  const { fetchPage, calls } = pagedSource(source, 500);
+  const { data } = await fetchAllRows(fetchPage);
+  assert.equal(data.length, 1234);
+  assert.deepEqual(calls.map(([from]) => from), [0, 500, 1000]);
+});
+
+test("FQ-11: small groups need one request; a failed page is reported, not treated as complete", async () => {
+  const small = pagedSource(ids(7), 1000);
+  assert.equal((await fetchAllRows(small.fetchPage)).data.length, 7);
+  assert.equal(small.calls.length, 1);
+  const noCount = pagedSource(ids(7), 1000, { withCount: false });
+  assert.equal((await fetchAllRows(noCount.fetchPage)).data.length, 7);
+  const failing = pagedSource(ids(2500), 1000, { failAtFrom: 1000 });
+  const result = await fetchAllRows(failing.fetchPage);
+  assert.deepEqual(result.error, { message: "boom" });
 });

@@ -5,10 +5,13 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { useDuesRecordIntents, useRetryDuesRecordIntent } from "@/lib/hooks/use-dues-posting";
 
-// Posting stops on these until an officer finishes the group's finance setup.
-const SETUP_ERRORS: Record<string, "incomeCategorySetup" | "fundSetup"> = {
-  INCOME_CATEGORY_REQUIRED: "incomeCategorySetup",
-  FUND_REQUIRED: "fundSetup",
+// Retry failures with a specific, actionable explanation; `setup` ones link to
+// Financial Configuration.
+const KNOWN_ERRORS: Record<string, { key: "incomeCategorySetup" | "fundSetup" | "accountNotFoundOrInactive" | "deny"; setup: boolean }> = {
+  INCOME_CATEGORY_REQUIRED: { key: "incomeCategorySetup", setup: true },
+  FUND_REQUIRED: { key: "fundSetup", setup: true },
+  ACCOUNT_NOT_FOUND_OR_INACTIVE: { key: "accountNotFoundOrInactive", setup: true },
+  DENY: { key: "deny", setup: false },
 };
 
 export function DuesIntentRecovery({ groupId }: { groupId: string | null }) {
@@ -18,7 +21,7 @@ export function DuesIntentRecovery({ groupId }: { groupId: string | null }) {
   const [open, setOpen] = useState(false);
   const intents = useDuesRecordIntents(groupId, open);
   const retry = useRetryDuesRecordIntent(groupId);
-  const setupError = retry.isError ? SETUP_ERRORS[retry.error?.message ?? ""] : undefined;
+  const knownError = retry.isError ? KNOWN_ERRORS[retry.error?.message ?? ""] : undefined;
 
   return (
     <section className="rounded-lg border p-4 space-y-3">
@@ -60,16 +63,19 @@ export function DuesIntentRecovery({ groupId }: { groupId: string | null }) {
               </li>
             ))}
           </ul>
-          {retry.isError && !setupError && <p role="alert">{t(
-            retry.error?.message === "RECEIPT_VOUCHER_CONFLICT"
+          {retry.isError && !knownError && <p role="alert">{t(
+            retry.error?.message === "RECEIPT_VOUCHER_CONFLICT" || retry.error?.message === "CONFLICT"
               ? "receiptVoucherConflict" : "retryFailed"
           )}</p>}
-          {setupError && (
+          {knownError && (
             <p role="alert">
-              {tPosting(setupError)}
-              <Link href="/dashboard/finances/config" className="mt-1 block font-medium underline underline-offset-2">
-                {tConfig("title")}
-              </Link>
+              {tPosting(knownError.key)}
+              {knownError.setup && (
+                <Link href="/dashboard/finances/config" target="_blank" rel="noopener noreferrer"
+                  className="mt-1 block font-medium underline underline-offset-2">
+                  {tConfig("title")}
+                </Link>
+              )}
             </p>
           )}
           {retry.isSuccess && <p role="status">{t("retrySucceeded")}</p>}

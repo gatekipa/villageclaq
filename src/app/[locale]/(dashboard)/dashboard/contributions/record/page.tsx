@@ -1197,7 +1197,9 @@ export default function RecordPaymentPage() {
                   : t("contributions.duesPosting.errors.notRecorded")}
                 {(recordAndPostDues.error?.message === "INCOME_CATEGORY_REQUIRED" ||
                   recordAndPostDues.error?.message === "FUND_REQUIRED") && (
-                  <Link href="/dashboard/finances/config" className="mt-1 block font-medium underline underline-offset-2">
+                  // New tab: this form keeps the receipt voucher for the retry.
+                  <Link href="/dashboard/finances/config" target="_blank" rel="noopener noreferrer"
+                    className="mt-1 block font-medium underline underline-offset-2">
                     {t("financialConfig.title")}
                   </Link>
                 )}

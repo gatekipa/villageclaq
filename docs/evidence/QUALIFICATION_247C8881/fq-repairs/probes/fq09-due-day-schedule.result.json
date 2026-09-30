@@ -1,0 +1,60 @@
+{
+ "annual_5": {
+  "due": "2027-01-05",
+  "count": 1,
+  "period": "\"2027\""
+ },
+ "after_retry": {
+  "types": 1,
+  "obligations": 1
+ },
+ "feb_leap_28": {
+  "due": "2028-02-28",
+  "count": 1,
+  "period": "\"February  2028\""
+ },
+ "feb_leap_29": {
+  "due": "2028-02-28",
+  "count": 1,
+  "period": "\"February  2028\""
+ },
+ "no_start_10": {
+  "due": "2026-09-10",
+  "count": 1,
+  "period": "\"September 2026\""
+ },
+ "one_time_20": {
+  "due": "2026-12-20",
+  "count": 1,
+  "period": "\"2026-12-20\""
+ },
+ "ordinary_15": {
+  "due": "2026-10-15",
+  "count": 1,
+  "period": "\"October   2026\""
+ },
+ "clamp_31_nov": {
+  "due": "2026-11-28",
+  "count": 1,
+  "period": "\"November  2026\""
+ },
+ "quarterly_31": {
+  "due": "2026-10-28",
+  "count": 1,
+  "period": "\"Q4 2026\""
+ },
+ "feb_non_leap_30": {
+  "due": "2027-02-28",
+  "count": 1,
+  "period": "\"February  2027\""
+ },
+ "current_date_utc": "2026-09-30",
+ "eligible_members": 1,
+ "after_failed_submit": {
+  "types": 0
+ },
+ "double_submit_error": "23505 duplicate key value violates unique constraint \"contribution_types_group_id_name_key\"",
+ "types_left_in_group": 0,
+ "invalid_due_day_error": "23514 new row for relation \"contribution_types\" violates check constraint \"contribution_types_due_day_check\"",
+ "demo_monthly_period_label": "\"September 2026\""
+}

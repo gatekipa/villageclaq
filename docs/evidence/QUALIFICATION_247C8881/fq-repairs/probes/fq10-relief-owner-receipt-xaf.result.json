@@ -1,0 +1,38 @@
+{
+ "events": [
+  {
+   "sum": "0.00000000",
+   "audit": 1,
+   "amount": "5000",
+   "effect": "owner_nonrefundable_receipt",
+   "module": "relief",
+   "classes": [
+    "custody",
+    "income"
+   ]
+  }
+ ],
+ "payment": {
+  "amount": "5000.00",
+  "status": "confirmed",
+  "event_linked": true
+ },
+ "enrolled": true,
+ "plan_created": true,
+ "relief_replay": {
+  "decision": "IDEMPOTENT_RETURN_EXISTING",
+  "cash_class": "non_refundable",
+  "payment_id": "0f100a10-0000-4000-8000-000000000601",
+  "posting_count": 0,
+  "financial_event_id": "50944eba-6634-4ba9-a977-fdf2b7647cbb"
+ },
+ "relief_receipt": {
+  "decision": "POSTED",
+  "cash_class": "non_refundable",
+  "payment_id": "0f100a10-0000-4000-8000-000000000601",
+  "posting_count": 2,
+  "financial_event_id": "50944eba-6634-4ba9-a977-fdf2b7647cbb"
+ },
+ "relief_fraction_error": "RELIEF_RECEIPT_DIMENSION_CONFLICT",
+ "relief_outsider_error": "42501 ACTIVE_FINANCES_MANAGE_REQUIRED"
+}

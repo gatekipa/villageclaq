@@ -1,0 +1,138 @@
+{
+ "USD": {
+  "post": "POSTED",
+  "events": 2,
+  "replay": "IDEMPOTENT_RETURN_EXISTING",
+  "payments": [
+   "0.10",
+   "12.30"
+  ],
+  "postings": 4,
+  "owner_role": "owner",
+  "audit_links": 2,
+  "posting_sum": "0.00000000",
+  "second_post": "POSTED",
+  "epoch_currency": "USD",
+  "payload_amounts": [
+   "0.10",
+   "12.30"
+  ],
+  "replay_postings": 0,
+  "bad_amount_error": "INVALID_DUES_INTENT",
+  "obligations_generated": 2
+ },
+ "XOF": {
+  "post": "POSTED",
+  "events": 2,
+  "replay": "IDEMPOTENT_RETURN_EXISTING",
+  "payments": [
+   "2500.00",
+   "3000.00"
+  ],
+  "postings": 4,
+  "owner_role": "owner",
+  "audit_links": 2,
+  "posting_sum": "0.00000000",
+  "second_post": "POSTED",
+  "epoch_currency": "XOF",
+  "payload_amounts": [
+   "2500",
+   "3000"
+  ],
+  "replay_postings": 0,
+  "bad_amount_error": "INVALID_DUES_INTENT",
+  "obligations_generated": 2
+ },
+ "catalog": {
+  "AED": [
+   2,
+   "1234.00",
+   "1234.50"
+  ],
+  "AUD": [
+   2,
+   "1234.00",
+   "1234.50"
+  ],
+  "CAD": [
+   2,
+   "1234.00",
+   "1234.50"
+  ],
+  "CDF": [
+   2,
+   "1234.00",
+   "1234.50"
+  ],
+  "CHF": [
+   2,
+   "1234.00",
+   "1234.50"
+  ],
+  "ETB": [
+   2,
+   "1234.00",
+   "1234.50"
+  ],
+  "EUR": [
+   2,
+   "1234.00",
+   "1234.50"
+  ],
+  "GBP": [
+   2,
+   "1234.00",
+   "1234.50"
+  ],
+  "GHS": [
+   2,
+   "1234.00",
+   "1234.50"
+  ],
+  "KES": [
+   2,
+   "1234.00",
+   "1234.50"
+  ],
+  "NGN": [
+   2,
+   "1234.00",
+   "1234.50"
+  ],
+  "RWF": [
+   0,
+   "1234",
+   "REJECTED:AMOUNT_PRECISION"
+  ],
+  "TZS": [
+   0,
+   "1234",
+   "REJECTED:AMOUNT_PRECISION"
+  ],
+  "UGX": [
+   0,
+   "1234",
+   "REJECTED:AMOUNT_PRECISION"
+  ],
+  "USD": [
+   2,
+   "1234.00",
+   "1234.50"
+  ],
+  "XAF": [
+   0,
+   "1234",
+   "REJECTED:AMOUNT_PRECISION"
+  ],
+  "XOF": [
+   0,
+   "1234",
+   "REJECTED:AMOUNT_PRECISION"
+  ],
+  "ZAR": [
+   2,
+   "1234.00",
+   "1234.50"
+  ]
+ }
+}

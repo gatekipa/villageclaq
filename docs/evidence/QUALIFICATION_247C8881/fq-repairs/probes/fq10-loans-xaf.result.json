@@ -1,0 +1,72 @@
+{
+ "loan1": {
+  "status": "repaying",
+  "total_repaid": "10000.00",
+  "schedule_rows": 12
+ },
+ "events": [
+  {
+   "sum": "0.00000000",
+   "audit": 1,
+   "amount": "5000",
+   "effect": "interest_receipt",
+   "module": "loan",
+   "postings": 2
+  },
+  {
+   "sum": "0.00000000",
+   "audit": 1,
+   "amount": "50000",
+   "effect": "principal_disbursement",
+   "module": "loan",
+   "postings": 2
+  },
+  {
+   "sum": "0.00000000",
+   "audit": 1,
+   "amount": "5000",
+   "effect": "principal_repayment",
+   "module": "loan",
+   "postings": 2
+  }
+ ],
+ "a_start": [
+  "b1512a61-fe79-4bb8-99ce-1f88249f110d",
+  true
+ ],
+ "loan_repay": {
+  "decision": "REPAID",
+  "interest": "5000.00",
+  "principal": "5000.00"
+ },
+ "loan2_status": "approved",
+ "ticket_error": "42501 UNAUTHORIZED",
+ "c_after_repay": [
+  "b1512a61-fe79-4bb8-99ce-1f88249f110d",
+  true
+ ],
+ "loan_disburse": {
+  "decision": "DISBURSED",
+  "event_id": "949e92cd-f77f-4d09-aa71-efdf89db7df1",
+  "schedule_count": 12
+ },
+ "e_before_ticket": [
+  "b1512a61-fe79-4bb8-99ce-1f88249f110d",
+  true,
+  "authenticated"
+ ],
+ "b_after_disburse": [
+  "b1512a61-fe79-4bb8-99ce-1f88249f110d",
+  true
+ ],
+ "d_after_fractions": [
+  "b1512a61-fe79-4bb8-99ce-1f88249f110d",
+  true,
+  "authenticated"
+ ],
+ "loan_repay_replay": "IDEMPOTENT_RETURN_EXISTING",
+ "loan_disburse_replay": "IDEMPOTENT_RETURN_EXISTING",
+ "loan_fraction_repay_error": "AMOUNT_PRECISION",
+ "ticket_fraction_tier_error": "INVALID_TICKET_TIER",
+ "loan_fraction_disburse_error": "AMOUNT_PRECISION"
+}

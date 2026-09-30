@@ -1,0 +1,22 @@
+{
+ "events": [
+  {
+   "sum": "0.00000000",
+   "audit": 1,
+   "amount": "1500",
+   "effect": "ticket_receipt",
+   "module": "events",
+   "postings": 2
+  }
+ ],
+ "ticket": "POSTED",
+ "ticket_replay": "ALREADY_POSTED",
+ "ticket_purchases": [
+  {
+   "amount": "1500",
+   "currency": "XAF",
+   "event_linked": true
+  }
+ ],
+ "ticket_outsider_error": "42501 UNAUTHORIZED"
+}

@@ -47,7 +47,10 @@ import {
 } from "@/lib/hooks/use-supabase-query";
 import { useRecordAndPostDuesPayment } from "@/lib/hooks/use-dues-posting";
 import { DuesIntentRecovery } from "@/components/contributions/dues-intent-recovery";
-import { useFinancialAccounts } from "@/lib/hooks/use-financial-config";
+import { useFinancialAccounts, useFinancialCategories, useFinancialFunds } from "@/lib/hooks/use-financial-config";
+import { useGroupDuesPayments } from "@/lib/hooks/use-supabase-query";
+import { computeObligationStates, type MoneyObligation, type MoneyPayment } from "@/lib/money";
+import { fetchAllRows } from "@/lib/fetch-all-rows";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission } from "@/components/ui/permission-gate";
@@ -66,7 +69,10 @@ export default function RecordPaymentPage() {
   const canRecord = hasPermission("finances.manage");
   const { data: members, isLoading: membersLoading, isError: membersError, refetch: refetchMembers } = useMembers();
   const { data: contributionTypes, isLoading: typesLoading, isError: typesError, refetch: refetchTypes } = useContributionTypes();
-  const { data: financialAccounts = [], isLoading: accountsLoading } = useFinancialAccounts(groupId);
+  const { data: financialAccounts = [], isLoading: accountsLoading, isError: accountsError } = useFinancialAccounts(groupId);
+  const { data: financialCategories = [], isLoading: categoriesLoading, isError: categoriesError } = useFinancialCategories(groupId);
+  const { data: financialFunds = [], isLoading: fundsLoading, isError: fundsError } = useFinancialFunds(groupId);
+  const { data: duesPayments = [], isLoading: duesPaymentsLoading, isError: duesPaymentsError } = useGroupDuesPayments();
   const recordAndPostDues = useRecordAndPostDuesPayment();
   const queryClient = useQueryClient();
   const founderTestMode = process.env.NEXT_PUBLIC_FOUNDER_TEST_ENVIRONMENT === "true";
@@ -169,6 +175,9 @@ export default function RecordPaymentPage() {
   const [cashClass, setCashClass] = useState<"non_refundable" | "refundable" | "conditional">("non_refundable");
   const [reference, setReference] = useState("");
   const [receiptVoucher, setReceiptVoucher] = useState("");
+  const [recordedAt, setRecordedAt] = useState("");
+  const [selectedObligationId, setSelectedObligationId] = useState("");
+  const [draftReady, setDraftReady] = useState(false);
   const [receiptVoucherError, setReceiptVoucherError] = useState<string | null>(null);
   const [receiptUrl, setReceiptUrl] = useState("");
   const [notes, setNotes] = useState("");
@@ -211,6 +220,9 @@ export default function RecordPaymentPage() {
     setPaymentDateError(null);
     setReceiptError(null);
     setReceiptVoucher("");
+    setRecordedAt("");
+    setSelectedObligationId("");
+    setDraftReady(false);
     setReceiptVoucherError(null);
   }
 
@@ -235,6 +247,86 @@ export default function RecordPaymentPage() {
 
   const isLoading = membersLoading || typesLoading;
   const isError = membersError || typesError;
+
+  // The draft stays in this browser tab while configuration opens in another tab.
+  // The server intent remains the recovery authority after preparation.
+  const draftKey = groupId && currentUser?.id ? `villageclaq:dues-draft:${groupId}:${currentUser.id}` : null;
+  useEffect(() => {
+    if (!draftKey) return;
+    try {
+      const raw = sessionStorage.getItem(draftKey);
+      if (raw) {
+        const draft = JSON.parse(raw) as Record<string, string>;
+        if (draft.membershipId && draft.memberName) {
+          setSelectedMembership({ id: draft.membershipId, name: draft.memberName });
+          setMemberSearch(draft.memberName);
+        }
+        setSelectedTypeId(draft.typeId || "");
+        setSelectedObligationId(draft.obligationId || "");
+        setAmount(draft.amount || "");
+        setSelectedAccountId(draft.accountId || "");
+        setMethod(draft.method || "cash");
+        setCashClass((draft.cashClass as "non_refundable" | "refundable" | "conditional") || "non_refundable");
+        setReference(draft.reference || "");
+        setPaymentDate(draft.paymentDate || new Date().toISOString().slice(0, 10));
+        setReceiptVoucher(draft.voucher || crypto.randomUUID());
+        setRecordedAt(draft.recordedAt || "");
+      } else {
+        setReceiptVoucher(crypto.randomUUID());
+      }
+    } catch { setReceiptVoucher(crypto.randomUUID()); }
+    setDraftReady(true);
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (!draftKey || !draftReady) return;
+    sessionStorage.setItem(draftKey, JSON.stringify({
+      membershipId: selectedMembership?.id || "", memberName: selectedMembership?.name || "",
+      typeId: selectedTypeId, obligationId: selectedObligationId, amount,
+      accountId: selectedAccountId, method, cashClass, reference, paymentDate,
+      voucher: receiptVoucher, recordedAt,
+    }));
+  }, [draftKey, draftReady, selectedMembership, selectedTypeId, selectedObligationId, amount, selectedAccountId, method, cashClass, reference, paymentDate, receiptVoucher, recordedAt]);
+
+  const memberObligations = useQuery({
+    queryKey: ["record-payment-obligations", groupId, selectedMembership?.id],
+    enabled: !!groupId && !!selectedMembership?.id,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await fetchAllRows((from, to) => supabase
+        .from("contribution_obligations")
+        .select("id, amount, status, due_date, contribution_type_id, membership_id", { count: "exact" })
+        .eq("group_id", groupId!).eq("membership_id", selectedMembership!.id)
+        .order("due_date", { ascending: true }).order("id").range(from, to));
+      if (error) throw new Error(error.message);
+      return data as MoneyObligation[];
+    },
+  });
+  const eligibleObligations = useMemo(() => {
+    if (!selectedTypeId || !memberObligations.data || duesPaymentsLoading || duesPaymentsError) return [];
+    const states = computeObligationStates(memberObligations.data, duesPayments as MoneyPayment[]);
+    return memberObligations.data.filter(o => o.contribution_type_id === selectedTypeId)
+      .map(o => ({ obligation: o, state: states.get(o.id) }))
+      .filter(row => row.state?.isOpen);
+  }, [selectedTypeId, memberObligations.data, duesPayments, duesPaymentsLoading, duesPaymentsError]);
+  const selectedObligation = eligibleObligations.find(row => row.obligation.id === selectedObligationId);
+  useEffect(() => {
+    if (!selectedMembership || !selectedTypeId || memberObligations.isLoading || duesPaymentsLoading || duesPaymentsError || !memberObligations.data) return;
+    if (selectedObligationId && eligibleObligations.some(row => row.obligation.id === selectedObligationId)) return;
+    if (eligibleObligations.length === 1) {
+      setSelectedObligationId(eligibleObligations[0].obligation.id);
+      setAmount(String(eligibleObligations[0].state!.remaining));
+    } else {
+      setSelectedObligationId("");
+    }
+  }, [selectedMembership?.id, selectedTypeId, memberObligations.data, memberObligations.isLoading, duesPaymentsLoading, duesPaymentsError, eligibleObligations, selectedObligationId]);
+
+  const missingSetup = [
+    !custodyAccounts.some(a => a.currency === currency) ? "account" : null,
+    cashClass === "non_refundable" && !financialCategories.some(c => c.status === "active" && c.category_class === "income") ? "category" : null,
+    !financialFunds.some(f => f.status === "active" && f.is_default && !f.is_restricted) ? "fund" : null,
+  ].filter(Boolean) as Array<"account" | "category" | "fund">;
+  const setupLoaded = !accountsLoading && !categoriesLoading && !fundsLoading;
 
   // WS4/WS5 (B11): memoize the mapped member list + the search-filtered view so
   // getMemberName + toLowerCase don't re-run for every member on each keystroke
@@ -261,13 +353,6 @@ export default function RecordPaymentPage() {
   const types = contributionTypes || [];
   const selectedType = types.find((ct: Record<string, unknown>) => ct.id === selectedTypeId);
 
-  // Auto-fill amount when contribution type changes
-  useEffect(() => {
-    if (selectedType) {
-      setAmount(String(selectedType.amount));
-    }
-  }, [selectedType]);
-
   // Close dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -280,6 +365,7 @@ export default function RecordPaymentPage() {
   }, []);
 
   function handleSelectMember(member: { membershipId: string; name: string }) {
+    setSelectedObligationId("");
     setSelectedMembership({ id: member.membershipId, name: member.name });
     setMemberSearch(member.name);
     setShowMemberList(false);
@@ -310,7 +396,11 @@ export default function RecordPaymentPage() {
 
   /** Core save logic, called after duplicate check passes or is bypassed */
   async function doSave(keepTypeAndMethod: boolean, skipDuplicateCheck: boolean) {
-    if (!selectedMembership || !selectedTypeId || !amount || Number(amount) <= 0) return;
+    if (!selectedMembership || !selectedTypeId || !selectedObligation || !amount || Number(amount) <= 0) return;
+    if (Number(amount) > selectedObligation.state!.remaining) {
+      setPaymentDateError(t("contributions.balanceEntry.exceedsRemaining"));
+      return;
+    }
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(receiptVoucher.trim())) {
       setReceiptVoucherError(t("contributions.receiptVoucherInvalid"));
       return;
@@ -338,6 +428,8 @@ export default function RecordPaymentPage() {
     const payMethod = method;
     const payRef = reference;
     const payDate = paymentDate;
+    const paymentRecordedAt = recordedAt || new Date().toISOString();
+    if (!recordedAt) setRecordedAt(paymentRecordedAt);
     const targetAccountId = selectedAccountId;
 
     try {
@@ -368,6 +460,8 @@ export default function RecordPaymentPage() {
         groupId: groupId!,
         membershipId,
         contributionTypeId: typeId,
+        obligationId: selectedObligation.obligation.id,
+        recordedAt: paymentRecordedAt,
         // Exact typed decimal string (not the float) is the accounting amount.
         amount: amount.trim(),
         currency,
@@ -406,7 +500,10 @@ export default function RecordPaymentPage() {
       setSelectedMembership(null);
       setMemberSearch("");
       setReference("");
-      setReceiptVoucher("");
+      setReceiptVoucher(crypto.randomUUID());
+      setRecordedAt("");
+      setSelectedObligationId("");
+      if (draftKey) sessionStorage.removeItem(draftKey);
       setReceiptVoucherError(null);
       setNotes("");
       setReceiptUrl("");
@@ -696,7 +793,7 @@ export default function RecordPaymentPage() {
   }
 
   const isBusy = recordAndPostDues.isPending || savingMode !== null;
-  const canSubmit = !!selectedMembership && !!selectedTypeId && !!amount && Number(amount) > 0 && !!selectedAccountId && !isBusy;
+  const canSubmit = !!selectedMembership && !!selectedTypeId && !!selectedObligation && !!amount && Number(amount) > 0 && Number(amount) <= selectedObligation.state!.remaining && !!selectedAccountId && missingSetup.length === 0 && setupLoaded && !memberObligations.isError && !duesPaymentsError && !isBusy;
 
   if (!canRecord) {
     return (
@@ -736,6 +833,15 @@ export default function RecordPaymentPage() {
       {/* Sub Navigation */}
       <ContributionsSubNav active="record" />
       <DuesIntentRecovery groupId={groupId} />
+      {(accountsError || categoriesError || fundsError) && <ErrorState onRetry={() => { queryClient.invalidateQueries({ queryKey: ["financial-accounts", groupId] }); queryClient.invalidateQueries({ queryKey: ["financial-categories", groupId] }); queryClient.invalidateQueries({ queryKey: ["financial-funds", groupId] }); }} />}
+      {setupLoaded && missingSetup.length > 0 && (
+        <section role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm dark:bg-amber-950/20">
+          <p className="font-semibold">{t("contributions.balanceEntry.setupTitle")}</p>
+          <ul className="mt-2 list-disc pl-5">{missingSetup.map(key => <li key={key}>{t(`contributions.balanceEntry.setup.${key}`)}</li>)}</ul>
+          <p className="mt-2">{t("contributions.balanceEntry.setupReturn")}</p>
+          <Link href="/dashboard/finances/config" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block font-medium underline">{t("financialConfig.title")}</Link>
+        </section>
+      )}
 
       {/* Success Card with WhatsApp Share */}
       {showSuccess && (
@@ -942,7 +1048,7 @@ export default function RecordPaymentPage() {
               <Label>{t("contributions.contributionType")}</Label>
               <select
                 value={selectedTypeId}
-                onChange={(e) => setSelectedTypeId(e.target.value)}
+                onChange={(e) => { const nextType = types.find(type => type.id === e.target.value); setSelectedTypeId(e.target.value); setSelectedObligationId(""); setAmount(nextType ? String(nextType.amount) : ""); setRecordedAt(""); }}
                 className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="">{t("contributions.selectType")}</option>
@@ -958,6 +1064,29 @@ export default function RecordPaymentPage() {
                 </p>
               )}
             </div>
+
+            {selectedMembership && selectedTypeId && (
+              <div className="space-y-2 rounded-lg border p-4">
+                <Label htmlFor="covered-obligation">{t("contributions.balanceEntry.coveredPeriod")}</Label>
+                <select id="covered-obligation" value={selectedObligationId}
+                  onChange={event => { const id = event.target.value; setSelectedObligationId(id); const row = eligibleObligations.find(item => item.obligation.id === id); if (row) setAmount(String(row.state!.remaining)); setRecordedAt(""); }}
+                  className="flex min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm">
+                  <option value="">{t("contributions.balanceEntry.choosePeriod")}</option>
+                  {eligibleObligations.map(({ obligation, state }) => <option key={obligation.id} value={obligation.id}>
+                    {obligation.due_date ? new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-US", { timeZone: "UTC", month: "long", day: "numeric", year: "numeric" }).format(new Date(`${String(obligation.due_date).slice(0, 10)}T12:00:00Z`)) : t("contributions.balanceEntry.noDueDate")} — {formatAmount(state!.remaining, currency)}
+                  </option>)}
+                </select>
+                {(memberObligations.isLoading || duesPaymentsLoading) && <p className="text-xs text-muted-foreground">{t("common.loading")}</p>}
+                {(memberObligations.isError || duesPaymentsError) && <p role="alert" className="text-xs text-destructive">{t("contributions.balanceEntry.loadFailed")}</p>}
+                {!memberObligations.isLoading && !duesPaymentsLoading && !memberObligations.isError && !duesPaymentsError && eligibleObligations.length === 0 && <p className="text-xs text-muted-foreground">{t("contributions.balanceEntry.noneOutstanding")}</p>}
+                {eligibleObligations.length > 1 && !selectedObligation && <p className="text-xs text-muted-foreground">{t("contributions.balanceEntry.allocationHelp")}</p>}
+                {selectedObligation && <dl className="grid gap-2 text-sm sm:grid-cols-3">
+                  <div><dt className="text-muted-foreground">{t("contributions.balanceEntry.amountDue")}</dt><dd className="font-semibold">{formatAmount(selectedObligation.state!.expected, currency)}</dd></div>
+                  <div><dt className="text-muted-foreground">{t("contributions.balanceEntry.alreadyPaid")}</dt><dd className="font-semibold">{formatAmount(selectedObligation.state!.confirmedPaid, currency)}</dd></div>
+                  <div><dt className="text-muted-foreground">{t("contributions.balanceEntry.remaining")}</dt><dd className="font-semibold">{formatAmount(selectedObligation.state!.remaining, currency)}</dd></div>
+                </dl>}
+              </div>
+            )}
 
             {/* Relief-owned receipts use their own authoritative adapter. */}
             {reliefPlansForPayment.length > 0 && (
@@ -979,7 +1108,7 @@ export default function RecordPaymentPage() {
             {/* Amount + Method Row */}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>{t("contributions.amount")}</Label>
+                <Label>{t("contributions.balanceEntry.amountNow")}</Label>
                 <Input
                   type="number"
                   min="1"
@@ -1054,13 +1183,13 @@ export default function RecordPaymentPage() {
 
             {/* Reference + Receipt Row */}
             <div className="space-y-2">
-              <Label htmlFor="dues-source-voucher">{t("contributions.receiptVoucher")} *</Label>
+              <Label htmlFor="dues-source-voucher">{t("contributions.balanceEntry.paymentReference")}</Label>
               <Input id="dues-source-voucher" value={receiptVoucher}
                 onChange={(event) => { setReceiptVoucher(event.target.value); setReceiptVoucherError(null); }}
                 maxLength={36} autoComplete="off" className="font-mono text-xs" required />
               <Button type="button" variant="outline" size="sm"
                 onClick={() => { setReceiptVoucher(crypto.randomUUID()); setReceiptVoucherError(null); }}>
-                {t("contributions.newReceiptVoucher")}
+                {t("contributions.balanceEntry.separatePayment")}
               </Button>
               {receiptVoucherError && <p role="alert" className="text-xs text-destructive">
                 {receiptVoucherError}

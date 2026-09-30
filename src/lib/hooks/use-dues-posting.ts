@@ -42,6 +42,7 @@ export interface RecordAndPostDuesPaymentInput {
   receiptUrl?: string | null;
   notes?: string | null;
   paymentDate?: string | null;
+  recordedAt?: string | null;
   categoryId?: string | null;
   fundId?: string | null;
   requestId?: string;
@@ -217,7 +218,7 @@ export function useRecordAndPostDuesPayment() {
       }
 
       const requestId = input.requestId || crypto.randomUUID();
-      const firstRecordedAt = recordedAtByRequest.current.get(requestId) ?? new Date().toISOString();
+      const firstRecordedAt = input.recordedAt || recordedAtByRequest.current.get(requestId) || new Date().toISOString();
       recordedAtByRequest.current.set(requestId, firstRecordedAt);
       const command = {
         request_id: requestId,

@@ -242,7 +242,7 @@
     "launchCenter": "Centre de lancement",
     "myGroups": "Mes groupes",
     "executionInbox": "Boîte d'exécution",
-    "memberFinancialSummary": "Résumé financier"
+    "memberFinancialSummary": "Résumé financier du groupe"
   },
   "cookies": {
     "title": "Paramètres des cookies",
@@ -938,7 +938,7 @@
     "addProxyMemberDesc": "Crée une adhésion active. Le compte en ligne peut être activé plus tard sans perdre l’historique.",
     "fullName": "Nom complet",
     "unnamed": "Membre sans nom",
-    "proxyMember": "Compte non activé",
+    "proxyMember": "Membre hors ligne",
     "noContributions": "Aucune contribution pour le moment",
     "memberTitle": "Titre (Optionnel)",
     "titlePlaceholder": "ex: Chef, Nchinda, Pasteur, Dr., Alhaji, Mama",
@@ -1679,6 +1679,24 @@
     "rejectPaymentReviewTitle": "Rejeter ce paiement ?",
     "rejectPaymentReviewDesc": "Le rejet marque {amount} de {member} comme non accepté. Aucun message n'est envoyé au membre.",
     "rejectPaymentReviewAction": "Rejeter le paiement",
+    "balanceEntry": {
+      "coveredPeriod": "Période couverte et date d’échéance",
+      "choosePeriod": "Choisir une période impayée",
+      "noDueDate": "Sans date d’échéance",
+      "loadFailed": "Impossible de charger les échéances de ce membre. Actualisez avant d’enregistrer un paiement.",
+      "noneOutstanding": "Ce membre n’a aucune échéance impayée pour cette cotisation. Aucun paiement ne peut encore y être affecté.",
+      "allocationHelp": "Choisissez la période réglée par ce paiement. Le type de cotisation ne suffit pas à déterminer la période.",
+      "amountDue": "Montant dû",
+      "alreadyPaid": "Déjà payé",
+      "remaining": "Solde restant",
+      "amountNow": "Montant enregistré maintenant",
+      "exceedsRemaining": "Ce montant dépasse le solde de la période choisie. Aucun paiement n’a été enregistré.",
+      "setupTitle": "Complétez ces paramètres financiers avant d’enregistrer un paiement :",
+      "setup": { "account": "Un compte de dépôt actif dans la devise du groupe", "category": "Une catégorie de revenus active", "fund": "Un fonds général actif, par défaut et sans restriction" },
+      "setupReturn": "Ouvrez la configuration financière dans un nouvel onglet, terminez ces étapes, puis revenez ici. Le formulaire reste ouvert dans cet onglet.",
+      "paymentReference": "Référence du paiement (conservée pour réessayer)",
+      "separatePayment": "Commencer un paiement distinct"
+    },
     "duesPosting": {
       "depositAccount": "Compte de dépôt",
       "depositAccountPlaceholder": "Sélectionner le compte de garde recevant le paiement",
@@ -1718,18 +1736,20 @@
   },
   "finances": {
     "title": "Tableau de bord financier",
+    "recordOtherTransaction": "Enregistrer une autre opération",
     "subtitle": "Aperçu des collectes, soldes impayés et tendances",
     "collectedThisPeriod": "Collecté ce mois",
     "totalOutstanding": "Total impayé",
     "collectionRate": "Taux de collecte",
     "paymentsThisMonth": "Paiements ce mois",
     "vsLastMonth": "par rapport au mois dernier",
+    "noPriorMonth": "Aucune collecte le mois dernier",
     "membersOverdue": "membres en retard",
     "transactions": "transactions",
     "monthlyTrend": "Tendance mensuelle des collectes",
     "collected": "collecté",
     "target": "Objectif",
-    "topOverdue": "Membres les plus en retard",
+    "topOverdue": "Membres ayant des cotisations en retard",
     "items": "éléments",
     "byType": "Collecte par type",
     "recentPayments": "Paiements récents",
@@ -2003,6 +2023,8 @@
     }
   },
   "financialProjections": {
+    "counts": { "accounts": "{count, plural, one {# compte} other {# comptes}}", "funds": "{count, plural, one {# fonds} other {# fonds}}" },
+
     "title": "Grand livre et projections financières",
     "subtitle": "Modèles de lecture autorisés, registres de comptes, soldes progressifs et preuves de répartition des fonds",
     "sections": {
@@ -2074,6 +2096,7 @@
       "refresh": "Actualiser les projections",
       "viewAudit": "Voir l'audit",
       "filterAccount": "Tous les comptes",
+      "searchCashbook": "Rechercher une description, une référence ou un membre",
       "filterCurrency": "Toutes les devises"
     },
     "summary": {
@@ -5425,8 +5448,8 @@
     "invitePhoneWhatsappNote": "Les invitations par téléphone sont envoyées via WhatsApp.",
     "step1Title": "Où est basé votre groupe ?",
     "locationAfrica": "En Afrique",
-    "locationDiaspora": "À l'étranger (Diaspora)",
-    "locationBoth": "Les deux",
+    "locationDiaspora": "Hors d’Afrique",
+    "locationBoth": "Dans plusieurs régions",
     "step2Title": "Quel type de groupe ?",
     "templateSavings": "Cercle d'épargne (Njangi, Tontine, Ajo, Susu, Stokvel)",
     "templateChurch": "Groupe d'église",
@@ -5534,7 +5557,7 @@
     "phonePlaceholder": "ex. +237 6 70 00 00 00",
     "phoneHint": "Utilisé pour les notifications WhatsApp et le répertoire des membres",
     "langPrefLabel": "Langue préférée",
-    "locationStepSubtitle": "Cela nous aide à définir votre devise, langue et options de paiement.",
+    "locationStepSubtitle": "Choisissez le lieu du groupe. Vous pouvez définir sa devise et sa langue séparément.",
     "countryLabel": "Pays",
     "countryPlaceholder": "Sélectionnez votre pays",
     "cityLabel": "Ville (optionnel)",
@@ -5554,7 +5577,7 @@
     "groupDescLabel": "Description du groupe (optionnel)",
     "groupDescPlaceholder": "Brève description de votre groupe",
     "groupLangLabel": "Langue principale pour les communications du groupe",
-    "currencyAutoDetected": "Détecté automatiquement depuis {country}",
+    "currencyAutoDetected": "Suggestion selon {country} ; vous pouvez choisir une autre devise",
     "changeableHint": "Vous pouvez modifier tout cela plus tard dans les Paramètres.",
     "savingsStepSubtitle": "Comment votre groupe appelle-t-il la cagnotte d'épargne ?",
     "savingsStepExplain": "Noms courants : Njangi, Tontine, Cotisation, Ajo, Susu, Stokvel",
@@ -7286,7 +7309,7 @@
     "listFailed": "Impossible de charger vos présentations actives."
   },
   "memberFinancialSummary": {
-    "title": "Résumé financier des membres",
+    "title": "Résumé financier du groupe",
     "readOnly": "Vue en lecture seule des écritures comptabilisées autorisées pour ce groupe.",
     "notAvailable": "Ce résumé n’est pas accessible. Un responsable peut activer la visibilité financière des membres.",
     "refresh": "Actualiser",
@@ -7297,6 +7320,7 @@
     "net": "Résultat net",
     "scope": "Groupe : {group}",
     "period": "Période : {start} – {end}",
+    "periodMeaning": "Période de rapport depuis le début de l’année en UTC. Elle peut commencer avant la création du groupe ; seules les opérations comptabilisées dans cette période sont incluses.",
     "status": "{count} opération(s) comptabilisée(s)",
     "updated": "Dernière mise à jour : {time}",
     "noTransactions": "Aucune opération comptabilisée",

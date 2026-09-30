@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { formatAmount } from "@/lib/currencies";
 import { RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
@@ -19,12 +20,14 @@ type MemberSummary = {
   source_version: { posted_event_count: number; latest_posted_at: string | null };
 };
 
-function amount(value: number, currency: string) {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 2 }).format(value || 0);
+function formatUtcDate(value: string, locale: string) {
+  const day = value.slice(0, 10);
+  return new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-US", { timeZone: "UTC", year: "numeric", month: "long", day: "numeric" }).format(new Date(`${day}T12:00:00Z`));
 }
 
 export default function MemberFinancialSummaryPage() {
   const t = useTranslations("memberFinancialSummary");
+  const locale = useLocale();
   const { groupId } = useGroup();
   const summary = useQuery({
     queryKey: ["member-financial-summary", groupId], enabled: !!groupId, staleTime: 0,
@@ -46,15 +49,16 @@ export default function MemberFinancialSummaryPage() {
     </div>
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{data.currency_buckets.map((bucket) => <Card key={bucket.currency}>
       <CardHeader><CardTitle>{bucket.currency}</CardTitle></CardHeader><CardContent className="space-y-2 text-sm">
-        <div className="flex justify-between"><span>{t("assets")}</span><strong>{amount(bucket.total_assets, bucket.currency)}</strong></div>
-        <div className="flex justify-between"><span>{t("liabilities")}</span><strong>{amount(bucket.total_liabilities, bucket.currency)}</strong></div>
-        <div className="flex justify-between"><span>{t("revenue")}</span><strong>{amount(bucket.total_revenue, bucket.currency)}</strong></div>
-        <div className="flex justify-between"><span>{t("expenses")}</span><strong>{amount(bucket.total_expenses, bucket.currency)}</strong></div>
-        <div className="flex justify-between border-t pt-2"><span>{t("net")}</span><strong>{amount(bucket.net_result, bucket.currency)}</strong></div>
+        <div className="flex justify-between"><span>{t("assets")}</span><strong>{formatAmount(bucket.total_assets, bucket.currency)}</strong></div>
+        <div className="flex justify-between"><span>{t("liabilities")}</span><strong>{formatAmount(bucket.total_liabilities, bucket.currency)}</strong></div>
+        <div className="flex justify-between"><span>{t("revenue")}</span><strong>{formatAmount(bucket.total_revenue, bucket.currency)}</strong></div>
+        <div className="flex justify-between"><span>{t("expenses")}</span><strong>{formatAmount(bucket.total_expenses, bucket.currency)}</strong></div>
+        <div className="flex justify-between border-t pt-2"><span>{t("net")}</span><strong>{formatAmount(bucket.net_result, bucket.currency)}</strong></div>
       </CardContent></Card>)}</div>
     <Card><CardContent className="pt-6 text-sm text-muted-foreground">
       <p>{t("scope", { group: data.scope.group_name })}</p>
-      <p>{t("period", { start: new Date(data.period.start).toLocaleDateString(), end: new Date(data.period.end).toLocaleDateString() })}</p>
+      <p>{t("period", { start: formatUtcDate(data.period.start, locale), end: formatUtcDate(data.period.end, locale) })}</p>
+      <p>{t("periodMeaning")}</p>
       <p>{t("status", { count: data.source_version.posted_event_count })}</p>
       <p>{t("updated", { time: data.updated_at ? new Date(data.updated_at).toLocaleString() : t("noTransactions") })}</p>
       <p>{t("refreshNotice")}</p>

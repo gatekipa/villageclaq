@@ -830,6 +830,7 @@ function MemberDetailContent() {
 
   const profile = member.profile as Record<string, unknown> | undefined;
   const memberName = getMemberName(member as Record<string, unknown>);
+  const memberHeading = [member.title, memberName].filter(Boolean).join(" ");
   const standing = (standingData?.standing || member.standing || "good") as keyof typeof standingStyles;
   const style = standingStyles[standing] || standingStyles.good;
   const activePositions = positions.filter((p: Record<string, unknown>) => !p.ended_at);
@@ -1007,7 +1008,7 @@ function MemberDetailContent() {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 text-center sm:text-left">
-              <h1 className="text-xl font-bold">{memberName}</h1>
+              <h1 className="text-xl font-bold">{memberHeading}</h1>
               {/* Position badges */}
               {activePositions.length > 0 && (
                 <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5 sm:justify-start">

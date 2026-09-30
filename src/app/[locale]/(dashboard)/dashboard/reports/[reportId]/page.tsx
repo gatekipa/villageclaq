@@ -35,6 +35,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
+import { groupTodayKey } from "@/lib/payment-reminder-eligibility";
 import { useMembers, usePayments, useObligations, useEvents, useAllEventAttendances, useReliefPlans, useReliefClaims, useHostingRosters, useMeetingMinutes, useSavingsCycles, useElections, useGroupDuesPayments } from "@/lib/hooks/use-supabase-query";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
@@ -43,6 +44,7 @@ import { RequirePermission, AccessDenied } from "@/components/ui/permission-gate
 import {
   computeMoneyFigures,
   computeObligationStates,
+  computeDuesStatusTotals,
   isPendingPayment,
   isRejectedPayment,
   num,
@@ -257,6 +259,7 @@ function ReportDetailContent() {
   const reportKey = `report${reportId}`;
   const { currentGroup, groupId, isAdmin } = useGroup();
   const currency = currentGroup?.currency || "XAF";
+  const groupToday = groupTodayKey(currentGroup?.settings);
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const fd = (d: string | Date | undefined | null) => d ? formatDateWithGroupFormat(d instanceof Date ? d.toISOString() : d, groupDateFormat, locale) : "—";
   const [minutesSearch, setMinutesSearch] = useState("");
@@ -294,15 +297,11 @@ function ReportDetailContent() {
 
   // Fetch data based on report type
   const { data: members, isLoading: membersLoading, error: membersError } = useMembers();
-  const { data: payments, isLoading: paymentsLoading } = usePayments(500);
-  // Build 12: the UNCAPPED confirmed-only dues-payment basis. ALL money math
-  // (Financial Summary + who-hasn't-paid + AR-aging + YoY) uses this so the
-  // figures reconcile and never under-count collected on a group with >500
-  // payments. The capped usePayments(500) feed above is kept only for surfaces
-  // that need the membership/type JOINs: the on-screen ledger (Report 3) +
-  // engagement counts.
-  const { data: duesPaymentsAll } = useGroupDuesPayments();
-  const { data: obligations, isLoading: obligationsLoading } = useObligations();
+  const { data: payments, isLoading: paymentsLoading, error: paymentsError } = usePayments("all");
+  // Complete dues basis for allocation and totals. The joined payments feed
+  // above is also paged so ledger exports never silently omit older receipts.
+  const { data: duesPaymentsAll, isLoading: duesPaymentsLoading, error: duesPaymentsError } = useGroupDuesPayments();
+  const { data: obligations, isLoading: obligationsLoading, error: obligationsError } = useObligations();
   const { data: events, isLoading: eventsLoading } = useEvents();
   const { data: allAttendances, isLoading: attendanceLoading } = useAllEventAttendances();
   const { data: reliefPlans } = useReliefPlans();
@@ -424,16 +423,18 @@ function ReportDetailContent() {
   });
 
   // Determine loading based on report type
-  const financialReports = ["1", "2", "3", "4"];
+  const financialReports = ["1", "2", "3"];
+  const duesReports = ["1", "2", "7", "16", "17", "20"];
   const memberReports = ["6", "8", "9", "10"];
   const attendanceReports = ["11", "12"];
   const isLoading =
-    financialReports.includes(reportId) ? (paymentsLoading || obligationsLoading) :
+    financialReports.includes(reportId) ? (paymentsLoading || obligationsLoading || (duesReports.includes(reportId) && duesPaymentsLoading)) :
+    reportId === "7" ? (membersLoading || obligationsLoading || duesPaymentsLoading) :
     memberReports.includes(reportId) ? membersLoading :
     attendanceReports.includes(reportId) ? (eventsLoading || attendanceLoading) :
     reportId === "13" ? hostingLoading :
     reportId === "14" ? minutesLoading :
-    ["16", "17", "20"].includes(reportId) ? (membersLoading || paymentsLoading || eventsLoading || obligationsLoading) :
+    ["16", "17", "20"].includes(reportId) ? (membersLoading || paymentsLoading || eventsLoading || obligationsLoading || duesPaymentsLoading) :
     isLoanReport ? loansLoading :
     isFederatedReliefReport ? fedReliefLoading :
     false;
@@ -500,6 +501,10 @@ function ReportDetailContent() {
 
   if (isLoading) return <ListSkeleton rows={5} />;
   if (membersError) return <ErrorState message={membersError.message} />;
+  if (financialReports.includes(reportId) || duesReports.includes(reportId)) {
+    const financialError = obligationsError || paymentsError || (duesReports.includes(reportId) ? duesPaymentsError : null);
+    if (financialError) return <ErrorState message={financialError.message} />;
+  }
 
   // Compute report data from real queries
   const memberList = members || [];
@@ -514,6 +519,7 @@ function ReportDetailContent() {
   const reportObligationStates = computeObligationStates(
     obligationList as unknown as MoneyObligation[],
     (duesPaymentsAll || []) as unknown as MoneyPayment[],
+    { today: groupToday },
   );
 
   // Report 1: Who Hasn't Paid — confirmed-open obligations only.
@@ -546,10 +552,15 @@ function ReportDetailContent() {
     // Financial Summary reconciles with who-hasn't-paid / AR / YoY and never
     // under-counts collected on a group with >500 payments.
     (duesPaymentsAll || []) as unknown as MoneyPayment[],
+    { today: groupToday },
   );
   const totalCollected = moneyFigures.collected;
   const totalExpected = moneyFigures.expected;
-  const totalOutstanding = moneyFigures.outstanding;
+  const totalOutstanding = computeDuesStatusTotals(
+    obligationList as unknown as MoneyObligation[],
+    (duesPaymentsAll || []) as unknown as MoneyPayment[],
+    groupToday,
+  ).outstanding;
   const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
   // Latest-value ref for the AI-insights fetch declared above the early
   // returns (routerRef pattern) — keep in sync with the figures it reports.
@@ -1205,7 +1216,7 @@ function ReportDetailContent() {
   (obligations || []).forEach((ob: Record<string, unknown>) => {
     const name = getMemberName(ob.membership as Record<string, unknown>);
     const dueDate = (ob.due_date as string) || (ob.created_at as string) || "";
-    const year = dueDate ? new Date(dueDate).getFullYear().toString() : "";
+    const year = dueDate ? String(dueDate).slice(0, 4) : "";
     if (!year) return;
     matrixYears.add(year);
     if (!matrixByMember[name]) matrixByMember[name] = {};

@@ -4,7 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
 import { getMemberName } from "@/lib/get-member-name";
-import { computeObligationStates, type MoneyObligation, type MoneyPayment } from "@/lib/money";
+import { computeObligationStates, computeDuesStatusTotals, type MoneyObligation, type MoneyPayment } from "@/lib/money";
+import { groupTodayKey } from "@/lib/payment-reminder-eligibility";
+import { fetchAllRows } from "@/lib/fetch-all-rows";
 
 /** One reconciled payment row for the "Recent payments" list (confirmed only). */
 export interface RecentPaymentRow {
@@ -93,9 +95,10 @@ export function useMoneyOverview() {
   // Extract the currency primitive so the queryFn never closes over an object
   // that changes identity (rule 9).
   const currency = currentGroup?.currency || "XAF";
+  const today = groupTodayKey(currentGroup?.settings);
 
   return useQuery<MoneyOverview>({
-    queryKey: ["money-overview", groupId],
+    queryKey: ["money-overview", groupId, today],
     enabled: !!groupId,
     staleTime: 60_000,
     queryFn: async () => {
@@ -118,21 +121,15 @@ export function useMoneyOverview() {
       }
 
       const [oblRes, payRes] = await Promise.all([
-        supabase
+        fetchAllRows((from, to) => supabase
           .from("contribution_obligations")
-          .select(
-            "id, amount, amount_paid, status, due_date, membership_id, contribution_type_id, contribution_type:contribution_types(id, name, name_fr), membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url))"
-          )
-          .eq("group_id", groupId)
-          .order("due_date", { ascending: true }),
-        supabase
+          .select("id, amount, amount_paid, status, due_date, membership_id, contribution_type_id, contribution_type:contribution_types(id, name, name_fr), membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url))", { count: "exact" })
+          .eq("group_id", groupId).order("due_date", { ascending: true }).order("id").range(from, to)),
+        fetchAllRows((from, to) => supabase
           .from("payments")
-          .select(
-            "id, amount, status, recorded_at, contribution_type_id, membership_id, membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)"
-          )
-          .eq("group_id", groupId)
-          .is("relief_plan_id", null)
-          .order("recorded_at", { ascending: false }),
+          .select("id, amount, status, recorded_at, obligation_id, contribution_type_id, membership_id, relief_plan_id, membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)", { count: "exact" })
+          .eq("group_id", groupId).is("relief_plan_id", null)
+          .order("recorded_at", { ascending: false }).order("id").range(from, to)),
       ]);
 
       if (oblRes.error) {
@@ -153,8 +150,7 @@ export function useMoneyOverview() {
       // Compare on the calendar DATE, not a timestamp: due_date is a DATE
       // (UTC midnight), so a same-day obligation must not read as overdue for
       // an admin in a negative-UTC (diaspora) timezone. today = local YYYY-MM-DD.
-      const now = new Date();
-      const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const todayKey = today;
 
       let overdueAmount = 0;
       const overdueMembers = new Set<string>();
@@ -242,7 +238,8 @@ export function useMoneyOverview() {
         }
       }
 
-      const outstanding = Math.max(0, totalExpected - totalCollected);
+      const duesStatus = computeDuesStatusTotals(obligations as unknown as MoneyObligation[], payments as unknown as MoneyPayment[], todayKey);
+      const outstanding = duesStatus.outstanding;
 
       // Obligations are ordered by due_date asc, so the first 5 upcoming
       // candidates are already the soonest due.

@@ -485,6 +485,7 @@ export default function MembersPage() {
         }
       }
       await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["resource-counts", groupId] });
     } finally {
       setRecalcAllLoading(false);
     }
@@ -1070,6 +1071,7 @@ export default function MembersPage() {
       }
 
       await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["resource-counts", groupId] });
       setEditDialogOpen(false);
     } catch (err) {
       const errKey = parseMembershipRpcError(err);
@@ -1289,6 +1291,7 @@ export default function MembersPage() {
     setImportResults({ succeeded, skipped, failed });
     setIsImporting(false);
     await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["resource-counts", groupId] });
   }
 
   async function handleAddMember() {
@@ -1346,6 +1349,7 @@ export default function MembersPage() {
       // proxy members have user_id=NULL and cannot use that caller gate.
 
       await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["resource-counts", groupId] });
       setAddDialogOpen(false);
       resetAddForm();
     } catch (err) {
@@ -2118,11 +2122,11 @@ export default function MembersPage() {
               />
             </div>
             <label className="flex items-start gap-2 text-sm">
-              <input type="checkbox" checked={newNotificationConsent} onChange={(e) => setNewNotificationConsent(e.target.checked)} className="mt-1" />
+              <input type="checkbox" checked={newNotificationConsent} onChange={(e) => setNewNotificationConsent(e.target.checked)} className="mt-1 size-4 shrink-0 accent-primary ring-1 ring-foreground/50" />
               <span>{t("notificationConsent")}</span>
             </label>
             <label className="flex items-start gap-2 text-sm">
-              <input type="checkbox" checked={allowSharedContact} onChange={(e) => setAllowSharedContact(e.target.checked)} className="mt-1" />
+              <input type="checkbox" checked={allowSharedContact} onChange={(e) => setAllowSharedContact(e.target.checked)} className="mt-1 size-4 shrink-0 accent-primary ring-1 ring-foreground/50" />
               <span>{t("sharedContactConfirmation")}</span>
             </label>
             <div className="space-y-2">

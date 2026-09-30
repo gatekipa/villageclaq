@@ -75,7 +75,7 @@ test("hook THROWS on query error (never coerces a false money figure to 0)", () 
 test("names via getMemberName; currency primitive extracted for dep safety", () => {
   assert.match(hook, /getMemberName\(/);
   assert.match(hook, /const currency = currentGroup\?\.currency/);
-  assert.match(hook, /queryKey: \["money-overview", groupId\]/);
+  assert.match(hook, /queryKey: \["money-overview", groupId, today\]/);
 });
 
 test("the money hook introduces NO send/notify path (read-only aggregation)", () => {
@@ -123,11 +123,13 @@ test("finances page mounts the MoneyOverview and reconciles collected to confirm
   assert.match(finances, /isConfirmed/);
 });
 
-test("legacy finances Outstanding/Collection-rate agree with the overview (confirmed-only, waived-excluded)", () => {
+test("finance dashboard derives dues status from complete confirmed payment rows", () => {
   // Same basis as MoneyOverview: expected excludes waived, collected is
   // confirmed-only, outstanding clamps at 0 — so the two cards never diverge.
   assert.match(finances, /totalDueExclWaived/);
-  assert.match(finances, /totalOutstanding = Math\.max\(0, totalDueExclWaived - totalCollected\)/);
+  assert.match(finances, /useGroupDuesPayments\(\)/);
+  assert.match(finances, /computeDuesStatusTotals\(/);
+  assert.match(finances, /totalOutstanding = dues\.outstanding/);
   assert.match(finances, /collectionRate = totalDueExclWaived > 0 \? Math\.round\(\(totalCollected \/ totalDueExclWaived\)/);
 });
 

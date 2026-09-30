@@ -56,6 +56,9 @@ export function useDashboardStats() {
           .range(from, to)),
       ]);
 
+      for (const result of [membersRes, eventsRes, obligationsRes, paymentsRes]) {
+        if (result.error) throw result.error;
+      }
       const obligations = (obligationsRes.data || []) as unknown as MoneyObligation[];
       const payments = (paymentsRes.data || []) as unknown as MoneyPayment[];
       const figures = computeMoneyFigures(obligations, payments, { today });
@@ -251,7 +254,7 @@ export function useObligations(filters?: { status?: string; membershipId?: strin
         if (filters?.membershipId) q = q.eq("membership_id", filters.membershipId);
         return q.order("due_date", { ascending: false }).order("id").range(from, to);
       });
-      if (error) { console.warn("[Query] failed:", error.message); return []; }
+      if (error) throw error;
       return data;
     },
     enabled: !!groupId,
@@ -260,21 +263,34 @@ export function useObligations(filters?: { status?: string; membershipId?: strin
 
 // ─── Payments ──────────────────────────────────────────────────────────────
 
-export function usePayments(limit = 50) {
+export function usePayments(limit: number | "all" = 50) {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["payments", groupId, limit],
     staleTime: 5 * 60 * 1000, // WS4: reuse cache on tab switch; invalidated on record/confirm
     queryFn: async () => {
       if (!groupId) return [];
+      const select = "*, membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)";
+      if (limit === "all") {
+        const { data, error } = await fetchAllRows((from, to) => supabase
+          .from("payments")
+          .select(select, { count: "exact" })
+          .eq("group_id", groupId)
+          .is("relief_plan_id", null)
+          .order("recorded_at", { ascending: false })
+          .order("id", { ascending: true })
+          .range(from, to));
+        if (error) throw error;
+        return data;
+      }
       const { data, error } = await supabase
         .from("payments")
-        .select("*, membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)")
+        .select(select)
         .eq("group_id", groupId)
-        .is("relief_plan_id", null) // Exclude relief payments from dues views
+        .is("relief_plan_id", null)
         .order("recorded_at", { ascending: false })
         .limit(limit);
-      if (error) { console.warn("[Query] failed:", error.message); return []; }
+      if (error) throw error;
       return data || [];
     },
     enabled: !!groupId,
@@ -309,7 +325,7 @@ export function useGroupDuesPayments() {
         .order("recorded_at", { ascending: false })
         .order("id")
         .range(from, to));
-      if (error) { console.warn("[GroupDuesPayments] query failed:", error.message); return []; }
+      if (error) throw error;
       return data;
     },
     enabled: !!groupId,

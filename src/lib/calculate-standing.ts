@@ -7,7 +7,9 @@ import {
   type StandingFactorKey,
   type StandingRules,
 } from "@/lib/standing-rules";
-import { computeObligationStates, dateKey, todayKey, addDaysToDateKey, type MoneyObligation, type MoneyPayment } from "@/lib/money";
+import { computeObligationStates, dateKey, addDaysToDateKey, type MoneyObligation, type MoneyPayment } from "@/lib/money";
+import { groupTodayKey } from "@/lib/payment-reminder-eligibility";
+import { fetchAllRows } from "@/lib/fetch-all-rows";
 
 /**
  * One line item in a member's standing breakdown.
@@ -120,17 +122,11 @@ export async function calculateStanding(
   // rules with the same engine the displays use — so the preview is accurate
   // regardless of whether the SQL engine has been brought to parity yet. When
   // overriding rules we never write, so callers must use updateDb:false.
-  let rules: StandingRules;
-  if (options?.rulesOverride) {
-    rules = options.rulesOverride;
-  } else {
-    const { data: groupRow } = await supabase
-      .from("groups")
-      .select("settings")
-      .eq("id", groupId)
-      .single();
-    rules = resolveStandingRules(groupRow?.settings);
-  }
+  const { data: groupRow, error: groupError } = await supabase
+    .from("groups").select("settings").eq("id", groupId).single();
+  if (groupError) throw groupError;
+  const rules: StandingRules = options?.rulesOverride || resolveStandingRules(groupRow?.settings);
+  const groupToday = groupTodayKey(groupRow?.settings);
 
   // ── (b) Guard: proxy / inactive status / auto-standing disabled ──────────────
   const isProxy = membershipRow?.is_proxy === true;
@@ -158,18 +154,16 @@ export async function calculateStanding(
     // CLEAR a member who hasn't actually paid, or wrongly SUSPEND one whose
     // payment was rejected). `id` + `membership_id` are selected so the engine
     // allocates each member's confirmed total to the right obligations.
-    const { data: obligations } = await supabase
+    const { data: obligations, error: obligationsError } = await fetchAllRows((from, to) => supabase
       .from("contribution_obligations")
-      .select("id, amount, status, due_date, contribution_type_id, membership_id")
-      .eq("membership_id", membershipId)
-      .eq("group_id", groupId);
-
-    const { data: duesPayments } = await supabase
+      .select("id, amount, status, due_date, contribution_type_id, membership_id", { count: "exact" })
+      .eq("membership_id", membershipId).eq("group_id", groupId).order("id").range(from, to));
+    const { data: duesPayments, error: paymentsError } = await fetchAllRows((from, to) => supabase
       .from("payments")
-      .select("id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at")
-      .eq("membership_id", membershipId)
-      .eq("group_id", groupId)
-      .is("relief_plan_id", null);
+      .select("id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at", { count: "exact" })
+      .eq("membership_id", membershipId).eq("group_id", groupId)
+      .is("relief_plan_id", null).order("id").range(from, to));
+    if (obligationsError || paymentsError) throw obligationsError || paymentsError;
 
     const excluded = new Set(rules.excludedContributionTypeIds);
     const relevant = (obligations || []).filter(
@@ -182,7 +176,8 @@ export async function calculateStanding(
     // contribution cannot mark a member behind.
     const states = computeObligationStates(
       relevant as unknown as MoneyObligation[],
-      (duesPayments || []) as unknown as MoneyPayment[],
+      duesPayments as unknown as MoneyPayment[],
+      { today: groupToday },
     );
 
     // Overdue = confirmed-open (remaining > 0) AND due_date + grace days < today.
@@ -192,7 +187,7 @@ export async function calculateStanding(
     // early for a diaspora admin in a negative-UTC timezone — the date-key
     // comparison is timezone-stable. An obligation with no due_date is never
     // overdue (a flexible/undated obligation can still be open but not behind).
-    const today = todayKey();
+    const today = groupToday;
     const overdueObls = relevant.filter((o) => {
       const c = states.get(o.id as string);
       if (!c || !c.isOpen) return false;

@@ -12,6 +12,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ArrowLeft, Download, Printer, HandCoins } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
+import { fetchAllRows } from "@/lib/fetch-all-rows";
+import { groupTodayKey } from "@/lib/payment-reminder-eligibility";
 import { getMemberName } from "@/lib/get-member-name";
 import { getDateLocale } from "@/lib/date-utils";
 import { formatAmount } from "@/lib/currencies";
@@ -54,12 +56,14 @@ function useObjectReport(typeId: string | null) {
         .single();
       if (typeErr) throw typeErr;
 
-      const { data: obligations, error: oblErr } = await supabase
+      const { data: obligations, error: oblErr } = await fetchAllRows((from, to) => supabase
         .from("contribution_obligations")
-        .select("id, membership_id, amount, amount_paid, status, due_date, period_label")
+        .select("id, membership_id, contribution_type_id, amount, amount_paid, status, due_date, period_label", { count: "exact" })
         .eq("group_id", groupId!)
         .eq("contribution_type_id", typeId!)
-        .order("due_date", { ascending: true });
+        .order("due_date", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to));
       if (oblErr) throw oblErr;
 
       // Payments for this type. Most dues payments carry contribution_type_id +
@@ -69,23 +73,30 @@ function useObjectReport(typeId: string | null) {
       // Deduped by id. money.ts attributes them by membership_id.
       const oblIds = (obligations || []).map((o) => o.id);
       const paySelect = "id, amount, status, obligation_id, contribution_type_id, relief_plan_id, recorded_at, membership_id";
-      const byType = await supabase
+      const byType = await fetchAllRows((from, to) => supabase
         .from("payments")
-        .select(paySelect)
+        .select(paySelect, { count: "exact" })
         .eq("group_id", groupId!)
         .is("relief_plan_id", null)
-        .eq("contribution_type_id", typeId!);
+        .eq("contribution_type_id", typeId!)
+        .order("recorded_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to));
       if (byType.error) throw byType.error;
       const payments: Array<Record<string, unknown>> = [...(byType.data || [])];
-      if (oblIds.length > 0) {
-        const byObl = await supabase
+      const seen = new Set(payments.map((p) => p.id as string));
+      for (let offset = 0; offset < oblIds.length; offset += 100) {
+        const idBatch = oblIds.slice(offset, offset + 100);
+        const byObl = await fetchAllRows((from, to) => supabase
           .from("payments")
-          .select(paySelect)
+          .select(paySelect, { count: "exact" })
           .eq("group_id", groupId!)
-          .in("obligation_id", oblIds);
+          .in("obligation_id", idBatch)
+          .order("recorded_at", { ascending: true })
+          .order("id", { ascending: true })
+          .range(from, to));
         if (byObl.error) throw byObl.error;
-        const seen = new Set(payments.map((p) => p.id as string));
-        for (const p of byObl.data || []) {
+        for (const p of byObl.data) {
           if (!seen.has(p.id as string)) {
             payments.push(p);
             seen.add(p.id as string);
@@ -93,12 +104,15 @@ function useObjectReport(typeId: string | null) {
         }
       }
 
-      const { data: members, error: memErr } = await supabase
+      const { data: members, error: memErr } = await fetchAllRows((from, to) => supabase
         .from("memberships")
         .select(
-          "id, user_id, display_name, is_proxy, privacy_settings, profiles!memberships_user_id_fkey(id, full_name, display_name, avatar_url)"
+          "id, user_id, display_name, is_proxy, privacy_settings, profiles!memberships_user_id_fkey(id, full_name, display_name, avatar_url)",
+          { count: "exact" },
         )
-        .eq("group_id", groupId!);
+        .eq("group_id", groupId!)
+        .order("id", { ascending: true })
+        .range(from, to));
       if (memErr) throw memErr;
 
       return {
@@ -129,6 +143,7 @@ export default function ContributionReportPage() {
   const { data, isLoading, isError, refetch } = useObjectReport(typeId);
 
   const currency = (data?.type?.currency as string) || currentGroup?.currency || "XAF";
+  const groupToday = groupTodayKey(currentGroup?.settings);
 
   // Map membership_id → display name once.
   const nameById = useMemo(() => {
@@ -144,8 +159,9 @@ export default function ContributionReportPage() {
     return buildObjectReport(
       data.obligations as unknown as MoneyObligation[],
       data.payments as unknown as MoneyPayment[],
+      { today: groupToday },
     );
-  }, [data]);
+  }, [data, groupToday]);
 
   // Sort: outstanding/overdue first, then pending, then contributed; named asc within.
   const sortedRows = useMemo(() => {

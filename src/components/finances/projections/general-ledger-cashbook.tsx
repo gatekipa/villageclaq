@@ -248,7 +248,7 @@ export function GeneralLedgerCashbook({ groupId, initialRows }: GeneralLedgerCas
     try {
       const d = new Date(dateStr);
       return d.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", {
-        month: "short",
+        month: "long",
         day: "numeric",
         year: "numeric",
       });
@@ -303,7 +303,7 @@ export function GeneralLedgerCashbook({ groupId, initialRows }: GeneralLedgerCas
             >
               <SelectTrigger id="period-preset" className="h-8 text-xs">
                 <Clock className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                <SelectValue placeholder={t("periods.presetLabel")} />
+                <SelectValue>{t(`periods.${preset === "this_month" ? "thisMonth" : preset === "last_month" ? "lastMonth" : preset === "this_year" ? "thisYear" : "allTime"}`)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="this_month">{t("periods.thisMonth")}</SelectItem>
@@ -322,7 +322,7 @@ export function GeneralLedgerCashbook({ groupId, initialRows }: GeneralLedgerCas
             >
               <SelectTrigger id="account-filter" className="h-8 text-xs">
                 <Filter className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                <SelectValue placeholder={t("actions.filterAccount")} />
+                <SelectValue>{selectedAccountId === "all" ? t("actions.filterAccount") : accounts.find(account => account.id === selectedAccountId)?.name || t("actions.filterAccount")}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("actions.filterAccount")}</SelectItem>
@@ -343,7 +343,7 @@ export function GeneralLedgerCashbook({ groupId, initialRows }: GeneralLedgerCas
                 onValueChange={(val) => setSelectedCurrency(val || "all")}
               >
                 <SelectTrigger id="currency-filter" className="h-8 text-xs">
-                  <SelectValue placeholder={t("actions.filterCurrency")} />
+                  <SelectValue>{selectedCurrency === "all" ? t("actions.filterCurrency") : selectedCurrency}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t("actions.filterCurrency")}</SelectItem>
@@ -362,7 +362,7 @@ export function GeneralLedgerCashbook({ groupId, initialRows }: GeneralLedgerCas
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             <Input
               type="text"
-              placeholder="Search memo, ref, member..."
+              placeholder={t("actions.searchCashbook")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-8 pl-8 text-xs"
@@ -411,8 +411,9 @@ export function GeneralLedgerCashbook({ groupId, initialRows }: GeneralLedgerCas
                       <TableCell>
                         <div className="space-y-0.5">
                           {getMovementBadge(row.movement_type)}
+                          {row.member_name && <p className="text-[11px] font-medium">{row.member_name}</p>}
                           {row.description && (
-                            <p className="text-[11px] text-muted-foreground line-clamp-1 max-w-[180px]">
+                            <p className="text-[11px] text-muted-foreground break-words max-w-[260px]">
                               {row.description}
                             </p>
                           )}
@@ -446,6 +447,7 @@ export function GeneralLedgerCashbook({ groupId, initialRows }: GeneralLedgerCas
                             onClick={() => setAuditRow(row)}
                             className="h-7 w-7 p-0"
                             title={t("actions.viewAudit")}
+                            aria-label={t("actions.viewAudit")}
                           >
                             <Eye className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
                           </Button>
@@ -457,6 +459,7 @@ export function GeneralLedgerCashbook({ groupId, initialRows }: GeneralLedgerCas
                               disabled={!isRowReversible(row)}
                               className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-30 disabled:pointer-events-none"
                               title={tCorr("actions.reverse")}
+                              aria-label={tCorr("actions.reverse")}
                             >
                               <RotateCcw className="h-3.5 w-3.5" />
                             </Button>

@@ -29,7 +29,9 @@ import {
   PlusCircle,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useObligations, usePayments, useContributionTypes } from "@/lib/hooks/use-supabase-query";
+import { useObligations, useGroupDuesPayments } from "@/lib/hooks/use-supabase-query";
+import { computeDuesStatusTotals, computeObligationStates } from "@/lib/money";
+import { groupTodayKey } from "@/lib/payment-reminder-eligibility";
 
 // WS4 (B11): lazy-load the recharts monthly-trend chart so recharts (~74KB gzip)
 // stays off the finances first-paint critical path on low-bandwidth links.
@@ -159,8 +161,8 @@ export default function FinancesPage() {
   );
 
   const { data: allObligations, isLoading: oblLoading, isError: oblError, refetch: oblRefetch } = useObligations();
-  const { data: allPayments, isLoading: payLoading, isError: payError } = usePayments(5000);
-  const { data: contributionTypes } = useContributionTypes();
+  const { data: duesPayments, isLoading: payLoading, isError: payError } = useGroupDuesPayments();
+  const today = groupTodayKey(currentGroup?.settings);
   const { data: fineStats } = useFineStats(groupId || null);
   const { data: loanStats } = useLoanStats(groupId || null);
 
@@ -170,7 +172,8 @@ export default function FinancesPage() {
   // Compute stats from real data
   const stats = useMemo(() => {
     const obligations = allObligations || [];
-    const payments = allPayments || [];
+    const payments = duesPayments || [];
+    const dues = computeDuesStatusTotals(obligations as MoneyObligation[], payments as MoneyPayment[], today);
 
     // Expected excludes waived obligations (forgiven money is not owed).
     const totalDueExclWaived = obligations.reduce(
@@ -192,7 +195,7 @@ export default function FinancesPage() {
     // Outstanding and collection rate use the SAME confirmed-only /
     // waived-excluded basis as the Collection overview above, so the two
     // figures on this screen never disagree.
-    const totalOutstanding = Math.max(0, totalDueExclWaived - totalCollected);
+    const totalOutstanding = dues.outstanding;
     const collectionRate = totalDueExclWaived > 0 ? Math.round((totalCollected / totalDueExclWaived) * 100) : 0;
 
     // This month's payments
@@ -207,7 +210,7 @@ export default function FinancesPage() {
 
     for (const p of payments) {
       if (!isConfirmed((p as Record<string, unknown>).status)) continue;
-      const pMonth = (p.recorded_at || p.created_at || "").slice(0, 7);
+      const pMonth = (p.recorded_at || "").slice(0, 7);
       if (pMonth === thisMonthKey) {
         collectedThisMonth += Number(p.amount);
         paymentsThisMonth++;
@@ -217,11 +220,11 @@ export default function FinancesPage() {
     }
 
     return { totalCollected, totalOutstanding, collectionRate, collectedThisMonth, collectedLastMonth, paymentsThisMonth };
-  }, [allObligations, allPayments]);
+  }, [allObligations, duesPayments, today]);
 
   // Monthly trend: group payments by month (last 6 months)
   const monthlyTrend = useMemo(() => {
-    const payments = allPayments || [];
+    const payments = duesPayments || [];
     const now = new Date();
     const months: { key: string; label: string }[] = [];
     for (let i = 5; i >= 0; i--) {
@@ -238,43 +241,35 @@ export default function FinancesPage() {
     for (const p of payments) {
       const status = ((p as Record<string, unknown>).status as string) || "confirmed";
       if (status === "pending_confirmation" || status === "rejected") continue;
-      const pMonth = (p.recorded_at || p.created_at || "").slice(0, 7);
+      const pMonth = (p.recorded_at || "").slice(0, 7);
       if (monthMap.has(pMonth)) {
         monthMap.set(pMonth, (monthMap.get(pMonth) || 0) + Number(p.amount));
       }
     }
 
     return months.map((m) => ({ month: m.label, amount: monthMap.get(m.key) || 0 }));
-  }, [allPayments]);
+  }, [duesPayments, locale]);
 
   // Top members who owe: outstanding is computed PER MEMBER from CONFIRMED
   // payments (member expected − member confirmed). Per-member (not per-obligation)
   // because most dues payments are recorded without an obligation_id; keying on
   // obligation_id would miss them and falsely show paid-up members as owing.
   const topOverdue = useMemo(() => {
-    const obligations = (allObligations || []) as unknown as (MoneyObligation & Record<string, unknown>)[];
-    const payments = (allPayments || []) as unknown as MoneyPayment[];
-    const confirmedByMember = confirmedPaidByMember(payments);
-    // Aggregate each member's non-waived expected + obligation count + name.
-    const memberAgg = new Map<string, { name: string; expected: number; obligations: number }>();
-    for (const obl of obligations) {
-      if (obl.status === "waived") continue;
-      const membership = obl.membership as { id: string };
-      const mid = membership.id;
-      if (!memberAgg.has(mid)) {
-        memberAgg.set(mid, { name: getMemberName(obl.membership as Record<string, unknown>), expected: 0, obligations: 0 });
-      }
-      const e = memberAgg.get(mid)!;
-      e.expected += num(obl.amount);
-      e.obligations++;
+    const obligations = (allObligations || []) as MoneyObligation[];
+    const states = computeObligationStates(obligations, (duesPayments || []) as MoneyPayment[], { today });
+    const members = new Map<string, { id: string; name: string; amount: number; obligations: number }>();
+    for (const obligation of obligations) {
+      const state = states.get(obligation.id);
+      if (!state?.isOverdue) continue;
+      const row = obligation as MoneyObligation & { membership?: Record<string, unknown> };
+      const id = obligation.membership_id || obligation.id;
+      const entry = members.get(id) || { id, name: getMemberName(row.membership || {}), amount: 0, obligations: 0 };
+      entry.amount += state.remaining;
+      entry.obligations++;
+      members.set(id, entry);
     }
-
-    return Array.from(memberAgg.entries())
-      .map(([id, e]) => ({ id, name: e.name, amount: Math.max(0, e.expected - (confirmedByMember.get(id) || 0)), obligations: e.obligations }))
-      .filter((m) => m.amount > 0)
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 5);
-  }, [allObligations, allPayments]);
+    return [...members.values()].sort((a, b) => b.amount - a.amount).slice(0, 5);
+  }, [allObligations, duesPayments, today]);
 
   // Collection by contribution type. Per-type "collected" = Σ CONFIRMED payments
   // carrying that contribution_type_id (most dues payments have no obligation_id,
@@ -282,7 +277,7 @@ export default function FinancesPage() {
   // links); per-type "target" (expected) excludes waived obligations.
   const collectionByType = useMemo(() => {
     const obligations = (allObligations || []) as unknown as (MoneyObligation & Record<string, unknown>)[];
-    const payments = (allPayments || []) as unknown as MoneyPayment[];
+    const payments = (duesPayments || []) as MoneyPayment[];
     const collectedByType = confirmedPaidByType(payments);
     const typeMap = new Map<string, { name: string; collected: number; target: number }>();
 
@@ -306,31 +301,12 @@ export default function FinancesPage() {
     return Array.from(typeMap.values())
       .map((t) => ({ ...t, rate: t.target > 0 ? Math.round((t.collected / t.target) * 100) : 0 }))
       .sort((a, b) => b.target - a.target);
-  }, [allObligations, allPayments]);
+  }, [allObligations, duesPayments]);
 
   // Recent payments (top 5)
-  const recentPayments = useMemo(() => {
-    const payments = allPayments || [];
-    return payments.slice(0, 5).map((p) => {
-      const membership = p.membership as { id: string; profiles: { full_name: string } | { full_name: string }[] };
-      const profile = Array.isArray(membership.profiles) ? membership.profiles[0] : membership.profiles;
-      const ct = p.contribution_type as { id: string; name: string; name_fr?: string } | null;
-      const date = (p.recorded_at || p.created_at || "").slice(0, 10);
-      const shortDate = date ? new Date(date).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "short", day: "numeric" }) : "";
-      return {
-        id: p.id,
-        name: getMemberName(p.membership as Record<string, unknown>),
-        type: ct?.name || t("contributions.paymentFallback"),
-        amount: Number(p.amount),
-        method: p.payment_method || "cash",
-        date: shortDate,
-      };
-    });
-  }, [allPayments]);
-
   const monthOverMonthChange = stats.collectedLastMonth > 0
     ? Math.round(((stats.collectedThisMonth - stats.collectedLastMonth) / stats.collectedLastMonth) * 100)
-    : stats.collectedThisMonth > 0 ? 100 : 0;
+    : null;
 
   async function handleSyncPayments() {
     if (!groupId || syncing) return;
@@ -428,14 +404,17 @@ export default function FinancesPage() {
           <p className="text-muted-foreground">{t("finances.subtitle")}</p>
         </div>
         <PermissionGate permission="finances.manage">
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            <Link href="/dashboard/contributions/record"><Button size="sm" variant="default">
+              <CreditCard className="mr-1.5 h-4 w-4" />{t("contributions.recordPayment")}
+            </Button></Link>
             <Button
               onClick={() => setRecordTxOpen(true)}
               size="sm"
               className="gap-1.5 shadow-sm"
             >
               <PlusCircle className="h-4 w-4" />
-              {t("transactionEntry.actions.record")}
+              {t("finances.recordOtherTransaction")}
             </Button>
             <Link href="/dashboard/finances/config">
               <Button variant="outline" size="sm" className="gap-1.5">
@@ -478,7 +457,7 @@ export default function FinancesPage() {
       <MoneyOverview />
 
       {/* Stats Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -491,47 +470,19 @@ export default function FinancesPage() {
               {formatAmount(stats.collectedThisMonth, currency)}
             </div>
             <div className="mt-1 flex items-center gap-1 text-xs">
-              {monthOverMonthChange >= 0 ? (
+              {monthOverMonthChange === null ? null : monthOverMonthChange >= 0 ? (
                 <TrendingUp className="h-3 w-3 text-emerald-500" />
               ) : (
                 <TrendingDown className="h-3 w-3 text-red-500" />
               )}
-              <span className={monthOverMonthChange >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
-                {monthOverMonthChange >= 0 ? "+" : ""}{monthOverMonthChange}%
-              </span>
-              <span className="text-muted-foreground">{t("finances.vsLastMonth")}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              {t("finances.totalOutstanding")}
-            </CardTitle>
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">
-              {formatAmount(stats.totalOutstanding, currency)}
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {topOverdue.length} {t("finances.membersOverdue")}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              {t("finances.collectionRate")}
-            </CardTitle>
-            <BarChart3 className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.collectionRate}%</div>
-            <div className="mt-2">
-              <Progress value={stats.collectionRate} />
+              {monthOverMonthChange === null ? (
+                <span className="text-muted-foreground">{t("finances.noPriorMonth")}</span>
+              ) : (<>
+                <span className={monthOverMonthChange >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
+                  {monthOverMonthChange >= 0 ? "+" : ""}{monthOverMonthChange}%
+                </span>
+                <span className="text-muted-foreground">{t("finances.vsLastMonth")}</span>
+              </>)}
             </div>
           </CardContent>
         </Card>
@@ -635,8 +586,8 @@ export default function FinancesPage() {
         </Card>
       </div>
 
-      {/* Collection by Type + Recent Payments */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Collection by Type */}
+      <div>
         {/* Collection by Type */}
         <Card>
           <CardHeader>
@@ -665,45 +616,6 @@ export default function FinancesPage() {
           </CardContent>
         </Card>
 
-        {/* Recent Payments */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">{t("finances.recentPayments")}</CardTitle>
-            <Link href="/dashboard/contributions/history">
-              <Button variant="ghost" size="sm" className="text-xs text-primary">
-                {t("common.viewAll")}
-                <ArrowRight className="ml-1 h-3 w-3" />
-              </Button>
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {recentPayments.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">{t("finances.noPayments")}</p>
-            ) : (
-              <div className="space-y-3">
-                {recentPayments.map((payment) => (
-                  <div key={payment.id} className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
-                        {payment.name.split(" ").map((n) => n[0]).join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-medium">{payment.name}</p>
-                      <p className="text-xs text-muted-foreground">{payment.type} {payment.method && `\u2022 ${payment.method}`}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-primary">
-                        +{formatAmount(payment.amount, currency)}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">{payment.date}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
 
       {/* Fines Overview Section */}

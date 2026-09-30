@@ -105,11 +105,11 @@ test("Baby Shower one-time contribution report (canonical end-to-end)", () => {
   // obligation_id — the common record-payment path), m2 partial (confirmed 400),
   // m3 submitted pending, m4 only a rejected payment, m5 waived.
   const obligations = [
-    { id: "o1", amount: 1000, status: "paid", due_date: "2026-05-01", membership_id: "m1" },
-    { id: "o2", amount: 1000, status: "partial", due_date: "2026-05-01", membership_id: "m2" },
-    { id: "o3", amount: 1000, status: "pending", due_date: "2026-05-01", membership_id: "m3" },
-    { id: "o4", amount: 1000, status: "pending", due_date: "2026-05-01", membership_id: "m4" },
-    { id: "o5", amount: 1000, status: "waived", due_date: "2026-05-01", membership_id: "m5" },
+    { id: "o1", amount: 1000, status: "paid", contribution_type_id: "t1", due_date: "2026-05-01", membership_id: "m1" },
+    { id: "o2", amount: 1000, status: "partial", contribution_type_id: "t1", due_date: "2026-05-01", membership_id: "m2" },
+    { id: "o3", amount: 1000, status: "pending", contribution_type_id: "t1", due_date: "2026-05-01", membership_id: "m3" },
+    { id: "o4", amount: 1000, status: "pending", contribution_type_id: "t1", due_date: "2026-05-01", membership_id: "m4" },
+    { id: "o5", amount: 1000, status: "waived", contribution_type_id: "t1", due_date: "2026-05-01", membership_id: "m5" },
   ];
   // Payments attributed by membership_id; m1's confirmed payment has NO
   // obligation_id (proves the critical fix: it must still count as collected).

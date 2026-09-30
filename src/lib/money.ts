@@ -275,28 +275,53 @@ export function computeObligationStates(
     oblByType.get(k)!.push(o);
   }
 
-  // Partition CONFIRMED dues payments: TYPED payments cover only their type's
-  // obligations; TYPELESS payments (no contribution_type_id) go into a per-member
-  // pool that can cover ANY of the member's obligations (Phase 2 below).
-  const payByType = new Map<string, MoneyPayment[]>();
+  // Explicitly linked receipts settle their selected period first. Older
+  // unlinked receipts retain the approved oldest-due-first allocation rule.
+  const allocated = new Map<string, number>();
+  const obligationById = new Map(obligations.map(o => [o.id, o]));
+  const unlinkedTyped = new Map<string, Map<string, number>>();
   const typelessByMember = new Map<string, number>();
   for (const p of payments) {
-    if (!isDuesPayment(p)) continue; // relief never covers dues
+    if (!isDuesPayment(p) || !isConfirmedPayment(p.status) || !p.membership_id) continue;
+    const amount = num(p.amount);
+    if (p.obligation_id) {
+      const target = obligationById.get(p.obligation_id);
+      if (!target || target.status === "waived" || target.membership_id !== p.membership_id ||
+          (p.contribution_type_id && p.contribution_type_id !== target.contribution_type_id)) continue;
+      const already = allocated.get(target.id) || 0;
+      allocated.set(target.id, Math.min(num(target.amount), already + amount));
+      continue;
+    }
     if (p.contribution_type_id) {
-      const k = p.contribution_type_id;
-      if (!payByType.has(k)) payByType.set(k, []);
-      payByType.get(k)!.push(p);
-    } else if (isConfirmedPayment(p.status) && p.membership_id) {
-      typelessByMember.set(p.membership_id, (typelessByMember.get(p.membership_id) || 0) + num(p.amount));
+      if (!unlinkedTyped.has(p.contribution_type_id)) unlinkedTyped.set(p.contribution_type_id, new Map());
+      const byMember = unlinkedTyped.get(p.contribution_type_id)!;
+      byMember.set(p.membership_id, (byMember.get(p.membership_id) || 0) + amount);
+    } else {
+      typelessByMember.set(p.membership_id, (typelessByMember.get(p.membership_id) || 0) + amount);
     }
   }
 
-  // Phase 1: allocate each type's confirmed payments to that type's obligations.
-  const allocated = new Map<string, number>();
+  // Unlinked payments of a named contribution cover that member's oldest open
+  // obligation of the same type, after any explicit period allocations.
   for (const [typeKey, obls] of oblByType) {
-    const typePayments = payByType.get(typeKey) || [];
-    const a = allocateConfirmedToObligations(obls, confirmedPaidByMember(typePayments));
-    for (const [oid, v] of a) allocated.set(oid, v);
+    const byMember = unlinkedTyped.get(typeKey);
+    if (!byMember) continue;
+    for (const [mid, poolTotal] of byMember) {
+      let pool = poolTotal;
+      const sorted = obls.filter(o => o.membership_id === mid && o.status !== "waived")
+        .sort((left, right) => {
+          const da = left.due_date ? dateKey(left.due_date) : "9999-12-31";
+          const db = right.due_date ? dateKey(right.due_date) : "9999-12-31";
+          return da < db ? -1 : da > db ? 1 : 0;
+        });
+      for (const o of sorted) {
+        const already = allocated.get(o.id) || 0;
+        const give = Math.min(pool, Math.max(0, num(o.amount) - already));
+        if (give > 0) allocated.set(o.id, already + give);
+        pool -= give;
+        if (pool <= 0) break;
+      }
+    }
   }
 
   // Phase 2: spread each member's TYPELESS confirmed pool across their remaining
@@ -580,18 +605,12 @@ export function buildObjectReport(
     const remaining = Math.max(0, expected - confirmedPaid);
     const lastConfirmedPaymentAt = lastConfirmedByMember.get(mid) || null;
 
-    // Overdue: still owes (confirmed remaining > 0) AND has a past-due,
-    // non-waived obligation.
-    let isOverdue = false;
-    if (remaining > 0) {
-      for (const o of nonWaived) {
-        const dk = o.due_date ? dateKey(o.due_date) : null;
-        if (dk && dk < today) {
-          isOverdue = true;
-          break;
-        }
-      }
-    }
+    const memberStates = computeObligationStates(obls, payments.filter(p => p.membership_id === mid), { today });
+    const overdueRemaining = nonWaived.reduce((sum, o) => {
+      const state = memberStates.get(o.id);
+      return sum + (state?.isOverdue ? state.remaining : 0);
+    }, 0);
+    const isOverdue = overdueRemaining > 0;
 
     let status: ParticipationStatus;
     if (allWaived) status = "waived";
@@ -625,7 +644,7 @@ export function buildObjectReport(
     }
     totals.totalExpected += expected;
     totals.totalOutstanding += remaining;
-    if (isOverdue) totals.totalOverdue += remaining;
+    totals.totalOverdue += overdueRemaining;
 
     if (status === "contributed") totals.contributedMembers += 1;
     else if (status === "partial") totals.partialMembers += 1;

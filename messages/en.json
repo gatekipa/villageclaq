@@ -242,7 +242,7 @@
     "launchCenter": "Launch Center",
     "myGroups": "My Groups",
     "executionInbox": "Execution Inbox",
-    "memberFinancialSummary": "Financial Summary"
+    "memberFinancialSummary": "Group Financial Summary"
   },
   "cookies": {
     "title": "Cookie Settings",
@@ -938,7 +938,7 @@
     "addProxyMemberDesc": "Creates an active group membership. The online account can be activated later without losing history.",
     "fullName": "Full Name",
     "unnamed": "Unnamed Member",
-    "proxyMember": "Account not activated",
+    "proxyMember": "Offline member",
     "noContributions": "No contributions yet",
     "memberTitle": "Title (Optional)",
     "titlePlaceholder": "e.g., Chief, Nchinda, Pastor, Dr., Alhaji, Mama",
@@ -1679,6 +1679,24 @@
     "rejectPaymentReviewTitle": "Reject this payment?",
     "rejectPaymentReviewDesc": "Rejecting marks {amount} from {member} as not accepted. The member is not sent anything.",
     "rejectPaymentReviewAction": "Reject payment",
+    "balanceEntry": {
+      "coveredPeriod": "Covered period and due date",
+      "choosePeriod": "Choose an outstanding period",
+      "noDueDate": "No due date",
+      "loadFailed": "Could not load this member's obligations. Refresh before recording a payment.",
+      "noneOutstanding": "This member has no outstanding obligation for this contribution. Nothing can be allocated yet.",
+      "allocationHelp": "Choose the period this payment settles. We do not choose a period from the contribution type alone.",
+      "amountDue": "Amount due",
+      "alreadyPaid": "Already paid",
+      "remaining": "Remaining balance",
+      "amountNow": "Amount being recorded now",
+      "exceedsRemaining": "This amount exceeds the selected period's remaining balance. No payment was recorded.",
+      "setupTitle": "Complete these finance settings before recording a payment:",
+      "setup": { "account": "An active deposit account in this group's currency", "category": "An active income category", "fund": "An active default unrestricted fund" },
+      "setupReturn": "Open Financial Configuration in a new tab, finish these items, then return here. This payment form remains in this tab.",
+      "paymentReference": "Payment reference (kept for safe retry)",
+      "separatePayment": "Start a separate payment"
+    },
     "duesPosting": {
       "depositAccount": "Deposit Account",
       "depositAccountPlaceholder": "Select custody account receiving payment",
@@ -1718,18 +1736,20 @@
   },
   "finances": {
     "title": "Financial Dashboard",
+    "recordOtherTransaction": "Record another transaction",
     "subtitle": "Overview of collections, outstanding balances, and trends",
     "collectedThisPeriod": "Collected This Month",
     "totalOutstanding": "Total Outstanding",
     "collectionRate": "Collection Rate",
     "paymentsThisMonth": "Payments This Month",
     "vsLastMonth": "vs last month",
+    "noPriorMonth": "No collections last month",
     "membersOverdue": "members overdue",
     "transactions": "transactions",
     "monthlyTrend": "Monthly Collection Trend",
     "collected": "collected",
     "target": "Target",
-    "topOverdue": "Top Overdue Members",
+    "topOverdue": "Members with overdue dues",
     "items": "items",
     "byType": "Collection by Type",
     "recentPayments": "Recent Payments",
@@ -2003,6 +2023,8 @@
     }
   },
   "financialProjections": {
+    "counts": { "accounts": "{count, plural, one {# account} other {# accounts}}", "funds": "{count, plural, one {# fund} other {# funds}}" },
+
     "title": "General Ledger & Financial Projections",
     "subtitle": "Authoritative read models, account registers, running balances, and fund allocation proofs",
     "sections": {
@@ -2074,6 +2096,7 @@
       "refresh": "Refresh Projections",
       "viewAudit": "View Audit",
       "filterAccount": "All Accounts",
+      "searchCashbook": "Search description, reference or member",
       "filterCurrency": "All Currencies"
     },
     "summary": {
@@ -5425,8 +5448,8 @@
     "invitePhoneWhatsappNote": "Phone invitations are delivered via WhatsApp.",
     "step1Title": "Where is your group based?",
     "locationAfrica": "In Africa",
-    "locationDiaspora": "Abroad (Diaspora)",
-    "locationBoth": "Both",
+    "locationDiaspora": "Outside Africa",
+    "locationBoth": "Across regions",
     "step2Title": "What type of group?",
     "templateSavings": "Savings Circle (Njangi, Ajo, Susu, Stokvel)",
     "templateChurch": "Church Group",
@@ -5534,7 +5557,7 @@
     "phonePlaceholder": "e.g., +1 (240) 555-0123",
     "phoneHint": "Used for WhatsApp notifications and member directory",
     "langPrefLabel": "Language Preference",
-    "locationStepSubtitle": "This helps us set your currency, language, and payment options.",
+    "locationStepSubtitle": "Choose the group’s location. You can set its currency and language separately.",
     "countryLabel": "Country",
     "countryPlaceholder": "Select your country",
     "cityLabel": "City (optional)",
@@ -5554,7 +5577,7 @@
     "groupDescLabel": "Group Description (optional)",
     "groupDescPlaceholder": "Brief description of your group",
     "groupLangLabel": "Primary language for group communications",
-    "currencyAutoDetected": "Auto-detected from {country}",
+    "currencyAutoDetected": "Suggested from {country}; you can choose a different currency",
     "changeableHint": "You can change all of these later in Settings.",
     "savingsStepSubtitle": "What does your group call the savings pot?",
     "savingsStepExplain": "Common names include Njangi, Tontine, Contribution, Ajo, Susu, Stokvel",
@@ -7286,7 +7309,7 @@
     "listFailed": "Could not load your active introductions."
   },
   "memberFinancialSummary": {
-    "title": "Member Financial Summary",
+    "title": "Group Financial Summary",
     "readOnly": "Read-only view of posted financial totals permitted for this group.",
     "notAvailable": "This summary is not available. An officer can enable member financial visibility.",
     "refresh": "Refresh",
@@ -7297,6 +7320,7 @@
     "net": "Net result",
     "scope": "Group: {group}",
     "period": "Period: {start} – {end}",
+    "periodMeaning": "Year-to-date reporting window in UTC. It may begin before this group was created; only posted transactions within the window are counted.",
     "status": "{count} posted transaction(s)",
     "updated": "Last updated: {time}",
     "noTransactions": "No posted transactions",

@@ -79,7 +79,7 @@ export function AccountBalancesCard({
             </CardDescription>
           </div>
           <Badge variant="outline" className="text-xs">
-            {accountBalances.length} {tConfig("tabs.accounts").toLowerCase()}
+            {t("counts.accounts", { count: accountBalances.length })}
           </Badge>
         </div>
       </CardHeader>
@@ -114,7 +114,7 @@ export function AccountBalancesCard({
                             {getAccountKindIcon(acc.account_kind)}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-medium truncate">{acc.account_name}</p>
+                            <p className="text-sm font-medium break-words">{acc.account_name}</p>
                             <span className="text-[10px] text-muted-foreground capitalize">
                               {kindLabels[acc.account_kind] || acc.account_kind}
                             </span>
@@ -147,7 +147,7 @@ export function AccountBalancesCard({
                     {t("sections.fundAllocation")}
                   </p>
                   <span className="text-[11px] text-muted-foreground">
-                    {fundCash.length} {tConfig("tabs.funds").toLowerCase()}
+                    {t("counts.funds", { count: fundCash.length })}
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -162,7 +162,7 @@ export function AccountBalancesCard({
                         ) : (
                           <Star className="h-3.5 w-3.5 text-primary/70 shrink-0" />
                         )}
-                        <span className="font-medium truncate">{f.fund_name}</span>
+                        <span className="font-medium break-words">{f.fund_name}</span>
                         {f.fund_is_restricted && (
                           <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 text-amber-600 border-amber-300">
                             {tConfig("funds.restrictedBadge")}

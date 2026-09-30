@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, AlertCircle, ArrowLeft, Check, Star } from "lucide-react";
+import { Loader2, AlertCircle, ArrowLeft, Check } from "lucide-react";
 import { PasswordInput } from "@/components/ui/password-input";
 import { PasswordStrength, usePasswordRequirements, checkPasswordRequirements } from "@/components/ui/password-strength";
 
@@ -32,8 +32,10 @@ function PhoneIcon() {
 }
 
 function safeRedirect(raw: string | null): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
-  return raw.replace(/^\/(?:en|fr)(?=\/|[?#]|$)/, "") || "/";
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return "/dashboard";
+  const path = raw.replace(/^\/(?:en|fr)(?=\/|[?#]|$)/, "") || "/";
+  // Re-check after removing the locale so "/en//host" cannot become protocol-relative.
+  return path.startsWith("/") && !path.startsWith("//") ? path : "/dashboard";
 }
 
 export default function SignupPage() {
@@ -166,17 +168,6 @@ export default function SignupPage() {
             ))}
           </ul>
 
-          <div className="mt-16 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
-            <div className="flex gap-0.5 mb-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
-              ))}
-            </div>
-            <p className="text-sm leading-relaxed text-emerald-100/70 italic">
-              &ldquo;{t("auth.brandTestimonial1")}&rdquo;
-            </p>
-            <p className="mt-3 text-xs font-medium text-emerald-200/50">{t("auth.brandTestimonial1Author")}</p>
-          </div>
         </div>
       </div>
 

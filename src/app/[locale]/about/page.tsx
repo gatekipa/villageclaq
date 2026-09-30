@@ -29,7 +29,7 @@ const countries = [
 
 export default function AboutPage() {
   const t = useTranslations("about");
-  const tLanding = useTranslations("landing");
+  const tHome = useTranslations("home.footer");
   const tCommon = useTranslations("common");
   const tCountries = useTranslations("countries");
 
@@ -212,36 +212,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="mx-auto max-w-3xl px-4 py-12 sm:py-16">
-        <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-          <div className="text-center">
-            <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
-              500+
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">{t("statsGroups")}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
-              10,000+
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">{t("statsMembers")}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
-              $2M+
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">{t("statsManaged")}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
-              11
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">{t("statsCountries")}</p>
-          </div>
-        </div>
-      </section>
-
       {/* CTA */}
       <section className="bg-emerald-600 py-12 text-center dark:bg-emerald-700 sm:py-16">
         <div className="mx-auto max-w-2xl px-4">
@@ -267,13 +237,13 @@ export default function AboutPage() {
           <p>&copy; {new Date().getFullYear()} {t("footerCopyright")}</p>
           <div className="flex gap-6">
             <Link href="/about" className="hover:text-foreground">
-              {tLanding("footerAbout")}
+              {tHome("about")}
             </Link>
             <Link href="/terms" className="hover:text-foreground">
-              {tLanding("footerTerms")}
+              {tHome("terms")}
             </Link>
             <Link href="/privacy" className="hover:text-foreground">
-              {tLanding("footerPrivacy")}
+              {tHome("privacy")}
             </Link>
           </div>
         </div>

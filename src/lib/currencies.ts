@@ -41,8 +41,14 @@ export function getCurrencyDef(code: string): CurrencyDef | undefined {
  * Format an amount with the correct currency symbol and locale-aware separators.
  * CFA francs: no decimals, space as thousands separator → "FCFA 15 000"
  * USD/EUR/GBP: 2 decimals → "$15,000.00"
+ * `numberLocale` only changes digit grouping and the decimal mark (e.g. "fr-FR"
+ * → "15 000 FCFA"); the default keeps the app-wide en-US output.
  */
-export function formatAmount(amount: number | string | null | undefined, currencyCode: string): string {
+export function formatAmount(
+  amount: number | string | null | undefined,
+  currencyCode: string,
+  numberLocale = "en-US",
+): string {
   const num = Number(amount) || 0;
   const def = getCurrencyDef(currencyCode);
   const symbol = def?.symbol || currencyCode;
@@ -50,7 +56,7 @@ export function formatAmount(amount: number | string | null | undefined, currenc
 
   // Use Intl.NumberFormat for proper locale-aware formatting
   try {
-    const formatted = new Intl.NumberFormat("en-US", {
+    const formatted = new Intl.NumberFormat(numberLocale, {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     }).format(num);

@@ -5634,13 +5634,13 @@
   },
   "contact": {
     "title": "Contact Us",
-    "subtitle": "We'd love to hear from you. Fill out the form below and we'll get back to you within 48 hours.",
+    "subtitle": "We'd love to hear from you. Fill out the form below and we'll get back to you as soon as we can.",
     "name": "Your Name",
     "email": "Email Address",
     "subject": "Subject",
     "message": "Message",
     "send": "Send Message",
-    "success": "Message sent! We'll get back to you within 48 hours.",
+    "success": "Message sent! We'll get back to you as soon as we can.",
     "directContact": "Or reach us directly",
     "emailAddress": "support@villageclaq.com",
     "phone": "+1 301-433-5857",
@@ -7296,5 +7296,358 @@
     "updated": "Last updated: {time}",
     "noTransactions": "No posted transactions",
     "refreshNotice": "Updates are checked automatically about every 15 seconds. Refresh or refocus this tab to check immediately."
+  },
+  "home": {
+    "skip": "Skip to main content",
+    "nav": {
+      "label": "Main navigation",
+      "home": "VillageClaq home",
+      "features": "Features",
+      "how": "How it works",
+      "pricing": "Pricing",
+      "faq": "FAQ",
+      "signIn": "Sign in",
+      "cta": "Create your group",
+      "ctaShort": "Get started",
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu",
+      "switchText": "Français"
+    },
+    "hero": {
+      "eyebrow": "For njangis, alumni unions, village associations and church groups",
+      "titleStart": "Run your group with less chasing and",
+      "titleAccent": "more trust.",
+      "lead": "VillageClaq keeps your members, contributions, hosting, minutes and rules in one organized place — so officers spend less time chasing records, and members can see where things stand.",
+      "primary": "Create your group",
+      "secondary": "See how it works",
+      "memberPrompt": "Already a member?",
+      "memberLink": "Sign in",
+      "invitePrompt": "Invited to a group?",
+      "inviteLink": "Here’s how to join",
+      "founderNote": "Test environment — please use fictional names, contacts and amounts.",
+      "shotCaption": "Real VillageClaq screens, shown with a fictional group’s data.",
+      "shotAlt": "Members of a fictional hometown association in VillageClaq, each card showing role, good standing and account status",
+      "shotMobileAlt": "VillageClaq on a phone: monthly dues of 5,000 FCFA set up for a fictional group"
+    },
+    "audience": {
+      "title": "Built for groups that meet, save and decide together",
+      "njangi": "Njangis and tontines",
+      "alumni": "Alumni unions",
+      "village": "Village and hometown associations",
+      "church": "Church groups",
+      "professional": "Professional associations",
+      "family": "Family and social groups"
+    },
+    "roles": {
+      "eyebrow": "For every role",
+      "title": "Useful to everyone who keeps the group running.",
+      "officers": {
+        "title": "Presidents and officers",
+        "p1": "See members, money and upcoming work at a glance.",
+        "p2": "Give each position the permissions it needs.",
+        "p3": "Keep the constitution and bylaws on file for everyone."
+      },
+      "secretaries": {
+        "title": "Secretaries",
+        "p1": "Add members one by one or import a CSV or Excel list.",
+        "p2": "Take attendance and plan the hosting rotation.",
+        "p3": "Draft the minutes, share them for review, then publish."
+      },
+      "treasurers": {
+        "title": "Treasurers",
+        "p1": "Set up dues and levies, then record payments as they arrive.",
+        "p2": "See who has paid and who is behind.",
+        "p3": "Share a read-only summary of posted totals with members."
+      },
+      "members": {
+        "title": "Members",
+        "p1": "Check your own payments and what is still due.",
+        "p2": "See upcoming meetings and your hosting turn.",
+        "p3": "Use one account for every group you belong to."
+      }
+    },
+    "features": {
+      "eyebrow": "Inside VillageClaq",
+      "title": "Everything your officers juggle, in one organized place.",
+      "lead": "Four everyday jobs, shown with real screens from the app.",
+      "members": {
+        "label": "Members",
+        "title": "Bring everyone in — with or without a smartphone.",
+        "body": "Add members yourself or import your existing list. People without an account are still full members, with their contact details on record, and can activate an account later from an invitation.",
+        "b1": "CSV and Excel (.xlsx) import, checked row by row",
+        "b2": "Duplicate rows are skipped, never added twice",
+        "b3": "Nothing is sent to members when you import",
+        "alt": "Bulk import preview in VillageClaq: 13 rows from a fictional member list, checked and ready to import"
+      },
+      "money": {
+        "label": "Contributions",
+        "title": "Know who has paid — without the notebook.",
+        "body": "Set up dues, levies and other contributions, record each payment when it is received, and follow every member’s balance. Each payment is recorded once, with a clear history.",
+        "b1": "Amounts, frequencies and due dates for each contribution",
+        "b2": "Payment history and member statements",
+        "b3": "A dues grid and unpaid list, so nothing slips",
+        "alt": "Contribution types in VillageClaq for a fictional group, including monthly dues of 5,000 FCFA"
+      },
+      "meetings": {
+        "label": "Meetings",
+        "title": "Organized meetings, and decisions you can find later.",
+        "body": "Rotate hosting fairly, take attendance and keep every set of minutes. Secretaries draft, share for review and publish — and officers decide when members can read them.",
+        "b1": "Hosting rosters with upcoming turns and past meetings",
+        "b2": "Attendance for every meeting",
+        "b3": "Minutes with drafts, publication and revision history",
+        "hostingAlt": "Hosting roster in VillageClaq showing the next host, no missed turns, fairness and compliance for a fictional group",
+        "minutesAlt": "Meeting minutes published in VillageClaq for a fictional group"
+      },
+      "governance": {
+        "label": "Governance",
+        "title": "Clear roles, written rules and open books.",
+        "body": "Give each position the right permissions, keep the constitution where members can read and acknowledge it, and share a read-only summary of posted totals — without exposing other members’ details.",
+        "b1": "Positions and permissions for each officer",
+        "b2": "Constitution and bylaws with versions and acknowledgments",
+        "b3": "Officer elections on Pro and Enterprise plans",
+        "alt": "Roles and permissions in VillageClaq: six officer positions for a fictional group"
+      },
+      "alsoTitle": "Also included",
+      "also": {
+        "events": {
+          "title": "Events and check-in",
+          "body": "RSVPs and QR check-in for meetings and events."
+        },
+        "announcements": {
+          "title": "Announcements",
+          "body": "Share updates with the whole group in the app."
+        },
+        "documents": {
+          "title": "Documents",
+          "body": "Keep the group’s important files in one place."
+        },
+        "reports": {
+          "title": "Reports",
+          "body": "Financial and membership reports you can export to PDF."
+        },
+        "cards": {
+          "title": "Membership cards",
+          "body": "Digital cards members can download, with a verification link you can revoke."
+        },
+        "groups": {
+          "title": "Many groups, one login",
+          "body": "Switch between groups; each membership keeps its own role and records."
+        },
+        "language": {
+          "title": "English and French",
+          "body": "Switch languages at any time."
+        },
+        "growth": {
+          "title": "Grow on your terms",
+          "body": "Introduce VillageClaq to another group or publish an optional public page. Groups stay private by default."
+        },
+        "paid": {
+          "title": "More on paid plans",
+          "body": "Relief (mutual-aid) plans, savings circles, fines, loans and elections."
+        }
+      }
+    },
+    "how": {
+      "eyebrow": "Getting started",
+      "title": "Three ways in. Choose the one that fits you.",
+      "create": {
+        "title": "Start a new group",
+        "who": "For presidents, secretaries and organizers",
+        "s1": "Create your account with an email and password.",
+        "s2": "Set up your group: location, type and details.",
+        "s3": "Add members by hand, import a list or share a join code.",
+        "cta": "Create your group"
+      },
+      "join": {
+        "title": "Join your group",
+        "who": "For members invited by their officers",
+        "s1": "Get an invitation link or a join code from your group’s officers.",
+        "s2": "Create an account, or sign in if you already have one.",
+        "s3": "Accept the invitation or enter the code. Some groups approve new members first.",
+        "ctaInvite": "I have an invitation",
+        "codeHint": "Have a join code?",
+        "codeLabel": "Join code",
+        "codePlaceholder": "Enter your code",
+        "codeSubmit": "Continue",
+        "codeError": "Enter the join code your group shared with you."
+      },
+      "signin": {
+        "title": "Already have an account?",
+        "who": "For members and officers of any group",
+        "s1": "Sign in once to reach all your groups.",
+        "s2": "Switch between groups from the group menu.",
+        "s3": "Your role and records stay separate in each group.",
+        "cta": "Sign in"
+      },
+      "founderNote": "In this test environment, VillageClaq does not send email, SMS or WhatsApp messages. Officers can copy an invitation link or share the join code directly."
+    },
+    "pricing": {
+      "eyebrow": "Pricing",
+      "title": "Start free. Upgrade as your group grows.",
+      "lead": "Plans are per group, and every new group starts on Free — no card needed.",
+      "notice": "Paid plans are not on sale yet. Online checkout isn’t available, so the prices below are for planning.",
+      "billingLabel": "Billing period",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "perMonth": "/ month",
+      "perYear": "/ year",
+      "plans": {
+        "free": {
+          "name": "Free",
+          "audience": "For small groups getting started",
+          "status": "Available now",
+          "cta": "Create your group"
+        },
+        "starter": {
+          "name": "Starter",
+          "audience": "For growing associations",
+          "status": "Not on sale yet",
+          "cta": "Ask about Starter"
+        },
+        "pro": {
+          "name": "Pro",
+          "audience": "For established groups",
+          "status": "Not on sale yet",
+          "cta": "Ask about Pro"
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "audience": "For federations and large organizations",
+          "status": "Not on sale yet",
+          "cta": "Talk to us"
+        }
+      },
+      "compare": {
+        "title": "Compare plans",
+        "feature": "Feature",
+        "included": "Included",
+        "notIncluded": "Not included",
+        "unlimited": "Unlimited",
+        "all": "All",
+        "rows": {
+          "members": "Members per group",
+          "contributionTypes": "Contribution types",
+          "reports": "Reports",
+          "fines": "Fines",
+          "savings": "Savings circles",
+          "relief": "Relief (mutual-aid) plans",
+          "committees": "Committees",
+          "loans": "Loans",
+          "elections": "Officer elections",
+          "ai": "AI report summaries"
+        },
+        "upTo": "Up to {count}",
+        "reportsCore": "{count} core"
+      },
+      "everyTitle": "Included on every plan",
+      "every": {
+        "members": "Member records and CSV/Excel import",
+        "offline": "Members without an account",
+        "invites": "Invitations and join codes",
+        "money": "Contribution and payment records",
+        "meetings": "Events, attendance and hosting",
+        "minutes": "Meeting minutes",
+        "rules": "Constitution and documents",
+        "announcements": "Announcements",
+        "summary": "Member financial summary",
+        "cards": "Membership cards",
+        "language": "English and French"
+      },
+      "foot1": "Prices are per group. FCFA prices apply to groups that use XAF or XOF.",
+      "foot2": "The table shows the main limits from VillageClaq’s plan settings. Paid-plan access is still being verified before sale.",
+      "card": {
+        "membersUpTo": "Up to {count} members",
+        "membersUnlimited": "Unlimited members",
+        "essentials": "The essentials: members, contributions, events, hosting and minutes",
+        "contributionTypes": "{count} contribution types",
+        "reportsCore": "{count} core reports",
+        "reports": "{count} reports",
+        "reliefSavingsFines": "Relief plans (up to {relief}), {savings, plural, one {# savings circle} other {# savings circles}} and fines",
+        "committees": "Committees",
+        "everythingIn": "Everything in {plan}",
+        "unlimitedTypesRelief": "Unlimited contribution types and relief plans",
+        "allReportsAi": "All reports, with AI summaries",
+        "electionsLoans": "Officer elections and loans",
+        "moreThan": "For groups with more than {count} members"
+      }
+    },
+    "faq": {
+      "eyebrow": "FAQ",
+      "title": "Common questions",
+      "lead": "Straight answers about how VillageClaq works today.",
+      "contactPrompt": "Still have a question?",
+      "contactLink": "Contact us",
+      "items": {
+        "createJoin": {
+          "q": "What’s the difference between creating a group and joining one?",
+          "a": "Create a group if you are bringing VillageClaq to your association: you set it up and become its first admin. Join a group if its officers invited you — use their invitation link or join code. If you already have an account, just sign in: all your groups are there."
+        },
+        "smartphone": {
+          "q": "Do all our members need a smartphone or an account?",
+          "a": "No. Officers can add members who don’t use the app and keep their contact details on record. Those members stay part of the group and can activate an account later from an invitation."
+        },
+        "import": {
+          "q": "Can we bring in our existing member list?",
+          "a": "Yes. Download the template, then import a CSV or Excel (.xlsx) file. VillageClaq checks each row, skips duplicates and shows what was imported. Importing never sends messages to members."
+        },
+        "groups": {
+          "q": "Can I belong to more than one group?",
+          "a": "Yes. One account can belong to several groups, and each membership keeps its own role and records. Switch between groups from the group menu."
+        },
+        "visibility": {
+          "q": "Who can see our group’s money?",
+          "a": "Officers with the right permissions manage the records. Members see their own payments and, when your admins allow it, a read-only summary of the group’s posted totals — never other members’ private details."
+        },
+        "funds": {
+          "q": "Does VillageClaq collect or hold our money?",
+          "a": "No. VillageClaq is where your group records the contributions and payments it receives through its usual channels. It doesn’t process payments or hold funds."
+        },
+        "french": {
+          "q": "Is VillageClaq available in French?",
+          "a": "Yes. VillageClaq works in English and French, and you can switch languages at any time."
+        },
+        "currency": {
+          "q": "Which currencies can a group use?",
+          "a": "You choose your group’s currency during setup, including FCFA (XAF and XOF), naira, cedi, shillings, rand, US dollars, euros and pounds sterling."
+        },
+        "cost": {
+          "q": "How much does it cost?",
+          "a": "Groups of up to 15 members can use the Free plan. Starter, Pro and Enterprise prices are listed above; paid plans aren’t on sale yet."
+        },
+        "testing": {
+          "q": "Is this the live service?",
+          "a": "Not yet. This site is a test environment. Please use fictional names, phone numbers and amounts — test data may not be kept."
+        }
+      }
+    },
+    "final": {
+      "title": "Bring your group’s records into one place.",
+      "bodyFounder": "VillageClaq is in a test phase. Create a test group with fictional details to explore it, or sign in with the account you were given.",
+      "body": "Create your group for free, bring in your members, and keep every contribution, meeting and decision on record.",
+      "primary": "Create your group",
+      "secondary": "Sign in",
+      "contact": "Questions? Contact us"
+    },
+    "footer": {
+      "tagline": "VillageClaq helps community groups keep members, contributions, meetings and decisions in one organized place.",
+      "product": "Product",
+      "start": "Get started",
+      "createGroup": "Create a group",
+      "acceptInvite": "Accept an invitation",
+      "company": "Company",
+      "about": "About",
+      "contact": "Contact us",
+      "legal": "Legal",
+      "privacy": "Privacy policy",
+      "terms": "Terms of service",
+      "language": "Language",
+      "poweredBy": "Powered by",
+      "gracetechLabel": "GraceTech (opens in a new tab)",
+      "legalLine": "VillageClaq is a product of LawTekno LLC.",
+      "copyright": "© {year} VillageClaq. All rights reserved.",
+      "founderNote": "Test environment · fictional data only",
+      "english": "English",
+      "french": "Français"
+    }
   }
 }

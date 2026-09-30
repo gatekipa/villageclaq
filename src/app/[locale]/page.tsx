@@ -1,132 +1,388 @@
-import Image from "next/image";
-import { Newsreader, Hanken_Grotesk } from "next/font/google";
-import { ArrowRight, Check, Globe2, UsersRound, WalletCards, CalendarDays, FileText, ShieldCheck, Vote } from "lucide-react";
-import { Link, routing } from "@/i18n/routing";
-import "./landing.css";
-
-const serif = Newsreader({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--vc-serif", display: "swap" });
-const sans = Hanken_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], variable: "--vc-sans", display: "swap" });
-
-const copy = {
-  en: {
-    features: "What it brings together", featureTitle: "Everything your group needs to stay in step.", product: "Inside VillageClaq", signIn: "Founder sign in",
-    eyebrow: "For groups that look after their people", title: "Run your group with clarity, from the first member to the final decision.",
-    intro: "Keep membership, contributions, hosting, meeting minutes and governance together—so officers can spend less time chasing records and more time moving the group forward.",
-    explore: "Explore the product", preview: "Founder preview · access provided to invited testers", illustrative: "Illustrative data",
-    heroLabel: "Published meeting minutes in VillageClaq", who: "One home for the work behind a thriving group",
-    whoBody: "Built for alumni associations, community organizations, savings circles and other member-led groups.",
-    people: "Bring everyone in", peopleBody: "Add members manually or from CSV and Excel files. People can take part before activating an online account.",
-    money: "Track contributions", moneyBody: "Record obligations and payments with a clear history and controls that respect each group’s scope.",
-    visibility: "Share the right numbers", visibilityBody: "Let members see permitted posted financial totals without exposing private ledger details.",
-    hostingFeature: "Keep hosting organized", hostingFeatureBody: "Assign hosts, see upcoming turns and retain the record of completed meetings.",
-    minutes: "Keep decisions findable", minutesBody: "Write meeting minutes, control member visibility and publish official revisions.",
-    governance: "Govern with confidence", governanceBody: "Use role-scoped permissions, bylaws and election tools to support accountable decisions.",
-    storyEyebrow: "Real product screens", storyTitle: "A clearer view of everyday group work.",
-    storyBody: "These screens come from the current application using fictional records. Each shows a working part of the founder preview.",
-    importLabel: "01 / Membership", importTitle: "Welcome people on your terms.", importBody: "Officers can use a spreadsheet or enter a member directly. An online account is optional; membership and history stay with the person.",
-    financeLabel: "02 / Financial visibility", financeTitle: "Make progress visible without oversharing.", financeBody: "When an executive enables it, members get a read-only summary of posted totals for their group.",
-    hostingLabel: "03 / Hosting", hostingTitle: "Know whose turn is next.", hostingBody: "A shared roster keeps assignments and hosting history in one place.",
-    fullImage: "View full image", howEyebrow: "Getting started", howTitle: "Set up a group, then build a dependable record.",
-    step1: "Create your group", step1Body: "Set up the group and its officers, then choose the rules that fit its work.",
-    step2: "Add your members", step2Body: "Enter people directly or import a spreadsheet; invite account activation when they are ready.",
-    step3: "Run the work", step3Body: "Track contributions and hosting, capture minutes, and share permitted information.",
-    finalTitle: "Ready to explore VillageClaq?", finalBody: "This site is available for founder testing with fictional data. Sign in with an account supplied for the preview.",
-    footerText: "Group work, made clearer.", about: "About", contact: "Contact", privacy: "Privacy", terms: "Terms", founderNote: "Founder test environment · fictional data only",
-  },
-  fr: {
-    features: "Ce qui se rassemble", featureTitle: "Tout ce qu’il faut pour avancer ensemble.", product: "Dans VillageClaq", signIn: "Connexion au test fondateur",
-    eyebrow: "Pour les groupes qui prennent soin de leurs membres", title: "Gérez votre groupe avec clarté, du premier membre à la dernière décision.",
-    intro: "Réunissez les adhésions, les cotisations, l’accueil des réunions, les procès-verbaux et la gouvernance. Les responsables passent moins de temps à chercher des dossiers et davantage à faire avancer le groupe.",
-    explore: "Découvrir le produit", preview: "Aperçu fondateur · accès réservé aux personnes invitées", illustrative: "Données illustratives",
-    heroLabel: "Procès-verbal publié dans VillageClaq", who: "Un seul espace pour faire vivre votre groupe",
-    whoBody: "Pensé pour les associations d’anciens, les organisations communautaires, les cercles d’épargne et les autres groupes animés par leurs membres.",
-    people: "Accueillir chaque membre", peopleBody: "Ajoutez des membres manuellement ou depuis un fichier CSV ou Excel. Ils peuvent participer avant d’activer un compte en ligne.",
-    money: "Suivre les cotisations", moneyBody: "Enregistrez les obligations et les paiements avec un historique clair et des contrôles propres à chaque groupe.",
-    visibility: "Partager les bons chiffres", visibilityBody: "Donnez accès aux totaux financiers publiés et autorisés sans exposer les détails privés du grand livre.",
-    hostingFeature: "Organiser l’accueil", hostingFeatureBody: "Désignez les hôtes, voyez les prochains tours et conservez l’historique des réunions.",
-    minutes: "Retrouver les décisions", minutesBody: "Rédigez les procès-verbaux, contrôlez leur visibilité et publiez des révisions officielles.",
-    governance: "Gouverner avec confiance", governanceBody: "Appuyez vos décisions sur des droits par rôle, des statuts et des outils d’élection.",
-    storyEyebrow: "Vraies captures du produit", storyTitle: "Le travail quotidien du groupe, plus lisible.",
-    storyBody: "Ces écrans proviennent de l’application actuelle et utilisent des données fictives. Chacun montre une fonction de l’aperçu fondateur.",
-    importLabel: "01 / Adhésion", importTitle: "Accueillez chacun à son rythme.", importBody: "Les responsables peuvent importer un fichier ou saisir un membre. Le compte en ligne reste facultatif et l’historique suit la personne.",
-    financeLabel: "02 / Visibilité financière", financeTitle: "Montrer les progrès sans trop divulguer.", financeBody: "Quand un responsable l’active, les membres voient en lecture seule les totaux comptabilisés de leur groupe.",
-    hostingLabel: "03 / Accueil", hostingTitle: "Sachez à qui vient le tour.", hostingBody: "Un calendrier commun rassemble les affectations et l’historique d’accueil.",
-    fullImage: "Voir l’image entière", howEyebrow: "Pour commencer", howTitle: "Créez un groupe, puis bâtissez un historique fiable.",
-    step1: "Créez votre groupe", step1Body: "Définissez le groupe, ses responsables et les règles adaptées à son activité.",
-    step2: "Ajoutez les membres", step2Body: "Saisissez les personnes ou importez un fichier, puis invitez-les à activer leur compte lorsqu’elles le souhaitent.",
-    step3: "Suivez l’activité", step3Body: "Gérez les cotisations et l’accueil, consignez les décisions et partagez les informations autorisées.",
-    finalTitle: "Envie de découvrir VillageClaq ?", finalBody: "Ce site est ouvert aux tests fondateurs avec des données fictives. Connectez-vous avec un compte fourni pour l’aperçu.",
-    footerText: "Le travail du groupe, en plus clair.", about: "À propos", contact: "Contact", privacy: "Confidentialité", terms: "Conditions", founderNote: "Environnement de test fondateur · données fictives uniquement",
-  },
-} as const;
+import { getTranslations } from "next-intl/server";
+import {
+  ArrowRight,
+  BadgeCheck,
+  BarChart3,
+  CalendarCheck,
+  Check,
+  FileText,
+  Languages,
+  Layers,
+  Megaphone,
+  Share2,
+  Sparkles,
+  UserRound,
+  UsersRound,
+  WalletCards,
+  ClipboardList,
+  Landmark,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { Link } from "@/i18n/routing";
+import { JoinCodeForm } from "@/components/landing/join-code-form";
+import { LandingShell } from "@/components/landing/landing-shell";
+import { PricingSection } from "@/components/landing/pricing-section";
+import { ProductShot, type ShotSource } from "@/components/landing/product-shot";
+import { PRODUCT_SHOTS, type ShotName } from "@/components/landing/product-shots";
 
 export default async function LandingPage({ params }: { params: Promise<{ locale: string }> }) {
-  const { locale } = await params;
-  const isFrench = locale === "fr";
-  const c = isFrench ? copy.fr : copy.en;
-  const productImage = (name: string) => `/images/product/${name}${isFrench ? "-fr" : ""}.webp`;
-  const minutesImage = productImage("minutes");
-  const importImage = productImage("import");
-  const summaryImage = productImage("summary");
-  const hostingImage = productImage("hosting");
-  const mobileMinutesImage = `/images/product/minutes-mobile-${isFrench ? "fr" : "en"}.webp`;
-  const otherLocale = routing.locales.find((l) => l !== locale) ?? "fr";
-  const outcomes = [
-    { icon: UsersRound, title: c.people, body: c.peopleBody },
-    { icon: WalletCards, title: c.money, body: c.moneyBody },
-    { icon: ShieldCheck, title: c.visibility, body: c.visibilityBody },
-    { icon: CalendarDays, title: c.hostingFeature, body: c.hostingFeatureBody },
-    { icon: FileText, title: c.minutes, body: c.minutesBody },
-    { icon: Vote, title: c.governance, body: c.governanceBody },
-  ];
-  const steps = [
-    { title: c.step1, body: c.step1Body },
-    { title: c.step2, body: c.step2Body },
-    { title: c.step3, body: c.step3Body },
-  ];
-  return (
-    <div className={`vc-landing ${serif.variable} ${sans.variable}`}>
-      <header className="vc-nav">
-        <nav className="vc-nav-inner" aria-label="VillageClaq">
-          <a href="#top" className="vc-nav-brand"><Image src="/logo-mark.svg" alt="" width={32} height={32} /><span>VillageClaq</span></a>
-          <div className="vc-nav-links"><a href="#features">{c.features}</a><a href="#product">{c.product}</a></div>
-          <div className="vc-nav-actions">
-            <Link href="/" locale={otherLocale} className="vc-lang" aria-label={otherLocale === "fr" ? "Français" : "English"}><Globe2 size={16} />{otherLocale.toUpperCase()}</Link>
-            <Link href="/login" className="vc-login">{c.signIn}</Link>
-          </div>
-        </nav>
-      </header>
-      <main id="top">
-        <section className="vc-hero">
-          <div className="vc-hero-inner">
-            <div className="vc-hero-copy">
-              <span className="vc-eyebrow vc-eyebrow-light">{c.eyebrow}</span>
-              <h1>{c.title}</h1>
-              <p className="vc-hero-intro">{c.intro}</p>
-              <div className="vc-actions"><a className="vc-button vc-button-light" href="#product">{c.explore}<ArrowRight size={18} /></a><Link className="vc-button vc-button-outline" href="/login">{c.signIn}</Link></div>
-              <p className="vc-preview-note"><Check size={16} />{c.preview}</p>
-            </div>
-            <figure className="vc-hero-visual">
-              <div className="vc-screen-top"><span className="vc-screen-dot" /><span className="vc-screen-dot" /><span className="vc-screen-dot" /><span>{c.heroLabel}</span></div>
-              <Image className="vc-hero-desktop-image" src={minutesImage} width={1288} height={570} alt={c.heroLabel} priority sizes="(max-width: 1100px) 55vw, 680px" />
-              <Image className="vc-hero-mobile-image" src={mobileMinutesImage} width={500} height={295} alt={c.heroLabel} priority sizes="(max-width: 760px) calc(100vw - 40px), 590px" />
-              <figcaption>{c.illustrative} · <a href={minutesImage} target="_blank" rel="noopener noreferrer">{c.fullImage}</a></figcaption>
-            </figure>
-          </div>
-        </section>
-        <section className="vc-intro-strip"><div className="vc-container"><h2>{c.who}</h2><p>{c.whoBody}</p></div></section>
-        <section className="vc-section" id="features"><div className="vc-container"><span className="vc-eyebrow">{c.features}</span><h2 className="vc-section-title">{c.featureTitle}</h2><div className="vc-outcomes">{outcomes.map(({ icon: Icon, title, body }) => <article className="vc-outcome" key={title}><div className="vc-icon"><Icon size={23} strokeWidth={1.8} /></div><h3>{title}</h3><p>{body}</p></article>)}</div></div></section>
-        <section className="vc-section vc-product" id="product"><div className="vc-container"><span className="vc-eyebrow">{c.storyEyebrow}</span><h2 className="vc-section-title">{c.storyTitle}</h2><p className="vc-section-sub">{c.storyBody}</p>
-          <div className="vc-story-list">
-            <article className="vc-story"><div className="vc-story-copy"><span className="vc-story-number">{c.importLabel}</span><h3>{c.importTitle}</h3><p>{c.importBody}</p></div><figure className="vc-image-card"><Image src={importImage} width={isFrench ? 714 : 718} height={isFrench ? 357 : 345} alt={c.peopleBody} sizes="(max-width: 760px) 100vw, 48vw" /><figcaption>{c.illustrative} · <a href={importImage} target="_blank" rel="noopener noreferrer">{c.fullImage}</a></figcaption></figure></article>
-            <article className="vc-story"><div className="vc-story-copy"><span className="vc-story-number">{c.financeLabel}</span><h3>{c.financeTitle}</h3><p>{c.financeBody}</p></div><figure className="vc-image-card vc-finance-image"><Image src={summaryImage} width={isFrench ? 430 : 425} height={isFrench ? 340 : 337} alt={c.visibilityBody} sizes="(max-width: 760px) 100vw, 425px" /><figcaption>{c.illustrative} · <a href={summaryImage} target="_blank" rel="noopener noreferrer">{c.fullImage}</a></figcaption></figure></article>
-            <article className="vc-story"><div className="vc-story-copy"><span className="vc-story-number">{c.hostingLabel}</span><h3>{c.hostingTitle}</h3><p>{c.hostingBody}</p></div><figure className="vc-image-card"><Image src={hostingImage} width={715} height={335} alt={c.hostingBody} sizes="(max-width: 760px) 100vw, 48vw" /><figcaption>{c.illustrative} · <a href={hostingImage} target="_blank" rel="noopener noreferrer">{c.fullImage}</a></figcaption></figure></article>
-          </div>
-        </div></section>
-        <section className="vc-section vc-how"><div className="vc-container"><span className="vc-eyebrow">{c.howEyebrow}</span><h2 className="vc-section-title">{c.howTitle}</h2><div className="vc-steps">{steps.map((step, index) => <article className="vc-step" key={step.title}><span>0{index + 1}</span><h3>{step.title}</h3><p>{step.body}</p></article>)}</div></div></section>
-        <section className="vc-final"><div className="vc-container"><h2>{c.finalTitle}</h2><p>{c.finalBody}</p><Link className="vc-button vc-button-light" href="/login">{c.signIn}<ArrowRight size={18} /></Link></div></section>
-      </main>
-      <footer className="vc-footer"><div className="vc-container"><div className="vc-footer-top"><div><span className="vc-footer-brand">VillageClaq</span><p>{c.footerText}</p></div><div className="vc-footer-links"><Link href="/about">{c.about}</Link><Link href="/contact">{c.contact}</Link><Link href="/privacy">{c.privacy}</Link><Link href="/terms">{c.terms}</Link></div></div><p className="vc-footer-note">{c.founderNote}</p></div></footer>
+  const { locale: rawLocale } = await params;
+  const locale = rawLocale === "fr" ? "fr" : "en";
+  const t = await getTranslations({ locale, namespace: "home" });
+  const founder = process.env.NEXT_PUBLIC_FOUNDER_TEST_ENVIRONMENT === "true";
+  const shot = (name: ShotName): ShotSource => PRODUCT_SHOTS[locale][name];
+
+  const audience = ["njangi", "alumni", "village", "church", "professional", "family"] as const;
+
+  const roles = [
+    { key: "officers", icon: Landmark },
+    { key: "secretaries", icon: ClipboardList },
+    { key: "treasurers", icon: WalletCards },
+    { key: "members", icon: UserRound },
+  ] as const;
+
+  const also = [
+    { key: "events", icon: CalendarCheck },
+    { key: "announcements", icon: Megaphone },
+    { key: "documents", icon: FileText },
+    { key: "reports", icon: BarChart3 },
+    { key: "cards", icon: BadgeCheck },
+    { key: "groups", icon: Layers },
+    { key: "language", icon: Languages },
+    { key: "growth", icon: Share2 },
+    { key: "paid", icon: Sparkles },
+  ] as const;
+
+  const faqItems = [
+    "createJoin",
+    "smartphone",
+    "import",
+    "groups",
+    "visibility",
+    "funds",
+    "french",
+    "currency",
+    "cost",
+    ...(founder ? (["testing"] as const) : []),
+  ] as const;
+
+  const chapterCopy = (chapter: "members" | "money" | "meetings" | "governance", Icon: LucideIcon) => (
+    <div className="vc-chapter-copy">
+      <div className="vc-chapter-heading">
+        <p className="vc-chapter-label">
+          <Icon size={18} aria-hidden="true" />
+          {t(`features.${chapter}.label`)}
+        </p>
+        <h3 id={`ch-${chapter}`} className="vc-chapter-title">
+          {t(`features.${chapter}.title`)}
+        </h3>
+      </div>
+      <div className="vc-chapter-text">
+        <p className="vc-chapter-body">{t(`features.${chapter}.body`)}</p>
+        <ul className="vc-bullets" role="list">
+          {(["b1", "b2", "b3"] as const).map((b) => (
+            <li key={b}>
+              <Check size={17} strokeWidth={2.4} aria-hidden="true" />
+              <span>{t(`features.${chapter}.${b}`)}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
+  );
+
+  return (
+    <LandingShell locale={locale} path="/" localSections={["features", "how", "pricing", "faq"]}>
+      {/* ============ HERO ============ */}
+      <section className="vc-hero" aria-labelledby="hero-title">
+        <div className="vc-hero-glow" aria-hidden="true" />
+        <div className="vc-container vc-hero-inner">
+          <div className="vc-hero-copy">
+            <p className="vc-eyebrow vc-eyebrow-light">{t("hero.eyebrow")}</p>
+            <h1 id="hero-title" className="vc-hero-title">
+              {t("hero.titleStart")} <em>{t("hero.titleAccent")}</em>
+            </h1>
+            <p className="vc-hero-lead">{t("hero.lead")}</p>
+            <div className="vc-hero-actions">
+              <Link href="/signup" className="vc-btn vc-btn-primary vc-btn-lg">
+                {t("hero.primary")}
+                <ArrowRight size={18} aria-hidden="true" />
+              </Link>
+              <a href="#how" className="vc-btn vc-btn-ghost-light vc-btn-lg">
+                {t("hero.secondary")}
+              </a>
+            </div>
+            <p className="vc-hero-paths">
+              <span>
+                {t("hero.memberPrompt")} <Link href="/login">{t("hero.memberLink")}</Link>
+              </span>
+              <span>
+                {t("hero.invitePrompt")} <a href="#how">{t("hero.inviteLink")}</a>
+              </span>
+            </p>
+            {founder ? <p className="vc-founder-note">{t("hero.founderNote")}</p> : null}
+          </div>
+
+          <figure className="vc-hero-visual">
+            <div className="vc-frame vc-frame-hero">
+              <ProductShot
+                desktop={shot("hero")}
+                mobile={shot("heroMobile")}
+                alt={t("hero.shotAlt")}
+                sizes="(max-width: 1023px) calc(100vw - 48px), (max-width: 1240px) calc(100vw - 184px), 1056px"
+                mobileSizes="calc(100vw - 32px)"
+                eager
+              />
+            </div>
+            <div className="vc-phone">
+              <ProductShot desktop={shot("phoneAccent")} alt={t("hero.shotMobileAlt")} sizes="232px" />
+            </div>
+            <figcaption>{t("hero.shotCaption")}</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      {/* ============ AUDIENCE ============ */}
+      <section className="vc-audience" aria-labelledby="audience-title">
+        <div className="vc-container">
+          <h2 id="audience-title" className="vc-audience-title">
+            {t("audience.title")}
+          </h2>
+          <ul className="vc-audience-list" role="list">
+            {audience.map((key) => (
+              <li key={key}>{t(`audience.${key}`)}</li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* ============ ROLES ============ */}
+      <section className="vc-section vc-roles" aria-labelledby="roles-title">
+        <div className="vc-container">
+          <div className="vc-section-head">
+            <p className="vc-eyebrow">{t("roles.eyebrow")}</p>
+            <h2 id="roles-title" className="vc-h2">
+              {t("roles.title")}
+            </h2>
+          </div>
+          <ul className="vc-role-grid" role="list">
+            {roles.map(({ key, icon: Icon }) => (
+              <li key={key} className="vc-role">
+                <span className="vc-role-icon" aria-hidden="true">
+                  <Icon size={22} strokeWidth={1.8} />
+                </span>
+                <h3 className="vc-h3">{t(`roles.${key}.title`)}</h3>
+                <ul role="list">
+                  {(["p1", "p2", "p3"] as const).map((p) => (
+                    <li key={p}>{t(`roles.${key}.${p}`)}</li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* ============ FEATURES ============ */}
+      <section id="features" className="vc-section vc-features" aria-labelledby="features-title">
+        <div className="vc-container">
+          <div className="vc-section-head">
+            <p className="vc-eyebrow">{t("features.eyebrow")}</p>
+            <h2 id="features-title" className="vc-h2">
+              {t("features.title")}
+            </h2>
+            <p className="vc-lead">{t("features.lead")}</p>
+          </div>
+
+          <article className="vc-chapter vc-chapter-split" aria-labelledby="ch-members">
+            {chapterCopy("members", UsersRound)}
+            <figure className="vc-frame">
+              <ProductShot
+                desktop={shot("import")}
+                mobile={shot("importMobile")}
+                alt={t("features.members.alt")}
+                sizes="(max-width: 1023px) calc(100vw - 48px), (max-width: 1240px) calc((100vw - 128px) * 0.584), 649px"
+                mobileSizes="calc(100vw - 32px)"
+              />
+            </figure>
+          </article>
+
+          <article className="vc-chapter vc-chapter-wide" aria-labelledby="ch-money">
+            {chapterCopy("money", WalletCards)}
+            <figure className="vc-frame">
+              <ProductShot
+                desktop={shot("contributions")}
+                mobile={shot("contributionsMobile")}
+                alt={t("features.money.alt")}
+                sizes="(max-width: 1023px) calc(100vw - 48px), (max-width: 1240px) calc(100vw - 64px), 1176px"
+                mobileSizes="calc(100vw - 32px)"
+              />
+            </figure>
+          </article>
+
+          <article className="vc-chapter vc-chapter-duo" aria-labelledby="ch-meetings">
+            {chapterCopy("meetings", CalendarCheck)}
+            <div className="vc-duo">
+              <figure className="vc-frame">
+                <ProductShot
+                  desktop={shot("hosting")}
+                  mobile={shot("hostingMobile")}
+                  alt={t("features.meetings.hostingAlt")}
+                  sizes="(max-width: 899px) calc(100vw - 48px), (max-width: 1240px) calc((100vw - 84px) / 2), 578px"
+                  mobileSizes="calc(100vw - 32px)"
+                />
+              </figure>
+              <figure className="vc-frame vc-frame-fade">
+                <ProductShot
+                  desktop={shot("minutes")}
+                  mobile={shot("minutesMobile")}
+                  alt={t("features.meetings.minutesAlt")}
+                  sizes="(max-width: 899px) calc(100vw - 48px), (max-width: 1240px) calc((100vw - 84px) / 2), 578px"
+                  mobileSizes="calc(100vw - 32px)"
+                />
+              </figure>
+            </div>
+          </article>
+
+          <article className="vc-chapter vc-chapter-wide" aria-labelledby="ch-governance">
+            {chapterCopy("governance", Landmark)}
+            <figure className="vc-frame">
+              <ProductShot
+                desktop={shot("roles")}
+                mobile={shot("rolesMobile")}
+                alt={t("features.governance.alt")}
+                sizes="(max-width: 1023px) calc(100vw - 48px), (max-width: 1240px) calc(100vw - 64px), 1176px"
+                mobileSizes="calc(100vw - 32px)"
+              />
+            </figure>
+          </article>
+
+          <div className="vc-also">
+            <h3 className="vc-h3">{t("features.alsoTitle")}</h3>
+            <ul className="vc-also-grid" role="list">
+              {also.map(({ key, icon: Icon }) => (
+                <li key={key}>
+                  <span className="vc-also-icon" aria-hidden="true">
+                    <Icon size={20} strokeWidth={1.8} />
+                  </span>
+                  <div>
+                    <p className="vc-also-title">{t(`features.also.${key}.title`)}</p>
+                    <p className="vc-also-body">{t(`features.also.${key}.body`)}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ HOW IT WORKS / GETTING STARTED ============ */}
+      <section id="how" className="vc-section vc-how" aria-labelledby="how-title">
+        <div className="vc-container">
+          <div className="vc-section-head">
+            <p className="vc-eyebrow">{t("how.eyebrow")}</p>
+            <h2 id="how-title" className="vc-h2">
+              {t("how.title")}
+            </h2>
+          </div>
+          <ol className="vc-paths" role="list">
+            <li className="vc-path vc-path-primary">
+              <h3 className="vc-h3">{t("how.create.title")}</h3>
+              <p className="vc-path-who">{t("how.create.who")}</p>
+              <ol className="vc-steps">
+                <li>{t("how.create.s1")}</li>
+                <li>{t("how.create.s2")}</li>
+                <li>{t("how.create.s3")}</li>
+              </ol>
+              <Link href="/signup" className="vc-btn vc-btn-primary vc-btn-block">
+                {t("how.create.cta")}
+                <ArrowRight size={17} aria-hidden="true" />
+              </Link>
+            </li>
+            <li className="vc-path">
+              <h3 className="vc-h3">{t("how.join.title")}</h3>
+              <p className="vc-path-who">{t("how.join.who")}</p>
+              <ol className="vc-steps">
+                <li>{t("how.join.s1")}</li>
+                <li>{t("how.join.s2")}</li>
+                <li>{t("how.join.s3")}</li>
+              </ol>
+              <Link href="/login?redirectTo=%2Fdashboard%2Fmy-invitations" className="vc-btn vc-btn-outline vc-btn-block">
+                {t("how.join.ctaInvite")}
+              </Link>
+              <JoinCodeForm />
+            </li>
+            <li className="vc-path">
+              <h3 className="vc-h3">{t("how.signin.title")}</h3>
+              <p className="vc-path-who">{t("how.signin.who")}</p>
+              <ul className="vc-steps vc-steps-plain" role="list">
+                <li>{t("how.signin.s1")}</li>
+                <li>{t("how.signin.s2")}</li>
+                <li>{t("how.signin.s3")}</li>
+              </ul>
+              <Link href="/login" className="vc-btn vc-btn-outline vc-btn-block">
+                {t("how.signin.cta")}
+              </Link>
+            </li>
+          </ol>
+          {founder ? <p className="vc-how-note">{t("how.founderNote")}</p> : null}
+        </div>
+      </section>
+
+      {/* ============ PRICING ============ */}
+      <PricingSection />
+
+      {/* ============ FAQ ============ */}
+      <section id="faq" className="vc-section vc-faq" aria-labelledby="faq-title">
+        <div className="vc-container vc-faq-grid">
+          <div className="vc-faq-intro">
+            <p className="vc-eyebrow">{t("faq.eyebrow")}</p>
+            <h2 id="faq-title" className="vc-h2">
+              {t("faq.title")}
+            </h2>
+            <p className="vc-lead">{t("faq.lead")}</p>
+            <p className="vc-faq-contact">
+              {t("faq.contactPrompt")}{" "}
+              <Link href="/contact">
+                {t("faq.contactLink")}
+                <ArrowRight size={16} aria-hidden="true" />
+              </Link>
+            </p>
+          </div>
+          <div className="vc-faq-list">
+            {faqItems.map((key) => (
+              <details key={key} className="vc-faq-item">
+                <summary>
+                  <span>{t(`faq.items.${key}.q`)}</span>
+                </summary>
+                <p>{t(`faq.items.${key}.a`)}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============ CLOSING CTA ============ */}
+      <section className="vc-final" aria-labelledby="final-title">
+        <div className="vc-container vc-final-inner">
+          <h2 id="final-title" className="vc-final-title">
+            {t("final.title")}
+          </h2>
+          <p className="vc-final-body">{founder ? t("final.bodyFounder") : t("final.body")}</p>
+          <div className="vc-hero-actions vc-final-actions">
+            <Link href="/signup" className="vc-btn vc-btn-primary vc-btn-lg">
+              {t("final.primary")}
+              <ArrowRight size={18} aria-hidden="true" />
+            </Link>
+            <Link href="/login" className="vc-btn vc-btn-ghost-light vc-btn-lg">
+              {t("final.secondary")}
+            </Link>
+          </div>
+          <p className="vc-final-contact">
+            <Link href="/contact">{t("final.contact")}</Link>
+          </p>
+        </div>
+      </section>
+    </LandingShell>
   );
 }

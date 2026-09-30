@@ -1451,7 +1451,7 @@
     "receiptSavedFounderTestNote": "Paiement fictif enregistré et reçu créé dans l'application. L'envoi externe est désactivé dans cet environnement de test.",
     "countsTowardStanding": "Compte pour la bonne tenue",
     "countsTowardStandingHint": "Les membres qui manquent cette contribution peuvent être marqués comme n'étant pas en règle, selon les règles de tenue de votre groupe. Désactivez pour les types sociaux, événementiels ou de collecte de fonds. Géré de façon centralisée dans Paramètres → Tenue.",
-    "dueDayHelp": "Les paiements sont dus ce jour-là chaque période. Les jours 29 à 31 reviennent au 28.",
+    "dueDayHelp": "Ce jour reste la référence du calendrier. Si un mois est plus court, l'échéance tombe son dernier jour; les mois suivants reprennent le jour choisi.",
     "oneTimeDueDateNote": "Les contributions ponctuelles n'utilisent pas de jour d'échéance récurrent. La date d'échéance est fixée lors de l'inscription des membres.",
     "dueDateFlexible": "Date d'échéance flexible",
     "duePreviewMonthly": "Dû le {day} de chaque mois · Prochain : {date} (dans {days} jours)",
@@ -5644,15 +5644,13 @@
   },
   "contact": {
     "title": "Contactez-nous",
-    "subtitle": "Nous serions ravis de vous entendre. Remplissez le formulaire ci-dessous et nous vous répondrons dès que possible.",
+    "subtitle": "Envoyez une demande avec ce formulaire. Elle sera conservée dans notre boîte de réception pour examen; aucun courriel n'est envoyé par le formulaire.",
     "name": "Votre nom",
     "email": "Adresse e-mail",
     "subject": "Sujet",
     "message": "Message",
     "send": "Envoyer le message",
-    "success": "Message envoyé ! Nous vous répondrons dès que possible.",
-    "directContact": "Ou contactez-nous directement",
-    "phone": "+1 301-433-5857",
+    "success": "Demande reçue et enregistrée pour examen.",
     "phonePlaceholder": "Téléphone (optionnel)",
     "subjectGeneral": "Demande générale",
     "subjectSupport": "Support",
@@ -5660,8 +5658,6 @@
     "subjectFeedback": "Retour d'information",
     "subjectBug": "Rapport de bug",
     "subjectOther": "Autre",
-    "address": "LawTekno LLC, Washington DC",
-    "businessHours": "Lundi - Vendredi, 9h - 18h EST",
     "faqTitle": "Avant de nous contacter",
     "faqSubtitle": "Vérifiez si votre question a une réponse ici",
     "faq1Q": "Comment créer un groupe ?",
@@ -5737,7 +5733,7 @@
       "liability": "VillageClaq est fourni « en l'état ». Nous ne serons pas responsables des dommages indirects, accessoires ou consécutifs découlant de votre utilisation de la plateforme.",
       "governing": "Ces conditions sont régies par les lois de l'État du Maryland, États-Unis. Tout litige sera résolu devant les tribunaux du Maryland.",
       "changes": "Nous pouvons mettre à jour ces conditions de temps à autre. Nous vous informerons des changements importants par e-mail ou notification dans l'application. L'utilisation continue constitue l'acceptation des conditions mises à jour.",
-      "contact": "Si vous avez des questions sur ces Conditions d'utilisation, veuillez nous contacter à legal@villageclaq.com ou via notre formulaire de contact."
+      "contact": "Si vous avez des questions sur ces Conditions d'utilisation, veuillez utiliser notre formulaire de contact."
     },
     "contents": "Sommaire"
   },
@@ -5767,7 +5763,7 @@
       "security": "Nous mettons en œuvre des mesures de sécurité conformes aux normes de l'industrie, notamment le chiffrement en transit et au repos, des politiques de sécurité au niveau des lignes et des audits de sécurité réguliers pour protéger vos données.",
       "children": "VillageClaq n'est pas destiné aux enfants de moins de 13 ans. Nous ne collectons pas sciemment d'informations personnelles auprès d'enfants. Si vous pensez qu'un enfant nous a fourni des données personnelles, veuillez nous contacter.",
       "changes": "Nous pouvons mettre à jour cette Politique de confidentialité de temps à autre. Nous vous informerons des changements significatifs par e-mail ou notification dans l'application au moins 30 jours avant leur entrée en vigueur.",
-      "contact": "Si vous avez des questions sur cette Politique de confidentialité, veuillez contacter notre Délégué à la protection des données à privacy@villageclaq.com ou via notre formulaire de contact."
+      "contact": "Si vous avez des questions sur cette Politique de confidentialité, veuillez utiliser notre formulaire de contact."
     },
     "contents": "Sommaire"
   },

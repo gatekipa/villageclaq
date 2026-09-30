@@ -8,18 +8,18 @@ import {
 
 // Build-9 unit tests for the human due-date preview (Node 22 strips TS types on
 // import — real logic under test). Core invariant: the preview mirrors the
-// obligation trigger's LEAST(due_day,28) clamp so it never disagrees with the
+// obligation trigger's calendar-month fallback so it never disagrees with the
 // dates the system actually generates, and it never fabricates a date for
 // one-time / no-due-day types.
 
 // Fixed "now" via LOCAL components (avoids timezone flakiness): 14 Jun 2026.
 const NOW = new Date(2026, 5, 14);
 
-test("clampDueDay mirrors LEAST(day,28) + floor at 1", () => {
+test("clampDueDay keeps the selected anchor within 1..31", () => {
   assert.equal(clampDueDay(1), 1);
   assert.equal(clampDueDay(28), 28);
-  assert.equal(clampDueDay(29), 28);
-  assert.equal(clampDueDay(31), 28);
+  assert.equal(clampDueDay(29), 29);
+  assert.equal(clampDueDay(31), 31);
   assert.equal(clampDueDay(0), 1);
   assert.equal(clampDueDay(15.6), 16);
 });
@@ -39,17 +39,27 @@ test("monthly: passed day this month -> next month", () => {
   assert.equal(p.daysUntil, 17);
 });
 
-test("monthly: day 30 clamps to 28", () => {
+test("monthly: day 30 stays day 30 in June", () => {
   const p = describeDueDay({ dueDay: 30, frequency: "monthly", now: NOW });
-  assert.equal(p.clampedDay, 28);
-  assert.equal(p.nextDueISO, "2026-06-28");
-  assert.equal(p.daysUntil, 14);
+  assert.equal(p.clampedDay, 30);
+  assert.equal(p.nextDueISO, "2026-06-30");
+  assert.equal(p.daysUntil, 16);
 });
 
 test("monthly: due today -> 0 days", () => {
   const p = describeDueDay({ dueDay: 14, frequency: "monthly", now: NOW });
   assert.equal(p.nextDueISO, "2026-06-14");
   assert.equal(p.daysUntil, 0);
+});
+
+test("monthly preview returns to the selected 31st after February", () => {
+  const feb = describeDueDay({ dueDay: 31, frequency: "monthly", now: new Date(2027, 1, 1) });
+  assert.equal(feb.clampedDay, 31);
+  assert.equal(feb.nextDueISO, "2027-02-28");
+  const march = describeDueDay({ dueDay: 31, frequency: "monthly", now: new Date(2027, 2, 1) });
+  assert.equal(march.nextDueISO, "2027-03-31");
+  const leap = describeDueDay({ dueDay: 29, frequency: "monthly", now: new Date(2028, 1, 1) });
+  assert.equal(leap.nextDueISO, "2028-02-29");
 });
 
 test("quarterly/annual: day-of-month label only, no fabricated date", () => {

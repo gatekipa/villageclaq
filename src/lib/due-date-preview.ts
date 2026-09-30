@@ -16,9 +16,13 @@
 // day clamp is intentionally identical to contribution-schedule.ts's clampDueDay;
 // scripts/test-contribution-schedule.mjs pins the two equal so they never drift.
 
-/** The obligation trigger clamps day 29-31 to 28 (month-end safe). Mirror it. */
+/** Keep the officer's selected anchor; only individual occurrences use month end. */
 export function clampDueDay(dueDay: number): number {
-  return Math.min(28, Math.max(1, Math.round(dueDay)));
+  return Math.min(31, Math.max(1, Math.round(dueDay)));
+}
+
+function occurrenceDay(anchor: number, year: number, month: number): number {
+  return Math.min(anchor, new Date(Date.UTC(year, month, 0)).getUTCDate());
 }
 
 function pad(n: number): string {
@@ -47,7 +51,7 @@ export type DueDatePreview =
     }
   | {
       kind: "recurring";
-      /** day-of-month after the LEAST(day,28) clamp the trigger applies */
+      /** The officer's selected day, retained across short months. */
       clampedDay: number;
       period: "month" | "quarter" | "year";
       /** ISO yyyy-mm-dd of the next monthly occurrence, or null for quarter/year */
@@ -89,9 +93,10 @@ export function describeDueDay(opts: {
   // Monthly preview: forward-looking next occurrence (this month's clamped day if
   // still upcoming, else next month's). This is a recurring-schedule hint.
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  let next = new Date(now.getFullYear(), now.getMonth(), clampedDay);
+  let next = new Date(now.getFullYear(), now.getMonth(), occurrenceDay(clampedDay, now.getFullYear(), now.getMonth() + 1));
   if (next.getTime() < today.getTime()) {
-    next = new Date(now.getFullYear(), now.getMonth() + 1, clampedDay);
+    const following = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    next = new Date(following.getFullYear(), following.getMonth(), occurrenceDay(clampedDay, following.getFullYear(), following.getMonth() + 1));
   }
   const daysUntil = Math.round((next.getTime() - today.getTime()) / 86_400_000);
   const nextDueISO = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}`;

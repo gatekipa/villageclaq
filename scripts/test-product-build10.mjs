@@ -28,9 +28,9 @@ const fr = JSON.parse(read("messages/fr.json"));
 
 // ── Engine exists + mirrors the trigger ─────────────────────────────────────
 
-test("schedule engine exists, is pure, and mirrors the trigger clamp + base-month rule", () => {
+test("schedule engine exists, is pure, and keeps the selected anchor with calendar fallback", () => {
   assert.ok(/export function computeObligationDueDate/.test(engine), "engine entry exists");
-  assert.ok(/Math\.min\(28/.test(engine), "clamp mirrors LEAST(due_day,28)");
+  assert.ok(/Math\.min\(31/.test(engine) && /occurrenceDay/.test(engine), "selected day remains 1..31 and each month has its own fallback");
   // pure: no supabase / network imports
   assert.ok(!/from "@\/lib\/(supabase|send|notify)/.test(engine), "engine has no I/O imports");
   assert.ok(!/import .* from "@\//.test(engine), "engine is self-contained (directly testable)");
@@ -61,12 +61,12 @@ test("one-time contributions get a real calendar date via start_date (no migrati
   assert.ok(/kind: "one_time"/.test(read(PREVIEW)), "preview supports the one-time exact-date case");
 });
 
-// ── No migration in this build ──────────────────────────────────────────────
-
-test("Build 10 ships NO migration (nothing newer than 00113)", () => {
+// The historical Build 10 assertion that the whole repository had no later
+// migrations became stale when subsequent approved releases added them.
+test("FQ-09 owner correction is additive to the earlier due-day migration", () => {
   const migs = fs.readdirSync(path.join(root, "supabase/migrations"));
-  // 00108 + 00109 are Build 15's privacy migrations (applied); Build 10 added none.
-  assert.ok(!migs.some((f) => /^\d{5}_/.test(f) && Number(f.slice(0, 5)) > 113), "no migration newer than 00113");
+  assert.ok(migs.includes("20260930035205_fq09_contribution_due_day_clamp.sql"));
+  assert.ok(migs.includes("20260930114102_fq09_calendar_anchor_and_tzs_precision.sql"));
 });
 
 // ── Flexible auto-excluded from standing ────────────────────────────────────

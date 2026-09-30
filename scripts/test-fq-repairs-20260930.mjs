@@ -10,7 +10,8 @@ import { fetchAllRows } from "../src/lib/fetch-all-rows.ts";
 // FQ-09/FQ-10/FQ-11 repair tests (Node >= 22.6 strips TS types on import).
 // Independent anchors:
 //  - Ledger precision: live financial_core.currency_scale on the isolated
-//    candidate (2026-09-30) — 0 for XAF/XOF/TZS/UGX/RWF, 2 for the other 13.
+//    candidate, cross-checked with SIX ISO 4217 List One — 0 for
+//    XAF/XOF/UGX/RWF, 2 for TZS and the other 13.
 //  - Group calendar and due semantics: approved FQ-08 reminder rules
 //    (payment-reminder-eligibility: group timezone, default UTC; before due /
 //    due today / after due).
@@ -22,7 +23,7 @@ import { fetchAllRows } from "../src/lib/fetch-all-rows.ts";
 //    count=exact reports the full total.
 
 const LEDGER_SCALE = {
-  XAF: 0, XOF: 0, TZS: 0, UGX: 0, RWF: 0,
+  XAF: 0, XOF: 0, TZS: 2, UGX: 0, RWF: 0,
   NGN: 2, GHS: 2, KES: 2, ZAR: 2, ETB: 2, CDF: 2,
   USD: 2, EUR: 2, GBP: 2, CAD: 2, CHF: 2, AUD: 2, AED: 2,
 };
@@ -119,11 +120,11 @@ test("FQ-11: the same obligation is due today in UTC but overdue in Douala after
 test("FQ-09: client schedule engine matches the repaired trigger's due dates", () => {
   const cases = [
     ["monthly", 15, "2026-10-01", "2026-10-15"],
-    ["monthly", 31, "2026-11-01", "2026-11-28"],
+    ["monthly", 31, "2026-11-01", "2026-11-30"],
     ["monthly", 30, "2027-02-01", "2027-02-28"],
-    ["monthly", 29, "2028-02-01", "2028-02-28"],
+    ["monthly", 29, "2028-02-01", "2028-02-29"],
     ["monthly", 28, "2028-02-10", "2028-02-28"],
-    ["quarterly", 31, "2026-10-10", "2026-10-28"],
+    ["quarterly", 31, "2026-10-10", "2026-10-31"],
     ["annual", 5, "2027-01-20", "2027-01-05"],
     ["one_time", 20, "2026-12-01", "2026-12-20"],
   ];
@@ -133,6 +134,27 @@ test("FQ-09: client schedule engine matches the repaired trigger's due dates", (
   }
   // No start date: the base (creation) month, no forward rollover.
   assert.equal(computeObligationDueDate({ frequency: "monthly", dueDay: 10, baseDate: "2026-09-30" }).dueISO, "2026-09-10");
+});
+
+test("FQ-09: each occurrence uses the original anchor after short months and year rollover", () => {
+  const due = (frequency, dueDay, baseDate) =>
+    computeObligationDueDate({ frequency, dueDay, baseDate }).dueISO;
+  assert.deepEqual(
+    ["2027-01-01", "2027-02-01", "2027-03-01", "2027-04-01"].map((d) => due("monthly", 31, d)),
+    ["2027-01-31", "2027-02-28", "2027-03-31", "2027-04-30"]
+  );
+  assert.deepEqual(
+    ["2027-02-01", "2027-03-01"].map((d) => due("monthly", 30, d)),
+    ["2027-02-28", "2027-03-30"]
+  );
+  assert.equal(due("monthly", 29, "2028-02-01"), "2028-02-29");
+  assert.equal(due("monthly", 29, "2029-02-01"), "2029-02-28");
+  assert.equal(due("quarterly", 31, "2027-02-01"), "2027-02-28");
+  assert.equal(due("quarterly", 31, "2027-05-01"), "2027-05-31");
+  assert.equal(due("annual", 31, "2028-02-01"), "2028-02-29");
+  assert.equal(due("annual", 31, "2029-02-01"), "2029-02-28");
+  assert.equal(due("monthly", 31, "2027-12-01"), "2027-12-31");
+  assert.equal(due("monthly", 31, "2028-01-01"), "2028-01-31");
 });
 
 // A fake PostgREST endpoint: `cap` rows per response at most, total in `count`.

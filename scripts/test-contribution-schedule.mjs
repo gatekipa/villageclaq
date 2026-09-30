@@ -17,9 +17,9 @@ import { clampDueDay as previewClamp } from "../src/lib/due-date-preview.ts";
 
 const BASE = "2026-06-14"; // a fixed base date (today) for determinism
 
-test("clampDueDay mirrors LEAST(day,28) and is identical to the preview clamp", () => {
-  assert.equal(clampDueDay(31), 28);
-  assert.equal(clampDueDay(29), 28);
+test("selected due day remains the anchor and matches the preview", () => {
+  assert.equal(clampDueDay(31), 31);
+  assert.equal(clampDueDay(29), 29);
   assert.equal(clampDueDay(0), 1);
   assert.equal(clampDueDay(15), 15);
   // parity: the engine clamp and the preview clamp must never drift
@@ -28,16 +28,16 @@ test("clampDueDay mirrors LEAST(day,28) and is identical to the preview clamp", 
   }
 });
 
-test("monthly: uses BASE month + clamped day (no rollover, trigger parity)", () => {
+test("monthly: uses BASE month and selected day (no rollover, trigger parity)", () => {
   const r = computeObligationDueDate({ frequency: "monthly", dueDay: 15, baseDate: BASE });
   assert.equal(r.dueISO, "2026-06-15");
   assert.equal(r.periodLabel, "June 2026");
   assert.equal(r.daysUntil, 1);
 });
 
-test("monthly: due_day=31 clamps to the 28th", () => {
+test("monthly: due_day=31 uses June 30", () => {
   const r = computeObligationDueDate({ frequency: "monthly", dueDay: 31, baseDate: BASE });
-  assert.equal(r.dueISO, "2026-06-28");
+  assert.equal(r.dueISO, "2026-06-30");
   assert.equal(r.periodLabel, "June 2026");
 });
 
@@ -54,7 +54,7 @@ test("one-time: start_date IS the exact due date (no due_day)", () => {
   assert.equal(r.daysUntil, 31);
 });
 
-test("one-time with start_date + due_day clamps the day within start_date's month (trigger parity)", () => {
+test("one-time with start_date + due_day uses that month (trigger parity)", () => {
   const r = computeObligationDueDate({ frequency: "one_time", startDate: "2026-07-15", dueDay: 5, baseDate: BASE });
   assert.equal(r.dueISO, "2026-07-05");
 });

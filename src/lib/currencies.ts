@@ -15,7 +15,7 @@ export const CURRENCIES: CurrencyDef[] = [
   { code: "KES", symbol: "KSh", name: "Kenyan Shilling", nameFr: "Shilling kényan", decimals: 2 },
   { code: "ZAR", symbol: "R", name: "South African Rand", nameFr: "Rand sud-africain", decimals: 2 },
   { code: "ETB", symbol: "Br", name: "Ethiopian Birr", nameFr: "Birr éthiopien", decimals: 2 },
-  { code: "TZS", symbol: "TSh", name: "Tanzanian Shilling", nameFr: "Shilling tanzanien", decimals: 0 },
+  { code: "TZS", symbol: "TSh", name: "Tanzanian Shilling", nameFr: "Shilling tanzanien", decimals: 2 },
   { code: "UGX", symbol: "USh", name: "Ugandan Shilling", nameFr: "Shilling ougandais", decimals: 0 },
   { code: "RWF", symbol: "RF", name: "Rwandan Franc", nameFr: "Franc rwandais", decimals: 0 },
   { code: "CDF", symbol: "FC", name: "Congolese Franc", nameFr: "Franc congolais", decimals: 2 },

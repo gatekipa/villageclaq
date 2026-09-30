@@ -1451,7 +1451,7 @@
     "receiptSavedFounderTestNote": "Fictional payment saved and in-app receipt created. External delivery is disabled in this test environment.",
     "countsTowardStanding": "Counts toward good standing",
     "countsTowardStandingHint": "Members who miss this contribution may be marked not in good standing, depending on your group's standing rules. Turn off for social, event or fundraiser types. Managed centrally in Settings → Standing.",
-    "dueDayHelp": "Payments are due on this day each period. Days 29-31 fall back to the 28th.",
+    "dueDayHelp": "This day stays your recurring anchor. In a shorter month, payment is due on that month's last day; later months return to your selected day.",
     "oneTimeDueDateNote": "One-time contributions don't use a recurring due day. The due date is set when you enroll members.",
     "dueDateFlexible": "Flexible due date",
     "duePreviewMonthly": "Due the {day} of each month · Next: {date} (in {days} days)",
@@ -5644,15 +5644,13 @@
   },
   "contact": {
     "title": "Contact Us",
-    "subtitle": "We'd love to hear from you. Fill out the form below and we'll get back to you as soon as we can.",
+    "subtitle": "Send an enquiry through this form. It will be saved for review in our inbox; no email is sent by the form.",
     "name": "Your Name",
     "email": "Email Address",
     "subject": "Subject",
     "message": "Message",
     "send": "Send Message",
-    "success": "Message sent! We'll get back to you as soon as we can.",
-    "directContact": "Or reach us directly",
-    "phone": "+1 301-433-5857",
+    "success": "Enquiry received and saved for review.",
     "phonePlaceholder": "Phone (optional)",
     "subjectGeneral": "General Inquiry",
     "subjectSupport": "Support",
@@ -5660,8 +5658,6 @@
     "subjectFeedback": "Feedback",
     "subjectBug": "Bug Report",
     "subjectOther": "Other",
-    "address": "LawTekno LLC, Washington DC",
-    "businessHours": "Monday - Friday, 9 AM - 6 PM EST",
     "faqTitle": "Before reaching out",
     "faqSubtitle": "Check if your question is answered here",
     "faq1Q": "How do I create a group?",
@@ -5737,7 +5733,7 @@
       "liability": "VillageClaq is provided on an 'as is' basis. We shall not be liable for any indirect, incidental, or consequential damages arising from your use of the platform.",
       "governing": "These terms are governed by the laws of the State of Maryland, United States. Any disputes shall be resolved in the courts of Maryland.",
       "changes": "We may update these terms from time to time. We will notify you of material changes via email or in-app notification. Continued use constitutes acceptance of updated terms.",
-      "contact": "If you have questions about these Terms of Service, please contact us at legal@villageclaq.com or through our contact form."
+      "contact": "If you have questions about these Terms of Service, please use our contact form."
     },
     "contents": "Contents"
   },
@@ -5767,7 +5763,7 @@
       "security": "We implement industry-standard security measures including encryption in transit and at rest, row-level security policies, and regular security audits to protect your data.",
       "children": "VillageClaq is not intended for children under 13. We do not knowingly collect personal information from children. If you believe a child has provided us with personal data, please contact us.",
       "changes": "We may update this Privacy Policy from time to time. We will notify you of significant changes via email or in-app notification at least 30 days before they take effect.",
-      "contact": "If you have questions about this Privacy Policy, please contact our Data Protection Officer at privacy@villageclaq.com or through our contact form."
+      "contact": "If you have questions about this Privacy Policy, please use our contact form."
     },
     "contents": "Contents"
   },

@@ -69,12 +69,12 @@ test("contribution type form wires standing impact through the existing exclusio
   assert.ok(!/affects_standing|counts_toward_standing/.test(types), "no new per-type DB column referenced");
 });
 
-// ── No migration in this build ──────────────────────────────────────────────
-
-test("Build 9 ships NO migration (nothing newer than 00113)", () => {
+// Later approved migrations do not change Build 9's original no-schema claim.
+// Check the current FQ-09 repair adds to, rather than replaces, applied history.
+test("FQ-09 due-day correction preserves prior migration history", () => {
   const migs = fs.readdirSync(path.join(root, "supabase/migrations"));
-  // 00108 + 00109 are Build 15's privacy migrations (applied); Build 9 added none.
-  assert.ok(!migs.some((f) => /^\d{5}_/.test(f) && Number(f.slice(0, 5)) > 113), "no migration newer than 00113");
+  assert.ok(migs.includes("20260930035205_fq09_contribution_due_day_clamp.sql"));
+  assert.ok(migs.includes("20260930114102_fq09_calendar_anchor_and_tzs_precision.sql"));
 });
 
 // ── WS2: human due-date preview (display-only over due_day) ──────────────────
@@ -85,8 +85,8 @@ test("contribution type form shows a human due-date preview over the existing du
   // date picker; the form now prompts for / shows an exact one-time due date.
   assert.ok(/dueDateLabel|oneTimeDueDatePrompt/.test(types), "one-time types get a calendar due date (Build 10)");
   const due = read(DUE);
-  // preview mirrors the trigger clamp
-  assert.ok(/Math\.min\(28/.test(due), "clamp mirrors LEAST(due_day,28)");
+  // FQ-09 superseded the original blanket 28-day clamp.
+  assert.ok(/Math\.min\(31/.test(due) && /occurrenceDay/.test(due), "preview retains the selected anchor and clamps each occurrence to its month");
 });
 
 // ── WS4: perf without breaking confirmed-only accounting ────────────────────

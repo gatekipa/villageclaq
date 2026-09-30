@@ -7,11 +7,8 @@
  * timestamp arithmetic — so an admin in a negative-UTC diaspora timezone never
  * sees an off-by-one due date).
  *
- * NO schema change: this mirrors the existing obligation trigger
- * `generate_obligations_for_type()` (migration 00002, lines 107-118) byte-for-
- * byte for the cases the trigger handles, so a client-enrolled obligation gets
- * the SAME due_date the database trigger would generate:
- *   base := start_date (or today) ;  if due_day set → make_date(year,month,LEAST(due_day,28))
+ * Mirrors generate_obligations_for_type(): the selected due day is the anchor;
+ * only an individual short month uses its final calendar day.
  * One-time contributions use `start_date` as their exact calendar due date (the
  * trigger already does this) — that is the "true one-time due date" with no new
  * column. `due_month` is intentionally NOT used here (the trigger ignores it),
@@ -22,7 +19,7 @@ export type ContributionFrequency = "one_time" | "monthly" | "quarterly" | "annu
 
 export interface ScheduleInput {
   frequency: ContributionFrequency | string;
-  /** 1-31; clamped to LEAST(., 28) exactly like the trigger. */
+  /** Selected recurring anchor, 1-31. */
   dueDay?: number | null;
   /** YYYY-MM-DD. One-time exact date / recurring anchor (the trigger's start_date). */
   startDate?: string | null;
@@ -39,9 +36,14 @@ export interface ScheduleResult {
   daysUntil: number;
 }
 
-/** The obligation trigger clamps day 29-31 to 28 (month-end safe). Mirror it. */
+/** Validate the selected anchor without changing it after a short month. */
 export function clampDueDay(dueDay: number): number {
-  return Math.min(28, Math.max(1, Math.round(dueDay)));
+  return Math.min(31, Math.max(1, Math.round(dueDay)));
+}
+
+/** The occurrence day for this year and month; the anchor itself is preserved. */
+export function occurrenceDay(dueDay: number, year: number, month: number): number {
+  return Math.min(clampDueDay(dueDay), new Date(Date.UTC(year, month, 0)).getUTCDate());
 }
 
 /** Local YYYY-MM-DD for "today" (timezone-safe — no UTC shift). */
@@ -91,7 +93,7 @@ export function computeObligationDueDate(input: ScheduleInput): ScheduleResult {
 
   let dueISO: string;
   if (input.dueDay != null && !Number.isNaN(Number(input.dueDay))) {
-    dueISO = isoFromParts(y, m, clampDueDay(Number(input.dueDay)));
+    dueISO = isoFromParts(y, m, occurrenceDay(Number(input.dueDay), y, m));
   } else {
     dueISO = base.slice(0, 10);
   }

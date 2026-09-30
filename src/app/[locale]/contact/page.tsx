@@ -14,9 +14,6 @@ import {
   Loader2,
   Send,
   CheckCircle2,
-  Phone,
-  MapPin,
-  Clock,
   ChevronDown,
   AlertCircle,
 } from "lucide-react";
@@ -101,10 +98,10 @@ export default function ContactPage() {
         </p>
       </section>
 
-      <div className="mx-auto max-w-5xl px-4 pb-16">
-        <div className="grid gap-12 lg:grid-cols-5">
+      <div className="mx-auto max-w-3xl px-4 pb-16">
+        <div>
           {/* Form column */}
-          <div className="lg:col-span-3">
+          <div>
             {isSuccess ? (
               <Card className="border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30">
                 <CardContent className="flex flex-col items-center p-8">
@@ -187,36 +184,6 @@ export default function ContactPage() {
             )}
           </div>
 
-          {/* Direct contact sidebar */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardContent className="space-y-6 p-6">
-                <h3 className="text-lg font-semibold text-foreground">
-                  {t("directContact")}
-                </h3>
-
-                <div className="space-y-4">
-                  <a
-                    href={`tel:${t("phone")}`}
-                    className="flex items-start gap-3 text-sm text-foreground hover:text-emerald-600 dark:hover:text-emerald-400"
-                  >
-                    <Phone className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                    <span>{t("phone")}</span>
-                  </a>
-
-                  <div className="flex items-start gap-3 text-sm text-foreground">
-                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                    <span>{t("address")}</span>
-                  </div>
-
-                  <div className="flex items-start gap-3 text-sm text-foreground">
-                    <Clock className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                    <span>{t("businessHours")}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </div>
 
         {/* FAQ Section */}

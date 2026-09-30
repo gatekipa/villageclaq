@@ -135,7 +135,7 @@ export default function ContributionsPage() {
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
 
   // Due-date preview over the existing due_day / start_date (display-only;
-  // mirrors the obligation trigger's LEAST(due_day,28) clamp). Build 10: one-time
+  // mirrors the obligation trigger's calendar-month fallback). Build 10: one-time
   // shows the exact calendar date from start_date.
   function duePreviewNode(dueDayStr: string, frequency: string, startDateStr?: string) {
     const preview = describeDueDay({ dueDay: dueDayStr ? Number(dueDayStr) : null, frequency, startDate: startDateStr || null });
@@ -152,7 +152,7 @@ export default function ContributionsPage() {
     if (preview.kind === "none") {
       return (
         <p className="text-xs text-muted-foreground">
-          {frequency === "one_time" ? t("contributions.oneTimeDueDatePrompt") : t("contributions.dueDayHelp")}
+          {frequency === "one_time" ? t("contributions.oneTimeDueDatePrompt") : t("contributions.noDueDate")}
         </p>
       );
     }
@@ -624,6 +624,7 @@ export default function ContributionsPage() {
                       value={formDueDay}
                       onChange={(e) => setFormDueDay(e.target.value)}
                     />
+                    <p className="text-xs text-muted-foreground">{t("contributions.dueDayHelp")}</p>
                     {duePreviewNode(formDueDay, formFrequency, formStartDate)}
                   </div>
                 )}
@@ -937,6 +938,7 @@ export default function ContributionsPage() {
               <div className="space-y-2">
                 <Label htmlFor="edit-dueDay">{t("contributions.dueDay")}</Label>
                 <Input id="edit-dueDay" type="number" min="1" max="31" value={formDueDay} onChange={(e) => setFormDueDay(e.target.value)} />
+                <p className="text-xs text-muted-foreground">{t("contributions.dueDayHelp")}</p>
                 {duePreviewNode(formDueDay, formFrequency, formStartDate)}
               </div>
             )}

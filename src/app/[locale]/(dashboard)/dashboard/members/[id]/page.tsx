@@ -42,6 +42,7 @@ import { PermissionGate, RequirePermission } from "@/components/ui/permission-ga
 import { DashboardSkeleton } from "@/components/ui/page-skeleton";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { formatAmount } from "@/lib/currencies";
+import { fetchAllRows } from "@/lib/fetch-all-rows";
 import {
   num,
   isConfirmedPayment,
@@ -193,12 +194,14 @@ function useMemberPayments(membershipId: string | null, groupId: string | null) 
     queryKey: ["member-payments", membershipId],
     queryFn: async () => {
       if (!membershipId || !groupId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await fetchAllRows((from, to) => supabase
         .from("payments")
-        .select("*, contribution_type:contribution_types(id, name, name_fr)")
+        .select("*, contribution_type:contribution_types(id, name, name_fr)", { count: "exact" })
         .eq("membership_id", membershipId)
         .eq("group_id", groupId)
-        .order("recorded_at", { ascending: false });
+        .order("recorded_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to));
       if (error) throw error;
       return data || [];
     },
@@ -245,12 +248,14 @@ function useMemberObligations(membershipId: string | null, groupId: string | nul
     queryKey: ["member-obligations", membershipId],
     queryFn: async () => {
       if (!membershipId || !groupId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await fetchAllRows((from, to) => supabase
         .from("contribution_obligations")
-        .select("*, contribution_type:contribution_types(id, name, name_fr)")
+        .select("*, contribution_type:contribution_types(id, name, name_fr)", { count: "exact" })
         .eq("membership_id", membershipId)
         .eq("group_id", groupId)
-        .order("due_date", { ascending: false });
+        .order("due_date", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to));
       if (error) throw error;
       return data || [];
     },
@@ -453,10 +458,10 @@ function MemberDetailContent() {
   const { data: member, isLoading: memberLoading, error: memberError } = useMemberDetail(membershipId);
   const { data: standingData, refetch: refetchStanding } = useMemberStandingDetailed(membershipId, groupId, currentGroup?.currency);
   const { data: standingHistory = [], refetch: refetchHistory } = useMemberStandingHistory(membershipId, groupId);
-  const { data: payments = [] } = useMemberPayments(membershipId, groupId);
+  const { data: payments = [], isLoading: paymentsLoading, error: paymentsError, refetch: refetchPayments } = useMemberPayments(membershipId, groupId);
   const { data: attendances = [] } = useMemberAttendance(membershipId);
   const { data: positions = [] } = useMemberPositions(membershipId);
-  const { data: obligations = [] } = useMemberObligations(membershipId, groupId);
+  const { data: obligations = [], isLoading: obligationsLoading, error: obligationsError, refetch: refetchObligations } = useMemberObligations(membershipId, groupId);
   const { data: hostingAssignments = [] } = useMemberHosting(membershipId);
   const { data: reliefEnrollments = [] } = useMemberRelief(membershipId);
   const { data: familyMembers = [] } = useMemberFamily(membershipId);
@@ -751,16 +756,18 @@ function MemberDetailContent() {
   // payments (Build 12 computeObligationStates), NEVER the polluted obl.status
   // (a pending/rejected pay-now would otherwise show a green "paid" check here).
   const currentYear = new Date().getFullYear();
-  const years = [currentYear - 2, currentYear - 1, currentYear];
+  const years = [...new Set([currentYear, ...obligations.map((o: Record<string, unknown>) => Number(String(o.due_date).slice(0, 4)))])]
+    .filter((year) => Number.isInteger(year) && year > 0)
+    .sort((a, b) => a - b);
   const yoyStates = computeObligationStates(
     obligations as unknown as MoneyObligation[],
     payments as unknown as MoneyPayment[],
   );
-  const oblsByTypeAndYear = new Map<string, Map<number, { status: string }>>();
+  const oblsByTypeAndYear = new Map<string, Map<number, string[]>>();
   for (const obl of obligations as Array<Record<string, unknown>>) {
     const ct = obl.contribution_type as Record<string, unknown> | null;
     const typeName = (ct?.name as string) || "Other";
-    const dueYear = new Date(obl.due_date as string).getFullYear();
+    const dueYear = Number(String(obl.due_date).slice(0, 4));
     if (!years.includes(dueYear)) continue;
     const c = yoyStates.get(obl.id as string);
     const computedStatus =
@@ -774,7 +781,8 @@ function MemberDetailContent() {
               ? "partial"
               : "unpaid";
     if (!oblsByTypeAndYear.has(typeName)) oblsByTypeAndYear.set(typeName, new Map());
-    oblsByTypeAndYear.get(typeName)!.set(dueYear, { status: computedStatus });
+    const yearMap = oblsByTypeAndYear.get(typeName)!;
+    yearMap.set(dueYear, [...(yearMap.get(dueYear) || []), computedStatus]);
   }
 
   // ─── Loading / Error states ──────────────────────────────────────────────
@@ -824,6 +832,21 @@ function MemberDetailContent() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           {t("members.backToMembers")}
         </Link>
+      </div>
+    );
+  }
+
+  // Do not present zero balances or an incomplete year history while either
+  // paged financial read is loading or has failed.
+  if (paymentsLoading || obligationsLoading) return <DashboardSkeleton />;
+  if (paymentsError || obligationsError) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+        <AlertCircle className="h-10 w-10 text-destructive" />
+        <p className="text-sm text-destructive">{t("common.error")}</p>
+        <Button variant="outline" onClick={() => { void refetchPayments(); void refetchObligations(); }}>
+          {t("common.retry")}
+        </Button>
       </div>
     );
   }
@@ -1040,13 +1063,13 @@ function MemberDetailContent() {
                   const lMeta = lifecycleConfig[lStatus] || lifecycleConfig.active;
                   return (
                     <Badge variant="outline" className={`text-xs capitalize ${lMeta.color}`}>
-                      {t(lMeta.labelKey as "members.lifecycleActive")}
+                      {t(`members.${lMeta.labelKey}` as "members.lifecycleActive")}
                     </Badge>
                   );
                 })()}
                 <StandingBadge standing={standing} size="sm" />
                 {member.is_proxy && (
-                  <Badge variant="outline" className="text-xs">{t("members.proxy")}</Badge>
+                  <Badge variant="outline" className="text-xs">{t("members.proxyMember")}</Badge>
                 )}
               </div>
               <div className="mt-3 flex flex-col gap-1.5 text-sm text-muted-foreground sm:flex-row sm:gap-4">
@@ -1210,7 +1233,7 @@ function MemberDetailContent() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">{t("contributions.type")}</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">{t("common.type")}</th>
                     {years.map((y) => (
                       <th key={y} className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{y}</th>
                     ))}
@@ -1221,16 +1244,23 @@ function MemberDetailContent() {
                     <tr key={typeName} className="border-b last:border-0">
                       <td className="px-4 py-2 text-xs font-medium">{typeName}</td>
                       {years.map((y) => {
-                        const obl = yearMap.get(y);
-                        if (!obl) return <td key={y} className="px-3 py-2 text-center text-muted-foreground">—</td>;
+                        const statuses = yearMap.get(y);
+                        if (!statuses) return <td key={y} className="px-3 py-2 text-center text-muted-foreground">—</td>;
+                        const status = statuses.every((value) => value === "waived") ? "waived"
+                          : statuses.every((value) => value === "paid" || value === "waived") ? "paid"
+                          : statuses.every((value) => value === "unpaid" || value === "waived") ? "unpaid" : "partial";
+                        const label = t(`members.yearStatus_${status}` as "members.yearStatus_paid");
                         return (
-                          <td key={y} className="px-3 py-2 text-center">
-                            {obl.status === "paid" ? (
-                              <CheckCircle2 className="h-4 w-4 text-emerald-500 mx-auto" />
-                            ) : obl.status === "partial" ? (
-                              <AlertTriangle className="h-4 w-4 text-yellow-500 mx-auto" />
+                          <td key={y} className="px-3 py-2 text-center" title={label}>
+                            <span className="sr-only">{label}</span>
+                            {status === "paid" ? (
+                              <CheckCircle2 aria-hidden="true" className="h-4 w-4 text-emerald-500 mx-auto" />
+                            ) : status === "waived" ? (
+                              <CheckCircle2 aria-hidden="true" className="h-4 w-4 text-sky-500 mx-auto" />
+                            ) : status === "partial" ? (
+                              <AlertTriangle aria-hidden="true" className="h-4 w-4 text-yellow-500 mx-auto" />
                             ) : (
-                              <XCircle className="h-4 w-4 text-red-500 mx-auto" />
+                              <XCircle aria-hidden="true" className="h-4 w-4 text-red-500 mx-auto" />
                             )}
                           </td>
                         );
@@ -1495,6 +1525,9 @@ function MemberDetailContent() {
             <Activity className="h-4 w-4 text-primary" />
             {ts("activityTimeline")}
           </CardTitle>
+          <Link className="text-xs text-primary hover:underline" href="/dashboard/contributions/history">
+            {t("contributions.history")}
+          </Link>
         </CardHeader>
         <CardContent className="p-0">
           {(() => {

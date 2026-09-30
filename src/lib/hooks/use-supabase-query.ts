@@ -224,6 +224,7 @@ export function useCreateContributionType() {
         queryClient.invalidateQueries({ queryKey: ["all-contribution-types", groupId] }),
         queryClient.invalidateQueries({ queryKey: ["obligations", groupId] }),
         queryClient.invalidateQueries({ queryKey: ["dashboard-stats", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["resource-counts", groupId] }),
       ]);
     },
   });

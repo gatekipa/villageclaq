@@ -1117,7 +1117,7 @@ export default function RecordPaymentPage() {
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0"
                 />
-                {selectedType && amount && Number(amount) !== Number(selectedType.amount) && (
+                {selectedType && !selectedObligation && amount && Number(amount) !== Number(selectedType.amount) && (
                   <p className="text-xs text-amber-600 dark:text-amber-400">
                     {t("contributions.amountDiffers", {
                       expected: formatAmount(Number(selectedType.amount), (selectedType.currency as string) || currency),

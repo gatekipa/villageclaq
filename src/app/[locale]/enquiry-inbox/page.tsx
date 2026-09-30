@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
+import { fetchAllRows } from "@/lib/fetch-all-rows";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,10 +28,12 @@ export default function EnquiryInbox() {
     const client = createClient();
     const { data: { user } } = await client.auth.getUser();
     if (!user) { setError(true); setLoading(false); return; }
-    const { data, error: readError } = await client
+    const { data, error: readError } = await fetchAllRows((from, to) => client
       .from("contact_enquiries")
-      .select("id,name,email,subject,message,status,reply,created_at")
-      .order("created_at", { ascending: false });
+      .select("id,name,email,subject,message,status,reply,created_at", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, to));
     setRows((data ?? []) as Enquiry[]);
     setError(Boolean(readError));
     setLoading(false);

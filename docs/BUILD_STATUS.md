@@ -38,6 +38,21 @@ Authorized local-capture record: [docs/evidence/M3_F3_DAYBREAK_CATALOG_V5_F23_FI
 
 **Integrated closeout Preview (before Jude's promotion approval):** `dpl_ELcPJNE7DB6XWsfjt6RK4BP5vkin` at `https://villageclaq-llvgk3hbk-gatekipas.vercel.app` is READY, target Preview, and Vercel metadata identifies application `b3e09ddbbfb7bf27beb07332cc23194c3acd191e`. It is protected by Vercel Authentication. An authenticated status probe returned `founderTestMode=true`, `bindingMatches=true`, `serviceCredentialVerified=true`, `externalDeliverySuppressed=true`, and `scheduledSideEffectsSuppressed=true`. The preview preceded the public promotion recorded above.
 
+**Founder observation repair candidate — 2026-09-30 (PREVIEW ONLY; Jude acceptance pending):** Application `9d2646451773e86e484ed408101948b2d09e0bed` on `codex/qualification-repair-247c8881`; immutable Preview `dpl_CRQMbjnQgH4rLPD1mfsxWxuaE8HF` at <https://villageclaq-5khzp6ikc-gatekipas.vercel.app> is READY and reports the exact Git SHA. The hosted status probe confirms isolated `nisipxbuvndobyxqqglf`, founder mode, service binding, external-delivery suppression and scheduler suppression. **No new migration**; the latest applicable isolated IDs remain `20260930035205`, `20260930035312`, `20260930114102`, `20260930114304`, `20260930114927`. Public `www`/apex remain on `dpl_EuxPRhYos2xTjJGT3QbSHeQeben4` (`b3e09ddbbfb7bf27beb07332cc23194c3acd191e`), with `dpl_2ERLa6H8yywAZCEDNXdhWc2EM3Kh` as web rollback. Riverside’s separate $4+$6 Morgan receipts and Alex’s $10 due-today obligation were read back and preserved. No public promotion or production cutover occurred. [Focused evidence and acceptance limits](evidence/QUALIFICATION_247C8881/founder-observation-20260930.md).
+
+| Existing ID / outcome | Current scoped disposition |
+|---|---|
+| FQ-09 | **PASS** for future original-day schedule generation; **HOLD** for five payment-linked/waived historical September 28 obligations requiring finance-owner audited reconciliation. |
+| FQ-10 | **PASS**; confirmed posting, precision and durable retry unchanged, with $4 and distinct $6 in the new QA fixture. |
+| FQ-11 | **PASS**; due-today $10 is outstanding, $0 overdue, and cards/lists share complete confirmed-payment retrieval. |
+| F3-06 / F3-07 / F3-08 / FA-03 | **FIXED/PASS in this founder-observation slice**: all setup prerequisites together, balance-aware payment, clear retry/separate receipt, posted-cash reporting, statement/year history and phone presentation. Whole-client release remains HOLD. |
+| SEC-07 | **FIXED in observed member flow**: title and offline status display, updated member count and consent contrast. |
+| G-008 / G-009 | **PASS for officer’s tested calculated-standing case**; broader offline proxy and standing lifecycle **DEFERRED**. |
+| Global onboarding / BF-1…BF-5 / paid access / production providers | Neutral copy **FIXED** where touched; broader country/type, currency policy and historical-money protections plus billing/provider outcomes **DEFERRED** in existing tracker. |
+| R-012 | **HOLD / quarantined**; no activation or historical cash rewrite. |
+
+**Independent verdict:** actual GPT-6 Sol performed the maximum three bounded rounds and ended **PASS, no remaining material blocker** for this financial/security delta. Astra HTTP 403 was not counted as a review. Focused tests 113/113, optimized build/TypeScript and changed-path ESLint (zero errors, six warnings) passed. The authenticated EN/FR workflows ran locally against isolated backend; the immutable Preview is Vercel Authentication protected, and a CSV binary download was not captured in the browser, as disclosed in the evidence.
+
 ### Fixed landing checklist
 
 | Item | Requirement | Status | Evidence / limit |

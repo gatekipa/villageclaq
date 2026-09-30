@@ -1,5 +1,5 @@
 "use client";
-import { formatAmount } from "@/lib/currencies";
+import { formatAmount, getCurrencyDef } from "@/lib/currencies";
 import { getMemberName } from "@/lib/get-member-name";
 import { formatDateWithGroupFormat } from "@/lib/format";
 import { notifyFromClient } from "@/lib/notify-client";
@@ -368,7 +368,8 @@ export default function RecordPaymentPage() {
         groupId: groupId!,
         membershipId,
         contributionTypeId: typeId,
-        amount: payAmount,
+        // Exact typed decimal string (not the float) is the accounting amount.
+        amount: amount.trim(),
         currency,
         accountCurrency: targetAccount?.currency,
         paymentMethod: payMethod,
@@ -1165,7 +1166,7 @@ export default function RecordPaymentPage() {
 
             {/* Error display — always translated, never raw DB text */}
             {recordAndPostDues.isError && (
-              <p className="text-sm text-destructive">
+              <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
                 {recordAndPostDues.error?.message === "ACCOUNT_REQUIRED"
                   ? t("contributions.duesPosting.accountRequired")
                   : recordAndPostDues.error?.message === "ACCOUNT_NOT_FOUND_OR_INACTIVE"
@@ -1176,7 +1177,30 @@ export default function RecordPaymentPage() {
                   ? t("contributions.concurrentConflict")
                   : recordAndPostDues.error?.message === "RECEIPT_VOUCHER_CONFLICT"
                   ? t("contributions.receiptVoucherConflict")
-                  : t("contributions.recordFailed")}
+                  : recordAndPostDues.error?.message === "AMOUNT_PRECISION"
+                  ? t("contributions.duesPosting.errors.amountPrecision", {
+                      currency,
+                      decimals: getCurrencyDef(currency)?.decimals ?? 2,
+                    })
+                  : recordAndPostDues.error?.message === "AMOUNT_NOT_POSITIVE"
+                  ? t("contributions.duesPosting.errors.amountNotPositive")
+                  : recordAndPostDues.error?.message === "INVALID_DUES_INTENT"
+                  ? t("contributions.duesPosting.errors.invalidIntent")
+                  : recordAndPostDues.error?.message === "CONFLICT"
+                  ? t("contributions.duesPosting.errors.voucherReused")
+                  : recordAndPostDues.error?.message === "DENY"
+                  ? t("contributions.duesPosting.errors.deny")
+                  : recordAndPostDues.error?.message === "INCOME_CATEGORY_REQUIRED"
+                  ? t("contributions.duesPosting.errors.incomeCategorySetup")
+                  : recordAndPostDues.error?.message === "FUND_REQUIRED"
+                  ? t("contributions.duesPosting.errors.fundSetup")
+                  : t("contributions.duesPosting.errors.notRecorded")}
+                {(recordAndPostDues.error?.message === "INCOME_CATEGORY_REQUIRED" ||
+                  recordAndPostDues.error?.message === "FUND_REQUIRED") && (
+                  <Link href="/dashboard/finances/config" className="mt-1 block font-medium underline underline-offset-2">
+                    {t("financialConfig.title")}
+                  </Link>
+                )}
               </p>
             )}
 

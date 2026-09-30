@@ -28,7 +28,13 @@ import {
 } from "lucide-react";
 import { ContributionsSubNav } from "@/components/contributions/sub-nav";
 import { useObligations, useGroupDuesPayments } from "@/lib/hooks/use-supabase-query";
-import { computeObligationStates, type MoneyObligation, type MoneyPayment } from "@/lib/money";
+import {
+  computeDuesStatusTotals,
+  computeObligationStates,
+  type MoneyObligation,
+  type MoneyPayment,
+} from "@/lib/money";
+import { groupTodayKey } from "@/lib/payment-reminder-eligibility";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import { exportCSV } from "@/lib/export";
@@ -52,6 +58,7 @@ interface UnpaidMember {
     amount: number;
     amountPaid: number;
     dueDate: string;
+    overdue: boolean;
   }[];
 }
 
@@ -71,6 +78,8 @@ export default function UnpaidReportPage() {
   const canWaive = hasPermission("contributions.manage");
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const currency = currentGroup?.currency || "XAF";
+  // FQ-11: same group calendar as the dashboard card, so both agree on overdue.
+  const today = groupTodayKey(currentGroup?.settings);
   const [sortBy, setSortBy] = useState<"amount" | "name">("amount");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sendingReminders, setSendingReminders] = useState(false);
@@ -104,6 +113,7 @@ export default function UnpaidReportPage() {
     const states = computeObligationStates(
       allObligations as unknown as MoneyObligation[],
       (duesPayments || []) as unknown as MoneyPayment[],
+      { today },
     );
     const memberMap = new Map<string, UnpaidMember>();
 
@@ -143,11 +153,12 @@ export default function UnpaidReportPage() {
         amount: c.expected,
         amountPaid: c.confirmedPaid,
         dueDate: obl.due_date || "",
+        overdue: c.isOverdue,
       });
     }
 
     return Array.from(memberMap.values());
-  }, [allObligations, duesPayments, locale, t]);
+  }, [allObligations, duesPayments, locale, t, today]);
 
   const sorted = useMemo(() => {
     return [...unpaidMembers].sort((a, b) =>
@@ -156,6 +167,15 @@ export default function UnpaidReportPage() {
   }, [unpaidMembers, sortBy]);
 
   const totalOutstanding = sorted.reduce((sum, m) => sum + m.totalOutstanding, 0);
+  // Same helper and inputs as the dashboard card (FQ-11).
+  const duesTotals = useMemo(
+    () => computeDuesStatusTotals(
+      (allObligations || []) as unknown as MoneyObligation[],
+      (duesPayments || []) as unknown as MoneyPayment[],
+      today,
+    ),
+    [allObligations, duesPayments, today],
+  );
 
   // Only members with accounts (userId) can receive in-app reminders —
   // proxy members have no account to notify.
@@ -313,7 +333,12 @@ export default function UnpaidReportPage() {
             <Card>
               <CardContent className="py-4">
                 <p className="text-xs text-muted-foreground">{t("contributions.totalOutstanding")}</p>
-                <p className="text-2xl font-bold text-destructive">{formatAmount(totalOutstanding, currency)}</p>
+                <p className={`text-2xl font-bold ${duesTotals.overdue.amount > 0 ? "text-destructive" : ""}`}>{formatAmount(totalOutstanding, currency)}</p>
+                <p className={`mt-1 text-xs ${duesTotals.overdue.amount > 0 ? "font-medium text-destructive" : "text-muted-foreground"}`}>
+                  {duesTotals.overdue.amount > 0
+                    ? t("dashboard.overdueAmount", { amount: formatAmount(duesTotals.overdue.amount, currency) })
+                    : t("dashboard.nothingOverdueYet")}
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -388,7 +413,14 @@ export default function UnpaidReportPage() {
                         {member.obligations.map((obl) => (
                           <div key={obl.id} className="flex items-center justify-between gap-3 rounded-lg bg-background p-3 text-sm">
                             <div>
-                              <p className="font-medium">{obl.type}</p>
+                              <p className="font-medium">
+                                {obl.type}
+                                {obl.overdue && (
+                                  <span className="ml-2 inline-flex rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
+                                    {t("common.overdue")}
+                                  </span>
+                                )}
+                              </p>
                               <p className="text-xs text-muted-foreground">
                                 {obl.period}
                                 {obl.dueDate && ` \u2022 ${t("contributions.due")}: ${formatDateWithGroupFormat(obl.dueDate, groupDateFormat, locale)}`}

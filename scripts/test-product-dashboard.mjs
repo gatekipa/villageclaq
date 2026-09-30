@@ -107,14 +107,27 @@ test("misleading stat sublabels are replaced with honest ones", () => {
   assert.match(page, /t\("dashboard\.upcomingEventsLabel"\)/);
 });
 
-test("outstanding balance card goes neutral + positive when nothing is owed", () => {
-  assert.match(page, /outstanding > 0 && "border border-destructive\/30/);
-  assert.match(page, /outstanding > 0 \? "text-destructive" : "text-foreground"/);
-  // Admin path still flips overdue → all-caught-up by the outstanding figure
-  // (Sprint C wraps it in a member-aware branch, so allow whitespace/newlines).
-  assert.match(page, /outstanding > 0\s*\?\s*t\("dashboard\.overdue"\)\s*:\s*t\("dashboard\.allCaughtUp"\)/);
-  // The alert icon only shows when there is something to alert about.
-  assert.match(page, /\{outstanding > 0 \? \(\s*<AlertCircle/);
+test("outstanding balance card is due-date aware: red only when something is overdue (FQ-11)", () => {
+  // FQ-11 repair (2026-09-30): the card used to turn red and say "overdue" for
+  // any outstanding balance, including obligations not yet due. Overdue now
+  // comes from the group-calendar figure (stats.overdue); outstanding stays the
+  // headline amount.
+  assert.match(page, /const overdue = stats\?\.overdue \?\? 0;/);
+  assert.match(page, /overdue > 0 && "border border-destructive\/30/);
+  assert.match(page, /overdue > 0 \? "text-destructive" : "text-foreground"/);
+  assert.doesNotMatch(page, /outstanding > 0 && "border border-destructive/);
+  // Admin caption: amount overdue → nothing overdue yet → all caught up
+  // (member-aware branch first, so allow whitespace/newlines).
+  assert.match(
+    page,
+    /overdue > 0\s*\?\s*t\("dashboard\.overdueAmount", \{ amount: formatCurrency\(overdue\) \}\)\s*:\s*outstanding > 0\s*\?\s*t\("dashboard\.nothingOverdueYet"\)\s*:\s*t\("dashboard\.allCaughtUp"\)/,
+  );
+  // The alert icon only shows when something is overdue.
+  assert.match(page, /\{overdue > 0 \? \(\s*<AlertCircle/);
+  for (const key of ["dashboard.overdueAmount", "dashboard.nothingOverdueYet"]) {
+    assert.equal(typeof dig(en, key), "string", `en ${key}`);
+    assert.equal(typeof dig(fr, key), "string", `fr ${key}`);
+  }
 });
 
 test("outstanding card is member-aware (Sprint C): members see a group-wide label and a link to their own balance", () => {

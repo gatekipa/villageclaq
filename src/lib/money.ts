@@ -409,6 +409,59 @@ export function computeMoneyFigures(
   };
 }
 
+// ── Dues status for the dashboard card and its unpaid drill-down (FQ-11) ─────
+
+export interface DuesStatusTotals {
+  /** Σ confirmed remaining on open, non-waived obligations, whatever their due date. */
+  outstanding: number;
+  /** The part of `outstanding` whose due date is before `today`. */
+  overdue: { amount: number; memberCount: number };
+  /** The part of `outstanding` due exactly on `today` (not yet overdue). */
+  dueToday: number;
+  /** Distinct members with an open obligation. */
+  membersOwing: number;
+}
+
+/**
+ * Outstanding vs overdue on the per-obligation confirmed basis (Build 12
+ * computeObligationStates). The dashboard card and the unpaid drill-down both
+ * use this, so their totals agree; overdue only counts obligations whose due
+ * date is strictly before `today` (pass groupTodayKey from
+ * payment-reminder-eligibility for the group's calendar).
+ */
+export function computeDuesStatusTotals(
+  obligations: MoneyObligation[],
+  payments: MoneyPayment[],
+  today: string,
+): DuesStatusTotals {
+  const states = computeObligationStates(obligations, payments, { today });
+  let outstanding = 0;
+  let overdueAmount = 0;
+  let dueToday = 0;
+  const owing = new Set<string>();
+  const overdueMembers = new Set<string>();
+  for (const o of obligations) {
+    if (o.status === "waived") continue;
+    const c = states.get(o.id);
+    if (!c || !c.isOpen) continue;
+    const memberKey = o.membership_id || o.id;
+    outstanding += c.remaining;
+    owing.add(memberKey);
+    if (c.isOverdue) {
+      overdueAmount += c.remaining;
+      overdueMembers.add(memberKey);
+    } else if (o.due_date && dateKey(o.due_date) === today) {
+      dueToday += c.remaining;
+    }
+  }
+  return {
+    outstanding,
+    overdue: { amount: overdueAmount, memberCount: overdueMembers.size },
+    dueToday,
+    membersOwing: owing.size,
+  };
+}
+
 // ── Per-object (single contribution type) report participation ───────────────
 
 export type ParticipationStatus =

@@ -14,7 +14,6 @@ import {
   Loader2,
   Send,
   CheckCircle2,
-  Mail,
   Phone,
   MapPin,
   Clock,
@@ -65,7 +64,8 @@ export default function ContactPage() {
         });
 
       if (dbError) {
-        setError(dbError.message);
+        console.warn("[Contact] enquiry insert failed:", dbError);
+        setError(t("error"));
       } else {
         setIsSuccess(true);
       }
@@ -196,14 +196,6 @@ export default function ContactPage() {
                 </h3>
 
                 <div className="space-y-4">
-                  <a
-                    href={`mailto:${t("emailAddress")}`}
-                    className="flex items-start gap-3 text-sm text-foreground hover:text-emerald-600 dark:hover:text-emerald-400"
-                  >
-                    <Mail className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                    <span>{t("emailAddress")}</span>
-                  </a>
-
                   <a
                     href={`tel:${t("phone")}`}
                     className="flex items-start gap-3 text-sm text-foreground hover:text-emerald-600 dark:hover:text-emerald-400"

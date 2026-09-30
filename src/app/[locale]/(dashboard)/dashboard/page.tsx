@@ -298,6 +298,8 @@ export default function DashboardPage() {
     (!payments || payments.length === 0);
 
   const outstanding = stats?.outstanding ?? 0;
+  // FQ-11: only obligations past their due date (group calendar) are overdue.
+  const overdue = stats?.overdue ?? 0;
 
   return (
     <div className="space-y-8">
@@ -478,26 +480,30 @@ export default function DashboardPage() {
           href={isAdmin ? "/dashboard/contributions/unpaid" : "/dashboard/my-payments"}
           aria-label={isAdmin ? t("dashboard.viewOutstandingCard") : t("dashboard.viewMyPaymentsCard")}
         >
-          <Card className={cn("cursor-pointer transition-all hover:shadow-md hover:border-primary/30", outstanding > 0 && "border border-destructive/30 bg-red-50/50 dark:bg-red-950/20 hover:border-destructive/50")}>
+          <Card className={cn("cursor-pointer transition-all hover:shadow-md hover:border-primary/30", overdue > 0 && "border border-destructive/30 bg-red-50/50 dark:bg-red-950/20 hover:border-destructive/50")}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-base font-medium text-muted-foreground">
                 {isAdmin ? t("dashboard.outstandingBalance") : t("dashboard.groupOutstandingBalance")}
               </CardTitle>
-              {outstanding > 0 ? (
+              {overdue > 0 ? (
                 <AlertCircle className="h-5 w-5 text-destructive" />
+              ) : outstanding > 0 ? (
+                <Clock className="h-5 w-5 text-muted-foreground" />
               ) : (
                 <CheckCircle2 className="h-5 w-5 text-primary" />
               )}
             </CardHeader>
             <CardContent>
-              <div className={cn("text-4xl font-bold", outstanding > 0 ? "text-destructive" : "text-foreground")}>
+              <div className={cn("text-4xl font-bold", overdue > 0 ? "text-destructive" : "text-foreground")}>
                 {formatCurrency(outstanding)}
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className={cn("mt-1 text-sm", overdue > 0 && isAdmin ? "font-medium text-destructive" : "text-muted-foreground")}>
                 {!isAdmin
                   ? t("dashboard.groupWideViewMine")
+                  : overdue > 0
+                  ? t("dashboard.overdueAmount", { amount: formatCurrency(overdue) })
                   : outstanding > 0
-                  ? t("dashboard.overdue")
+                  ? t("dashboard.nothingOverdueYet")
                   : t("dashboard.allCaughtUp")}
               </p>
             </CardContent>

@@ -739,7 +739,9 @@
     "writeMinutes": "Write minutes",
     "viewMyPaymentsCard": "View your balance",
     "groupOutstandingBalance": "Group outstanding balance",
-    "groupWideViewMine": "Group-wide total — view your balance"
+    "groupWideViewMine": "Group-wide total — view your balance",
+    "overdueAmount": "{amount} overdue",
+    "nothingOverdueYet": "Nothing overdue yet"
   },
   "groups": {
     "switchGroup": "Switch Group",
@@ -1701,8 +1703,16 @@
         "accountKindInvalid": "The selected custody account must be a cash or bank custody account.",
         "crossGroupDimension": "Financial dimensions (account, fund, or category) must belong to the active group.",
         "incomeCategoryRequired": "An active income category is required to post contribution receipts.",
+        "incomeCategorySetup": "Payments can't be posted until this group has an active income category. Add one in Finances → Financial Configuration → Categories, then retry. Your receipt voucher is kept, so the same payment is retried without a duplicate.",
+        "fundSetup": "Payments can't be posted until this group has an active default fund that is not a restricted reserve. Add one in Finances → Financial Configuration → Funds and mark it as the default fund, then retry. Your receipt voucher is kept, so the same payment is retried without a duplicate.",
         "noActiveEpoch": "No open financial ledger epoch was found for this group.",
-        "postingFailed": "Failed to post dues payment to the financial ledger."
+        "postingFailed": "Failed to post dues payment to the financial ledger.",
+        "amountPrecision": "{decimals, plural, =0 {{currency} amounts must be whole numbers — remove the decimals} one {{currency} amounts can have at most # decimal place} other {{currency} amounts can have at most # decimal places}}. Nothing was recorded.",
+        "amountNotPositive": "Enter an amount greater than zero. Nothing was recorded.",
+        "invalidIntent": "These payment details were not accepted. Check the amount, method and account, then record again. Nothing was posted.",
+        "voucherReused": "This receipt voucher was already used with different details. Restore the original details to retry that payment, or generate a new voucher for a separate payment.",
+        "deny": "You no longer have permission to record payments in this group. Nothing was posted.",
+        "notRecorded": "The payment was not recorded and nothing was posted. Your receipt voucher is kept, so Record Payment retries the same payment without creating a duplicate. You can also open “Review recent recording attempts” above."
       }
     }
   },
@@ -5642,7 +5652,6 @@
     "send": "Send Message",
     "success": "Message sent! We'll get back to you as soon as we can.",
     "directContact": "Or reach us directly",
-    "emailAddress": "support@villageclaq.com",
     "phone": "+1 301-433-5857",
     "phonePlaceholder": "Phone (optional)",
     "subjectGeneral": "General Inquiry",

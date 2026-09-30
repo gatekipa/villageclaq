@@ -76,6 +76,18 @@ export function localCalendarDate(at: Date, timezone: string): string {
   return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
+/**
+ * Today's calendar date in the group's configured timezone — the basis for
+ * "before due / due today / after due" (settings.payment_reminders.timezone,
+ * default UTC). The dues dashboard card and unpaid drill-down use it too.
+ */
+export function groupTodayKey(
+  groupSettings: Record<string, unknown> | null | undefined,
+  now: Date = new Date(),
+): string {
+  return localCalendarDate(now, paymentReminderSettingsFromGroup(groupSettings).timezone);
+}
+
 export function evaluatePaymentReminderEligibility(
   input: PaymentReminderEligibilityInput,
   settings: PaymentReminderSettings,

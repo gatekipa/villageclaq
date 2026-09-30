@@ -1,8 +1,11 @@
 "use client";
 
+import { useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
+import { getCurrencyDef } from "@/lib/currencies";
+import { checkExactAmount } from "@/lib/exact-amount";
 
 // ─── TYPES & INTERFACES ───────────────────────────────────────────────────────
 
@@ -85,12 +88,14 @@ export function parseDuesPostingRpcError(error: unknown): Error {
   if (rawMessage.includes("CURRENCY_MISMATCH")) return new Error("CURRENCY_MISMATCH");
   if (rawMessage.includes("AMOUNT_PRECISION")) return new Error("AMOUNT_PRECISION");
   if (rawMessage.includes("INCOME_CATEGORY_REQUIRED")) return new Error("INCOME_CATEGORY_REQUIRED");
+  if (rawMessage.includes("FUND_REQUIRED_OR_INVALID")) return new Error("FUND_REQUIRED");
   if (rawMessage.includes("EPOCH_NOT_FOUND") || rawMessage.includes("NO_ACTIVE_EPOCH")) return new Error("NO_ACTIVE_EPOCH");
   if (rawMessage.includes("ACCOUNT_REQUIRED")) return new Error("ACCOUNT_REQUIRED");
   if (rawMessage.includes("AMOUNT_NOT_POSITIVE")) return new Error("AMOUNT_NOT_POSITIVE");
   if (rawMessage.includes("INVALID_AMOUNT")) return new Error("INVALID_AMOUNT");
+  if (rawMessage.includes("INVALID_DUES_INTENT")) return new Error("INVALID_DUES_INTENT");
   if (rawMessage.includes("OCCURRENCE_INTEGRITY")) return new Error("RECEIPT_VOUCHER_CONFLICT");
-  if (rawMessage.includes("DENY") || rawMessage.includes("42501")) return new Error("DENY");
+  if (rawMessage.includes("DENY") || rawMessage.includes("42501") || rawMessage.includes("ACTIVE_FINANCES_MANAGE_REQUIRED")) return new Error("DENY");
   if (rawMessage.includes("CONFLICT") || rawMessage.includes("REQUEST_ID_REUSED")) return new Error("CONFLICT");
   if (rawMessage.includes("staleTenantAborted")) return new Error("staleTenantAborted");
 
@@ -179,6 +184,10 @@ export function useConfirmDuesPayment() {
 export function useRecordAndPostDuesPayment() {
   const queryClient = useQueryClient();
   const { groupId: currentGroupId } = useGroup();
+  // Retrying a receipt voucher must resend the identical command, or
+  // prepare_dues_record_intent rejects it as CONFLICT. Keep the timestamp
+  // first chosen for each voucher; the payment date still comes from input.
+  const recordedAtByRequest = useRef(new Map<string, string>());
 
   return useMutation<RecordAndPostDuesPaymentResult, Error, RecordAndPostDuesPaymentInput>({
     mutationFn: async (input: RecordAndPostDuesPaymentInput) => {
@@ -195,10 +204,11 @@ export function useRecordAndPostDuesPayment() {
         throw new Error("CURRENCY_MISMATCH");
       }
 
-      const exactAmount = String(input.amount);
-      if (!/^\d+(?:\.\d{1,2})?$/.test(exactAmount) || /^0+(?:\.0{1,2})?$/.test(exactAmount)) {
-        throw new Error("AMOUNT_NOT_POSITIVE");
-      }
+      // Exact decimal string, never a JS float; digits beyond the currency's
+      // precision are rejected before any request identity is used.
+      const exactAmount = String(input.amount).trim();
+      const amountCheck = checkExactAmount(exactAmount, getCurrencyDef(input.currency)?.decimals ?? 2);
+      if (amountCheck !== "OK") throw new Error(amountCheck);
 
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -207,6 +217,8 @@ export function useRecordAndPostDuesPayment() {
       }
 
       const requestId = input.requestId || crypto.randomUUID();
+      const firstRecordedAt = recordedAtByRequest.current.get(requestId) ?? new Date().toISOString();
+      recordedAtByRequest.current.set(requestId, firstRecordedAt);
       const command = {
         request_id: requestId,
         group_id: input.groupId,
@@ -220,8 +232,8 @@ export function useRecordAndPostDuesPayment() {
         receipt_url: input.receiptUrl || null,
         notes: input.notes || null,
         recorded_at: input.paymentDate
-          ? `${input.paymentDate}T${new Date().toISOString().split("T")[1]}`
-          : new Date().toISOString(),
+          ? `${input.paymentDate}T${firstRecordedAt.split("T")[1]}`
+          : firstRecordedAt,
         cash_class: input.cashClass || "non_refundable",
         account_id: input.accountId,
         category_id: input.categoryId || null,

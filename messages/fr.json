@@ -739,7 +739,9 @@
     "writeMinutes": "Rédiger le compte rendu",
     "viewMyPaymentsCard": "Voir votre solde",
     "groupOutstandingBalance": "Solde impayé du groupe",
-    "groupWideViewMine": "Total du groupe — voir votre solde"
+    "groupWideViewMine": "Total du groupe — voir votre solde",
+    "overdueAmount": "{amount} en retard",
+    "nothingOverdueYet": "Rien en retard pour l’instant"
   },
   "groups": {
     "switchGroup": "Changer de groupe",
@@ -1701,8 +1703,16 @@
         "accountKindInvalid": "Le compte de garde sélectionné doit être un compte bancaire ou une caisse de trésorerie.",
         "crossGroupDimension": "Les dimensions financières (compte, fonds ou catégorie) doivent appartenir au groupe actif.",
         "incomeCategoryRequired": "Une catégorie de revenu active est requise pour enregistrer les cotisations.",
+        "incomeCategorySetup": "Les paiements ne peuvent pas être comptabilisés tant que ce groupe n’a pas de catégorie de revenu active. Ajoutez-en une dans Finances → Configuration financière → Catégories, puis réessayez. Votre identifiant de reçu est conservé : le même paiement est relancé sans doublon.",
+        "fundSetup": "Les paiements ne peuvent pas être comptabilisés tant que ce groupe n’a pas de fonds par défaut actif qui ne soit pas une réserve restreinte. Ajoutez-en un dans Finances → Configuration financière → Fonds et définissez-le comme fonds par défaut, puis réessayez. Votre identifiant de reçu est conservé : le même paiement est relancé sans doublon.",
         "noActiveEpoch": "Aucune période comptable ouverte n'a été trouvée pour ce groupe.",
-        "postingFailed": "Échec de l'enregistrement du paiement de cotisation dans le grand livre financier."
+        "postingFailed": "Échec de l'enregistrement du paiement de cotisation dans le grand livre financier.",
+        "amountPrecision": "{decimals, plural, =0 {Les montants en {currency} doivent être des nombres entiers — retirez les décimales} one {Les montants en {currency} acceptent au plus # décimale} other {Les montants en {currency} acceptent au plus # décimales}}. Rien n’a été enregistré.",
+        "amountNotPositive": "Saisissez un montant supérieur à zéro. Rien n’a été enregistré.",
+        "invalidIntent": "Ces détails de paiement n’ont pas été acceptés. Vérifiez le montant, le mode et le compte, puis enregistrez à nouveau. Rien n’a été comptabilisé.",
+        "voucherReused": "Cet identifiant de reçu a déjà été utilisé avec d’autres détails. Rétablissez les détails d’origine pour relancer ce paiement, ou générez un nouvel identifiant pour un paiement distinct.",
+        "deny": "Vous n’avez plus l’autorisation d’enregistrer des paiements dans ce groupe. Rien n’a été comptabilisé.",
+        "notRecorded": "Le paiement n’a pas été enregistré et rien n’a été comptabilisé. Votre identifiant de reçu est conservé : Enregistrer un paiement relance le même paiement sans créer de doublon. Vous pouvez aussi ouvrir « Examiner les tentatives récentes » ci-dessus."
       }
     }
   },
@@ -5642,7 +5652,6 @@
     "send": "Envoyer le message",
     "success": "Message envoyé ! Nous vous répondrons dès que possible.",
     "directContact": "Ou contactez-nous directement",
-    "emailAddress": "support@villageclaq.com",
     "phone": "+1 301-433-5857",
     "phonePlaceholder": "Téléphone (optionnel)",
     "subjectGeneral": "Demande générale",

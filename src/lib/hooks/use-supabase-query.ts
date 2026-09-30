@@ -3,16 +3,29 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
-import { computeMoneyFigures } from "@/lib/money";
+import {
+  computeDuesStatusTotals,
+  computeMoneyFigures,
+  type MoneyObligation,
+  type MoneyPayment,
+} from "@/lib/money";
+import { groupTodayKey } from "@/lib/payment-reminder-eligibility";
 
 const supabase = createClient();
+
+/** Confirmed-basis dues payment columns; shared by the dashboard and the unpaid list. */
+const DUES_PAYMENT_BASIS_SELECT =
+  "id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at";
 
 // ─── Dashboard Stats ───────────────────────────────────────────────────────
 
 export function useDashboardStats() {
-  const { groupId } = useGroup();
+  const { groupId, currentGroup } = useGroup();
+  // FQ-11: "overdue" follows the group's calendar (reminder timezone), and the
+  // date is part of the key so the card re-evaluates when the group's day turns.
+  const today = groupTodayKey(currentGroup?.settings);
   return useQuery({
-    queryKey: ["dashboard-stats", groupId],
+    queryKey: ["dashboard-stats", groupId, today],
     // WS4 (Build 9): cut refetch churn on tab switch / remount for low-bandwidth
     // admins. Mutations still invalidate this key, so a write is reflected
     // immediately; only idle re-renders within 5 min reuse the cache.
@@ -23,20 +36,29 @@ export function useDashboardStats() {
       const [membersRes, eventsRes, obligationsRes, paymentsRes] = await Promise.all([
         supabase.from("memberships").select("id", { count: "exact", head: true }).eq("group_id", groupId),
         supabase.from("events").select("id", { count: "exact", head: true }).eq("group_id", groupId).gte("starts_at", new Date().toISOString()),
-        supabase.from("contribution_obligations").select("id, amount, amount_paid, status, due_date, membership_id").eq("group_id", groupId),
-        // Pull status + obligation link so collected is CONFIRMED-only (never
-        // pending/rejected) and outstanding excludes waived — via money.ts, the
-        // single accounting basis shared with the reports and overview.
-        supabase.from("payments").select("amount, status, obligation_id, relief_plan_id").eq("group_id", groupId).is("relief_plan_id", null),
+        // Same rows as the unpaid drill-down (useObligations inner-joins the
+        // contribution type and membership), so both totals agree.
+        supabase
+          .from("contribution_obligations")
+          .select("id, amount, status, due_date, membership_id, contribution_type_id, contribution_type:contribution_types!inner(id), membership:memberships!inner(id)")
+          .eq("group_id", groupId),
+        // Uncapped confirmed basis, identical to useGroupDuesPayments.
+        supabase.from("payments").select(DUES_PAYMENT_BASIS_SELECT).eq("group_id", groupId).is("relief_plan_id", null),
       ]);
 
-      const figures = computeMoneyFigures(obligationsRes.data || [], paymentsRes.data || []);
+      const obligations = (obligationsRes.data || []) as unknown as MoneyObligation[];
+      const payments = (paymentsRes.data || []) as unknown as MoneyPayment[];
+      const figures = computeMoneyFigures(obligations, payments, { today });
+      const dues = computeDuesStatusTotals(obligations, payments, today);
 
       return {
         totalMembers: membersRes.count || 0,
         upcomingEvents: eventsRes.count || 0,
         collectionRate: figures.expected > 0 ? Math.round((figures.collected / figures.expected) * 100) : 0,
-        outstanding: figures.outstanding,
+        outstanding: dues.outstanding,
+        overdue: dues.overdue.amount,
+        overdueMembers: dues.overdue.memberCount,
+        dueToday: dues.dueToday,
         totalCollected: figures.collected,
       };
     },
@@ -267,7 +289,7 @@ export function useGroupDuesPayments() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("payments")
-        .select("id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at")
+        .select(DUES_PAYMENT_BASIS_SELECT)
         .eq("group_id", groupId)
         .is("relief_plan_id", null) // dues only — relief never covers dues obligations
         .order("recorded_at", { ascending: false });

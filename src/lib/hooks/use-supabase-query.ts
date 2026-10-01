@@ -9,7 +9,7 @@ import {
   type MoneyObligation,
   type MoneyPayment,
 } from "@/lib/money";
-import { groupTodayKey } from "@/lib/payment-reminder-eligibility";
+import { groupTodayKey, msUntilNextGroupCalendarDay } from "@/lib/payment-reminder-eligibility";
 import { fetchAllRows } from "@/lib/fetch-all-rows";
 
 const supabase = createClient();
@@ -82,13 +82,14 @@ export function useDashboardStats() {
 // ─── Members ───────────────────────────────────────────────────────────────
 
 export function useMembers() {
-  const { groupId } = useGroup();
+  const { groupId, currentGroup } = useGroup();
   return useQuery({
     queryKey: ["members", groupId],
     // WS3 (B11): reuse roster across tab switches on low-bandwidth links.
     // useRecordPayment + member mutations invalidate ["members", groupId], so
     // standing-badge writes still refetch immediately; only idle remounts cache.
     staleTime: 0, // standing can cross a group-calendar boundary without a write
+    refetchInterval: () => msUntilNextGroupCalendarDay(currentGroup?.settings),
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -127,13 +128,14 @@ export function useMembers() {
 }
 
 export function useMember(membershipId: string | null) {
-  const { groupId } = useGroup();
+  const { groupId, currentGroup } = useGroup();
   return useQuery({
     // groupId included to make cross-group cache isolation foolproof (membershipId
     // is already a globally-unique PK; this is belt-and-suspenders). Prefix-matched
     // invalidations like ["member", id] from useRecordPayment still apply. WS3 (B11).
     queryKey: ["member", membershipId, groupId],
     staleTime: 0,
+    refetchInterval: () => msUntilNextGroupCalendarDay(currentGroup?.settings),
     queryFn: async () => {
       if (!membershipId) return null;
       const { data, error } = await supabase

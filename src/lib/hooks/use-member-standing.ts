@@ -3,6 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { calculateStanding, type StandingResult } from "@/lib/calculate-standing";
 import { createClient } from "@/lib/supabase/client";
+import { useGroup } from "@/lib/group-context";
+import { msUntilNextGroupCalendarDay } from "@/lib/payment-reminder-eligibility";
 
 async function liveStandingResult(membershipId: string, result: StandingResult): Promise<StandingResult> {
   const { data, error } = await createClient().rpc("effective_member_standing", {
@@ -29,6 +31,7 @@ export function useMemberStanding(
   groupId: string | null,
   currency?: string,
 ) {
+  const { currentGroup } = useGroup();
   return useQuery<StandingResult | null>({
     queryKey: ["member-standing", membershipId, groupId, currency],
     queryFn: async () => {
@@ -40,6 +43,7 @@ export function useMemberStanding(
       return liveStandingResult(membershipId, result);
     },
     staleTime: 0,
+    refetchInterval: () => msUntilNextGroupCalendarDay(currentGroup?.settings),
     enabled: !!membershipId && !!groupId,
   });
 }
@@ -56,6 +60,7 @@ export function useMemberStandingDetailed(
   groupId: string | null,
   currency?: string,
 ) {
+  const { currentGroup } = useGroup();
   return useQuery<StandingResult | null>({
     queryKey: ["member-standing-detailed", membershipId, groupId, currency],
     queryFn: async () => {
@@ -67,6 +72,7 @@ export function useMemberStandingDetailed(
       return liveStandingResult(membershipId, result);
     },
     staleTime: 0,
+    refetchInterval: () => msUntilNextGroupCalendarDay(currentGroup?.settings),
     enabled: !!membershipId && !!groupId,
   });
 }

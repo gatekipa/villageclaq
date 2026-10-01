@@ -12,8 +12,24 @@ new Function("exports", "module", compiled)(loaded.exports, loaded);
 const {
   evaluatePaymentReminderEligibility,
   localCalendarDate,
+  msUntilNextGroupCalendarDay,
   paymentReminderSettingsFromGroup,
 } = loaded.exports;
+
+test("standing refresh reaches the next group-local day across midnight and DST", () => {
+  const settings = { payment_reminders: { timezone: "America/New_York" } };
+  for (const [instant, expectedDay] of [
+    ["2026-10-03T03:59:59.500Z", "2026-10-03"],
+    ["2026-03-08T12:00:00Z", "2026-03-09"],
+    ["2026-11-01T12:00:00Z", "2026-11-02"],
+  ]) {
+    const at = new Date(instant);
+    const delay = msUntilNextGroupCalendarDay(settings, at);
+    assert.ok(delay > 0 && delay < 48 * 60 * 60 * 1000);
+    assert.equal(localCalendarDate(new Date(at.getTime() + delay), "America/New_York"), expectedDay);
+    assert.notEqual(localCalendarDate(new Date(at.getTime() + delay - 3000), "America/New_York"), expectedDay);
+  }
+});
 
 const base = {
   dueDate: "2026-09-30",

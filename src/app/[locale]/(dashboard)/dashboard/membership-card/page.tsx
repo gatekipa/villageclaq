@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Download, Share2, Calendar, Shield, Loader2 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
+import { msUntilNextGroupCalendarDay } from "@/lib/payment-reminder-eligibility";
 // WS4 (B11): html2canvas (~80KB) is loaded lazily inside the Download/Share
 // handlers, not at module load — most members never click those, so it stays
 // off the first-paint critical path on low-end phones / slow links.
@@ -89,6 +90,7 @@ export default function MembershipCardPage() {
     },
     enabled: !!cardMembershipId,
     staleTime: 0,
+    refetchInterval: () => msUntilNextGroupCalendarDay(currentGroup?.settings),
   });
 
   const [side, setSide] = useState<"front" | "back">("front");

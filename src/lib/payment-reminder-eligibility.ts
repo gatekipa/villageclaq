@@ -88,6 +88,22 @@ export function groupTodayKey(
   return localCalendarDate(now, paymentReminderSettingsFromGroup(groupSettings).timezone);
 }
 
+/** Refetch calendar-sensitive standing once the group's next local day begins. */
+export function msUntilNextGroupCalendarDay(
+  groupSettings: Record<string, unknown> | null | undefined,
+  now: Date = new Date(),
+): number {
+  const currentDay = groupTodayKey(groupSettings, now);
+  let before = now.getTime();
+  let after = before + 48 * 60 * 60 * 1000; // includes DST's long day
+  while (after - before > 1000) {
+    const middle = Math.floor((before + after) / 2);
+    if (groupTodayKey(groupSettings, new Date(middle)) === currentDay) before = middle;
+    else after = middle;
+  }
+  return Math.max(1000, after - now.getTime() + 1000);
+}
+
 export function evaluatePaymentReminderEligibility(
   input: PaymentReminderEligibilityInput,
   settings: PaymentReminderSettings,

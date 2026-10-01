@@ -16,7 +16,7 @@ const supabase = createClient();
 
 /** Confirmed-basis dues payment columns; shared by the dashboard and the unpaid list. */
 const DUES_PAYMENT_BASIS_SELECT =
-  "id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at";
+  "id, amount, status, settlement_status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at";
 
 // ─── Dashboard Stats ───────────────────────────────────────────────────────
 
@@ -264,33 +264,34 @@ export function useObligations(filters?: { status?: string; membershipId?: strin
 
 // ─── Payments ──────────────────────────────────────────────────────────────
 
-export function usePayments(limit: number | "all" = 50) {
+export function usePayments(limit: number | "all" = 50, membershipId?: string | null) {
   const { groupId } = useGroup();
   return useQuery({
-    queryKey: ["payments", groupId, limit],
+    queryKey: ["payments", groupId, limit, membershipId || "all-members"],
     staleTime: 5 * 60 * 1000, // WS4: reuse cache on tab switch; invalidated on record/confirm
     queryFn: async () => {
       if (!groupId) return [];
       const select = "*, membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)";
       if (limit === "all") {
-        const { data, error } = await fetchAllRows((from, to) => supabase
-          .from("payments")
-          .select(select, { count: "exact" })
-          .eq("group_id", groupId)
-          .is("relief_plan_id", null)
-          .order("recorded_at", { ascending: false })
-          .order("id", { ascending: true })
-          .range(from, to));
+        const { data, error } = await fetchAllRows((from, to) => {
+          let query = supabase.from("payments")
+            .select(select, { count: "exact" })
+            .eq("group_id", groupId)
+            .is("relief_plan_id", null);
+          if (membershipId) query = query.eq("membership_id", membershipId);
+          return query.order("recorded_at", { ascending: false })
+            .order("id", { ascending: true }).range(from, to);
+        });
         if (error) throw error;
         return data;
       }
-      const { data, error } = await supabase
+      let query = supabase
         .from("payments")
         .select(select)
         .eq("group_id", groupId)
-        .is("relief_plan_id", null)
-        .order("recorded_at", { ascending: false })
-        .limit(limit);
+        .is("relief_plan_id", null);
+      if (membershipId) query = query.eq("membership_id", membershipId);
+      const { data, error } = await query.order("recorded_at", { ascending: false }).limit(limit);
       if (error) throw error;
       return data || [];
     },

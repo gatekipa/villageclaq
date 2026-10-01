@@ -25,7 +25,7 @@ import {
   confirmedPaidByMember,
   computeObligation,
   isPendingPayment,
-  isConfirmedPayment,
+  isCollectedDuesPayment,
   todayKey,
   num,
   type MoneyPayment,
@@ -159,7 +159,7 @@ export default function MyPaymentsPage() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("payments")
-        .select("id, amount, status, obligation_id, contribution_type_id, relief_plan_id, recorded_at, membership_id")
+        .select("id, amount, status, settlement_status, obligation_id, contribution_type_id, relief_plan_id, recorded_at, membership_id")
         .eq("membership_id", currentMembership!.id)
         .is("relief_plan_id", null)
         .order("recorded_at", { ascending: false });
@@ -212,7 +212,7 @@ export default function MyPaymentsPage() {
     const year = new Date().getFullYear().toString();
     return (myPaymentsFull || [])
       .filter((p: Record<string, unknown>) => {
-        if (!isConfirmedPayment(p.status as string)) return false;
+        if (!isCollectedDuesPayment(p as unknown as MoneyPayment)) return false;
         return (p.recorded_at as string)?.startsWith(year);
       })
       .reduce((sum: number, p: Record<string, unknown>) => sum + num(p.amount), 0);

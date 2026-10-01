@@ -1,9 +1,9 @@
 "use client";
 import { formatAmount } from "@/lib/currencies";
 import { getDateLocale } from "@/lib/date-utils";
-import { formatDateWithGroupFormat } from "@/lib/format";
 
 import { useState, useMemo, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,7 +54,11 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
-import { exportCSV } from "@/lib/export";
+import {
+  buildPaymentHistoryCsv, buildPaymentHistoryXlsx, buildPaymentHistoryPdf,
+  downloadPaymentHistory, paymentHistoryLongDate, paymentHistoryTotals,
+  type PaymentHistoryExportContext, type PaymentHistoryExportRow,
+} from "@/lib/payment-history-export";
 import { isConfirmedPayment, isPendingPayment, isRejectedPayment, num } from "@/lib/money";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -65,7 +69,7 @@ import { Check, X } from "lucide-react";
 // Status filter values for the payment history view. "all" is the default;
 // the others map 1:1 to a payment's status. A sibling page deep-links here
 // with ?status=pending_confirmation, so that value must be parseable.
-const STATUS_FILTERS = ["all", "pending_confirmation", "confirmed", "rejected"] as const;
+const STATUS_FILTERS = ["all", "pending_confirmation", "confirmed", "rejected", "adjusted"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 function isStatusFilter(value: string | null): value is StatusFilter {
   return value !== null && (STATUS_FILTERS as readonly string[]).includes(value);
@@ -107,7 +111,9 @@ export interface NormalizedPayment {
   financialEventId: string | null;
   financialAccountId: string | null;
   cashClass: "non_refundable" | "refundable" | "conditional";
-  settlementStatus: "open" | "recognized" | "refunded";
+  settlementStatus: "open" | "recognized" | "refunded" | "reversed";
+  reversalEventId: string | null;
+  paymentDate: string;
 }
 
 export default function PaymentHistoryPage() {
@@ -118,9 +124,23 @@ export default function PaymentHistoryPage() {
   const locale = useLocale();
   const dateLocale = getDateLocale(locale);
   const { currentGroup, groupId } = useGroup();
-  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const queryClient = useQueryClient();
-  const { data: payments, isLoading, isError, refetch } = usePayments(100);
+  const memberParam = useSearchParam("member");
+  const scopedMemberId = memberParam && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(memberParam)
+    ? memberParam : null;
+  const paymentMemberId = memberParam ? scopedMemberId || "00000000-0000-0000-0000-000000000000" : null;
+  const { data: payments, isLoading, isError, refetch } = usePayments("all", paymentMemberId);
+  const { data: scopedMember, isLoading: memberLoading } = useQuery({
+    queryKey: ["history-member", groupId, scopedMemberId],
+    enabled: !!groupId && !!scopedMemberId,
+    queryFn: async () => {
+      const { data, error } = await createClient().from("memberships")
+        .select("id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name)")
+        .eq("group_id", groupId!).eq("id", scopedMemberId!).maybeSingle();
+      if (error) throw error;
+      return data ? getMemberName(data as Record<string, unknown>) : null;
+    },
+  });
   const { data: financialAccounts = [] } = useFinancialAccounts(groupId);
   const confirmDuesMutation = useConfirmDuesPayment();
   const { hasPermission } = usePermissions();
@@ -128,6 +148,12 @@ export default function PaymentHistoryPage() {
   const confirmDialog = useConfirmDialog();
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [reversePayment, setReversePayment] = useState<NormalizedPayment | null>(null);
+  const [reverseReason, setReverseReason] = useState("");
+  const [reverseRequestId, setReverseRequestId] = useState("");
+  const [reverseConfirmed, setReverseConfirmed] = useState(false);
+  const [reverseSaving, setReverseSaving] = useState(false);
 
   // Custody accounts filter
   const custodyAccounts = useMemo(() => {
@@ -168,6 +194,10 @@ export default function PaymentHistoryPage() {
     setDeletePayment(null);
     setActionError(null);
     setRejectingId(null);
+    setReversePayment(null);
+    setReverseRequestId("");
+    setReverseReason("");
+    setReverseConfirmed(false);
   }
 
   // Status filter — initial value comes from the ?status= deep-link (a sibling
@@ -272,6 +302,8 @@ export default function PaymentHistoryPage() {
         financialAccountId: (p.financial_account_id as string) || null,
         cashClass: (p.cash_class as NormalizedPayment["cashClass"]) || "non_refundable",
         settlementStatus: (p.settlement_status as NormalizedPayment["settlementStatus"]) || "open",
+        reversalEventId: (p.reversal_event_id as string) || null,
+        paymentDate: (p.payment_date as string) || ((p.recorded_at as string) || "").slice(0, 10),
       };
     });
   }, [payments, currency, locale]);
@@ -284,13 +316,14 @@ export default function PaymentHistoryPage() {
   );
 
   const filtered = useMemo(() => {
-    let rows = normalizedPayments;
+    let rows = memberParam && (!scopedMemberId || (!scopedMember && !memberLoading)) ? [] : normalizedPayments;
     if (statusFilter !== "all") {
       rows = rows.filter((p) =>
         statusFilter === "confirmed"
-          ? // Legacy/default rows store no status; treat them as confirmed.
-            p.status === "confirmed" || (p.status !== "pending_confirmation" && p.status !== "rejected")
-          : p.status === statusFilter
+          ? isConfirmedPayment(p.status) && p.settlementStatus !== "refunded" && p.settlementStatus !== "reversed"
+          : statusFilter === "adjusted"
+            ? p.settlementStatus === "refunded" || p.settlementStatus === "reversed"
+            : p.status === statusFilter
       );
     }
     if (!search) return rows;
@@ -301,7 +334,7 @@ export default function PaymentHistoryPage() {
         (p.referenceNumber && normalizeSearch(p.referenceNumber).includes(q)) ||
         normalizeSearch(p.contributionTypeName).includes(q)
     );
-  }, [normalizedPayments, search, statusFilter]);
+  }, [normalizedPayments, search, statusFilter, memberParam, scopedMemberId, scopedMember, memberLoading]);
 
   const sortedPayments = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -328,43 +361,98 @@ export default function PaymentHistoryPage() {
 
   const totalPages = Math.ceil(sortedPayments.length / perPage);
   const paginated = sortedPayments.slice((page - 1) * perPage, page * perPage);
-  const totalAmount = sortedPayments.reduce((sum, p) => sum + p.amount, 0);
+  const totalsByCurrency = paymentHistoryTotals(sortedPayments.map((p) => ({
+    currency: p.currency, amount: p.amount,
+    netAmount: !isConfirmedPayment(p.status) || p.settlementStatus === "refunded" || p.settlementStatus === "reversed" ? 0 : p.amount,
+  })));
 
   // Localized status label so pending/rejected rows in the CSV are never
   // silently read as collected. Mirrors money.ts's confirmed/pending/rejected
   // classification (the column default is confirmed → null/legacy = confirmed).
-  function getStatusLabel(status: string): string {
-    if (isPendingPayment(status)) return t("contributions.pendingConfirmation");
-    if (isRejectedPayment(status)) return t("contributions.rejected");
+  function getStatusLabel(payment: NormalizedPayment): string {
+    if (isPendingPayment(payment.status)) return t("contributions.pendingConfirmation");
+    if (isRejectedPayment(payment.status)) return t("contributions.rejected");
+    if (payment.settlementStatus === "reversed") return t("contributions.receiptReversed");
+    if (payment.settlementStatus === "refunded") return tDues("refunded");
     return t("contributions.confirmed");
   }
 
-  function handleExportCSV() {
-    // Export the currently-filtered rows via the shared exportCSV() helper,
-    // which escapes commas/quotes/newlines and adds an Excel BOM. Keys are the
-    // English column names; headerLabels carries the localized header row.
-    const rows = filtered.map((p) => ({
-      Date: formatDateWithGroupFormat(p.recordedAt, groupDateFormat, locale),
-      Member: p.memberName,
-      Type: p.contributionTypeName,
-      Amount: num(p.amount).toString(),
-      Currency: p.currency,
-      Method: methodLabels[p.paymentMethod] || p.paymentMethod,
-      Reference: p.referenceNumber || "",
-      Status: getStatusLabel(p.status),
+  function handleExport(format: "csv" | "xlsx" | "pdf") {
+    const rows: PaymentHistoryExportRow[] = sortedPayments.map((p) => ({
+      id: p.id, date: p.paymentDate, member: p.memberName,
+      type: p.contributionTypeName, amount: p.amount,
+      netAmount: !isConfirmedPayment(p.status) || p.settlementStatus === "refunded" || p.settlementStatus === "reversed" ? 0 : p.amount,
+      currency: p.currency,
+      method: methodLabels[p.paymentMethod] || p.paymentMethod,
+      externalReference: p.referenceNumber || "", status: getStatusLabel(p),
     }));
-    exportCSV(rows, "payments", {
-      headerLabels: {
-        Date: t("contributions.csvDate"),
-        Member: t("contributions.csvMember"),
-        Type: t("contributions.csvType"),
-        Amount: t("contributions.csvAmount"),
-        Currency: t("contributions.csvCurrency"),
-        Method: t("contributions.csvMethod"),
-        Reference: t("contributions.csvReference"),
-        Status: t("contributions.csvStatus"),
+    const context: PaymentHistoryExportContext = {
+      groupName: currentGroup?.name || "", memberName: scopedMember || undefined,
+      generatedAt: new Date(), locale,
+      period: [t("contributions.exportAllDates"),
+        statusFilter === "all" ? t("contributions.statusFilterAll")
+          : statusFilter === "confirmed" ? t("contributions.statusFilterConfirmed")
+          : statusFilter === "rejected" ? t("contributions.statusFilterRejected")
+          : statusFilter === "adjusted" ? t("contributions.statusFilterAdjusted")
+          : t("contributions.statusFilterPending"),
+        search.trim() ? `${t("contributions.searchPayments")}: ${search.trim()}` : "",
+      ].filter(Boolean).join(" · "),
+      labels: {
+        title: t("contributions.history"), date: t("contributions.csvDate"),
+        member: t("contributions.csvMember"), type: t("contributions.csvType"),
+        amount: t("contributions.csvAmount"), currency: t("contributions.csvCurrency"),
+        method: t("contributions.csvMethod"), externalReference: t("contributions.externalReference"),
+        receiptId: t("contributions.paymentReceiptId"), status: t("contributions.csvStatus"),
+        group: t("contributions.exportGroup"), scope: t("contributions.exportScope"),
+        period: t("contributions.exportPeriod"), generated: t("contributions.exportGenerated"),
+        total: t("contributions.exportTotal"), empty: t("contributions.exportEmpty"),
+        allMembers: t("contributions.exportAllMembers"), allDates: t("contributions.exportAllDates"),
       },
-    });
+    };
+    const file = `villageclaq-payments-${new Date().toISOString().slice(0, 10)}.${format}`;
+    if (format === "csv") downloadPaymentHistory(buildPaymentHistoryCsv(rows, context), file, "text/csv;charset=utf-8");
+    if (format === "xlsx") downloadPaymentHistory(buildPaymentHistoryXlsx(rows, context), file, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    if (format === "pdf") downloadPaymentHistory(buildPaymentHistoryPdf(rows, context), file, "application/pdf");
+  }
+
+  function openReverseDialog(payment: NormalizedPayment) {
+    setReversePayment(payment);
+    setReverseReason("");
+    setReverseConfirmed(false);
+    setReverseRequestId(crypto.randomUUID());
+    setActionError(null);
+    setActionSuccess(null);
+  }
+
+  async function handleReverseReceipt() {
+    if (!reversePayment || !groupId || !canManage || !reverseConfirmed
+      || reverseReason.trim().length < 10 || reverseSaving) return;
+    setReverseSaving(true);
+    setActionError(null);
+    try {
+      const { error } = await createClient().rpc("reverse_dues_receipt", {
+        p_command: {
+          action: "reverse_erroneous_receipt",
+          group_id: groupId,
+          payment_id: reversePayment.id,
+          request_id: reverseRequestId,
+          reason: reverseReason.trim(),
+        },
+      });
+      if (error) throw error;
+      invalidateFinancialCaches(reversePayment.membershipId);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["financial-projection-bundle", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["financial-cashbook", groupId] }),
+      ]);
+      setActionSuccess(t("contributions.receiptReversalComplete"));
+      setReversePayment(null);
+    } catch (error) {
+      console.warn("Dues receipt reversal failed:", error);
+      setActionError(t("contributions.receiptReversalFailed"));
+    } finally {
+      setReverseSaving(false);
+    }
   }
 
   function handleOpenConfirmModal(payment: NormalizedPayment) {
@@ -729,14 +817,30 @@ export default function PaymentHistoryPage() {
           <h1 className="text-3xl font-bold tracking-tight">{t("contributions.history")}</h1>
           <p className="text-muted-foreground">{t("contributions.historyDesc")}</p>
         </div>
-        <Button variant="outline" onClick={handleExportCSV} disabled={sortedPayments.length === 0}>
-          <Download className="mr-2 h-4 w-4" />
-          {t("contributions.exportCSV")}
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger render={<Button variant="outline" />}>
+            <Download className="mr-2 h-4 w-4" />{t("contributions.exportMenu")}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => handleExport("xlsx")}>{t("contributions.exportExcel")}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExport("pdf")}>{t("contributions.exportPdf")}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExport("csv")}>{t("contributions.exportCSV")}</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Sub Navigation */}
       <ContributionsSubNav active="history" />
+
+      {memberParam && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
+          <span className="font-medium">{t("contributions.memberFilterLabel")}:</span>
+          <span>{scopedMember || (memberLoading ? tc("loading") : t("contributions.memberFilterUnavailable"))}</span>
+          <Link className="ml-auto text-primary underline" href="/dashboard/contributions/history">
+            {t("contributions.clearMemberFilter")}
+          </Link>
+        </div>
+      )}
 
       {/* Action Error */}
       {actionError && (
@@ -745,6 +849,9 @@ export default function PaymentHistoryPage() {
           <button onClick={() => setActionError(null)} className="ml-2 text-destructive hover:text-destructive/80">&times;</button>
         </div>
       )}
+      {actionSuccess && <div role="status" className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm">
+        {actionSuccess}
+      </div>}
 
       {/* Search */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -777,7 +884,9 @@ export default function PaymentHistoryPage() {
               ? t("contributions.statusFilterPending")
               : value === "confirmed"
               ? t("contributions.statusFilterConfirmed")
-              : t("contributions.statusFilterRejected");
+              : value === "rejected"
+              ? t("contributions.statusFilterRejected")
+              : t("contributions.statusFilterAdjusted");
           return (
             <button
               key={value}
@@ -812,10 +921,12 @@ export default function PaymentHistoryPage() {
 
       {/* Summary Stats */}
       <div className="flex flex-wrap gap-4">
-        <div className="rounded-lg bg-primary/10 px-4 py-2">
-          <span className="text-xs text-muted-foreground">{t("contributions.totalFiltered")}</span>
-          <p className="text-lg font-bold text-primary">{formatAmount(totalAmount, currency)}</p>
-        </div>
+        {[...totalsByCurrency].map(([code, amount]) => (
+          <div key={code} className="rounded-lg bg-primary/10 px-4 py-2">
+            <span className="text-xs text-muted-foreground">{t("contributions.totalFiltered")} · {code}</span>
+            <p className="text-lg font-bold text-primary">{formatAmount(amount, code)}</p>
+          </div>
+        ))}
         <div className="rounded-lg bg-muted px-4 py-2">
           <span className="text-xs text-muted-foreground">{t("contributions.paymentsCount")}</span>
           <p className="text-lg font-bold">{sortedPayments.length}</p>
@@ -883,7 +994,7 @@ export default function PaymentHistoryPage() {
                     >
                       <td className="whitespace-nowrap px-3 py-3 sm:px-4">
                         <div>
-                          <p className="font-medium">{formatDateWithGroupFormat(payment.recordedAt, groupDateFormat, locale)}</p>
+                          <p className="font-medium">{paymentHistoryLongDate(payment.paymentDate, locale)}</p>
                           <p className="text-xs text-muted-foreground">{formatTime(payment.recordedAt, dateLocale)}</p>
                         </div>
                       </td>
@@ -923,7 +1034,7 @@ export default function PaymentHistoryPage() {
                         </span>
                         {payment.referenceNumber && (
                           <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {payment.referenceNumber}
+                            {t("contributions.externalReference")}: {payment.referenceNumber}
                           </p>
                         )}
                         {payment.receiptUrl && (
@@ -936,6 +1047,9 @@ export default function PaymentHistoryPage() {
                             {t("contributions.viewProof")}
                           </button>
                         )}
+                        <p className="text-[10px] text-muted-foreground mt-0.5" title={payment.id}>
+                          {t("contributions.paymentReceiptId")}: {payment.id.slice(0, 8)}
+                        </p>
                       </td>
                       <td className="whitespace-nowrap px-3 py-3 sm:px-4">
                         {payment.status === "pending_confirmation" ? (
@@ -979,7 +1093,7 @@ export default function PaymentHistoryPage() {
                         ) : (
                           <div className="flex flex-col gap-1 items-start">
                             <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-[10px]">
-                              {t("contributions.confirmed")}
+                              {getStatusLabel(payment)}
                             </Badge>
                             {payment.financialEventId && (
                               <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
@@ -990,11 +1104,14 @@ export default function PaymentHistoryPage() {
                             {payment.financialEventId && payment.settlementStatus === "refunded" && (
                               <span className="text-xs text-muted-foreground">{tDues("refunded")}</span>
                             )}
-                            {payment.financialEventId && groupId && canManage && (
+                            {payment.financialEventId && groupId && canManage && payment.settlementStatus !== "reversed" && (
                               <DuesCreditActions groupId={groupId}
                                 paymentId={payment.id} memberId={payment.membershipId}
                                 amount={payment.amount} currency={payment.currency}
                                 cashClass={payment.cashClass} status={payment.settlementStatus} />
+                            )}
+                            {payment.financialEventId && !canManage && (
+                              <span className="text-xs text-muted-foreground">{t("contributions.receiptCorrectionOfficerOnly")}</span>
                             )}
                           </div>
                         )}
@@ -1020,7 +1137,17 @@ export default function PaymentHistoryPage() {
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 {t("contributions.deletePayment")}
                               </DropdownMenuItem>}
-                              {payment.financialEventId && <p className="px-2 py-1 text-xs text-muted-foreground">{tDues("postedImmutable")}</p>}
+                              {payment.financialEventId && payment.cashClass === "non_refundable"
+                                && payment.settlementStatus === "recognized" && (
+                                <DropdownMenuItem onClick={() => openReverseDialog(payment)}>
+                                  <History className="mr-2 h-4 w-4" />
+                                  {t("contributions.reverseErroneousReceipt")}
+                                </DropdownMenuItem>
+                              )}
+                              {payment.financialEventId && payment.cashClass !== "non_refundable"
+                                && payment.settlementStatus === "open" && (
+                                <p className="px-2 py-1 text-xs text-muted-foreground">{t("contributions.creditRefundGuidance")}</p>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </td>
@@ -1231,6 +1358,49 @@ export default function PaymentHistoryPage() {
                   {t("contributions.duesPosting.confirmAndPost")}
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!reversePayment} onOpenChange={(open) => { if (!open && !reverseSaving) setReversePayment(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t("contributions.reverseErroneousReceipt")}</DialogTitle>
+            <DialogDescription>{t("contributions.receiptReversalExplanation")}</DialogDescription>
+          </DialogHeader>
+          {reversePayment && (
+            <div className="space-y-4">
+              <div className="rounded-md border bg-muted/40 p-3 text-sm space-y-1">
+                <p>{reversePayment.memberName} · {reversePayment.contributionTypeName}</p>
+                <p className="font-semibold">{formatAmount(reversePayment.amount, reversePayment.currency)}</p>
+                <p className="break-all text-xs text-muted-foreground">{t("contributions.paymentReceiptId")}: {reversePayment.id}</p>
+                <p className="break-all text-xs text-muted-foreground">{t("contributions.originalLedgerEvent")}: {reversePayment.financialEventId}</p>
+              </div>
+              <p className="text-sm">{t("contributions.receiptReversalEffect", {
+                amount: formatAmount(reversePayment.amount, reversePayment.currency),
+              })}</p>
+              <div className="space-y-2">
+                <Label htmlFor="dues-reversal-reason">{t("contributions.receiptReversalReason")}</Label>
+                <textarea id="dues-reversal-reason" value={reverseReason}
+                  onChange={(event) => setReverseReason(event.target.value)}
+                  minLength={10} maxLength={1000} rows={3}
+                  className="w-full rounded-md border bg-background p-2 text-sm" />
+                <p className="text-xs text-muted-foreground">{t("contributions.receiptReversalReasonHint")}</p>
+              </div>
+              <label className="flex items-start gap-2 text-sm">
+                <input type="checkbox" checked={reverseConfirmed}
+                  onChange={(event) => setReverseConfirmed(event.target.checked)} className="mt-1" />
+                <span>{t("contributions.receiptReversalConfirm")}</span>
+              </label>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReversePayment(null)} disabled={reverseSaving}>{tc("cancel")}</Button>
+            <Button variant="destructive" onClick={handleReverseReceipt}
+              disabled={reverseSaving || !reverseConfirmed || reverseReason.trim().length < 10}>
+              {reverseSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("contributions.reverseErroneousReceipt")}
             </Button>
           </DialogFooter>
         </DialogContent>

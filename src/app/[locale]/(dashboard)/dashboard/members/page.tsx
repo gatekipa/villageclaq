@@ -1667,32 +1667,40 @@ export default function MembersPage() {
             />
           </div>
           <div className="flex flex-wrap gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="member-role-filter">{t("role")}</Label>
             <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v ?? "all")}>
-              <SelectTrigger className="w-[120px] sm:w-[140px]">
-                <SelectValue placeholder={t("role")} />
+              <SelectTrigger id="member-role-filter" className="w-[120px] sm:w-[140px]">
+                <SelectValue placeholder={t("filterAllRoles")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{t("filterAll")}</SelectItem>
+                <SelectItem value="all">{t("filterAllRoles")}</SelectItem>
                 <SelectItem value="owner">{t("filterOwner")}</SelectItem>
                 <SelectItem value="admin">{t("filterAdmin")}</SelectItem>
                 <SelectItem value="moderator">{t("filterModerator")}</SelectItem>
                 <SelectItem value="member">{t("filterMember")}</SelectItem>
               </SelectContent>
             </Select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="member-standing-filter">{t("standing")}</Label>
             <Select value={standingFilter} onValueChange={(v) => setStandingFilter(v ?? "all")}>
-              <SelectTrigger className="w-[130px] sm:w-[170px]">
+              <SelectTrigger id="member-standing-filter" className="w-[130px] sm:w-[170px]">
                 <SelectValue placeholder={t("standing")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{t("filterAll")}</SelectItem>
+                <SelectItem value="all">{t("filterAllStandings")}</SelectItem>
                 <SelectItem value="good">{t("standingGood")}</SelectItem>
                 <SelectItem value="warning">{t("standingWarning")}</SelectItem>
                 <SelectItem value="suspended">{t("standingSuspended")}</SelectItem>
                 <SelectItem value="banned">{t("standingBanned")}</SelectItem>
               </SelectContent>
             </Select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="member-position-filter">{tr("position")}</Label>
             <Select value={positionFilter} onValueChange={(v) => setPositionFilter(v ?? "all")}>
-              <SelectTrigger className="w-[120px] sm:w-[160px]">
+              <SelectTrigger id="member-position-filter" className="w-[120px] sm:w-[160px]">
                 <SelectValue placeholder={tr("position")} />
               </SelectTrigger>
               <SelectContent>
@@ -1704,6 +1712,7 @@ export default function MembersPage() {
                 ))}
               </SelectContent>
             </Select>
+            </div>
           </div>
         </div>
         <p className="text-sm text-muted-foreground">

@@ -64,6 +64,7 @@ export interface MoneyPayment {
   id?: string | null;
   amount: number | string | null;
   status?: PaymentStatusish;
+  settlement_status?: string | null;
   obligation_id?: string | null;
   contribution_type_id?: string | null;
   relief_plan_id?: string | null;
@@ -113,6 +114,12 @@ export function isDuesPayment(p: MoneyPayment): boolean {
   return p.relief_plan_id == null;
 }
 
+/** A posted receipt later reversed/refunded remains in history but no longer covers dues. */
+export function isCollectedDuesPayment(p: MoneyPayment): boolean {
+  return isDuesPayment(p) && isConfirmedPayment(p.status)
+    && p.settlement_status !== "refunded" && p.settlement_status !== "reversed";
+}
+
 /**
  * Map obligation_id → Σ CONFIRMED payment amount applied to it. This is the
  * trustworthy per-obligation "paid", independent of the polluted amount_paid
@@ -128,7 +135,7 @@ export function confirmedPaidByObligation(payments: MoneyPayment[]): Map<string,
   const map = new Map<string, number>();
   for (const p of payments) {
     if (!p.obligation_id) continue;
-    if (!isConfirmedPayment(p.status)) continue;
+    if (!isCollectedDuesPayment(p)) continue;
     map.set(p.obligation_id, (map.get(p.obligation_id) || 0) + num(p.amount));
   }
   return map;
@@ -184,7 +191,7 @@ export function confirmedPaidByMember(payments: MoneyPayment[]): Map<string, num
   for (const p of payments) {
     if (!isDuesPayment(p)) continue;
     if (!p.membership_id) continue;
-    if (!isConfirmedPayment(p.status)) continue;
+    if (!isCollectedDuesPayment(p)) continue;
     map.set(p.membership_id, (map.get(p.membership_id) || 0) + num(p.amount));
   }
   return map;
@@ -201,7 +208,7 @@ export function confirmedPaidByType(payments: MoneyPayment[]): Map<string, numbe
   for (const p of payments) {
     if (!isDuesPayment(p)) continue;
     if (!p.contribution_type_id) continue;
-    if (!isConfirmedPayment(p.status)) continue;
+    if (!isCollectedDuesPayment(p)) continue;
     map.set(p.contribution_type_id, (map.get(p.contribution_type_id) || 0) + num(p.amount));
   }
   return map;
@@ -282,7 +289,7 @@ export function computeObligationStates(
   const unlinkedTyped = new Map<string, Map<string, number>>();
   const typelessByMember = new Map<string, number>();
   for (const p of payments) {
-    if (!isDuesPayment(p) || !isConfirmedPayment(p.status) || !p.membership_id) continue;
+    if (!isCollectedDuesPayment(p) || !p.membership_id) continue;
     const amount = num(p.amount);
     if (p.obligation_id) {
       const target = obligationById.get(p.obligation_id);
@@ -419,7 +426,7 @@ export function computeMoneyFigures(
       pendingAmount += num(p.amount);
       continue;
     }
-    if (isRejectedPayment(p.status)) continue;
+    if (isRejectedPayment(p.status) || !isCollectedDuesPayment(p)) continue;
     collected += num(p.amount);
   }
 
@@ -563,7 +570,7 @@ export function buildObjectReport(
     if (!mid) continue;
     if (isPendingPayment(p.status)) {
       pendingByMember.set(mid, (pendingByMember.get(mid) || 0) + num(p.amount));
-    } else if (isConfirmedPayment(p.status)) {
+    } else if (isCollectedDuesPayment(p)) {
       confirmedByMember.set(mid, (confirmedByMember.get(mid) || 0) + num(p.amount));
       const prev = lastConfirmedByMember.get(mid) || null;
       const at = p.recorded_at || null;

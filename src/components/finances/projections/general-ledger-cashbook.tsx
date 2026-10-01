@@ -84,6 +84,9 @@ export function GeneralLedgerCashbook({ groupId, initialRows }: GeneralLedgerCas
 
   const isRowReversible = (row: CashbookRow | null): boolean => {
     if (!row) return false;
+    // F3 correction only accepts manual-finance events. Dues receipts use
+    // their own linked payment reversal; other modules have separate commands.
+    if (row.source_module !== "manual_finance" && row.source_module !== "manual_finance_correction") return false;
     if (Boolean(row.reversal_of_event_id)) return false;
     if (row.movement_type === "opening_position") return false;
     if (row.status === "reversed" || row.status === "corrected") return false;

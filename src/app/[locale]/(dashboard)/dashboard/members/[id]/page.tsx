@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
-import { formatDateWithGroupFormat } from "@/lib/format";
+import { formatLongCalendarDate as paymentHistoryLongDate } from "@/lib/long-date";
 import { useParams } from "next/navigation";
 import { Link, useRouter } from "@/i18n/routing";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -45,7 +45,7 @@ import { formatAmount } from "@/lib/currencies";
 import { fetchAllRows } from "@/lib/fetch-all-rows";
 import {
   num,
-  isConfirmedPayment,
+  isCollectedDuesPayment,
   isPendingPayment,
   isRejectedPayment,
   computeMoneyFigures,
@@ -394,7 +394,6 @@ function MemberDetailContent() {
   const params = useParams();
   const membershipId = params.id as string;
   const { groupId, currentGroup, user, currentMembership } = useGroup();
-  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission, isOwner } = usePermissions();
   const currency = currentGroup?.currency || "XAF";
   const router = useRouter();
@@ -740,7 +739,7 @@ function MemberDetailContent() {
   // NOT collected money and must not inflate this figure.
   const totalPaidAllTime = payments.reduce(
     (sum: number, p: Record<string, unknown>) =>
-      isConfirmedPayment(p.status as string | null | undefined) ? sum + num(p.amount) : sum,
+      isCollectedDuesPayment(p as unknown as MoneyPayment) ? sum + num(p.amount) : sum,
     0,
   );
   const lastPayment = payments[0] as Record<string, unknown> | undefined;
@@ -1085,7 +1084,7 @@ function MemberDetailContent() {
                 {joinedAt && (
                   <span className="flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5" />
-                    {ts("memberSince", { date: formatDateWithGroupFormat(joinedAt, groupDateFormat, locale) })}
+                    {ts("memberSince", { date: paymentHistoryLongDate(joinedAt, locale) })}
                     {yearsOfMembership > 0 && (
                       <span className="text-xs">({ts("yearsOfMembership", { count: yearsOfMembership })})</span>
                     )}
@@ -1124,13 +1123,18 @@ function MemberDetailContent() {
                   <p className="text-sm">{th("memberStanding")}</p>
                 </TooltipContent>
               </Tooltip>
-              <span className={`ml-auto text-sm font-medium ${style.bannerText}`}>
-                {standingData.score}%
-              </span>
+              {standingData.reasons.length > 0 && (
+                <span className={`ml-auto text-sm font-medium ${style.bannerText}`}>
+                  {standingData.score}%
+                </span>
+              )}
             </div>
           </div>
           <CardContent className="p-4">
             <p className="text-xs font-medium text-muted-foreground mb-3">{ts("standingBreakdown")}</p>
+            {standingData.reasons.length === 0 && (
+              <p className="text-sm text-muted-foreground">{ts("noStandingReasons")}</p>
+            )}
             <div className="space-y-2">
               {/* Failed reasons first so the member sees what to fix up top. */}
               {[...standingData.reasons]
@@ -1208,7 +1212,7 @@ function MemberDetailContent() {
                         </p>
                       )}
                       <p className="mt-1 text-[11px] text-muted-foreground">
-                        {formatDateWithGroupFormat(row.created_at, groupDateFormat, locale)}
+                        {paymentHistoryLongDate(row.created_at, locale)}
                       </p>
                     </div>
                   </div>
@@ -1297,7 +1301,7 @@ function MemberDetailContent() {
             <div>
               <p className="text-xs text-muted-foreground">{ts("lastPaymentDate")}</p>
               <p className="text-sm font-medium">
-                {lastPayment ? formatDateWithGroupFormat(lastPayment.recorded_at as string, groupDateFormat, locale) : "—"}
+                {lastPayment ? paymentHistoryLongDate(lastPayment.recorded_at as string, locale) : "—"}
               </p>
             </div>
             <div>
@@ -1322,9 +1326,11 @@ function MemberDetailContent() {
           <div className="mb-3">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-muted-foreground">{ts("attendanceRate")}</span>
-              <span className="text-sm font-bold">{attendanceRate}%</span>
+              <span className="text-sm font-bold">{totalAttendances > 0 ? `${attendanceRate}%` : "—"}</span>
             </div>
-            <Progress value={attendanceRate} className="h-2" />
+            {totalAttendances > 0 ? <Progress value={attendanceRate} className="h-2" /> : (
+              <p className="text-xs text-muted-foreground">{ts("noAttendanceRecorded")}</p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
             <div>
@@ -1377,7 +1383,7 @@ function MemberDetailContent() {
               <div>
                 <p className="text-xs text-muted-foreground">{ts("nextHosting")}</p>
                 <p className="text-sm font-medium">
-                  {nextHosting ? formatDateWithGroupFormat(nextHosting.assigned_date as string, groupDateFormat, locale) : "—"}
+                  {nextHosting ? paymentHistoryLongDate(nextHosting.assigned_date as string, locale) : "—"}
                 </p>
               </div>
             </div>
@@ -1492,7 +1498,7 @@ function MemberDetailContent() {
                   </div>
                   {fm.date_of_birth && (
                     <span className="text-xs text-muted-foreground shrink-0">
-                      {formatDateWithGroupFormat(fm.date_of_birth, groupDateFormat, locale)}
+                      {paymentHistoryLongDate(fm.date_of_birth, locale)}
                     </span>
                   )}
                   {(hasPermission("members.manage") || isOwner) && (
@@ -1525,7 +1531,7 @@ function MemberDetailContent() {
             <Activity className="h-4 w-4 text-primary" />
             {ts("activityTimeline")}
           </CardTitle>
-          <Link className="text-xs text-primary hover:underline" href="/dashboard/contributions/history">
+          <Link className="text-xs text-primary hover:underline" href={`/dashboard/contributions/history?member=${membershipId}`}>
             {t("contributions.history")}
           </Link>
         </CardHeader>
@@ -1592,7 +1598,7 @@ function MemberDetailContent() {
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{item.label}</p>
-                      <p className="text-xs text-muted-foreground">{formatDateWithGroupFormat(item.date, groupDateFormat, locale)}</p>
+                      <p className="text-xs text-muted-foreground">{paymentHistoryLongDate(item.date, locale)}</p>
                     </div>
                     <span className="flex items-center gap-1.5 text-xs font-medium shrink-0">
                       {item.type === "payment" ? (

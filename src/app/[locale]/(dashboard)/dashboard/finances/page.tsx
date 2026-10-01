@@ -32,6 +32,7 @@ import dynamic from "next/dynamic";
 import { useObligations, useGroupDuesPayments } from "@/lib/hooks/use-supabase-query";
 import { computeDuesStatusTotals, computeObligationStates } from "@/lib/money";
 import { groupTodayKey } from "@/lib/payment-reminder-eligibility";
+import { fetchAllRows } from "@/lib/fetch-all-rows";
 
 // WS4 (B11): lazy-load the recharts monthly-trend chart so recharts (~74KB gzip)
 // stays off the finances first-paint critical path on low-bandwidth links.
@@ -57,7 +58,7 @@ import {
 import {
   confirmedPaidByType,
   confirmedPaidByMember,
-  isConfirmedPayment,
+  isCollectedDuesPayment,
   num,
   type MoneyObligation,
   type MoneyPayment,
@@ -184,12 +185,8 @@ export default function FinancesPage() {
     // 'confirmed'; treat null/empty as confirmed to match the column default,
     // but exclude pending-confirmation and rejected so unconfirmed member
     // submissions never inflate the collected figure (matches MoneyOverview).
-    const isConfirmed = (s: unknown) => {
-      const status = (s as string) || "confirmed";
-      return status !== "pending_confirmation" && status !== "rejected";
-    };
     const totalCollected = payments.reduce(
-      (sum, p) => (isConfirmed((p as Record<string, unknown>).status) ? sum + Number(p.amount) : sum),
+      (sum, p) => (isCollectedDuesPayment(p as MoneyPayment) ? sum + Number(p.amount) : sum),
       0,
     );
     // Outstanding and collection rate use the SAME confirmed-only /
@@ -209,7 +206,7 @@ export default function FinancesPage() {
     let paymentsThisMonth = 0;
 
     for (const p of payments) {
-      if (!isConfirmed((p as Record<string, unknown>).status)) continue;
+      if (!isCollectedDuesPayment(p as MoneyPayment)) continue;
       const pMonth = (p.recorded_at || "").slice(0, 7);
       if (pMonth === thisMonthKey) {
         collectedThisMonth += Number(p.amount);
@@ -315,11 +312,12 @@ export default function FinancesPage() {
     try {
       const supabase = createClient();
       // Get all dues payments for this group (exclude relief payments)
-      const { data: payments } = await supabase
+      const { data: payments, error: paymentsError } = await fetchAllRows((from, to) => supabase
         .from("payments")
-        .select("id, membership_id, contribution_type_id, amount, status, group_id, recorded_at")
+        .select("id, membership_id, contribution_type_id, amount, status, settlement_status, group_id, recorded_at", { count: "exact" })
         .eq("group_id", groupId)
-        .is("relief_plan_id", null);
+        .is("relief_plan_id", null).order("id").range(from, to));
+      if (paymentsError) throw paymentsError;
 
       if (!payments || payments.length === 0) {
         setSyncResult(t("finances.noPaymentsToSync"));
@@ -332,7 +330,7 @@ export default function FinancesPage() {
       const paymentMap = new Map<string, number>();
       for (const p of payments) {
         if (!p.contribution_type_id) continue;
-        if (!isConfirmedPayment(p.status)) continue;
+        if (!isCollectedDuesPayment(p as MoneyPayment)) continue;
         const key = `${p.membership_id}__${p.contribution_type_id}`;
         paymentMap.set(key, (paymentMap.get(key) || 0) + num(p.amount));
       }

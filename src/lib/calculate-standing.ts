@@ -160,7 +160,7 @@ export async function calculateStanding(
       .eq("membership_id", membershipId).eq("group_id", groupId).order("id").range(from, to));
     const { data: duesPayments, error: paymentsError } = await fetchAllRows((from, to) => supabase
       .from("payments")
-      .select("id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at", { count: "exact" })
+      .select("id, amount, status, settlement_status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at", { count: "exact" })
       .eq("membership_id", membershipId).eq("group_id", groupId)
       .is("relief_plan_id", null).order("id").range(from, to));
     if (obligationsError || paymentsError) throw obligationsError || paymentsError;

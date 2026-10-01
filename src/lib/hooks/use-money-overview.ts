@@ -66,6 +66,7 @@ type PaymentRow = {
   id: string;
   amount: number | string | null;
   status: string | null;
+  settlement_status: string | null;
   recorded_at: string | null;
   contribution_type_id: string | null;
   membership_id: string | null;
@@ -127,7 +128,7 @@ export function useMoneyOverview() {
           .eq("group_id", groupId).order("due_date", { ascending: true }).order("id").range(from, to)),
         fetchAllRows((from, to) => supabase
           .from("payments")
-          .select("id, amount, status, recorded_at, obligation_id, contribution_type_id, membership_id, relief_plan_id, membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)", { count: "exact" })
+          .select("id, amount, status, settlement_status, recorded_at, obligation_id, contribution_type_id, membership_id, relief_plan_id, membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)", { count: "exact" })
           .eq("group_id", groupId).is("relief_plan_id", null)
           .order("recorded_at", { ascending: false }).order("id").range(from, to)),
       ]);
@@ -222,7 +223,7 @@ export function useMoneyOverview() {
           pendingAmount += amount;
           continue;
         }
-        if (status === "rejected") continue;
+        if (status === "rejected" || p.settlement_status === "refunded" || p.settlement_status === "reversed") continue;
 
         // Confirmed (or default) dues payment.
         totalCollected += amount;

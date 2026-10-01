@@ -33,6 +33,9 @@ export function DuesCreditActions({
   const [categoryId, setCategoryId] = useState("");
   const [obligationId, setObligationId] = useState("");
   const [allocationAmount, setAllocationAmount] = useState("");
+  const [refundReason, setRefundReason] = useState("");
+  const [refundConfirmed, setRefundConfirmed] = useState(false);
+  const [refundRequestId, setRefundRequestId] = useState("");
   const { data: categories = [] } = useFinancialCategories(groupId);
   const obligations = useQuery({
     queryKey: ["dues-credit-obligations", groupId, memberId],
@@ -77,6 +80,7 @@ export function DuesCreditActions({
     action: "recognize" | "refund" | "allocate", recoveryRequest?: string,
   ) {
     if (groupId !== currentGroupId || busy) return;
+    if (action === "refund" && (!refundConfirmed || refundReason.trim().length < 10)) return;
     setBusy(true);
     setError(false);
     try {
@@ -96,11 +100,18 @@ export function DuesCreditActions({
           "apply_dues_allocation", { p_request: requestId },
         );
         if (applyError) throw applyError;
+      } else if (action === "refund") {
+        const { error: refundError } = await supabase.rpc(
+          "refund_dues_credit_with_reason", { p_command: {
+            action: "refund_credit", group_id: groupId, payment_id: paymentId,
+            request_id: refundRequestId, reason: refundReason.trim(),
+          } },
+        );
+        if (refundError) throw refundError;
       } else {
         const { error: settlementError } = await supabase.rpc(
           "settle_dues_credit", {
-            p_payment: paymentId, p_action: action,
-            p_category: action === "recognize" ? categoryId : null,
+            p_payment: paymentId, p_action: action, p_category: categoryId,
           },
         );
         if (settlementError) throw settlementError;
@@ -113,6 +124,8 @@ export function DuesCreditActions({
         queryClient.invalidateQueries({ queryKey: ["dues-allocation-intents", paymentId] }),
         queryClient.invalidateQueries({ queryKey: ["financial-projection-bundle", groupId] }),
         queryClient.invalidateQueries({ queryKey: ["financial-cashbook", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["member-money", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["member-standing", memberId] }),
       ]);
       setOpen(false);
     } catch {
@@ -130,7 +143,12 @@ export function DuesCreditActions({
   if (cashClass === "non_refundable" || status === "refunded") return null;
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+      <Button variant="outline" size="sm" onClick={() => {
+        setRefundRequestId(crypto.randomUUID());
+        setRefundReason("");
+        setRefundConfirmed(false);
+        setOpen(true);
+      }}>
         {t("manageCredit")}
       </Button>
       <Dialog open={open} onOpenChange={(value) => { if (!busy) setOpen(value); }}>
@@ -154,7 +172,19 @@ export function DuesCreditActions({
               </select>
               <Button disabled={busy || !categoryId}
                 onClick={() => run("recognize")}>{t("recognize")}</Button>
-              <Button variant="outline" disabled={busy}
+              <p className="text-sm text-muted-foreground">{t("refundEffect", { amount, currency })}</p>
+              <p className="break-all text-xs text-muted-foreground">{t("originalPayment")}: {paymentId}</p>
+              <Label htmlFor={`dues-refund-reason-${paymentId}`}>{t("refundReason")}</Label>
+              <textarea id={`dues-refund-reason-${paymentId}`}
+                value={refundReason} onChange={(event) => setRefundReason(event.target.value)}
+                maxLength={1000} rows={3} className="w-full rounded border px-3 py-2"
+                placeholder={t("refundReasonHint")} />
+              <label className="flex items-start gap-2 text-sm">
+                <input type="checkbox" checked={refundConfirmed}
+                  onChange={(event) => setRefundConfirmed(event.target.checked)} />
+                <span>{t("refundConfirm")}</span>
+              </label>
+              <Button variant="outline" disabled={busy || !refundConfirmed || refundReason.trim().length < 10}
                 onClick={() => run("refund")}>{t("refund")}</Button>
             </div>
           )}

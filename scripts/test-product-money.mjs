@@ -120,7 +120,7 @@ test("finances page mounts the MoneyOverview and reconciles collected to confirm
   assert.match(finances, /from "@\/components\/finances\/money-overview"/);
   // the existing collected sum is now confirmed-only
   assert.match(finances, /pending_confirmation/);
-  assert.match(finances, /isConfirmed/);
+  assert.match(finances, /isCollectedDuesPayment/);
 });
 
 test("finance dashboard derives dues status from complete confirmed payment rows", () => {

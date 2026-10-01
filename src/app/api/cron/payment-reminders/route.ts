@@ -209,7 +209,7 @@ export async function GET(request: Request) {
       const [paysRes, groupsRes] = await Promise.all([
         supabase
           .from("payments")
-          .select("id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id")
+          .select("id, amount, status, settlement_status, obligation_id, contribution_type_id, membership_id, relief_plan_id")
           .in("membership_id", membershipIds)
           // membership_id already implies one group; group_id is defense-in-depth.
           .in("group_id", candidateGroupIds)

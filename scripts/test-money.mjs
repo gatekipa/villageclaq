@@ -12,6 +12,7 @@ import {
   computeObligation,
   computeObligationStates,
   computeMoneyFigures,
+  computeReminderDecisions,
   buildObjectReport,
 } from "../src/lib/money.ts";
 
@@ -84,7 +85,7 @@ test("computeMoneyFigures: pending excluded from collected, waived excluded from
     { id: "o3", amount: 100, status: "waived", due_date: "2026-01-01", membership_id: "m3" }, // excused
   ];
   const payments = [
-    { amount: 100, status: "confirmed", obligation_id: "o2", relief_plan_id: null },
+    { amount: 100, status: "confirmed", membership_id: "m2", obligation_id: "o2", relief_plan_id: null },
     { amount: 100, status: "pending_confirmation", obligation_id: "o1", relief_plan_id: null }, // pending
     { amount: 500, status: "confirmed", obligation_id: null, relief_plan_id: "r1" }, // relief — excluded from dues
   ];
@@ -228,6 +229,38 @@ test("group rollup matches per-object sums (no contradictory totals)", () => {
   assert.equal(figures.collected, totals.totalCollected);
   assert.equal(figures.expected, totals.totalExpected);
   assert.equal(figures.outstanding, totals.totalOutstanding);
+});
+
+test("group and member overdue counts respect existing unlinked receipts", () => {
+  // A posted $4 and $6 for one member/type settle that member's September $10
+  // obligation even though the receipts have no obligation_id. The other
+  // member's same-type $10 obligation must remain open and overdue.
+  const obligations = [
+    { id: "morgan-sep", amount: 10, amount_paid: 10, status: "paid", due_date: "2026-09-30", membership_id: "morgan", contribution_type_id: "monthly" },
+    { id: "alex-sep", amount: 10, amount_paid: 0, status: "pending", due_date: "2026-09-30", membership_id: "alex", contribution_type_id: "monthly" },
+  ];
+  const payments = [
+    { amount: 4, status: "confirmed", settlement_status: "recognized", membership_id: "morgan", contribution_type_id: "monthly", obligation_id: null },
+    { amount: 6, status: "confirmed", settlement_status: "recognized", membership_id: "morgan", contribution_type_id: "monthly", obligation_id: null },
+  ];
+  const group = computeMoneyFigures(obligations, payments, { today: "2026-10-01" });
+  assert.equal(group.expected, 20);
+  assert.equal(group.collected, 10);
+  assert.equal(group.outstanding, 10);
+  assert.deepEqual(group.overdue, { amount: 10, memberCount: 1 });
+  assert.equal(group.membersOwing, 1);
+  const member = computeMoneyFigures([obligations[0]], payments, { today: "2026-10-01" });
+  assert.equal(member.outstanding, 0);
+  assert.deepEqual(member.overdue, { amount: 0, memberCount: 0 });
+  assert.equal(member.membersOwing, 0);
+});
+
+test("a reversed confirmed receipt cannot suppress reminder eligibility", () => {
+  const obligation = { id: "sep", amount: 10, status: "pending", due_date: "2026-09-30", membership_id: "member", contribution_type_id: "monthly" };
+  const receipt = { amount: 10, status: "confirmed", settlement_status: "reversed", membership_id: "member", contribution_type_id: "monthly", obligation_id: null };
+  const decision = computeReminderDecisions([obligation], [receipt], { today: "2026-10-01" }).get("sep");
+  assert.equal(decision.remaining, 10);
+  assert.equal(decision.eligible, true);
 });
 
 // ── computeObligationStates (Build 12 canonical confirmed-only chain) ────────

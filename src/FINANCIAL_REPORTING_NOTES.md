@@ -1,5 +1,26 @@
 # Financial Records + Reporting OS (Build 4)
 
+## Current settlement relationship — 2026-10-01
+
+For posted dues, `payments` holds the original receipt and its F3 event. The
+persisted obligation relationship is `payment_obligation_applications`; the
+server-side `prepare_dues_allocation_intent` and `apply_dues_allocation` commands
+record actor, request, receipt, obligation and amount, then recompute
+`contribution_obligations.amount_paid` and `status` from confirmed recognized
+applications (plus legacy direct payment pointers without application rows).
+The command does not create a new payment or financial event. A receipt may
+retain a null `payments.obligation_id` after an application is recorded.
+
+Active UI outstanding, standing, payment-entry balance and report views derive
+per-obligation state from confirmed dues receipts via
+`computeObligationStates`: explicit pointers settle their selected obligation;
+unlinked typed receipts cover the same member's oldest open obligation of that
+type. The application table makes this relationship durable for database
+settlement, while the application-side allocation remains compatible with
+historical unlinked receipts. `computeMoneyFigures` now uses that same engine
+for overdue amount and member count. Reminder decisions also pass
+`settlement_status` so reversed/refunded receipts do not cover dues.
+
 The reference for how VillageClaq counts money and reports on it. Read this
 before touching any finance/report surface.
 
@@ -163,10 +184,9 @@ legitimately maintains `amount_paid`).
   Deferred to a follow-up that threads confirmed remaining from the parent.
 - **`amount_paid` column repair/backfill** — out of scope (DB mutation/migration). B12 is
   display-only; reversing the trigger's pending/rejected over-credits is a separate effort.
-- **`computeMoneyFigures` membersOwing/overdue granularity** — uses
-  `confirmedPaidByObligation` (obligation-linked only); confirmed-only already (not
-  polluted), just coarser than the allocate chain. Not surfaced as a prominent figure;
-  left unchanged to avoid touching the finances/dashboard anchor.
+- **`computeMoneyFigures` membersOwing/overdue granularity** — closed in the
+  2026-10-01 Morgan settlement clarification: it now uses
+  `computeObligationStates`, including unlinked confirmed receipts.
 
 ## Tests
 `test-money.mjs` adds executable `computeObligationStates` cases (confirmed/pending/

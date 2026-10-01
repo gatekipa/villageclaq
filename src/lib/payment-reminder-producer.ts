@@ -194,7 +194,7 @@ export async function computeConfirmedReminderDecision(
     // canonical useMemberPayments fetch.
     supabase
       .from("payments")
-      .select("id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id")
+      .select("id, amount, status, settlement_status, obligation_id, contribution_type_id, membership_id, relief_plan_id")
       .eq("membership_id", obligation.membership_id)
       .eq("group_id", obligation.group_id)
       .is("relief_plan_id", null),

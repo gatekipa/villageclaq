@@ -385,7 +385,9 @@ export interface MoneyFigures {
 /**
  * Canonical group figure set from a group's obligations + dues payments.
  * `collected` sums ALL confirmed dues payments (obligation-linked or not);
- * per-object/per-member views use confirmedPaidByObligation for their drill-down.
+ * overdue and member counts use the same type/member allocation as the dues
+ * drill-down, including receipts linked through payment applications rather
+ * than payments.obligation_id.
  */
 export function computeMoneyFigures(
   obligations: MoneyObligation[],
@@ -393,7 +395,7 @@ export function computeMoneyFigures(
   opts: { today?: string } = {},
 ): MoneyFigures {
   const today = opts.today || todayKey();
-  const confirmedByObl = confirmedPaidByObligation(payments);
+  const states = computeObligationStates(obligations, payments, { today });
 
   let expected = 0;
   let waivedTotal = 0;
@@ -406,7 +408,7 @@ export function computeMoneyFigures(
       waivedTotal += num(o.amount);
       continue;
     }
-    const c = computeObligation(o, confirmedByObl, today);
+    const c = states.get(o.id)!;
     expected += c.expected;
     const memberKey = o.membership_id || o.id;
     if (c.isOpen) owingMembers.add(memberKey);

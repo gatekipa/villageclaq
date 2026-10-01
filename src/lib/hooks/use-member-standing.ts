@@ -2,8 +2,16 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { calculateStanding, type StandingResult } from "@/lib/calculate-standing";
+import { createClient } from "@/lib/supabase/client";
 
-const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+async function liveStandingResult(membershipId: string, result: StandingResult): Promise<StandingResult> {
+  const { data, error } = await createClient().rpc("effective_member_standing", {
+    p_membership_id: membershipId,
+  });
+  if (error) throw error;
+  if (!data) throw new Error("Effective standing unavailable");
+  return { ...result, standing: data as StandingResult["standing"] };
+}
 
 /**
  * Hook that returns a member's standing breakdown.
@@ -25,12 +33,13 @@ export function useMemberStanding(
     queryKey: ["member-standing", membershipId, groupId, currency],
     queryFn: async () => {
       if (!membershipId || !groupId) return null;
-      return calculateStanding(membershipId, groupId, {
+      const result = await calculateStanding(membershipId, groupId, {
         updateDb: false,
         currency,
       });
+      return liveStandingResult(membershipId, result);
     },
-    staleTime: STALE_THRESHOLD_MS,
+    staleTime: 0,
     enabled: !!membershipId && !!groupId,
   });
 }
@@ -51,12 +60,13 @@ export function useMemberStandingDetailed(
     queryKey: ["member-standing-detailed", membershipId, groupId, currency],
     queryFn: async () => {
       if (!membershipId || !groupId) return null;
-      return calculateStanding(membershipId, groupId, {
+      const result = await calculateStanding(membershipId, groupId, {
         updateDb: false,
         currency,
       });
+      return liveStandingResult(membershipId, result);
     },
-    staleTime: STALE_THRESHOLD_MS,
+    staleTime: 0,
     enabled: !!membershipId && !!groupId,
   });
 }

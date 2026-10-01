@@ -76,12 +76,26 @@ export default function MembershipCardPage() {
   const canViewOther = hasPermission("members.manage");
   const allowTargetFetch = !!targetMemberId && !isOwnCard && canViewOther;
   const { data: targetMember, isLoading: targetLoading } = useTargetMember(allowTargetFetch ? targetMemberId : null);
+  const cardMembershipId = allowTargetFetch ? targetMemberId : currentMembership?.id || null;
+  const { data: liveStanding, isLoading: standingLoading, error: standingError } = useQuery({
+    queryKey: ["card-effective-standing", cardMembershipId],
+    queryFn: async () => {
+      const { data, error } = await createClient().rpc("effective_member_standing", {
+        p_membership_id: cardMembershipId,
+      });
+      if (error) throw error;
+      if (!data) throw new Error("Effective standing unavailable");
+      return data;
+    },
+    enabled: !!cardMembershipId,
+    staleTime: 0,
+  });
 
   const [side, setSide] = useState<"front" | "back">("front");
   const [downloading, setDownloading] = useState(false);
   const [publicShareOpen, setPublicShareOpen] = useState(false);
 
-  const isLoading = loading || permsLoading || (allowTargetFetch && targetLoading);
+  const isLoading = loading || permsLoading || standingLoading || (allowTargetFetch && targetLoading);
 
   if (isLoading) {
     return (
@@ -105,6 +119,10 @@ export default function MembershipCardPage() {
         <EmptyState icon={Shield} title={t("title")} description={t("subtitle")} />
       </div>
     );
+  }
+
+  if (standingError) {
+    return <EmptyState icon={Shield} title={t("title")} description={standingError.message} />;
   }
 
   // Block unauthorized peer-card deep-links (?memberId of someone else without
@@ -140,7 +158,7 @@ export default function MembershipCardPage() {
     : (user?.avatar_url || null);
 
   const role = (membership.role as string) || "member";
-  const standing = ((membership.standing as string) || "good") as keyof typeof standingConfig;
+  const standing = (liveStanding || membership.standing || "good") as keyof typeof standingConfig;
   const standingCfg = standingConfig[standing] || standingConfig.good;
   const isActive = standing === "good" || standing === "warning";
   const membershipId = membership.id as string;

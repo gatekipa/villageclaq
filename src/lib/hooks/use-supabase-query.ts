@@ -88,7 +88,7 @@ export function useMembers() {
     // WS3 (B11): reuse roster across tab switches on low-bandwidth links.
     // useRecordPayment + member mutations invalidate ["members", groupId], so
     // standing-badge writes still refetch immediately; only idle remounts cache.
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0, // standing can cross a group-calendar boundary without a write
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -109,8 +109,16 @@ export function useMembers() {
         console.warn("[Members] Query failed:", error.message);
         return [];
       }
+      const { data: liveStandings, error: standingError } = await supabase.rpc(
+        "group_effective_standings", { p_group_id: groupId },
+      );
+      if (standingError) throw standingError;
+      const standingById = new Map((liveStandings || []).map(
+        (row: { membership_id: string; standing: string }) => [row.membership_id, row.standing],
+      ));
       return (data || []).map((m: Record<string, unknown>) => ({
         ...m,
+        standing: standingById.get(m.id as string) || "warning",
         profile: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles,
       }));
     },
@@ -125,7 +133,7 @@ export function useMember(membershipId: string | null) {
     // is already a globally-unique PK; this is belt-and-suspenders). Prefix-matched
     // invalidations like ["member", id] from useRecordPayment still apply. WS3 (B11).
     queryKey: ["member", membershipId, groupId],
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
     queryFn: async () => {
       if (!membershipId) return null;
       const { data, error } = await supabase
@@ -137,7 +145,16 @@ export function useMember(membershipId: string | null) {
         .eq("id", membershipId)
         .single();
       if (error) { console.warn("[Query] failed:", error.message); return null; }
-      return { ...data, profile: Array.isArray(data.profiles) ? data.profiles[0] : data.profiles };
+      const { data: liveStanding, error: standingError } = await supabase.rpc(
+        "effective_member_standing", { p_membership_id: membershipId },
+      );
+      if (standingError) throw standingError;
+      if (!liveStanding) throw new Error("Effective standing unavailable");
+      return {
+        ...data,
+        standing: liveStanding,
+        profile: Array.isArray(data.profiles) ? data.profiles[0] : data.profiles,
+      };
     },
     enabled: !!membershipId,
   });

@@ -224,7 +224,9 @@ export default function MyLoansPage() {
   // ─── Eligibility pre-check ──────────────────────────────────────────
   function getEligibility() {
     if (!config || !currentMembership) return null;
-    const standing = (currentMembership as unknown as Record<string, unknown>).standing as string || "good";
+    const standing = (membersList || []).find(
+      (m: Record<string, unknown>) => m.id === currentMembership.id,
+    )?.standing as string || "unknown";
     const joinedAt = (currentMembership as unknown as Record<string, unknown>).joined_at as string;
     const monthsSinceJoined = joinedAt
       ? Math.floor((Date.now() - new Date(joinedAt).getTime()) / (30 * 86400000))

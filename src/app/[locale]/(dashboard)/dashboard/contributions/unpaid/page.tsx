@@ -28,7 +28,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { ContributionsSubNav } from "@/components/contributions/sub-nav";
-import { useObligations, useGroupDuesPayments } from "@/lib/hooks/use-supabase-query";
+import { useObligations, useGroupDuesPayments, useMembers } from "@/lib/hooks/use-supabase-query";
 import {
   computeDuesStatusTotals,
   computeObligationStates,
@@ -103,8 +103,9 @@ export default function UnpaidReportPage() {
   // (admin-set, trigger-independent).
   const { data: allObligations, isLoading: oblLoading, isError: oblError, refetch: refetchObl } = useObligations();
   const { data: duesPayments, isLoading: payLoading, isError: payError, refetch: refetchPay } = useGroupDuesPayments();
-  const isLoading = oblLoading || payLoading;
-  const isError = oblError || payError;
+  const { data: liveMembers, isLoading: membersLoading, isError: membersError } = useMembers();
+  const isLoading = oblLoading || payLoading || membersLoading;
+  const isError = oblError || payError || membersError;
   const refetch = () => { refetchObl(); refetchPay(); };
 
   // Group obligations by membership — only include truly OPEN ones (confirmed
@@ -118,6 +119,9 @@ export default function UnpaidReportPage() {
       { today },
     );
     const memberMap = new Map<string, UnpaidMember>();
+    const standingById = new Map((liveMembers || []).map(
+      (member: Record<string, unknown>) => [member.id as string, member.standing as string],
+    ));
 
     for (const obl of allObligations) {
       if ((obl.status as string) === "waived") continue; // admin-set, safe
@@ -134,7 +138,7 @@ export default function UnpaidReportPage() {
           userId: membership.user_id || null,
           name: getMemberName(obl.membership as Record<string, unknown>),
           avatarUrl: profile?.avatar_url || null,
-          standing: (membership.standing as string) || "good",
+          standing: standingById.get(membershipId) || "warning",
           totalOutstanding: 0,
           obligations: [],
         });
@@ -160,7 +164,7 @@ export default function UnpaidReportPage() {
     }
 
     return Array.from(memberMap.values());
-  }, [allObligations, duesPayments, locale, t, today]);
+  }, [allObligations, duesPayments, liveMembers, locale, t, today]);
 
   const sorted = useMemo(() => {
     return [...unpaidMembers].sort((a, b) =>

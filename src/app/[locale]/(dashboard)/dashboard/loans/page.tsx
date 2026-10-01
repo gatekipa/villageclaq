@@ -973,9 +973,9 @@ export default function LoansAdminPage() {
     const membership = loan.membership as Record<string, unknown> | null;
     if (!membership) return null;
 
-    const standing = (membership.standing as string) || "good";
     const joinedAt = membership.joined_at as string;
     const membershipId = membership.id as string;
+    const standing = (membersList.find((m: Record<string, unknown>) => m.id === membershipId)?.standing as string) || "unknown";
     const monthsSinceJoined = joinedAt
       ? Math.floor((Date.now() - new Date(joinedAt).getTime()) / (30 * 86400000))
       : 0;

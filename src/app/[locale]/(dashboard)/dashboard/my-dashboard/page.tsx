@@ -232,7 +232,7 @@ export default function MyDashboardPage() {
     );
   }
 
-  const rawStanding = standingData?.standing || currentMembership?.standing || "good";
+  const rawStanding = standingData?.standing || "warning";
   // Normalize an unknown/drifted value to "warning" (needs attention) rather
   // than silently showing the healthy "good" state.
   const standing = (["good", "warning", "suspended", "banned"].includes(rawStanding as string)

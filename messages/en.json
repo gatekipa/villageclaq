@@ -1537,6 +1537,7 @@
     "exportMenu": "Export",
     "exportExcel": "Excel (.xlsx)",
     "exportPdf": "PDF",
+    "exportFailed": "Could not create the export. Please try again.",
     "externalReference": "External reference",
     "paymentReceiptId": "Payment / receipt ID",
     "exportGroup": "Group",

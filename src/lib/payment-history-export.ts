@@ -143,14 +143,25 @@ export function buildPaymentHistoryXlsx(rows: PaymentHistoryExportRow[], context
     "xl/workbook.xml": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${xml(labels.title.slice(0, 31))}" sheetId="1" r:id="rId1"/></sheets></workbook>`),
     "xl/_rels/workbook.xml.rels": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`),
     "xl/worksheets/sheet1.xml": strToU8(sheet),
-    "xl/styles.xml": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="3"><numFmt numFmtId="164" formatCode="yyyy-mm-dd"/><numFmt numFmtId="165" formatCode="#,##0.00"/><numFmt numFmtId="166" formatCode="#,##0"/></numFmts><fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts><fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="166" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs></styleSheet>`),
+    "xl/styles.xml": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="3"><numFmt numFmtId="164" formatCode="yyyy-mm-dd"/><numFmt numFmtId="165" formatCode="#,##0.00"/><numFmt numFmtId="166" formatCode="#,##0"/></numFmts><fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts><fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="166" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`),
   };
   return zipSync(files, { level: 6 });
 }
 
-export function buildPaymentHistoryPdf(rows: PaymentHistoryExportRow[], context: PaymentHistoryExportContext): Uint8Array {
+function base64Font(bytes: Uint8Array): string {
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += 8192) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
+  }
+  return btoa(binary);
+}
+
+export function buildPaymentHistoryPdf(rows: PaymentHistoryExportRow[], context: PaymentHistoryExportContext, fontBytes: Uint8Array): Uint8Array {
   const { labels } = context;
   const doc = new jsPDF({ orientation: "landscape" });
+  doc.addFileToVFS("Geist-Regular.ttf", base64Font(fontBytes));
+  doc.addFont("Geist-Regular.ttf", "Geist", "normal");
+  doc.setFont("Geist", "normal");
   doc.setFillColor(10, 85, 73);
   doc.rect(0, 0, doc.internal.pageSize.getWidth(), 25, "F");
   doc.setTextColor(255, 255, 255);
@@ -170,8 +181,8 @@ export function buildPaymentHistoryPdf(rows: PaymentHistoryExportRow[], context:
   autoTable(doc, {
     startY: 60, head: [headers(labels)],
     body: displayRows(rows, context).map((r) => r.map(String)),
-    styles: { fontSize: 7, cellPadding: 2, overflow: "linebreak" },
-    headStyles: { fillColor: [10, 85, 73] },
+    styles: { font: "Geist", fontStyle: "normal", fontSize: 7, cellPadding: 2, overflow: "linebreak" },
+    headStyles: { font: "Geist", fontStyle: "normal", fillColor: [10, 85, 73] },
     columnStyles: { 8: { cellWidth: 37 }, 3: { halign: "right" } },
     margin: { left: 12, right: 12 },
   });

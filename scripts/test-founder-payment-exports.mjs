@@ -73,7 +73,8 @@ test("native XLSX has typed dates and amounts, preserved IDs, and a typed total"
 });
 
 test("PDF contains a real PDF document; totals separate currencies and exclude reversals", () => {
-  const pdf = buildPaymentHistoryPdf(rows, context);
+  const font = readFileSync(new URL("../public/fonts/Geist-Regular.ttf", import.meta.url));
+  const pdf = buildPaymentHistoryPdf(rows, context, font);
   assert.equal(new TextDecoder().decode(pdf.slice(0, 8)).slice(0, 4), "%PDF");
   assert.ok(pdf.length > 3000);
   const totals = paymentHistoryTotals([

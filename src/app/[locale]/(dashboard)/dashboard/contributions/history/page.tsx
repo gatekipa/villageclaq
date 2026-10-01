@@ -377,7 +377,7 @@ export default function PaymentHistoryPage() {
     return t("contributions.confirmed");
   }
 
-  function handleExport(format: "csv" | "xlsx" | "pdf") {
+  async function handleExport(format: "csv" | "xlsx" | "pdf") {
     const rows: PaymentHistoryExportRow[] = sortedPayments.map((p) => ({
       id: p.id, date: p.paymentDate, member: p.memberName,
       type: p.contributionTypeName, amount: p.amount,
@@ -410,9 +410,18 @@ export default function PaymentHistoryPage() {
       },
     };
     const file = `villageclaq-payments-${new Date().toISOString().slice(0, 10)}.${format}`;
-    if (format === "csv") downloadPaymentHistory(buildPaymentHistoryCsv(rows, context), file, "text/csv;charset=utf-8");
-    if (format === "xlsx") downloadPaymentHistory(buildPaymentHistoryXlsx(rows, context), file, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    if (format === "pdf") downloadPaymentHistory(buildPaymentHistoryPdf(rows, context), file, "application/pdf");
+    try {
+      if (format === "csv") downloadPaymentHistory(buildPaymentHistoryCsv(rows, context), file, "text/csv;charset=utf-8");
+      if (format === "xlsx") downloadPaymentHistory(buildPaymentHistoryXlsx(rows, context), file, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      if (format === "pdf") {
+        const response = await fetch("/fonts/Geist-Regular.ttf");
+        if (!response.ok) throw new Error("PDF_FONT_UNAVAILABLE");
+        const font = new Uint8Array(await response.arrayBuffer());
+        downloadPaymentHistory(buildPaymentHistoryPdf(rows, context, font), file, "application/pdf");
+      }
+    } catch {
+      setActionError(t("contributions.exportFailed"));
+    }
   }
 
   function openReverseDialog(payment: NormalizedPayment) {

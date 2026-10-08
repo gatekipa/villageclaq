@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
 import { exportCSV } from "@/lib/export";
+import { formatAmount } from "@/lib/currencies";
+import { getMemberName } from "@/lib/get-member-name";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -37,7 +39,7 @@ import {
   X,
   Loader2,
 } from "lucide-react";
-import { RequirePermission } from "@/components/ui/permission-gate";
+import { AccessDenied, RequirePermission } from "@/components/ui/permission-gate";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import type { LucideIcon } from "lucide-react";
 
@@ -54,6 +56,18 @@ interface AuditEntry {
   details: Record<string, unknown> | null;
   created_at: string;
   actor_profile: { full_name: string | null } | null;
+}
+
+interface ReversedReceipt {
+  id: string;
+  amount: number;
+  currency: string;
+  reference_number: string | null;
+  membership: Record<string, unknown> | null;
+}
+
+function safeCell(value: string): string {
+  return /^[\s\uFEFF]*[=+\-@\t\r]/u.test(value) ? `'${value}` : value;
 }
 
 const ENTITY_TYPE_ICONS: Record<string, LucideIcon> = {
@@ -125,7 +139,7 @@ const CATEGORY_FILTERS = [
 // ─── HOOK ────────────────────────────────────────────────────────────────────
 
 function useAuditLogs(category: string, searchQuery: string, dateFrom: string, dateTo: string) {
-  const { groupId } = useGroup();
+  const { groupId, isAdmin } = useGroup();
   return useQuery<AuditEntry[]>({
     queryKey: ["audit-logs", groupId, category, searchQuery, dateFrom, dateTo],
     queryFn: async () => {
@@ -163,7 +177,7 @@ function useAuditLogs(category: string, searchQuery: string, dateFrom: string, d
       }
       return (data || []) as AuditEntry[];
     },
-    enabled: !!groupId,
+    enabled: !!groupId && isAdmin,
     staleTime: 30_000,
   });
 }
@@ -174,9 +188,7 @@ export default function ActivityLogPage() {
   const t = useTranslations("activityLog");
   const tc = useTranslations("common");
   const locale = useLocale();
-  const { currentGroup } = useGroup();
-  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
-  const dateLocale = locale === "fr" ? "fr-FR" : "en-US";
+  const { currentGroup, groupId, isAdmin, loading: groupLoading } = useGroup();
 
   const [category, setCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -184,8 +196,23 @@ export default function ActivityLogPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<AuditEntry | null>(null);
 
   const { data: logs, isLoading, isError, error, refetch } = useAuditLogs(category, searchQuery, dateFrom, dateTo);
+  const reversalIds = (logs || []).filter((entry) => entry.action === "dues_payment.reversed" && entry.entity_type === "payment" && entry.entity_id).map((entry) => entry.entity_id as string);
+  const { data: reversalReceipts = [], isLoading: receiptsLoading, isError: receiptsError, refetch: refetchReceipts } = useQuery<ReversedReceipt[]>({
+    queryKey: ["audit-reversal-receipts", groupId, reversalIds.join(",")],
+    enabled: !!groupId && isAdmin && reversalIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await createClient().from("payments")
+        .select("id, amount, currency, reference_number, membership:memberships!inner(id, display_name, is_proxy, profiles!memberships_user_id_fkey(full_name))")
+        .eq("group_id", groupId!)
+        .in("id", reversalIds);
+      if (error) throw error;
+      return (data || []) as unknown as ReversedReceipt[];
+    },
+  });
+  const receiptById = new Map(reversalReceipts.map((receipt) => [receipt.id, receipt]));
 
   const formatTimestamp = (d: string) => {
     try {
@@ -200,7 +227,9 @@ export default function ActivityLogPage() {
       if (diffMins < 60) return t("minutesAgo", { count: diffMins });
       if (diffHours < 24) return t("hoursAgo", { count: diffHours });
       if (diffDays < 7) return t("daysAgo", { count: diffDays });
-      return formatDateWithGroupFormat(date, groupDateFormat, locale);
+      return new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-US", {
+        year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short",
+      }).format(date);
     } catch {
       return d;
     }
@@ -216,18 +245,34 @@ export default function ActivityLogPage() {
     if (entries.length === 0) return;
     setExporting(true);
     try {
-      const rows = entries.map((entry) => ({
-        Date: new Date(entry.created_at).toLocaleString(dateLocale),
-        Actor: getActorName(entry),
-        Action: entry.action,
-        Category: entry.entity_type || "",
-        Description: entry.description || "",
-      }));
+      const rows = entries.map((entry) => {
+        const receipt = entry.action === "dues_payment.reversed" ? receiptById.get(entry.entity_id || "") : undefined;
+        return {
+          TimestampUTC: new Date(entry.created_at).toISOString(),
+          Actor: safeCell(getActorName(entry)),
+          Action: t.has(`action_${entry.action.replace(/\./g, "_")}`) ? t(`action_${entry.action.replace(/\./g, "_")}`) : safeCell(entry.action),
+          Category: safeCell(entry.entity_type || ""),
+          Description: safeCell(entry.description || ""),
+          Member: receipt?.membership ? safeCell(getMemberName(receipt.membership)) : "",
+          Amount: receipt?.amount ?? "",
+          Currency: receipt?.currency || "",
+          ReceiptId: receipt?.id || "",
+          ReceiptReference: receipt?.reference_number ? safeCell(receipt.reference_number) : "",
+          CorrectionReason: entry.action === "dues_payment.reversed" ? safeCell(String(entry.details?.reason || "")) : "",
+        };
+      });
       const groupName = currentGroup?.name || "group";
       exportCSV(rows, `activity-log_${groupName.replace(/\s+/g, "-")}`, {
+        headerLabels: {
+          TimestampUTC: t("timestampUtc"), Actor: t("csvActor"), Action: t("csvAction"),
+          Category: t("csvCategory"), Description: t("csvDescription"), Member: t("member"),
+          Amount: t("amount"), Currency: t("csvCurrency"), ReceiptId: t("receiptId"),
+          ReceiptReference: t("receiptReference"), CorrectionReason: t("correctionReason"),
+        },
         headerRows: [
-          `${groupName} - ${t("title")}`,
-          `${tc("exported")}: ${new Date().toLocaleString(dateLocale)}`,
+          `VillageClaq | ${safeCell(groupName)} | ${t("title")}`,
+          `${tc("exported")}: ${new Date().toISOString()} (UTC)`,
+          `${t("reportScope")}: ${t(`filter_${category}`)}; ${t("latestMatching")}`,
           ...(dateFrom || dateTo ? [`${t("dateRange")}: ${dateFrom || "..."} → ${dateTo || "..."}`] : []),
         ],
       });
@@ -243,7 +288,8 @@ export default function ActivityLogPage() {
     setVisibleCount(50);
   };
 
-  if (isLoading) return <ListSkeleton rows={8} />;
+  if (groupLoading || isLoading) return <ListSkeleton rows={8} />;
+  if (!isAdmin) return <AccessDenied />;
   if (isError) return <ErrorState message={(error as Error)?.message} onRetry={() => refetch()} />;
 
   const entries = logs || [];
@@ -263,13 +309,14 @@ export default function ActivityLogPage() {
             variant="outline"
             size="sm"
             onClick={handleExportCSV}
-            disabled={exporting || entries.length === 0}
+            disabled={exporting || receiptsLoading || receiptsError || entries.length === 0}
             className="shrink-0"
           >
             {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
             {t("exportCsv")}
           </Button>
         </div>
+        {receiptsError && <Button variant="outline" size="sm" onClick={() => refetchReceipts()}>{t("receiptDetailsError")}</Button>}
 
         {/* Filters */}
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -369,6 +416,9 @@ export default function ActivityLogPage() {
                         {entry.description && (
                           <p className="mt-1 text-sm text-muted-foreground">{entry.description}</p>
                         )}
+                        {entry.action === "dues_payment.reversed" && (
+                          <Button variant="link" className="mt-1 h-auto p-0 text-sm" onClick={() => setSelectedEntry(entry)}>{t("viewDetails")}</Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -387,6 +437,22 @@ export default function ActivityLogPage() {
             </Button>
           </div>
         )}
+        <Dialog open={!!selectedEntry} onOpenChange={(open) => { if (!open) setSelectedEntry(null); }}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>{t("reversalDetails")}</DialogTitle></DialogHeader>
+            {selectedEntry && (() => {
+              const receipt = receiptById.get(selectedEntry.entity_id || "");
+              return <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm break-words">
+                <dt>{t("member")}</dt><dd>{receipt?.membership ? getMemberName(receipt.membership) : t("unavailable")}</dd>
+                <dt>{t("amount")}</dt><dd>{receipt ? formatAmount(Number(receipt.amount), receipt.currency) : t("unavailable")}</dd>
+                <dt>{t("receiptId")}</dt><dd>{receipt?.id || t("unavailable")}</dd>
+                <dt>{t("receiptReference")}</dt><dd>{receipt?.reference_number || t("unavailable")}</dd>
+                <dt>{t("correctionReason")}</dt><dd>{String(selectedEntry.details?.reason || t("unavailable"))}</dd>
+                <dt>{t("timestampUtc")}</dt><dd>{new Date(selectedEntry.created_at).toISOString()}</dd>
+              </dl>;
+            })()}
+          </DialogContent>
+        </Dialog>
       </div>
     </RequirePermission>
   );

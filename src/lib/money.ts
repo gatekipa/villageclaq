@@ -120,6 +120,18 @@ export function isCollectedDuesPayment(p: MoneyPayment): boolean {
     && p.settlement_status !== "refunded" && p.settlement_status !== "reversed";
 }
 
+/** Retained dues by receipt month; reversed receipts stay in history but contribute zero. */
+export function collectedDuesByMonth(payments: MoneyPayment[]): Map<string, number> {
+  const totals = new Map<string, number>();
+  for (const payment of payments) {
+    if (!isCollectedDuesPayment(payment)) continue;
+    const month = payment.recorded_at?.slice(0, 7);
+    if (!month) continue;
+    totals.set(month, (totals.get(month) || 0) + num(payment.amount));
+  }
+  return totals;
+}
+
 /**
  * Map obligation_id → Σ CONFIRMED payment amount applied to it. This is the
  * trustworthy per-obligation "paid", independent of the polluted amount_paid

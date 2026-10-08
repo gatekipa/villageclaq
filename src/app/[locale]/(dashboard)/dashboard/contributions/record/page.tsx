@@ -1,7 +1,8 @@
 "use client";
 import { formatAmount, getCurrencyDef } from "@/lib/currencies";
 import { getMemberName } from "@/lib/get-member-name";
-import { formatDateWithGroupFormat } from "@/lib/format";
+import { formatLongCalendarDate } from "@/lib/long-date";
+import { groupTodayKey } from "@/lib/payment-reminder-eligibility";
 import { notifyFromClient } from "@/lib/notify-client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
@@ -64,7 +65,6 @@ export default function RecordPaymentPage() {
   const tDues = useTranslations("duesClassification");
   const locale = useLocale();
   const { currentGroup, groupId, user: currentUser } = useGroup();
-  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission } = usePermissions();
   const canRecord = hasPermission("finances.manage");
   const { data: members, isLoading: membersLoading, isError: membersError, refetch: refetchMembers } = useMembers();
@@ -487,7 +487,7 @@ export default function RecordPaymentPage() {
           : savedType?.name
       ) as string || "";
       const formattedAmt = formatAmount(payAmount, currency);
-      const dateStr = formatDateWithGroupFormat(new Date(), groupDateFormat, locale);
+      const dateStr = formatLongCalendarDate(groupTodayKey(currentGroup?.settings), locale);
 
       setLastSavedName(memberName);
       setLastSavedDetails({
@@ -516,7 +516,7 @@ export default function RecordPaymentPage() {
         setSelectedReliefPlanId("");
       }
 
-      setTimeout(() => setShowSuccess(false), 3000);
+      setTimeout(() => setShowSuccess(false), 10000);
       memberInputRef.current?.focus();
     } catch (err) {
       // Handle duplicate detection — show dialog instead of error
@@ -691,7 +691,7 @@ export default function RecordPaymentPage() {
               : (bulkType as Record<string, unknown>).name as string)
           : "";
         const formattedAmt = formatAmount(Number(bulkAmount), currency);
-        const dateStr = formatDateWithGroupFormat(new Date(), groupDateFormat, locale);
+        const dateStr = formatLongCalendarDate(groupTodayKey(currentGroup?.settings), locale);
         const recordedBy = currentUser?.full_name || currentUser?.display_name || t("common.admin");
 
         const notifPromises = paidPayments.map(async ({ memberId: mid }) => {
@@ -843,9 +843,17 @@ export default function RecordPaymentPage() {
         </section>
       )}
 
+      {lastSavedDetails && (
+        <div role="status" className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-950 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-100">
+          <p className="font-semibold">{t("contributions.paymentSaved")}</p>
+          <p>{lastSavedDetails.name} · {lastSavedDetails.amount} · {lastSavedDetails.type} · {lastSavedDetails.date}</p>
+          <Link href="/dashboard/contributions/history" className="underline underline-offset-2">{t("contributions.history")}</Link>
+        </div>
+      )}
+
       {/* Success Card with WhatsApp Share */}
       {showSuccess && (
-        <div className="fixed bottom-4 right-4 z-50 w-80 rounded-xl border bg-card p-4 shadow-2xl animate-in slide-in-from-bottom-4">
+        <div role="status" className="fixed bottom-4 left-4 right-4 z-50 max-w-sm rounded-xl border bg-card p-4 shadow-2xl animate-in slide-in-from-bottom-4 sm:left-auto sm:w-80">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
               <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />

@@ -98,6 +98,7 @@ interface FeedItem {
   // For activity_feed table items, carry reactions
   reactions?: Record<string, unknown>[];
   _source: "table" | "aggregated";
+  entity_id?: string;
 }
 
 /**
@@ -122,7 +123,7 @@ function useAggregatedFeed(enabled: boolean) {
       // 1. Recent payments
       const { data: payments } = await supabase
         .from("payments")
-        .select("id, amount, currency, recorded_at, membership:memberships!inner(id, display_name, is_proxy, privacy_settings, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)")
+        .select("id, amount, currency, recorded_at, settlement_status, membership:memberships!inner(id, display_name, is_proxy, privacy_settings, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)")
         .eq("group_id", groupId)
         .gte("recorded_at", thirtyDaysAgo)
         .order("recorded_at", { ascending: false })
@@ -135,12 +136,13 @@ function useAggregatedFeed(enabled: boolean) {
         items.push({
           id: `payment-${p.id}`,
           entity_type: "payment",
-          message: t("paymentMessage", { name: getMemberName(m), amount: formatAmount(Number(p.amount), (p.currency as string) || currency), type: (ct?.name as string) || t("contribution") }),
+          message: t("paymentMessage", { name: getMemberName(m), amount: formatAmount(Number(p.amount), (p.currency as string) || currency), type: (ct?.name as string) || t("contribution") }) + (p.settlement_status === "reversed" ? ` — ${t("reversedAnnotation")}` : ""),
           actor_name: getMemberName(m),
           actor_avatar: (profile?.avatar_url as string) || null,
           created_at: p.recorded_at as string,
           pinned: false,
           _source: "aggregated",
+          entity_id: p.id as string,
         });
       }
 
@@ -291,7 +293,7 @@ function useAggregatedFeed(enabled: boolean) {
 
 export default function FeedPage() {
   const t = useTranslations("feed");
-  const { isAdmin, currentMembership } = useGroup();
+  const { isAdmin, currentMembership, groupId, currentGroup } = useGroup();
   const { data: feedTableItems, isLoading: tableLoading, isError, error, refetch } = useActivityFeed();
   const addReaction = useAddFeedReaction();
   const [pinningId, setPinningId] = useState<string | null>(null);
@@ -301,14 +303,28 @@ export default function FeedPage() {
   // Use aggregated feed as fallback when activity_feed table is empty
   const tableIsEmpty = !tableLoading && (!feedTableItems || feedTableItems.length === 0);
   const { data: aggregatedItems, isLoading: aggLoading } = useAggregatedFeed(tableIsEmpty);
+  const { data: reversedPayments = [] } = useQuery({
+    queryKey: ["feed-reversed-payments", groupId],
+    enabled: !!groupId,
+    queryFn: async () => {
+      const { data, error } = await createClient().from("payments")
+        .select("id, amount, currency, reversed_at, membership:memberships!inner(id, display_name, is_proxy, profiles!memberships_user_id_fkey(full_name))")
+        .eq("group_id", groupId!)
+        .eq("settlement_status", "reversed")
+        .gte("reversed_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+        .order("reversed_at", { ascending: false })
+        .limit(25);
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const isLoading = tableLoading || (tableIsEmpty && aggLoading);
 
   // Convert table items to unified FeedItem format
   const allFeedItems = useMemo<FeedItem[]>(() => {
-    // If activity_feed table has data, use it
-    if (feedTableItems && feedTableItems.length > 0) {
-      return feedTableItems.map((item: Record<string, unknown>) => {
+    const baseItems: FeedItem[] = feedTableItems && feedTableItems.length > 0
+      ? feedTableItems.map((item: Record<string, unknown>) => {
         const actor = item.actor as Record<string, unknown> | undefined;
         const profile = actor
           ? ((Array.isArray(actor.profiles) ? actor.profiles[0] : actor.profiles) as Record<string, unknown> | undefined)
@@ -323,13 +339,24 @@ export default function FeedPage() {
           pinned: !!item.pinned,
           reactions: (item.reactions as Record<string, unknown>[]) || [],
           _source: "table" as const,
+          entity_id: (item.entity_id as string) || undefined,
         };
-      });
-    }
-
-    // Fallback: use aggregated data from real tables
-    return aggregatedItems || [];
-  }, [feedTableItems, aggregatedItems]);
+      }) : (aggregatedItems || []);
+    const reversedIds = new Set((reversedPayments as Array<Record<string, unknown>>).map((p) => p.id as string));
+    const annotated = baseItems.map((item) => item.entity_type === "payment" && item.entity_id && reversedIds.has(item.entity_id) && !item.message.includes(t("reversedAnnotation"))
+      ? { ...item, message: `${item.message} — ${t("reversedAnnotation")}` } : item);
+    const corrections: FeedItem[] = (reversedPayments as Array<Record<string, unknown>>).map((p) => {
+      const membership = p.membership as Record<string, unknown> | null;
+      const name = getMemberName(membership);
+      return {
+        id: `reversal-${p.id}`, entity_type: "payment",
+        message: t("reversalMessage", { name, amount: formatAmount(Number(p.amount), (p.currency as string) || currentGroup?.currency || "XAF") }),
+        actor_name: name, actor_avatar: null, created_at: p.reversed_at as string,
+        pinned: false, _source: "aggregated", entity_id: p.id as string,
+      };
+    });
+    return [...annotated, ...corrections].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [feedTableItems, aggregatedItems, reversedPayments, t, currentGroup?.currency]);
 
   const handlePin = async (itemId: string, currentlyPinned: boolean) => {
     setPinningId(itemId);

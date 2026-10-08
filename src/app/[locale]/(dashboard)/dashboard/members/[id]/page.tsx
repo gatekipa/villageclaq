@@ -43,6 +43,7 @@ import { DashboardSkeleton } from "@/components/ui/page-skeleton";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { formatAmount } from "@/lib/currencies";
 import { fetchAllRows } from "@/lib/fetch-all-rows";
+import { groupTodayKey } from "@/lib/payment-reminder-eligibility";
 import {
   num,
   isCollectedDuesPayment,
@@ -742,7 +743,8 @@ function MemberDetailContent() {
       isCollectedDuesPayment(p as unknown as MoneyPayment) ? sum + num(p.amount) : sum,
     0,
   );
-  const lastPayment = payments[0] as Record<string, unknown> | undefined;
+  const lastPayment = payments.find((p: Record<string, unknown>) => isCollectedDuesPayment(p as unknown as MoneyPayment)) as Record<string, unknown> | undefined;
+  const latestReversal = payments.find((p: Record<string, unknown>) => p.settlement_status === "reversed") as Record<string, unknown> | undefined;
 
   // Hosting stats
   const timesHosted = hostingAssignments.filter((h: Record<string, unknown>) => h.status === "completed").length;
@@ -761,6 +763,7 @@ function MemberDetailContent() {
   const yoyStates = computeObligationStates(
     obligations as unknown as MoneyObligation[],
     payments as unknown as MoneyPayment[],
+    { today: groupTodayKey(currentGroup?.settings) },
   );
   const oblsByTypeAndYear = new Map<string, Map<number, string[]>>();
   for (const obl of obligations as Array<Record<string, unknown>>) {
@@ -776,9 +779,9 @@ function MemberDetailContent() {
           ? "unpaid"
           : c.isPaid
             ? "paid"
-            : c.confirmedPaid > 0
-              ? "partial"
-              : "unpaid";
+            : c.isOverdue
+              ? c.confirmedPaid > 0 ? "partialOverdue" : "overdue"
+              : c.confirmedPaid > 0 ? "partial" : "unpaid";
     if (!oblsByTypeAndYear.has(typeName)) oblsByTypeAndYear.set(typeName, new Map());
     const yearMap = oblsByTypeAndYear.get(typeName)!;
     yearMap.set(dueYear, [...(yearMap.get(dueYear) || []), computedStatus]);
@@ -1132,6 +1135,9 @@ function MemberDetailContent() {
           </div>
           <CardContent className="p-4">
             <p className="text-xs font-medium text-muted-foreground mb-3">{ts("standingBreakdown")}</p>
+            {standingData.reasons.length > 0 && (
+              <p className="mb-3 text-sm text-foreground">{ts(standing === "good" ? "standingReasonGood" : standing === "warning" ? "standingReasonWarning" : "standingReasonSuspended")}</p>
+            )}
             {standingData.reasons.length === 0 && (
               <p className="text-sm text-muted-foreground">{ts("noStandingReasons")}</p>
             )}
@@ -1252,17 +1258,21 @@ function MemberDetailContent() {
                         if (!statuses) return <td key={y} className="px-3 py-2 text-center text-muted-foreground">—</td>;
                         const status = statuses.every((value) => value === "waived") ? "waived"
                           : statuses.every((value) => value === "paid" || value === "waived") ? "paid"
+                          : statuses.includes("overdue") ? "overdue"
+                          : statuses.includes("partialOverdue") ? "partialOverdue"
                           : statuses.every((value) => value === "unpaid" || value === "waived") ? "unpaid" : "partial";
                         const label = t(`members.yearStatus_${status}` as "members.yearStatus_paid");
                         return (
                           <td key={y} className="px-3 py-2 text-center" title={label}>
-                            <span className="sr-only">{label}</span>
+                            <span className="block text-[11px] font-medium">{label}</span>
                             {status === "paid" ? (
                               <CheckCircle2 aria-hidden="true" className="h-4 w-4 text-emerald-500 mx-auto" />
                             ) : status === "waived" ? (
                               <CheckCircle2 aria-hidden="true" className="h-4 w-4 text-sky-500 mx-auto" />
                             ) : status === "partial" ? (
                               <AlertTriangle aria-hidden="true" className="h-4 w-4 text-yellow-500 mx-auto" />
+                            ) : status === "overdue" || status === "partialOverdue" ? (
+                              <XCircle aria-hidden="true" className="h-4 w-4 text-red-500 mx-auto" />
                             ) : (
                               <XCircle aria-hidden="true" className="h-4 w-4 text-red-500 mx-auto" />
                             )}
@@ -1311,6 +1321,14 @@ function MemberDetailContent() {
               </p>
             </div>
           </div>
+          {latestReversal && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              {ts("reversedReceiptNote", {
+                amount: formatAmount(num(latestReversal.amount), (latestReversal.currency as string) || currency),
+                date: paymentHistoryLongDate(latestReversal.reversed_at as string, locale),
+              })}
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -1543,7 +1561,7 @@ function MemberDetailContent() {
               date: Date;
               label: string;
               detail: string;
-              paymentStatus?: "pending" | "rejected" | null;
+              paymentStatus?: "pending" | "rejected" | "reversed" | null;
             }> = [];
 
             for (const p of payments.slice(0, 10) as Array<Record<string, unknown>>) {
@@ -1551,11 +1569,9 @@ function MemberDetailContent() {
               const status = p.status as string | null | undefined;
               // Flag pending/rejected so the row is not read as a confirmed
               // collection; confirmed payments carry no status badge.
-              const paymentStatus = isPendingPayment(status)
-                ? "pending"
-                : isRejectedPayment(status)
-                ? "rejected"
-                : null;
+              const paymentStatus = p.settlement_status === "reversed"
+                ? "reversed"
+                : isPendingPayment(status) ? "pending" : isRejectedPayment(status) ? "rejected" : null;
               timeline.push({
                 type: "payment",
                 date: new Date(p.recorded_at as string),
@@ -1609,6 +1625,8 @@ function MemberDetailContent() {
                             <Badge variant="secondary" className="text-[10px]">
                               {t("contributions.pendingConfirmation")}
                             </Badge>
+                          ) : item.paymentStatus === "reversed" ? (
+                            <Badge variant="outline" className="text-[10px]">{ts("reversed")}</Badge>
                           ) : item.paymentStatus === "rejected" ? (
                             <Badge variant="destructive" className="text-[10px]">
                               {t("contributions.rejected")}
@@ -1616,7 +1634,7 @@ function MemberDetailContent() {
                           ) : null}
                           <span
                             className={cn(
-                              item.paymentStatus === "rejected"
+                              item.paymentStatus === "rejected" || item.paymentStatus === "reversed"
                                 ? "text-muted-foreground line-through"
                                 : item.paymentStatus === "pending"
                                 ? "text-muted-foreground"

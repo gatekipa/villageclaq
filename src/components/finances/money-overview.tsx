@@ -17,8 +17,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { formatAmount } from "@/lib/currencies";
-import { formatDateWithGroupFormat } from "@/lib/format";
-import { useGroup } from "@/lib/group-context";
+import { formatLongCalendarDate } from "@/lib/long-date";
 import { ErrorState } from "@/components/ui/page-skeleton";
 import { useMoneyOverview, type MoneyOverview as MoneyOverviewData } from "@/lib/hooks/use-money-overview";
 
@@ -39,12 +38,8 @@ export function MoneyOverview({ data }: { data?: MoneyOverviewData }) {
   const t = useTranslations("finances.overview");
   const localeRaw = useLocale();
   const locale = localeRaw === "fr" ? "fr" : "en";
-  const { currentGroup } = useGroup();
   const hookResult = useMoneyOverview();
   const overview = data ?? hookResult.data;
-
-  const groupDateFormat =
-    ((currentGroup?.settings as Record<string, unknown> | undefined)?.date_format as string) || "DD/MM/YYYY";
 
   // Locale-aware contribution-type name (the hook carries name_fr through).
   const typeLabel = (en: string | null, fr: string | null) =>
@@ -92,7 +87,7 @@ export function MoneyOverview({ data }: { data?: MoneyOverviewData }) {
   const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
   const noDuesSetUp = totalExpected === 0;
   const fmtDate = (d: string | null) =>
-    d ? formatDateWithGroupFormat(d, groupDateFormat, locale) : "";
+    d ? formatLongCalendarDate(d, locale) : "";
 
   return (
     <section

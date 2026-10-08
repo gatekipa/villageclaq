@@ -1,6 +1,6 @@
 "use client";
 import { formatAmount } from "@/lib/currencies";
-import { formatDateWithGroupFormat } from "@/lib/format";
+import { formatLongCalendarDate } from "@/lib/long-date";
 
 import { useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -78,7 +78,6 @@ export default function UnpaidReportPage() {
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
   const canWaive = hasPermission("contributions.manage");
-  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const currency = currentGroup?.currency || "XAF";
   // FQ-11: same group calendar as the dashboard card, so both agree on overdue.
   const today = groupTodayKey(currentGroup?.settings);
@@ -431,7 +430,7 @@ export default function UnpaidReportPage() {
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 {obl.period}
-                                {obl.dueDate && ` \u2022 ${t("contributions.due")}: ${formatDateWithGroupFormat(obl.dueDate, groupDateFormat, locale)}`}
+                                {obl.dueDate && ` \u2022 ${t("contributions.due")}: ${formatLongCalendarDate(obl.dueDate, locale)}`}
                               </p>
                             </div>
                             <div className="text-right">

@@ -58,6 +58,7 @@ import {
 import {
   confirmedPaidByType,
   confirmedPaidByMember,
+  collectedDuesByMonth,
   isCollectedDuesPayment,
   num,
   type MoneyObligation,
@@ -222,30 +223,21 @@ export default function FinancesPage() {
   // Monthly trend: group payments by month (last 6 months)
   const monthlyTrend = useMemo(() => {
     const payments = duesPayments || [];
-    const now = new Date();
+    const currentYear = Number(today.slice(0, 4));
+    const currentMonth = Number(today.slice(5, 7)) - 1;
     const months: { key: string; label: string }[] = [];
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const d = new Date(Date.UTC(currentYear, currentMonth - i, 1));
       months.push({
-        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-        label: d.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "short" }),
+        key: `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`,
+        label: d.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "short", timeZone: "UTC" }),
       });
     }
 
-    const monthMap = new Map<string, number>();
-    for (const m of months) monthMap.set(m.key, 0);
-
-    for (const p of payments) {
-      const status = ((p as Record<string, unknown>).status as string) || "confirmed";
-      if (status === "pending_confirmation" || status === "rejected") continue;
-      const pMonth = (p.recorded_at || "").slice(0, 7);
-      if (monthMap.has(pMonth)) {
-        monthMap.set(pMonth, (monthMap.get(pMonth) || 0) + Number(p.amount));
-      }
-    }
+    const monthMap = collectedDuesByMonth(payments as MoneyPayment[]);
 
     return months.map((m) => ({ month: m.label, amount: monthMap.get(m.key) || 0 }));
-  }, [duesPayments, locale]);
+  }, [duesPayments, locale, today]);
 
   // Top members who owe: outstanding is computed PER MEMBER from CONFIRMED
   // payments (member expected − member confirmed). Per-member (not per-obligation)

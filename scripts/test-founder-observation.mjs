@@ -5,11 +5,24 @@ import ts from "typescript";
 
 const source = fs.readFileSync(new URL("../src/lib/money.ts", import.meta.url), "utf8");
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
-const { computeObligationStates, computeDuesStatusTotals, buildObjectReport } = await import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`);
+const { computeObligationStates, computeDuesStatusTotals, buildObjectReport, collectedDuesByMonth } = await import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`);
 
 const old = { id: "old", membership_id: "m", contribution_type_id: "dues", amount: 10, status: "pending", due_date: "2025-12-31" };
 const current = { ...old, id: "current", due_date: "2026-09-30" };
 const payment = (id, amount, obligation_id) => ({ id, membership_id: "m", contribution_type_id: "dues", amount, status: "confirmed", obligation_id, recorded_at: "2026-09-30T12:00:00Z" });
+
+test("reversed Taylor receipt stays in history while October net collections are zero", () => {
+  const morgan = [payment("m4", 4, "morgan-september"), payment("m6", 6, "morgan-september")];
+  const taylor = { ...payment("t10", 10, "taylor-october"), membership_id: "taylor", recorded_at: "2026-10-08T18:06:00Z", settlement_status: "reversed" };
+  const totals = collectedDuesByMonth([...morgan, taylor]);
+  assert.equal(totals.get("2026-09"), 10);
+  assert.equal(totals.get("2026-10") || 0, 0);
+  const october = { id: "taylor-october", membership_id: "taylor", contribution_type_id: "dues", amount: 10, status: "pending", due_date: "2026-10-31" };
+  const state = computeObligationStates([october], [taylor], { today: "2026-10-08" }).get("taylor-october");
+  assert.equal(state.confirmedPaid, 0);
+  assert.equal(state.remaining, 10);
+  assert.equal(state.isOverdue, false);
+});
 
 test("an explicit September partial and separate settlement do not silently cover December", () => {
   const first = computeObligationStates([old, current], [payment("p4", 4, "current")], { today: "2026-09-30" });

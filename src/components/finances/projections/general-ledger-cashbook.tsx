@@ -10,6 +10,7 @@ import {
   useFinancialProjectionBundle,
 } from "@/lib/hooks/use-financial-projections";
 import { useFinancialAccounts } from "@/lib/hooks/use-financial-config";
+import { useGroup } from "@/lib/group-context";
 import { PermissionGate } from "@/components/ui/permission-gate";
 import { ReverseTransactionDialog } from "./reverse-transaction-dialog";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -63,6 +64,7 @@ export function GeneralLedgerCashbook({ groupId, initialRows }: GeneralLedgerCas
   const t = useTranslations("financialProjections");
   const tCorr = useTranslations("transactionCorrections");
   const locale = useLocale();
+  const { currentGroup } = useGroup();
 
   // State
   const [preset, setPreset] = useState<DatePeriodPreset>("this_month");
@@ -163,7 +165,15 @@ export function GeneralLedgerCashbook({ groupId, initialRows }: GeneralLedgerCas
     try {
       setIsExporting(true);
       const filename = `general_ledger_${preset}_${new Date().toISOString().slice(0, 10)}.csv`;
-      exportCashbookToCsv(filteredRows, filename);
+      exportCashbookToCsv(filteredRows, filename, {
+        groupId: groupId || "",
+        groupName: currentGroup?.name || "",
+        period: t(`periods.${preset === "this_month" ? "thisMonth" : preset === "last_month" ? "lastMonth" : preset === "this_year" ? "thisYear" : "allTime"}`),
+        account: selectedAccountId === "all" ? t("actions.filterAccount") : accounts.find(account => account.id === selectedAccountId)?.name || selectedAccountId,
+        currency: selectedCurrency === "all" ? t("actions.filterCurrency") : selectedCurrency,
+        search: searchQuery.trim(),
+        locale,
+      });
     } finally {
       setIsExporting(false);
     }

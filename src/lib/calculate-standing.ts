@@ -211,11 +211,15 @@ export async function calculateStanding(
       label_en: "Dues",
       label_fr: "Cotisations",
       detail_en: duesPassed
-        ? "Dues paid in full"
-        : `Dues: ${formatAmount(totalOutstanding, currency)} outstanding`,
+        ? totalOutstanding > 0
+          ? `${formatAmount(totalOutstanding, currency)} outstanding, but not overdue; dues do not lower standing yet`
+          : "Dues paid in full; no overdue balance"
+        : `${formatAmount(totalOutstanding, currency)} outstanding; ${overdueObls.length} overdue obligation(s) lower standing`,
       detail_fr: duesPassed
-        ? "Cotisations payées en totalité"
-        : `Cotisations: ${formatAmount(totalOutstanding, currency)} impayées`,
+        ? totalOutstanding > 0
+          ? `${formatAmount(totalOutstanding, currency)} à payer, mais pas encore en retard ; les cotisations n'affectent pas encore le statut`
+          : "Cotisations entièrement payées ; aucun retard"
+        : `${formatAmount(totalOutstanding, currency)} à payer ; ${overdueObls.length} échéance(s) en retard affectent le statut`,
       amount: duesPassed ? undefined : totalOutstanding,
       count: duesPassed ? undefined : overdueObls.length,
       fixHref: FIX_HREFS.dues,

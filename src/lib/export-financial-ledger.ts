@@ -46,7 +46,10 @@ function escapeCsvField(val: unknown): string {
  * Exports canonical cashbook rows into a client-downloadable CSV file.
  * Preserves exact unrounded decimal precision without floating point conversion.
  */
-export function exportCashbookToCsv(rows: CashbookRow[], filename?: string): void {
+export function exportCashbookToCsv(
+  rows: CashbookRow[], filename?: string,
+  context?: { groupId: string; groupName: string; period: string; account: string; currency: string; search: string; locale: string },
+): void {
   if (typeof window === "undefined") return;
 
   const headers = [
@@ -68,7 +71,15 @@ export function exportCashbookToCsv(rows: CashbookRow[], filename?: string): voi
     "Status",
   ];
 
-  const csvRows: string[] = [headers.map(escapeCsvField).join(",")];
+  const fr = context?.locale === "fr";
+  const csvRows: string[] = context ? [
+    escapeCsvField(`VillageClaq | ${fr ? "Grand livre et journal de caisse" : "General Ledger & Cashbook"}`),
+    escapeCsvField(`${fr ? "Groupe" : "Group"}: ${context.groupName} (${context.groupId})`),
+    escapeCsvField(`${fr ? "Période" : "Period"}: ${context.period}; ${fr ? "Compte" : "Account"}: ${context.account}; ${fr ? "Devise" : "Currency"}: ${context.currency}; ${fr ? "Recherche" : "Search"}: ${context.search || "—"}`),
+    escapeCsvField(`${fr ? "Généré le" : "Generated at"}: ${new Date().toISOString()} (UTC)`),
+    "",
+    headers.map(escapeCsvField).join(","),
+  ] : [headers.map(escapeCsvField).join(",")];
 
   for (const row of rows) {
     const isPositive = !row.amount_signed.startsWith("-") && row.amount_signed !== "0";

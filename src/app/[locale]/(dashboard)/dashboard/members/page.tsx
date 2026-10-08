@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { formatDateWithGroupFormat } from "@/lib/format";
+import { formatLongCalendarDate } from "@/lib/long-date";
 import { normalizeSearch } from "@/lib/utils";
 import { computeObligationDueDate } from "@/lib/contribution-schedule";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -277,7 +277,6 @@ export default function MembersPage() {
   const tInv = useTranslations("invitations");
   const router = useRouter();
   const { groupId, user, currentGroup, currentMembership, isAdmin } = useGroup();
-  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { data: members, isLoading, isError, error, refetch } = useMembers();
@@ -560,9 +559,9 @@ export default function MembersPage() {
           : (adminPhoneByMembership.get(m.id as string) || "");
         const role = (m.role as string) || "member";
         const standing = (m.standing as string) || "good";
-        const joinedAt = m.joined_at ? formatDateWithGroupFormat(m.joined_at as string, groupDateFormat, locale) : "";
+        const joinedAt = m.joined_at ? (m.joined_at as string).slice(0, 10) : "";
         const isProxy = m.is_proxy ? "Yes" : "No";
-        return { Name: name, Phone: phone, Role: role, Standing: standing, "Joined Date": joinedAt, "Proxy Member": isProxy };
+        return { Name: name, Phone: phone, Role: role, Standing: standing, "Joined Date (ISO)": joinedAt, "Proxy Member": isProxy };
       });
       exportCSV(rows, `${currentGroup?.name || "group"}-members`);
     } finally {
@@ -1509,7 +1508,7 @@ export default function MembersPage() {
 
   const formatDate = (dateStr: string) => {
     try {
-      return formatDateWithGroupFormat(dateStr, groupDateFormat, locale);
+      return formatLongCalendarDate(dateStr, locale);
     } catch {
       return dateStr;
     }

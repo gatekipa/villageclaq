@@ -42,27 +42,29 @@ export default function MonthlyTrendChart({
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-        <XAxis dataKey="month" className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))" }} />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+        <XAxis dataKey="month" className="text-xs" tick={{ fill: "var(--foreground)" }} />
         <YAxis
           className="text-xs"
-          tick={{ fill: "hsl(var(--muted-foreground))" }}
+          tick={{ fill: "var(--foreground)" }}
           tickFormatter={(v) => formatCompact(Number(v))}
         />
         <Tooltip
           formatter={(value) => [formatAmount(Number(value), currency), collectedLabel]}
+          labelStyle={{ color: "var(--popover-foreground)" }}
+          itemStyle={{ color: "var(--popover-foreground)" }}
           contentStyle={{
-            backgroundColor: "hsl(var(--popover))",
-            border: "1px solid hsl(var(--border))",
+            backgroundColor: "var(--popover)",
+            border: "1px solid var(--border)",
             borderRadius: "8px",
-            color: "hsl(var(--popover-foreground))",
+            color: "var(--popover-foreground)",
           }}
         />
         <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
           {data.map((entry, index) => (
             <Cell
               key={`cell-${index}`}
-              fill={index === data.length - 1 ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.3)"}
+              fill={index === data.length - 1 ? "var(--primary)" : "var(--chart-2)"}
             />
           ))}
         </Bar>

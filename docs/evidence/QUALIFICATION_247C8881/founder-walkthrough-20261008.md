@@ -1,6 +1,6 @@
 # October 8 founder walkthrough — focused repair evidence
 
-**Application commit:** `d03b80b38a505c9f06c8ba730a0aa0079427101b` on `codex/qualification-repair-247c8881` (parent `f8f02c124fb8197f15a4314164efa4dbbc48726a`). **Environment:** local candidate code plus read-only public founder-site/browser and isolated Supabase checks. No candidate Preview has been deployed or authenticated in a browser. Public application remains `c68d9efd1ff940b5275177e959b7c035ce9594f6` on `dpl_BM6KQKSvdU4LWfvVDL3DwJd44PnD`; immediate web rollback reference remains `dpl_A1JBP7jiWQDA9k91evgMj6sWgkyd`. No migration or database write was made by this repair.
+**Application commit:** `d03b80b38a505c9f06c8ba730a0aa0079427101b` on `codex/qualification-repair-247c8881` (parent `f8f02c124fb8197f15a4314164efa4dbbc48726a`). **Environment:** local candidate code plus read-only public founder-site/browser and isolated Supabase checks. No candidate Preview has been deployed or authenticated in a browser. Public application remains `c68d9efd1ff940b5275177e959b7c035ce9594f6` on `dpl_BM6KQKSvdU4LWfvVDL3DwJd44PnD`; Vercel's read-only deployment and alias records confirm that deployment READY/production and both `www.villageclaq.com` and redirecting apex assigned to it. Immediate web rollback reference remains `dpl_A1JBP7jiWQDA9k91evgMj6sWgkyd`. No migration or database write was made by this repair.
 
 ## Before state and stored facts
 

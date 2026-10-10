@@ -48,6 +48,7 @@ type MembershipRow = {
   display_name: string | null;
   is_proxy: boolean | null;
   standing: string | null;
+  membership_status: string | null;
   privacy_settings: Record<string, unknown> | null;
   // Supabase types an embedded to-one relation as an array; normalize via
   // firstProfile().
@@ -227,8 +228,9 @@ export async function produceAnnouncementDeliveries(
   const audienceType = (audience.type as string) || "all";
   let query = supabase
     .from("memberships")
-    .select("id,user_id,role,display_name,is_proxy,standing,privacy_settings,profiles:profiles!memberships_user_id_fkey(full_name,phone,preferred_locale)")
-    .eq("group_id", groupId);
+    .select("id,user_id,role,display_name,is_proxy,standing,membership_status,privacy_settings,profiles:profiles!memberships_user_id_fkey(full_name,phone,preferred_locale)")
+    .eq("group_id", groupId)
+    .eq("membership_status", "active");
   if (audienceType === "roles") {
     const roles = Array.isArray(audience.roles) ? (audience.roles as string[]) : [];
     if (roles.length === 0) return { ...base, status: "skipped", reason: "no_recipients" };
@@ -246,7 +248,7 @@ export async function produceAnnouncementDeliveries(
   }
 
   const recipients = ((rows || []) as MembershipRow[]).filter(
-    (m) => m.user_id && m.standing !== "banned",
+    (m) => m.user_id && m.membership_status === "active" && m.standing !== "banned",
   );
   if (recipients.length === 0) {
     return { ...base, status: "skipped", reason: "no_recipients" };

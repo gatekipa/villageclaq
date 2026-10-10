@@ -1,0 +1,61 @@
+{
+  "projectRef": "nisipxbuvndobyxqqglf",
+  "group": "37a94b2d-d6bc-4ed7-9a83-b581f45784ca",
+  "constitutionRows": [
+    {
+      "id": "168a5270-6176-4c3c-b3ff-5e6d12a3915e",
+      "type": "Constitution",
+      "documentId": "1adb2005-6505-472d-8cdb-42fa056021a6"
+    },
+    {
+      "id": "5020b003-8f9d-4967-88f0-46cc92e4b274",
+      "type": "Bylaws",
+      "documentId": "2abad89d-0d0a-426d-b019-0de650021586"
+    }
+  ],
+  "constitutionMatrix": {
+    "owner": {
+      "Constitution": 1,
+      "Bylaws": 1
+    },
+    "departed": {
+      "Constitution": 1,
+      "Bylaws": 1
+    },
+    "ordinary": {
+      "Constitution": 1,
+      "Bylaws": 1
+    }
+  },
+  "card": {
+    "id": "79401d1f-aa75-441a-9ecc-1521b918dc55",
+    "cardMatrix": {
+      "owner": 0,
+      "departed": 0,
+      "ordinary": 1
+    },
+    "validBefore": true,
+    "validAfterRevoke": false,
+    "revokedPersisted": false
+  },
+  "cardSharingRestored": false,
+  "announcement": {
+    "id": "00db7d45-cd45-4220-9cc9-0039d5736b17",
+    "scheduledAt": "2099-01-01T00:00:00+00:00",
+    "channels": [
+      "in_app"
+    ],
+    "audience": "departed membership fixture"
+  },
+  "announcementMatrix": {
+    "owner": 1,
+    "departed": 1,
+    "ordinary": 0
+  },
+  "notificationQueue": {
+    "before": null,
+    "after": null,
+    "errorBefore": null,
+    "errorAfter": null
+  }
+}

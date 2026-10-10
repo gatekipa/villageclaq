@@ -1,0 +1,21 @@
+{
+  "projectRef": "nisipxbuvndobyxqqglf",
+  "group": "37a94b2d-d6bc-4ed7-9a83-b581f45784ca",
+  "documentId": "d3bf0307-8f41-4641-bfb1-c9faa90445b3",
+  "key": "constitutions/37a94b2d-d6bc-4ed7-9a83-b581f45784ca/9ff9d1d4-0b4c-445d-bff2-7d7986c371e0/b908ab89-939e-4ec1-8baa-fc23f9513a6b.txt",
+  "owner": {
+    "ok": true,
+    "code": null,
+    "bodyMatches": true
+  },
+  "activeMember": {
+    "ok": true,
+    "code": null,
+    "bodyMatches": true
+  },
+  "departed": {
+    "ok": false,
+    "code": "404",
+    "bodyMatches": false
+  }
+}

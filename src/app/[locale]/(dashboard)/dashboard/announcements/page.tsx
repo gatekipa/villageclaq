@@ -402,7 +402,7 @@ export default function AnnouncementsPage() {
   // names) in selectedMembers so RLS + recipient filtering match rows.
   const memberPickerOptions = useMemo(
     () =>
-      (membersList || []).map((m: Record<string, unknown>) => ({
+      (membersList || []).filter((m: Record<string, unknown>) => m.membership_status === "active").map((m: Record<string, unknown>) => ({
         id: m.id as string,
         name: getMemberName(m),
       })),
@@ -420,7 +420,7 @@ export default function AnnouncementsPage() {
   const estimatedRecipientCount = useMemo(() => {
     const list = (membersList || []) as Array<Record<string, unknown>>;
     const candidates = list.filter(
-      (m) => m.user_id && m.user_id !== user?.id && m.standing !== "banned"
+      (m) => m.user_id && m.user_id !== user?.id && m.membership_status === "active" && m.standing !== "banned"
     );
     if (audience === "all") return candidates.length;
     if (audience === "roles") {

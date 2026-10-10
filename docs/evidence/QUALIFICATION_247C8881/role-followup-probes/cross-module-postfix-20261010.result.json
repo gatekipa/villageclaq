@@ -1,0 +1,80 @@
+{
+  "projectRef": "nisipxbuvndobyxqqglf",
+  "migration": "20261010070102 cross_module_finance_document_rls",
+  "roleCorrection": {
+    "formerlyLabeledOrdinaryAdversarialActor": "admin",
+    "actualOrdinaryActor": "riverside"
+  },
+  "departureMatrix": {
+    "owner": {
+      "documents": 1,
+      "fine_types": 1,
+      "fines": 1
+    },
+    "admin": {
+      "documents": 0,
+      "fine_types": 0,
+      "fines": 0
+    },
+    "ordinary": {
+      "documents": 0,
+      "fine_types": 1,
+      "fines": 1
+    }
+  },
+  "crossMemberMatrix": {
+    "fine": {
+      "ordinary": 0,
+      "owner": 1,
+      "subject": 1
+    },
+    "dispute": {
+      "ordinary": 0,
+      "owner": 1,
+      "subject": 1
+    }
+  },
+  "crossGroupMatrix": {
+    "fine": {
+      "nonmember": 0,
+      "owner": 0,
+      "subject": 1
+    },
+    "fineType": {
+      "nonmember": 0,
+      "member": 1
+    }
+  },
+  "unauthorizedAttempts": {
+    "fine": {
+      "returnedRows": 0,
+      "error": null,
+      "persistedReasonUnchanged": true
+    },
+    "dispute": {
+      "returnedRows": 0,
+      "error": null,
+      "persistedDescriptionUnchanged": true
+    },
+    "ownNonDisputeFineEdit": {
+      "error": "42501",
+      "persistedReasonUnchanged": true
+    }
+  },
+  "originalFictionalUpdatesRetained": {
+    "fine": "1b93398c-6a63-40f4-99a5-212e2acfadee",
+    "reason": "QA unauthorized cross-member change mv1zecmw",
+    "dispute": "c5a30eb8-9a01-4647-b4d2-1495626bc009",
+    "description": "QA unauthorized cross-member edit mv1zecmw"
+  },
+  "legitimateWorkflow": {
+    "ordinaryFine": "59987028-96cc-46b2-96e8-fbeda070889f",
+    "ordinaryDispute": "18ceedbd-eb0d-4e1b-b095-c657adf2abc3",
+    "ownDisputeTransitionPersisted": true,
+    "ownerUpdatePersisted": true
+  },
+  "foreignFixtures": {
+    "fine": "23483f00-e214-495b-8316-e23dbc9e067d",
+    "fineType": "2c14f7c7-f3ba-47a6-8cce-062b2113d939"
+  }
+}

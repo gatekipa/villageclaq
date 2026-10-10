@@ -88,8 +88,9 @@ async function dispatchScheduledAnnouncement(
 
   let query = supabase
     .from("memberships")
-    .select("id, user_id, role, is_proxy, standing, profiles:profiles!memberships_user_id_fkey(preferred_locale)")
-    .eq("group_id", groupId);
+    .select("id, user_id, role, is_proxy, standing, membership_status, profiles:profiles!memberships_user_id_fkey(preferred_locale)")
+    .eq("group_id", groupId)
+    .eq("membership_status", "active");
 
   if (audienceType === "roles") {
     const roles = Array.isArray(audience.roles) ? (audience.roles as string[]) : [];
@@ -106,7 +107,7 @@ async function dispatchScheduledAnnouncement(
 
   const candidates = (memberRows || []).filter((m) => {
     const rec = m as Record<string, unknown>;
-    return rec.user_id && rec.standing !== "banned";
+    return rec.user_id && rec.membership_status === "active" && rec.is_proxy !== true && rec.standing !== "banned";
   }) as Array<Record<string, unknown>>;
 
   if (candidates.length === 0) return;

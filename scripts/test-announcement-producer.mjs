@@ -23,10 +23,12 @@ const ids = {
   mNoPhone: "33333333-3333-4333-8333-333333333333",
   proxy: "44444444-4444-4444-8444-444444444444",
   banned: "55555555-5555-4555-8555-555555555555",
+  exited: "66666666-6666-4666-8666-666666666666",
   uAfrican: "a1111111-1111-4111-8111-111111111111",
   uUS: "a2222222-2222-4222-8222-222222222222",
   uNoPhone: "a3333333-3333-4333-8333-333333333333",
   uBanned: "a5555555-5555-4555-8555-555555555555",
+  uExited: "a6666666-6666-4666-8666-666666666666",
 };
 
 const AFRICAN_PHONE = "+237670000001";
@@ -77,11 +79,12 @@ const producer = loadProducer();
 
 function recipients() {
   return [
-    { id: ids.mAfrican, user_id: ids.uAfrican, role: "member", display_name: "Afri", is_proxy: false, standing: "good", privacy_settings: {}, profiles: { full_name: "Afri", phone: AFRICAN_PHONE, preferred_locale: "en" } },
-    { id: ids.mUS, user_id: ids.uUS, role: "member", display_name: "Yank", is_proxy: false, standing: "good", privacy_settings: {}, profiles: { full_name: "Yank", phone: US_PHONE, preferred_locale: "en" } },
-    { id: ids.mNoPhone, user_id: ids.uNoPhone, role: "member", display_name: "NoPhone", is_proxy: false, standing: "good", privacy_settings: {}, profiles: { full_name: "NoPhone", phone: null, preferred_locale: "fr" } },
-    { id: ids.proxy, user_id: null, role: "member", display_name: "Proxy", is_proxy: true, standing: "good", privacy_settings: { proxy_phone: AFRICAN_PHONE }, profiles: null },
-    { id: ids.banned, user_id: ids.uBanned, role: "member", display_name: "Banned", is_proxy: false, standing: "banned", privacy_settings: {}, profiles: { full_name: "Banned", phone: AFRICAN_PHONE, preferred_locale: "en" } },
+    { id: ids.mAfrican, user_id: ids.uAfrican, role: "member", display_name: "Afri", is_proxy: false, standing: "good", membership_status: "active", privacy_settings: {}, profiles: { full_name: "Afri", phone: AFRICAN_PHONE, preferred_locale: "en" } },
+    { id: ids.mUS, user_id: ids.uUS, role: "member", display_name: "Yank", is_proxy: false, standing: "good", membership_status: "active", privacy_settings: {}, profiles: { full_name: "Yank", phone: US_PHONE, preferred_locale: "en" } },
+    { id: ids.mNoPhone, user_id: ids.uNoPhone, role: "member", display_name: "NoPhone", is_proxy: false, standing: "good", membership_status: "active", privacy_settings: {}, profiles: { full_name: "NoPhone", phone: null, preferred_locale: "fr" } },
+    { id: ids.proxy, user_id: null, role: "member", display_name: "Proxy", is_proxy: true, standing: "good", membership_status: "active", privacy_settings: { proxy_phone: AFRICAN_PHONE }, profiles: null },
+    { id: ids.banned, user_id: ids.uBanned, role: "member", display_name: "Banned", is_proxy: false, standing: "banned", membership_status: "active", privacy_settings: {}, profiles: { full_name: "Banned", phone: AFRICAN_PHONE, preferred_locale: "en" } },
+    { id: ids.exited, user_id: ids.uExited, role: "member", display_name: "Exited", is_proxy: false, standing: "good", membership_status: "exited", privacy_settings: {}, profiles: { full_name: "Exited", phone: AFRICAN_PHONE, preferred_locale: "en" } },
   ];
 }
 
@@ -180,13 +183,13 @@ test("produces per-recipient rows; excludes proxies (no user_id) and banned", as
   const fake = createFake({ announcement: announcement(), recipients: recipients() });
   const res = await producer.produceAnnouncementDeliveries(fake, ids.announcement);
   assert.equal(res.status, "produced");
-  assert.equal(res.recipientCount, 3, "proxy + banned excluded -> 3 real recipients");
+  assert.equal(res.recipientCount, 3, "proxy + banned + exited excluded -> 3 real recipients");
   // 3 recipients x 4 channels = 12 delivery rows
   assert.equal(res.deliveryRowsCreated, 12);
   // every delivery row carries group_id (tenant scoping)
   assert.ok(fake.calls.deliveryInserts.every((d) => d.group_id === ids.group), "all delivery rows have group_id");
   // no row was created for the proxy or banned membership
-  assert.ok(!fake.calls.deliveryInserts.some((d) => d.membership_id === ids.proxy || d.membership_id === ids.banned));
+  assert.ok(!fake.calls.deliveryInserts.some((d) => d.membership_id === ids.proxy || d.membership_id === ids.banned || d.membership_id === ids.exited));
 });
 
 test("in-app rows are in_app_published with NO queue row; external sendable rows are queued WITH a queue row", async () => {
@@ -257,4 +260,13 @@ test("roles audience filters recipients by role", async () => {
   const fake = createFake({ announcement: ann, recipients: recips });
   const res = await producer.produceAnnouncementDeliveries(fake, ids.announcement);
   assert.equal(res.recipientCount, 1, "only the admin recipient");
+});
+
+test("departed targeted recipient creates no delivery or queue rows", async () => {
+  const ann = announcement({ audience: { type: "members", members: [ids.exited] } });
+  const fake = createFake({ announcement: ann, recipients: recipients() });
+  const res = await producer.produceAnnouncementDeliveries(fake, ids.announcement);
+  assert.equal(res.reason, "no_recipients");
+  assert.equal(fake.calls.deliveryInserts.length, 0);
+  assert.equal(fake.calls.queueInserts.length, 0);
 });

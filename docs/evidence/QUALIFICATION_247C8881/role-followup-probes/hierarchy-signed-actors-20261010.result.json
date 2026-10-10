@@ -1,0 +1,28 @@
+{
+  "projectRef": "nisipxbuvndobyxqqglf",
+  "applicationSha": "defbe3bc421c196b66000e3e51286ed2aa81cfe7",
+  "organization": "f42b5d66-8c65-4269-a7fc-7c3073e8e3f7",
+  "hq": "b739ac1e-80be-462a-979a-afa4b46195d6",
+  "branch": "6462cf0a-5b06-4bba-b37c-236809e089fc",
+  "memberships": [
+    "3341bde0-c40b-4c8b-b6e8-ab63496a2e0b",
+    "e6af0937-949a-4379-a596-6acf3175e243",
+    "352e6b9a-669a-493b-9b3f-1b6c301fdc1a"
+  ],
+  "rootUnit": "f1ec3da4-f27a-4952-838d-79c4a2ae3f87",
+  "branchUnit": "842b2a92-176c-40b0-a713-a1b0f094ed77",
+  "before": {
+    "ownerRootToBranch": true,
+    "memberBranch": false,
+    "memberRoot": false,
+    "outsiderBranch": false
+  },
+  "outsiderUnitRows": 0,
+  "memberUnitRows": 2,
+  "granted": {
+    "branch": true,
+    "root": false
+  },
+  "revoked": false,
+  "retainedRevokedGrantRows": 2
+}

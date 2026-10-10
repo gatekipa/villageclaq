@@ -1,0 +1,40 @@
+{
+  "projectRef": "nisipxbuvndobyxqqglf",
+  "applicationSha": "defbe3bc421c196b66000e3e51286ed2aa81cfe7",
+  "organization": "f42b5d66-8c65-4269-a7fc-7c3073e8e3f7",
+  "hq": "b739ac1e-80be-462a-979a-afa4b46195d6",
+  "memberHq": "169bb560-a168-4d92-8d41-895a993738d2",
+  "proSubscription": "849fb233-1524-417f-88cb-c7c66ce5bc35",
+  "stripeIdentifiersAbsent": true,
+  "election": "522f452f-adb0-4197-98f2-47681449cc1b",
+  "option": "06dfb375-1996-4f1e-a69f-429192d9c993",
+  "eligibleCount": 2,
+  "vote": {
+    "ok": true
+  },
+  "duplicate": {
+    "ok": false,
+    "error": "already_voted"
+  },
+  "outsideVote": {
+    "ok": false,
+    "error": "not_eligible"
+  },
+  "liveResults": [],
+  "closedUnpublishedResults": [],
+  "publishedResults": [
+    {
+      "count": 1,
+      "option_id": "06dfb375-1996-4f1e-a69f-429192d9c993",
+      "candidate_id": null
+    }
+  ],
+  "outsiderPublishedResults": [],
+  "persistedElection": {
+    "id": "522f452f-adb0-4197-98f2-47681449cc1b",
+    "status": "closed",
+    "published_at": "2026-10-10T08:10:37.519639+00:00",
+    "scope_unit_id": "f1ec3da4-f27a-4952-838d-79c4a2ae3f87",
+    "frozen_topology_version": 3
+  }
+}

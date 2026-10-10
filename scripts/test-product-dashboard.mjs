@@ -109,7 +109,9 @@ test("misleading stat sublabels are replaced with honest ones", () => {
 });
 
 test("outstanding balance remains due-date aware in the selected scope", () => {
-  assert.match(page, /const overdue = sharedFinancial\?\.overdue \?\? stats\?\.overdue \?\? 0;/);
+  assert.match(page, /const overdue = sharedFinancial\?\.overdue \?\? personalFinancial\?\.overdue \?\? 0;/);
+  assert.doesNotMatch(page, /sharedFinancial\?\.outstanding \?\? stats\?\.outstanding/);
+  assert.match(page, /balanceAvailable \? formatCurrency\(outstanding\) : t\("dashboard\.notShared"\)/);
   assert.match(page, /overdue > 0 && "border border-destructive\/30/);
   assert.match(page, /overdue > 0 \? "text-destructive" : "text-foreground"/);
   assert.doesNotMatch(page, /outstanding > 0 && "border border-destructive/);

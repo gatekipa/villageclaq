@@ -2,6 +2,7 @@
 
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient as createUserClient } from "@/lib/supabase/server";
+import { getEnabledChannels } from "@/lib/notification-prefs";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const allowedChannels = new Set(["in_app", "email", "sms", "whatsapp"]);
@@ -58,7 +59,6 @@ export async function createAnnouncementAction(params: CreateAnnouncementParams)
       ? { type: "roles", roles: targetRoles || [] }
       : { type: "members", members: targetMemberIds || [] };
   const isNow = !asDraft && !scheduledAt;
-  const sentAt = isNow ? new Date().toISOString() : null;
   const actualScheduledAt = !asDraft && scheduledAt ? scheduledAt : null;
 
   // Resolve the audience before writing the announcement, so a failed recipient
@@ -83,7 +83,7 @@ export async function createAnnouncementAction(params: CreateAnnouncementParams)
     content_fr: bodyFr || null,
     channels,
     audience: audienceData,
-    sent_at: sentAt,
+    sent_at: null,
     scheduled_at: actualScheduledAt,
     created_by: user.id,
   }).select("id").single();
@@ -96,7 +96,8 @@ export async function createAnnouncementAction(params: CreateAnnouncementParams)
       const userId = member.user_id as string;
       const profileRaw = member.profiles as { preferred_locale?: string | null } | { preferred_locale?: string | null }[] | null;
       const profile = Array.isArray(profileRaw) ? profileRaw[0] : profileRaw;
-      if (channels.includes("in_app")) {
+      const enabled = await getEnabledChannels(service, userId, "announcements", groupId);
+      if (channels.includes("in_app") && enabled.in_app) {
         inAppPayloads.push({
           group_id: groupId,
           user_id: userId,
@@ -107,7 +108,8 @@ export async function createAnnouncementAction(params: CreateAnnouncementParams)
         });
       }
       for (const channel of channels.filter((candidate) => candidate !== "in_app")) {
-        const { error } = await service.rpc("queue_transactional_notification", { p_command: {
+        if (!enabled[channel]) continue;
+        const { data, error } = await service.rpc("queue_transactional_notification", { p_command: {
           group_id: groupId,
           membership_id: memberId,
           channel,
@@ -115,13 +117,17 @@ export async function createAnnouncementAction(params: CreateAnnouncementParams)
           payload: { announcement_id: inserted.id, title, body, titleFr, bodyFr },
           idempotency_key: `${inserted.id}_${memberId}_${channel}`,
         } });
-        if (error) throw new Error("ANNOUNCEMENT_QUEUE_FAILED");
+        if (error || (!data?.queued && !data?.idempotent_replay)) throw new Error("ANNOUNCEMENT_QUEUE_FAILED");
       }
     }
     if (inAppPayloads.length > 0) {
       const { error } = await service.from("notifications").insert(inAppPayloads);
       if (error) throw new Error("ANNOUNCEMENT_NOTIFICATION_FAILED");
     }
+    // Publish only after every requested, consent-enabled queue operation is acknowledged.
+    const { error: publishError } = await service.from("announcements")
+      .update({ sent_at: new Date().toISOString() }).eq("id", inserted.id);
+    if (publishError) throw new Error("ANNOUNCEMENT_PUBLISH_FAILED");
   }
 
   return { id: inserted.id };

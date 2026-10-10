@@ -50,7 +50,7 @@ import {
   useLatestMinutes,
   useContributionTypes,
 } from "@/lib/hooks/use-supabase-query";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 import { getMemberName } from "@/lib/get-member-name";
@@ -74,11 +74,12 @@ export default function DashboardPage() {
   const locale = useLocale();
   const t = useTranslations();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { currentGroup, user, isAdmin, groupId } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
 
   const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useDashboardStats();
-  const { data: sharedObservationData, isLoading: sharedLoading, error: sharedError } = useQuery<{ memberCount: number | null; financial: { outstanding: number; overdue: number; collectionRate: number } | null }>({
+  const { data: sharedObservationData, isLoading: sharedLoading, error: sharedError } = useQuery<{ memberCount: number | null; personal: { outstanding: number; overdue: number }; financial: { outstanding: number; overdue: number; collectionRate: number } | null }>({
     queryKey: ["dashboard-shared-observation", groupId], enabled: !!groupId, staleTime: 0,
     refetchInterval: 15_000, refetchOnWindowFocus: true, retry: false,
     queryFn: async () => {
@@ -87,7 +88,12 @@ export default function DashboardPage() {
       return res.json();
     },
   });
-  // A failed background refetch must not keep displaying cached group figures after revocation.
+  // Any response without group-finance access clears previously cached group figures.
+  useEffect(() => {
+    if (!groupId || (!sharedError && (!sharedObservationData || sharedObservationData.financial))) return;
+    queryClient.setQueriesData({ queryKey: ["dashboard-stats", groupId] }, null);
+    if (sharedError) queryClient.setQueryData(["dashboard-shared-observation", groupId], null);
+  }, [sharedError, sharedObservationData, groupId, queryClient]);
   const sharedObservation = sharedError ? null : sharedObservationData;
   const { data: payments, isLoading: paymentsLoading } = usePayments(5);
   const { data: nextEvent, isLoading: eventsLoading } = useNextEvent();
@@ -312,9 +318,11 @@ export default function DashboardPage() {
     (!payments || payments.length === 0);
 
   const sharedFinancial = sharedObservation?.financial;
-  const outstanding = sharedFinancial?.outstanding ?? stats?.outstanding ?? 0;
-  // FQ-11: group aggregate only when the current server authorization allows it.
-  const overdue = sharedFinancial?.overdue ?? stats?.overdue ?? 0;
+  const personalFinancial = sharedObservation?.personal;
+  const balanceAvailable = Boolean(sharedFinancial || personalFinancial);
+  const outstanding = sharedFinancial?.outstanding ?? personalFinancial?.outstanding ?? 0;
+  // Group figures come only from the current server authorization; never use cached stats as a fallback.
+  const overdue = sharedFinancial?.overdue ?? personalFinancial?.overdue ?? 0;
 
   return (
     <div className="space-y-8">
@@ -507,7 +515,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className={cn("text-4xl font-bold", overdue > 0 ? "text-destructive" : "text-foreground")}>
-                {formatCurrency(outstanding)}
+                {balanceAvailable ? formatCurrency(outstanding) : t("dashboard.notShared")}
               </div>
               <p className={cn("mt-1 text-sm", overdue > 0 && isAdmin ? "font-medium text-destructive" : "text-muted-foreground")}>
                 {!sharedFinancial

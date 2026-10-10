@@ -42,7 +42,6 @@ export async function GET(request: Request) {
   const sharing = group.sharing_controls as Record<string, boolean> | null;
   const maySeeFinance = Boolean(financeView.data || financeManage.data || sharing?.financial_summary);
   const maySeeCount = Boolean(memberManage.data || sharing?.member_count);
-  if (!maySeeFinance && !maySeeCount) return response({ memberCount: null, financial: null });
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -58,27 +57,41 @@ export async function GET(request: Request) {
     if (count.error) return response({ error: "Observation unavailable" }, 503);
     memberCount = count.count ?? 0;
   }
-  if (!maySeeFinance) return response({ memberCount, financial: null });
-
+  // An active member can see only their own balance when group sharing is off.
+  // Query the full group only when the current authorization allows it.
   const [obligations, payments] = await Promise.all([
-    fetchAllRows((from, to) => service.from("contribution_obligations")
-      .select("id,amount,status,due_date,membership_id,contribution_type_id,contribution_type:contribution_types!inner(id),membership:memberships!inner(id)", { count: "exact" })
-      .eq("group_id", groupId).order("id").range(from, to)),
-    fetchAllRows((from, to) => service.from("payments")
-      .select("id,amount,status,settlement_status,obligation_id,contribution_type_id,membership_id,relief_plan_id,recorded_at", { count: "exact" })
-      .eq("group_id", groupId).is("relief_plan_id", null).order("id").range(from, to)),
+    fetchAllRows((from, to) => {
+      const query = service.from("contribution_obligations")
+        .select("id,amount,status,due_date,membership_id,contribution_type_id,contribution_type:contribution_types!inner(id),membership:memberships!inner(id)", { count: "exact" })
+        .eq("group_id", groupId);
+      return (maySeeFinance ? query : query.eq("membership_id", membership.id)).order("id").range(from, to);
+    }),
+    fetchAllRows((from, to) => {
+      const query = service.from("payments")
+        .select("id,amount,status,settlement_status,obligation_id,contribution_type_id,membership_id,relief_plan_id,recorded_at", { count: "exact" })
+        .eq("group_id", groupId).is("relief_plan_id", null);
+      return (maySeeFinance ? query : query.eq("membership_id", membership.id)).order("id").range(from, to);
+    }),
   ]);
   if (obligations.error || payments.error) return response({ error: "Observation unavailable" }, 503);
+  const obligationRows = obligations.data as MoneyObligation[];
+  const paymentRows = payments.data as MoneyPayment[];
   const today = groupTodayKey(group.settings as Record<string, unknown> | null);
-  const figures = computeMoneyFigures(obligations.data as MoneyObligation[], payments.data as MoneyPayment[], { today });
-  const dues = computeDuesStatusTotals(obligations.data as MoneyObligation[], payments.data as MoneyPayment[], today);
+  const personalDues = computeDuesStatusTotals(
+    obligationRows.filter((row) => row.membership_id === membership.id),
+    paymentRows.filter((row) => row.membership_id === membership.id),
+    today,
+  );
+  const groupDues = maySeeFinance ? computeDuesStatusTotals(obligationRows, paymentRows, today) : null;
+  const figures = maySeeFinance ? computeMoneyFigures(obligationRows, paymentRows, { today }) : null;
   return response({
     memberCount,
-    financial: {
-      outstanding: dues.outstanding,
-      overdue: dues.overdue.amount,
+    personal: { outstanding: personalDues.outstanding, overdue: personalDues.overdue.amount },
+    financial: groupDues && figures ? {
+      outstanding: groupDues.outstanding,
+      overdue: groupDues.overdue.amount,
       collectionRate: figures.expected > 0 ? Math.round(figures.collected / figures.expected * 100) : 0,
       observedAt: new Date().toISOString(),
-    },
+    } : null,
   });
 }

@@ -54,8 +54,17 @@ export async function GET(request: Request) {
         continue;
       }
 
-      await dispatchScheduledAnnouncement(supabase, claimed);
-      succeeded++;
+      try {
+        await dispatchScheduledAnnouncement(supabase, claimed);
+        succeeded++;
+      } catch (err) {
+        // The sent_at write is an atomic claim. Restore eligibility on failure
+        // so a later run can retry idempotent queue work instead of reporting sent.
+        const { error: releaseError } = await supabase.from("announcements")
+          .update({ sent_at: null }).eq("id", row.id as string).eq("sent_at", claimed.sent_at);
+        if (releaseError) throw new Error(`claim release failed: ${releaseError.message}`);
+        throw err;
+      }
     } catch (err) {
       failed++;
       const msg = err instanceof Error ? err.message : "unknown";
@@ -125,12 +134,7 @@ async function dispatchScheduledAnnouncement(
     const title = prefLocale === "fr" && titleFr ? titleFr : titleEn;
     const body = (prefLocale === "fr" && contentFr ? contentFr : contentEn).slice(0, 200);
 
-    let channels;
-    try {
-      channels = await getEnabledChannels(supabase, uid, "announcements", groupId);
-    } catch {
-      channels = { in_app: true, email: true, sms: true, whatsapp: true, push: false };
-    }
+    const channels = await getEnabledChannels(supabase, uid, "announcements", groupId);
 
     if (wantInApp && channels.in_app) {
       inAppRows.push({
@@ -147,7 +151,7 @@ async function dispatchScheduledAnnouncement(
     const externalChannels = activeChannels.filter(c => c !== "in_app");
     for (const ch of externalChannels) {
       if ((channels as unknown as Record<string, boolean>)[ch]) {
-        await supabase.rpc("queue_transactional_notification", {
+        const { data, error } = await supabase.rpc("queue_transactional_notification", {
           p_command: {
             group_id: groupId,
             membership_id: membershipId,
@@ -162,6 +166,9 @@ async function dispatchScheduledAnnouncement(
             idempotency_key: `${announcementId}_${membershipId}_${ch}`
           }
         });
+        if (error || (!data?.queued && !data?.idempotent_replay)) {
+          throw new Error(`announcement queue failed: ${error?.message || ch}`);
+        }
       }
     }
   }
@@ -169,7 +176,8 @@ async function dispatchScheduledAnnouncement(
   if (inAppRows.length > 0) {
     for (let i = 0; i < inAppRows.length; i += 50) {
       const batch = inAppRows.slice(i, i + 50);
-      await supabase.from("notifications").insert(batch);
+      const { error } = await supabase.from("notifications").insert(batch);
+      if (error) throw new Error(`in-app notification insert failed: ${error.message}`);
     }
   }
 }

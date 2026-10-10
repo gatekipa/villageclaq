@@ -22,7 +22,8 @@ function harness(overrides = {}) {
       { id: author, user_id: author, role: 'owner', standing: 'good', is_proxy: false, membership_status: 'active', profiles: { preferred_locale: 'en' } },
       { id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', user_id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', role: 'member', standing: 'banned', is_proxy: false, membership_status: 'active', profiles: null },
     ],
-    announcementWrites: [], notifications: [], queued: [], ...overrides,
+    announcementWrites: [], publicationWrites: [], notifications: [], queued: [],
+    enabled: { in_app: true, email: false, sms: false, whatsapp: false }, ...overrides,
   };
   const actor = {
     auth: { getUser: async () => ({ data: { user: state.user }, error: null }) },
@@ -38,7 +39,8 @@ function harness(overrides = {}) {
         select() { return this; },
         eq(key, value) { this.filters.push([key, value]); return this; },
         in(key, values) { this.filters.push([key, values]); return this; },
-        insert(payload) { this.payload = payload; return this; },
+        insert(payload) { this.payload = payload; this.operation = "insert"; return this; },
+        update(payload) { this.payload = payload; this.operation = "update"; return this; },
         single: async () => {
           assert.equal(table, 'announcements');
           state.announcementWrites.push(q.payload);
@@ -49,6 +51,10 @@ function harness(overrides = {}) {
             const data = state.rows.filter((row) => q.filters.every(([key, value]) => Array.isArray(value) ? value.includes(row[key]) : row[key] === value || key === 'group_id'));
             return Promise.resolve(resolve({ data, error: null }));
           }
+          if (table === 'announcements' && q.operation === 'update') {
+            state.publicationWrites.push(q.payload);
+            return Promise.resolve(resolve({ error: null }));
+          }
           assert.equal(table, 'notifications');
           state.notifications.push(...q.payload);
           return Promise.resolve(resolve({ error: null }));
@@ -56,12 +62,13 @@ function harness(overrides = {}) {
       };
       return q;
     },
-    rpc: async (name, args) => { assert.equal(name, 'queue_transactional_notification'); state.queued.push(args.p_command); return { error: null }; },
+    rpc: async (name, args) => { assert.equal(name, 'queue_transactional_notification'); state.queued.push(args.p_command); return state.queueError ? { error: { message: 'queue unavailable' } } : { data: { queued: true }, error: null }; },
   };
   const exports = {};
   const localRequire = (id) => {
     if (id === '@/lib/supabase/server') return { createClient: async () => actor };
     if (id === '@supabase/supabase-js') return { createClient: () => service };
+    if (id === '@/lib/notification-prefs') return { getEnabledChannels: async () => state.enabled };
     return require(id);
   };
   vm.runInNewContext(compiled, { exports, require: localRequire, process: { env: { NEXT_PUBLIC_SUPABASE_URL: 'https://isolated.example', SUPABASE_SERVICE_ROLE_KEY: 'test-only' } } });
@@ -86,6 +93,8 @@ test('authorized immediate announcement reaches only active, non-banned, non-sen
   assert.ok(result.id);
   assert.equal(h.state.announcementWrites.length, 1);
   assert.equal(h.state.announcementWrites[0].created_by, author);
+  assert.equal(h.state.announcementWrites[0].sent_at, null);
+  assert.equal(h.state.publicationWrites.length, 1);
   assert.deepEqual(h.state.notifications.map((n) => n.user_id), [recipient]);
   assert.equal(h.state.queued.length, 0);
 });
@@ -96,4 +105,16 @@ test('scheduled announcement writes no recipient or queue rows before its due ti
   assert.equal(h.state.announcementWrites.length, 1);
   assert.equal(h.state.notifications.length, 0);
   assert.equal(h.state.queued.length, 0);
+});
+test('disabled external channel is not queued and a queue failure leaves the row unpublished', async () => {
+  const disabled = harness();
+  await disabled.action({ ...input, channels: ['in_app', 'email'] });
+  assert.equal(disabled.state.queued.length, 0);
+  assert.equal(disabled.state.publicationWrites.length, 1);
+
+  const failed = harness({ enabled: { in_app: true, email: true, sms: false, whatsapp: false }, queueError: true });
+  await assert.rejects(failed.action({ ...input, channels: ['email'] }), /ANNOUNCEMENT_QUEUE_FAILED/);
+  assert.equal(failed.state.announcementWrites.length, 1);
+  assert.equal(failed.state.announcementWrites[0].sent_at, null);
+  assert.equal(failed.state.publicationWrites.length, 0);
 });

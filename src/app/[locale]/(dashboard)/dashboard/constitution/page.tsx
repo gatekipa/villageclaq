@@ -550,10 +550,10 @@ export default function ConstitutionPage() {
       )}
 
       <Tabs defaultValue="document" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="document">{t("document")}</TabsTrigger>
-          <TabsTrigger value="amendments">{t("amendments")}</TabsTrigger>
-          <TabsTrigger value="acknowledgments">{t("acknowledgments")}</TabsTrigger>
+        <TabsList className="w-full max-w-full justify-start overflow-x-auto">
+          <TabsTrigger value="document" className="min-w-max flex-none sm:flex-1">{t("document")}</TabsTrigger>
+          <TabsTrigger value="amendments" className="min-w-max flex-none sm:flex-1">{t("amendments")}</TabsTrigger>
+          <TabsTrigger value="acknowledgments" className="min-w-max flex-none sm:flex-1">{t("acknowledgments")}</TabsTrigger>
         </TabsList>
 
         {/* ═══ TAB: Document ═══ */}

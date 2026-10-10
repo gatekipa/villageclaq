@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { formatAmount } from "@/lib/currencies";
 import { RefreshCw } from "lucide-react";
@@ -31,6 +32,7 @@ export default function MemberFinancialSummaryPage() {
   const t = useTranslations("memberFinancialSummary");
   const locale = useLocale();
   const { groupId } = useGroup();
+  const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
   const canManageSharing = hasPermission("settings.manage");
   const summary = useQuery({
@@ -43,9 +45,12 @@ export default function MemberFinancialSummaryPage() {
       return data as MemberSummary;
     },
   });
+  useEffect(() => {
+    if (summary.error && groupId) queryClient.setQueryData(["member-financial-summary", groupId], null);
+  }, [summary.error, groupId, queryClient]);
   const sharingLink = canManageSharing ? <Link className="text-sm text-primary underline" href="/dashboard/settings?tab=data-sharing">{t("manageSharing")}</Link> : null;
   if (summary.isLoading) return <div className="space-y-4"><Skeleton className="h-9 w-72" /><Skeleton className="h-48 w-full" /></div>;
-  if (summary.error) return <div className="space-y-4"><h1 className="text-2xl font-bold">{t("title")}</h1><div className="rounded-lg border p-4 text-sm text-muted-foreground">{t("notAvailable")}</div>{sharingLink}</div>;
+  if (summary.error || !summary.data) return <div className="space-y-4"><h1 className="text-2xl font-bold">{t("title")}</h1><div className="rounded-lg border p-4 text-sm text-muted-foreground">{t("notAvailable")}</div>{sharingLink}</div>;
   const data = summary.data!;
   return <div className="space-y-6">
     <div className="flex items-start justify-between gap-4">

@@ -1,5 +1,7 @@
 # October 8 founder walkthrough — focused repair evidence
 
+> This is the accepted Preview checkpoint. Statements below about the then-current public deployment describe October 8 before [Jude's October 9 promotion](founder-observation-promotion-20261009.md).
+
 **Application commit:** `d03b80b38a505c9f06c8ba730a0aa0079427101b` on `codex/qualification-repair-247c8881` (parent `f8f02c124fb8197f15a4314164efa4dbbc48726a`). **Environment:** exact application Preview, local candidate code, public before observations and isolated Supabase checks. **Focused hosted acceptance: PASS** on Preview `dpl_8iAa23AVehKM1JJda4JKBApj8yV7`; the earlier partial checkpoints below are historical and the completed readback is at the end of this file. Public application remains `c68d9efd1ff940b5275177e959b7c035ce9594f6` on `dpl_BM6KQKSvdU4LWfvVDL3DwJd44PnD`; Vercel's read-only deployment and alias records confirm that deployment READY/production and both `www.villageclaq.com` and redirecting apex assigned to it. Immediate web rollback reference remains `dpl_A1JBP7jiWQDA9k91evgMj6sWgkyd`. The application repair itself made no migration or database write; the separate fictional Preview payment save is recorded below.
 
 ## Before state and stored facts

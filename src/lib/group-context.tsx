@@ -91,9 +91,19 @@ const GroupContext = createContext<GroupContextValue>({
 });
 
 const STORAGE_KEY = "villageclaq_current_group";
+const MEMBERSHIP_REFRESH_MS = 12_000; // Leave room for the request within the 15s visibility interval.
+
+function authoritySnapshot(items: GroupMembership[]): string {
+  return JSON.stringify(items.map((m) => [
+    m.id, m.group_id, m.role, m.standing, m.membership_status,
+    m.group.is_active, m.group.sharing_controls,
+  ]));
+}
 
 export function GroupProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
+  const queryClientRef = useRef(queryClient);
+  queryClientRef.current = queryClient;
   const [user, setUser] = useState<UserProfile | null>(null);
   const [memberships, setMemberships] = useState<GroupMembership[]>([]);
   const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
@@ -120,6 +130,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   const lastFetchTime = useRef(0);
   // Keep a ref to the current user so the auth listener can check it without stale closures
   const userRef = useRef<UserProfile | null>(null);
+  const authoritySnapshotRef = useRef<string | null>(null);
   useEffect(() => { userRef.current = user; }, [user]);
 
   const fetchData = useCallback(async (force: boolean = false) => {
@@ -202,10 +213,8 @@ export function GroupProvider({ children }: { children: ReactNode }) {
         .eq("user_id", authUser.id)
         .eq("is_active", true)
         .maybeSingle();
-      if (staffRecord) {
-        setIsPlatformStaff(true);
-        setPlatformRole(staffRecord.role);
-      }
+      setIsPlatformStaff(!!staffRecord);
+      setPlatformRole(staffRecord?.role ?? null);
 
       // Fetch all memberships with group data
       const { data: membershipData } = await supabase
@@ -223,6 +232,13 @@ export function GroupProvider({ children }: { children: ReactNode }) {
           ...m,
           group: Array.isArray(m.group) ? m.group[0] : m.group,
         })) as GroupMembership[];
+        const nextAuthority = authoritySnapshot(normalized);
+        if (authoritySnapshotRef.current !== null && authoritySnapshotRef.current !== nextAuthority) {
+          // A role/status/sharing change can revoke access while a page stays open.
+          // Drop restricted query results before the new membership is rendered.
+          queryClientRef.current.removeQueries();
+        }
+        authoritySnapshotRef.current = nextAuthority;
         setMemberships(normalized);
 
         // Read from ref (always current) instead of stale closure over searchParams
@@ -266,6 +282,8 @@ export function GroupProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") {
+        authoritySnapshotRef.current = null;
+        queryClientRef.current.removeQueries();
         setUser(null);
         setMemberships([]);
         setCurrentGroupId(null);
@@ -293,11 +311,23 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   // when initialLoadDone changes (SIGNED_OUT → false → re-subscribe).
   }, [fetchData, initialLoadDone]);
 
-  // Recheck current membership and group settings when an already-open tab regains focus.
+  // Role changes must reach an already-open tab even without navigation or focus.
+  // Hidden tabs revalidate immediately on resume instead of relying on throttled timers.
   useEffect(() => {
-    const onFocus = () => { void fetchData(true); };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    const onTimer = () => {
+      if (document.visibilityState === "visible" && userRef.current) void fetchData();
+    };
+    const onResume = () => {
+      if (document.visibilityState === "visible" && userRef.current) void fetchData(true);
+    };
+    const timer = window.setInterval(onTimer, MEMBERSHIP_REFRESH_MS);
+    window.addEventListener("focus", onResume);
+    document.addEventListener("visibilitychange", onResume);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onResume);
+      document.removeEventListener("visibilitychange", onResume);
+    };
   }, [fetchData]);
 
   // Persist current group selection

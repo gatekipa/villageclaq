@@ -1,0 +1,153 @@
+{
+  "projectRef": "nisipxbuvndobyxqqglf",
+  "applicationSha": "defbe3bc421c196b66000e3e51286ed2aa81cfe7",
+  "expectedSqlHash": "C18EF2F0FA8BD57512FBB7418AB228EFFD1E9B4E57AD1E238E4DDD3572A557C4",
+  "departureMatrix": {
+    "owner": {
+      "document": 1,
+      "fineType": 1,
+      "fine": 1
+    },
+    "ordinary": {
+      "document": 0,
+      "fineType": 1,
+      "fine": 1
+    },
+    "departed": {
+      "document": 0,
+      "fineType": 0,
+      "fine": 0
+    }
+  },
+  "constitutionMatrix": {
+    "owner": [
+      1,
+      1
+    ],
+    "ordinary": [
+      1,
+      1
+    ],
+    "departed": [
+      0,
+      0
+    ]
+  },
+  "announcement": {
+    "scheduledId": "00db7d45-cd45-4220-9cc9-0039d5736b17",
+    "scheduledMatrix": {
+      "owner": 1,
+      "ordinary": 0,
+      "departed": 0
+    },
+    "sentId": "38c25c66-e5cf-48dd-95c3-61ceb9acc3f4",
+    "sentMatrix": {
+      "owner": 1,
+      "ordinary": 1,
+      "departed": 0
+    }
+  },
+  "attachments": {
+    "canonical": {
+      "owner": {
+        "ok": true,
+        "code": null,
+        "bytes": 27
+      },
+      "ordinary": {
+        "ok": true,
+        "code": null,
+        "bytes": 27
+      },
+      "departed": {
+        "ok": false,
+        "code": "404",
+        "bytes": 0
+      }
+    },
+    "legacy": {
+      "owner": {
+        "ok": true,
+        "code": null,
+        "bytes": 25
+      },
+      "ordinary": {
+        "ok": true,
+        "code": null,
+        "bytes": 25
+      },
+      "departed": {
+        "ok": true,
+        "code": null,
+        "bytes": 25
+      }
+    }
+  },
+  "privateAccess": {
+    "restrictedDocument": "1775ab52-e17c-4bbf-922f-718628e362d0",
+    "targetFine": "e0db1d9f-e50c-4025-b72a-533af5e27d63",
+    "targetDispute": "343218c0-2619-488d-9515-3b898a7973bf",
+    "ordinaryBefore": {
+      "document": 0,
+      "fine": 0,
+      "dispute": 0
+    },
+    "deniedBefore": {
+      "fine": {
+        "returnedRows": 0,
+        "error": null,
+        "persistedUnchanged": true
+      },
+      "dispute": {
+        "returnedRows": 0,
+        "error": null,
+        "persistedUnchanged": true
+      }
+    },
+    "scopedAdmin": {
+      "docsGrant": false,
+      "fineGrant": false,
+      "document": 0,
+      "otherMemberFine": 0,
+      "otherMemberDispute": 0
+    },
+    "delegatedPosition": "d0ce9105-1714-4bb5-9887-2dd92168eb45",
+    "authorized": {
+      "document": 1,
+      "fine": 1,
+      "dispute": 1
+    },
+    "revoked": {
+      "document": 0,
+      "fine": 0,
+      "dispute": 0
+    },
+    "deniedAfter": {
+      "fine": {
+        "returnedRows": 0,
+        "error": null,
+        "persistedUnchanged": true
+      },
+      "dispute": {
+        "returnedRows": 0,
+        "error": null,
+        "persistedUnchanged": true
+      }
+    },
+    "ownFine": "59987028-96cc-46b2-96e8-fbeda070889f",
+    "ownDispute": "18ceedbd-eb0d-4e1b-b095-c657adf2abc3"
+  },
+  "crossGroup": {
+    "ownerFine": 0,
+    "adminFine": 0,
+    "memberFine": 1,
+    "adminFineType": 0,
+    "memberFineType": 1
+  },
+  "originalFictionalUpdatesRetained": {
+    "fine": "1b93398c-6a63-40f4-99a5-212e2acfadee",
+    "reason": "QA unauthorized cross-member change mv1zecmw",
+    "dispute": "c5a30eb8-9a01-4647-b4d2-1495626bc009",
+    "description": "QA unauthorized cross-member edit mv1zecmw"
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "projectRef": "nisipxbuvndobyxqqglf",
+  "applicationSha": "defbe3bc421c196b66000e3e51286ed2aa81cfe7",
+  "migrationSha256": "46EDA04EB3A26E0310136F158BF63499499765A691CD6959F1D928B3FDA12296",
+  "departure": {
+    "owner": {
+      "document": 1,
+      "fine": 1
+    },
+    "departed": {
+      "document": 0,
+      "fine": 0
+    }
+  },
+  "governance": {
+    "owner": [
+      1,
+      1
+    ],
+    "ordinary": [
+      1,
+      1
+    ],
+    "departed": [
+      0,
+      0
+    ]
+  },
+  "attachments": {
+    "canonical": {
+      "owner": {
+        "ok": true,
+        "code": null,
+        "bytes": 27
+      },
+      "ordinary": {
+        "ok": true,
+        "code": null,
+        "bytes": 27
+      },
+      "departed": {
+        "ok": false,
+        "code": "404",
+        "bytes": 0
+      }
+    },
+    "legacy": {
+      "owner": {
+        "ok": true,
+        "code": null,
+        "bytes": 25
+      },
+      "ordinary": {
+        "ok": true,
+        "code": null,
+        "bytes": 25
+      },
+      "departed": {
+        "ok": false,
+        "code": "404",
+        "bytes": 0
+      }
+    }
+  },
+  "privateAccess": {
+    "owner": {
+      "document": 1,
+      "fine": 1,
+      "dispute": 1
+    },
+    "ordinary": {
+      "document": 0,
+      "fine": 0,
+      "dispute": 0
+    },
+    "own": {
+      "fine": 1,
+      "dispute": 1
+    }
+  },
+  "deniedWrites": {
+    "fine": {
+      "returnedRows": 0,
+      "error": null,
+      "persistedUnchanged": true
+    },
+    "dispute": {
+      "returnedRows": 0,
+      "error": null,
+      "persistedUnchanged": true
+    }
+  },
+  "announcements": {
+    "scheduled": {
+      "owner": 1,
+      "ordinary": 0,
+      "departed": 0
+    },
+    "sent": {
+      "owner": 1,
+      "ordinary": 1,
+      "departed": 0
+    }
+  },
+  "originalFictionalUpdatesRetained": true
+}

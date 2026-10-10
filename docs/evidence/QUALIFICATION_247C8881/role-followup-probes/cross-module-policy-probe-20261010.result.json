@@ -1,0 +1,53 @@
+{
+  "projectRef": "nisipxbuvndobyxqqglf",
+  "fixtureGroup": "37a94b2d-d6bc-4ed7-9a83-b581f45784ca",
+  "fixtureRows": {
+    "documents": "41f78383-09fb-48f2-9118-dd4b73a382c3",
+    "fine_types": "2b296474-5e3d-4553-b6dd-a41ea8a17e74",
+    "fines": "d9c34c90-7646-4586-87b7-2766196b3e4a"
+  },
+  "actorMatrix": {
+    "owner": {
+      "documents": {
+        "rows": 1,
+        "error": null
+      },
+      "fine_types": {
+        "rows": 1,
+        "error": null
+      },
+      "fines": {
+        "rows": 1,
+        "error": null
+      }
+    },
+    "departed": {
+      "documents": {
+        "rows": 1,
+        "error": null
+      },
+      "fine_types": {
+        "rows": 1,
+        "error": null
+      },
+      "fines": {
+        "rows": 1,
+        "error": null
+      }
+    },
+    "successor": {
+      "documents": {
+        "rows": 1,
+        "error": null
+      },
+      "fine_types": {
+        "rows": 1,
+        "error": null
+      },
+      "fines": {
+        "rows": 1,
+        "error": null
+      }
+    }
+  }
+}

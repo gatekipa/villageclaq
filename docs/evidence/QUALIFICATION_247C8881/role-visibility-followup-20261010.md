@@ -1,0 +1,64 @@
+# October 10 governance follow-up and cross-module checkpoint
+
+**Qualification verdict: HOLD.** This checkpoint continues the bounded role/visibility repair. It does not supersede historical whole-product qualification. The application candidate is commit `74506ad49ab126792c80ae591e9ffea6c8107f85`; the isolated Vercel Preview is `dpl_8hS6hPL5N9urLcL2ZLZie72LfoJu` at <https://villageclaq-nxbqxvnmr-gatekipas.vercel.app> (READY, Preview). The isolated Supabase branch is **only** `nisipxbuvndobyxqqglf`. Neither production Supabase nor public aliases were changed.
+
+## Scope and installation
+
+Supabase's project-metadata lookup returned `NotFound` for `nisipxbuvndobyxqqglf` because it is a development branch, not a top-level project. The parent branch listing identified branch ID `2799efdd-2a84-46b6-9cc4-ec8709e0ce39`, non-default branch `villageclaq-qualification-247c8881`, project ref `nisipxbuvndobyxqqglf`; the project URL was `https://nisipxbuvndobyxqqglf.supabase.co`. All SQL, migration, and actor calls named that branch ref. The pre-installation list had `founder_role_visibility_repair` version `20261010045548` and no follow-up. The committed `supabase/migrations/20261010050000_founder_governance_followup.sql` (SHA-256 `E85DE112AA164DCC91E2F640E78CA6D0B58CFD2310A8FF5472CC0E996C84DCAE`) was applied once as `founder_governance_followup`; the post-list reports version `20261010055330`. The catalog confirms `positions_active_member_read`, active inviter read, owner-only privileged revoke, identity/departure guards, and authority audit triggers. No application row was deleted or rewritten on installation. The later trigger may end an assignment on a future departure while preserving its row and audit trail.
+
+The exact statements flagged as destructive DDL in the applied migrations are `DROP POLICY IF EXISTS ...` and `DROP TRIGGER IF EXISTS ...` (with `CREATE OR REPLACE FUNCTION ...` and replacement `CREATE POLICY`/`CREATE TRIGGER` definitions). See lines 255–258 and 295 of the [first migration](../../../supabase/migrations/20261010042956_founder_role_visibility_repair.sql) and lines 35, 73, 129–137, 178, and 247 of the [follow-up](../../../supabase/migrations/20261010050000_founder_governance_followup.sql). These remove and replace policy/trigger objects, not table rows. The SQL has no top-level table `DROP`, `TRUNCATE`, `DELETE`, or `UPDATE` of existing application data. Statements inside RPC/trigger bodies execute only on future authorized calls. The new cross-module correction described below is **prepared, not applied**.
+
+## Focused real-actor proof
+
+Separate fictional groups were created for transfer, departure, adversarial foreign-group, and proxy tests. The actor sessions used the isolated branch's real authenticated owner, ordinary member, and Riverside actor. Sanitized outputs are in [role-followup-probes](role-followup-probes/); the ignored local credential files are not published.
+
+| Review finding | Outcome on isolated branch |
+|---|---|
+| P0 administrator self-move into another group | **PASS:** active admin's direct `group_id` move and `user_id` rebind denied `42501`; owner-side permission replacement still allowed; foreign roster denied. |
+| P1 canonical owner transfer | **PASS:** owner A→B succeeded; A after demotion denied; last owner exit denied; two concurrent B→A/C transfers yielded exactly one success and one denial, ending with one active owner and two additional admins. |
+| P1 cached dashboard totals after denied refetch | **BLOCKED:** local code suppresses cached shared totals on a denied refetch, but an already-open current-candidate browser view could not be exercised. |
+| P2 departed inviter reads invitation token | **PASS:** after canonical exit, former inviter read zero invitation rows, could not revoke or read roster (`42501`), and read zero position rows. |
+| P2 delegated inviter revokes privileged invite | **PASS:** delegated inviter's admin-invite revoke denied `42501`; owner revoke succeeded; regular invite/revoke still succeeded. |
+
+The departure fixture retained its 1,000 XAF obligation, ended the officer assignment without deleting it, wrote a departure audit, and let a separate successor account fill the one-holder position and invite a member. An uninvited proxy claim was denied; a legitimately invited claim succeeded; subsequent proxy identity and tenant moves were denied. Ordinary self-escalation and admin self-role change were denied. See the six JSON probe results for exact group and row IDs.
+
+## Founder finding disposition
+
+| Captured finding | Disposition |
+|---|---|
+| Contact CSV permission | **PASS** for direct owner and ordinary/non-export officer access tests; the export UI is unchanged from the saved candidate screenshots. |
+| Personal vs group dashboard figures | **BLOCKED** for current-candidate open-tab revocation and EN/FR browser acceptance. Direct owner/member/foreign API results and earlier screenshots support the numeric scope; the cache correction changed this page after those captures. |
+| Discoverable financial sharing | **PASS** for prior separate-session off→on→off and unchanged EN/FR control screenshots; the group setting was restored. HQ/public sharing remains separate. |
+| Published/shared minutes | **PASS** for prior member 0→3→0 direct and already-open view checks; minutes UI was unchanged after those screenshots. |
+| Assignment/removal and permission counts | **PASS** for owner-only direct grants, removal, assignment ending/succession, and unchanged role screenshots; a fresh current-candidate browser walkthrough remains unavailable. |
+| Invitation/join-code authorization | **BLOCKED** for current-candidate UI revocation/hidden-action acceptance; direct invite, privileged revoke, former-inviter, and join-code denials passed. This page changed after the saved screenshots. |
+| Reversed Recent Payments | **PASS** for Riverside's unchanged EN desktop and FR mobile screenshots and readback of the same reversal with no positive credit. |
+| Navigation after grant/revocation and current EN/FR desktop/mobile empty/error states | **BLOCKED** where changed dashboard/invitation views require new browser proof; unchanged role, visibility, minutes, and reversal captures remain linked in the [initial evidence](role-visibility-repair-20261010.md). |
+
+The Preview status endpoint returned `founderTestMode=true`, `bindingMatches=true`, `serviceCredentialVerified=true`, `externalDeliverySuppressed=true`, and `scheduledSideEffectsSuppressed=true`. The local candidate returned the same five values. The Preview URL opened Vercel deployment-protection sign-in in the in-app browser. A temporary local-only credential handoff was blocked by the browser controller; its route and nonce were removed before commit. Therefore no new authenticated current-candidate browser pass or Preview write is claimed. The Preview remains protected and was not promoted.
+
+## New cross-module defects and prepared correction
+
+The target contains no constitution, document, fine, card, or election rows in its preexisting Founder/Riverside groups; it has one unsent Founder announcement targeted to an unclaimed proxy and no Founder notification-queue rows. A separate fictional departure fixture supplied one restricted document, fine type, and fine. **FAIL on the installed policies:** the exited actor read all three rows, and an active ordinary successor read the restricted document. In a separate adversarial fixture, an active ordinary member read and updated another member's fine; the changed reason persisted. The same actor read and updated another member's private dispute; that change persisted. These are direct real-session requests, not merely policy inspection.
+
+The draft [cross-module RLS correction](../../../supabase/migrations/20261010060000_cross_module_finance_document_rls.sql) drops the permissive legacy document, fine-type, fine, and dispute policies; adds active audience/own-row reads; and constrains fine updates to authorized managers or a validated own-fine dispute. It has **not** been applied to `nisipxbuvndobyxqqglf` because the owner's migration approval named only `20261010050000`. Its SQL has no top-level application-data delete/update, but it changes additional access policies and a fine-update trigger and needs separate approval and hosted actor regression before PASS. The installed cross-module defects remain live on the isolated branch; no production change occurred.
+
+| Requested consumer | Current disposition |
+|---|---|
+| Constitution/bylaws | **BLOCKED:** no target row/authorized direct matrix; legacy active-membership read question remains. |
+| Documents/attachments | **FAIL** for restricted metadata and departed read; Storage object/attachment path **BLOCKED** (fixture URL is inert). |
+| Announcements/notification recipients | **BLOCKED:** one unsent targeted announcement, zero queue rows, no current recipient/consent matrix or provider dispatch. Prior frozen recipient evidence is linked in the initial report. |
+| Fines/disputes | **FAIL:** cross-member and departed read, and cross-member direct update persisted; prepared correction unapplied. |
+| Membership cards | **BLOCKED:** no current card fixture/direct actor matrix. |
+| Elections/results | **BLOCKED:** no current election or entitled organization fixture; QA group's election insert was rejected `ELECTION_SCOPE_MISSING`, so no result or ballot claim is made. |
+| HQ/branch sharing | **BLOCKED:** existing Founder/Riverside units are separate organizations; QA groups have no organization units; no current cross-branch audience matrix. |
+
+## Preservation and release boundary
+
+Immediate and final isolated readbacks agree: Founder has 9 memberships, one active owner, 7 obligations, zero payments, 47 audit rows, earliest audit `2026-09-28 00:11:47 UTC`; Riverside has 3 memberships, one active owner, 3 obligations, 3 payments, one reversed payment, 12 audit rows. Riverside's four USD custody postings net +10 and four paired income postings net −10; the retained cash is USD 10. The seven queried FQ-09 obligations under contribution type `9e831f50-f893-448c-a417-18380d5fb498` still include the corrected September 30 row, five September 28 historical rows, and a separate October 31 partial row; no due date or waiver was changed here. The isolated branch currently has zero `relief_plans` and `relief_remittances` rows, so it cannot independently prove the historical R-012 packet's two quarantined plans/four remittances; the packet remains a separate finance-owner HOLD. Production was untouched.
+
+Local gates before this checkpoint: TypeScript, 75 focused tests, focused ESLint (0 errors), and the optimized 47-page build passed on the application commit. Vercel's remote Preview build also passed. The newly prepared migration is uninstalled and has no runtime PASS. The independent read-only GPT-6-family reviewer inspected `95d77daed8370bf89ec79fd35da47bd69cc1e41f`, returned **HOLD**, and consumed one review round. The exact variant was not exposed. No new review round or final blocker-only review was started. Current release and public promotion remain **HOLD**.
+
+### Founder walkthrough on the repaired Preview
+
+After Vercel Preview authentication, confirm `/api/founder-test/status` reports all five safeguards above. Sign in with the existing fictional owner, open Founder → Dashboard, Member Visibility, Roles, Invitations, Minutes, and Riverside Recent Payments. In a separate member tab, keep Dashboard and Financial Summary open while the owner turns financial sharing off→on→off; verify shared figures appear and then disappear, while the member's personal balance remains labeled. Repeat with minutes sharing. Check an authorized contact export and a denied non-export officer export, grant/revoke navigation, invitation actions, and Taylor's Reversed/Annulé receipt in EN desktop and FR mobile. Do not use this walkthrough as a PASS until the protected Preview can be inspected and the new cross-module migration has separate authorization and verification.

@@ -1,0 +1,18 @@
+{
+  "projectRef": "nisipxbuvndobyxqqglf",
+  "fixtureGroup": "37a94b2d-d6bc-4ed7-9a83-b581f45784ca",
+  "positionId": "ae524ad3-1b0a-4718-9801-dd5272d59319",
+  "departedMembership": "9c7b3d75-6648-48a8-8de2-63646ab314d8",
+  "successorMembership": "9166e880-08e9-4b80-a1c0-651f5a8fdec8",
+  "regularInviteAndRevokeAllowed": true,
+  "nonExportOfficerRosterDenied": true,
+  "privilegedRevokeDenied": "42501",
+  "ownerPrivilegedRevokeAllowed": true,
+  "assignmentEndedAndSuccessorAssigned": true,
+  "formerInviterReadRows": 0,
+  "formerPositionReadRows": 0,
+  "postExitRevokeDenied": "42501",
+  "postExitRosterDenied": "42501",
+  "obligationRetained": "24e9d35f-f300-4a75-9985-28bb3410d37e",
+  "departureAudit": true
+}

@@ -1,0 +1,21 @@
+{
+  "projectRef": "nisipxbuvndobyxqqglf",
+  "adversarialGroup": "088f16ff-3aab-49b1-996a-40f9c713675c",
+  "foreignGroup": "e4f4cce2-2b42-46b5-94bc-abb4d595d307",
+  "proxyGroup": "6647eb95-9997-4d50-bd0e-73a7a82529d3",
+  "adminTenantMoveDenied": "42501",
+  "adminUserRebindDenied": "42501",
+  "adminSelfRoleChangeDenied": "42501",
+  "ordinarySelfEscalationDenied": "42501",
+  "foreignRosterDenied": "42501",
+  "foreignPositionRows": 0,
+  "adminPermissionReplaceDenied": "42501",
+  "ownerPermissionReplaceAllowed": true,
+  "adminAssignmentDenied": "42501",
+  "adminRosterAllowed": true,
+  "uninvitedProxyClaimDenied": "42501",
+  "legitimateProxyClaimAllowed": true,
+  "claimedProxyId": "363763ba-b356-4659-ad5b-8243ad2b4157",
+  "claimedUserRebindDenied": "42501",
+  "claimedTenantMoveDenied": "42501"
+}

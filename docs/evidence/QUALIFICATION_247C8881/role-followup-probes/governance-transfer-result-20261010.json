@@ -1,0 +1,15 @@
+{
+  "projectRef": "nisipxbuvndobyxqqglf",
+  "fixtureGroup": "d91d38c6-c01d-4bfa-b574-37f1ff0da0a3",
+  "firstTransfer": true,
+  "oldOwnerDenied": true,
+  "lastOwnerExitDenied": true,
+  "concurrentAttempts": 2,
+  "concurrentSuccess": 1,
+  "concurrentDenied": 1,
+  "finalOwnerActor": "riverside",
+  "finalActiveOwners": 1,
+  "additionalAdmins": 2,
+  "adminRoleChangeDenied": "23514",
+  "roleAuditCount": 4
+}

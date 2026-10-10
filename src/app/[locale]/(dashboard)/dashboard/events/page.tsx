@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatDateWithGroupFormat, formatTime, formatEventDateTime } from "@/lib/format";
 import { getDateLocale } from "@/lib/date-utils";
+import { classifyEventSchedule } from "@/lib/event-schedule.mjs";
 import { cn, normalizeSearch } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +44,7 @@ import {
   Loader2,
   Copy,
   AlertCircle,
+  CheckCircle2,
   Search,
   Video,
   ExternalLink,
@@ -228,7 +231,16 @@ export default function EventsPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [calendarDate, setCalendarDate] = useState(() => new Date());
   const [creating, setCreating] = useState(false);
+  const createInFlight = useRef(false);
+  const creationId = useRef<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [deviceTimeZone, setDeviceTimeZone] = useState("");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDeviceTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
+  }, []);
 
   // Action error notification
   const [actionError, setActionError] = useState<string | null>(null);
@@ -239,6 +251,7 @@ export default function EventsPage() {
   }
   const [filter, setFilter] = useState<"all" | "upcoming" | "past">("upcoming");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [sortField, setSortField] = useState<"date" | "name">("date");
   // Default filter is "upcoming", so the default date sort is ASCENDING
   // (soonest event first). Switching to "past" flips it to most recent first.
@@ -301,6 +314,7 @@ export default function EventsPage() {
     if (groupId !== prevGroupId.current) {
       prevGroupId.current = groupId;
       setShowCreateDialog(false);
+      setSelectedEventId(null);
       setEditEventId(null);
       setShowPurchaseDialog(false);
       setPurchaseEventId(null);
@@ -321,9 +335,8 @@ export default function EventsPage() {
     // a fresh timestamp string in the dep array would defeat the memo and
     // recompute the whole filter+sort on every render (rule 9).
     const now = new Date().toISOString();
-    // Status note: nothing in the app ever writes status "completed", so the
-    // predicates rely on starts_at only; "cancelled" is the one status that
-    // matters (cancelled events drop out of "upcoming" but stay in "all").
+    // Past/upcoming placement follows the persisted start time. Completed
+    // meetings remain in Past and cancelled events remain visible in All.
     let result = events.filter((e: Record<string, unknown>) => {
       if (filter === "upcoming") return (e.starts_at as string) >= now && e.status !== "cancelled";
       if (filter === "past") return (e.starts_at as string) < now;
@@ -338,6 +351,7 @@ export default function EventsPage() {
         return normalizeSearch(title).includes(q) || normalizeSearch(titleFr).includes(q) || normalizeSearch(location).includes(q);
       });
     }
+    if (selectedEventId) result = result.filter((e: Record<string, unknown>) => e.id === selectedEventId);
     // Sort
     result = [...result].sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
       let cmp = 0;
@@ -349,7 +363,7 @@ export default function EventsPage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return result;
-  }, [events, filter, searchQuery, sortField, sortDir]);
+  }, [events, filter, searchQuery, selectedEventId, sortField, sortDir]);
 
   // FR users see the French title when one was provided; everywhere a title
   // is displayed (list cards, calendar chips) goes through this helper.
@@ -385,6 +399,15 @@ export default function EventsPage() {
     setFormRecurrenceRule("monthly");
     setPreFilledBanner(null);
     setEditOriginalStartsAt(null);
+    setFormError(null);
+    creationId.current = null;
+  };
+
+  const openCreateEvent = () => {
+    resetForm();
+    creationId.current = crypto.randomUUID();
+    setActionSuccess(null);
+    setShowCreateDialog(true);
   };
 
   const handleRepeatLastMeeting = () => {
@@ -436,36 +459,77 @@ export default function EventsPage() {
       })
     );
     setEditEventId(null);
+    creationId.current = crypto.randomUUID();
+    setFormError(null);
     setShowCreateDialog(true);
   };
 
   const handleCreateEvent = async () => {
-    if (!formTitle || !formStartsAt || creating) return;
-    if (new Date(formStartsAt) < new Date()) {
-      showError(t("pastDateError"));
+    if (createInFlight.current || !groupId) return;
+    setFormError(null);
+    if (!formTitle.trim()) {
+      setFormError(t("requiredEventFields"));
       return;
     }
+    const schedule = classifyEventSchedule(formEventType, formStartsAt, formEndsAt, Date.now());
+    if (!schedule.ok) {
+      setFormError(t(schedule.error));
+      return;
+    }
+    const { startsAt, endsAt, completedMeeting } = schedule;
+    if (formMeetingLink.trim() && !/^https:\/\/\S+$/i.test(formMeetingLink.trim())) {
+      setFormError(t("invalidMeetingLink"));
+      return;
+    }
+    const requestId = creationId.current || crypto.randomUUID();
+    creationId.current = requestId;
+    createInFlight.current = true;
     setCreating(true);
     try {
-      await manageEvent.mutateAsync({
-        groupId: groupId || "",
+      const saved = await manageEvent.mutateAsync({
+        groupId,
         payload: {
-          title: formTitle,
+          title: formTitle.trim(),
+          title_fr: formTitleFr.trim() || undefined,
           description: formDescription || undefined,
           event_type: formEventType,
-          starts_at: new Date(formStartsAt).toISOString(),
-          ends_at: formEndsAt ? new Date(formEndsAt).toISOString() : undefined,
+          starts_at: startsAt.toISOString(),
+          ends_at: endsAt?.toISOString(),
           location: formLocation || undefined,
+          meeting_link: formMeetingLink.trim() || undefined,
           capacity: formCapacity ? parseInt(formCapacity, 10) : undefined,
+          is_recurring: formIsRecurring,
+          recurrence_rule: formIsRecurring ? formRecurrenceRule as "weekly" | "biweekly" | "monthly" : undefined,
+          status: completedMeeting ? "completed" : "upcoming",
+          creation_id: requestId,
         }
       });
+      const loaded = await refetch();
+      if (saved.event_id !== requestId || loaded.error ||
+        !loaded.data?.some((event) => event.id === requestId)) {
+        setFormError(t("saveUnconfirmed"));
+        return;
+      }
+      setSearchQuery("");
+      setFilter(completedMeeting ? "past" : "upcoming");
+      setSortField("date");
+      setSortDir(completedMeeting ? "desc" : "asc");
+      setCalendarDate(startsAt);
+      setView("list");
+      setActionSuccess(t("eventCreatedDetails", { title: formTitle.trim() }));
       setShowCreateDialog(false);
       resetForm();
     } catch (err) {
       console.warn("[Events] create failed:", err);
-      showError(t("actionFailed"));
+      const code = err instanceof Error ? err.message : "";
+      setFormError(code === "UNAUTHORIZED" ? t("errors.UNAUTHORIZED")
+        : code === "EVENT_END_BEFORE_START" ? t("endBeforeStart")
+        : code === "EVENT_PAST_START_REQUIRES_COMPLETED_MEETING" ? t("pastDateError")
+        : code === "EVENT_INVALID_MEETING_LINK" ? t("invalidMeetingLink")
+        : t("saveUnconfirmed"));
     } finally {
       setCreating(false);
+      createInFlight.current = false;
     }
   };
 
@@ -495,9 +559,14 @@ export default function EventsPage() {
 
   async function handleEditEvent() {
     if (!editEventId || !formTitle || !formStartsAt) return;
+    setFormError(null);
+    if (formEndsAt && new Date(formEndsAt) <= new Date(formStartsAt)) {
+      setFormError(t("endBeforeStart"));
+      return;
+    }
     const startsAtChanged = formStartsAt !== editOriginalStartsAt;
     if (startsAtChanged && new Date(formStartsAt) < new Date()) {
-      showError(t("pastDateError"));
+      setFormError(t("pastDateError"));
       return;
     }
     setEditSaving(true);
@@ -507,20 +576,25 @@ export default function EventsPage() {
         eventId: editEventId,
         payload: {
           title: formTitle,
+          title_fr: formTitleFr.trim() || undefined,
           description: formDescription || undefined,
           event_type: formEventType,
           starts_at: new Date(formStartsAt).toISOString(),
           ends_at: formEndsAt ? new Date(formEndsAt).toISOString() : undefined,
           location: formLocation || undefined,
+          meeting_link: formMeetingLink.trim() || undefined,
           capacity: formCapacity ? parseInt(formCapacity, 10) : undefined,
+          is_recurring: formIsRecurring,
+          recurrence_rule: formIsRecurring ? formRecurrenceRule as "weekly" | "biweekly" | "monthly" : undefined,
         }
       });
       setShowCreateDialog(false);
       resetForm();
       setEditEventId(null);
+      setActionSuccess(t("eventUpdated"));
     } catch (err) {
       console.warn("[Events] update failed:", err);
-      showError(t("actionFailed"));
+      setFormError(t("actionFailed"));
     } finally {
       setEditSaving(false);
     }
@@ -541,12 +615,7 @@ export default function EventsPage() {
       await manageEvent.mutateAsync({
         groupId: groupId || "",
         eventId,
-        payload: {
-          title: "",
-          event_type: "meeting",
-          starts_at: new Date().toISOString(),
-          status: "cancelled" as const
-        }
+        payload: { status: "cancelled" }
       });
       
       // Best-effort notification logic remains here...
@@ -722,7 +791,7 @@ export default function EventsPage() {
               <Copy className="mr-2 h-4 w-4" />
               {t("repeatLastMeeting")}
             </Button>
-            <Button onClick={() => setShowCreateDialog(true)}>
+            <Button onClick={openCreateEvent}>
               <Plus className="mr-2 h-4 w-4" />
               {t("createEvent")}
             </Button>
@@ -738,6 +807,13 @@ export default function EventsPage() {
           <button onClick={() => setActionError(null)} className="ml-auto text-destructive/70 hover:text-destructive">✕</button>
         </div>
       )}
+      {actionSuccess && (
+        <div role="status" className="flex items-center gap-2 rounded-lg border border-emerald-400/50 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          {actionSuccess}
+          <button aria-label={tc("close")} onClick={() => setActionSuccess(null)} className="ml-auto">✕</button>
+        </div>
+      )}
 
       {/* Search + View Toggle + Filter */}
       <div className="relative max-w-sm">
@@ -745,7 +821,7 @@ export default function EventsPage() {
         <Input
           placeholder={t("searchEventsPlaceholder")}
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => { setSelectedEventId(null); setSearchQuery(e.target.value); }}
           className="pl-9"
         />
       </div>
@@ -772,6 +848,7 @@ export default function EventsPage() {
             variant={filter === "upcoming" ? "default" : "outline"}
             size="sm"
             onClick={() => {
+              setSelectedEventId(null);
               setFilter("upcoming");
               // Default for upcoming: soonest event first.
               if (sortField === "date") setSortDir("asc");
@@ -783,6 +860,7 @@ export default function EventsPage() {
             variant={filter === "past" ? "default" : "outline"}
             size="sm"
             onClick={() => {
+              setSelectedEventId(null);
               setFilter("past");
               // Default for past: most recent event first.
               if (sortField === "date") setSortDir("desc");
@@ -793,7 +871,7 @@ export default function EventsPage() {
           <Button
             variant={filter === "all" ? "default" : "outline"}
             size="sm"
-            onClick={() => setFilter("all")}
+            onClick={() => { setSelectedEventId(null); setFilter("all"); }}
           >
             {tc("all")}
           </Button>
@@ -817,6 +895,7 @@ export default function EventsPage() {
           </Button>
         </div>
       </div>
+      {deviceTimeZone && <p className="text-xs text-muted-foreground">{t("timesShownIn", { zone: deviceTimeZone })}</p>}
 
       {/* Calendar View */}
       {view === "calendar" && (
@@ -862,15 +941,17 @@ export default function EventsPage() {
                         const evtStart = new Date(event.starts_at as string);
                         const timeStr = formatTime(evtStart, locale);
                         return (
-                        <div
+                        <button
                           key={event.id as string}
-                          className={`w-full truncate rounded px-1 py-0.5 text-[10px] font-medium ${
+                          type="button"
+                          onClick={() => { setSelectedEventId(event.id as string); setSearchQuery(""); setFilter("all"); setView("list"); }}
+                          className={`w-full truncate rounded px-1 py-0.5 text-left text-[10px] font-medium ${
                             eventTypeColors[(event.event_type as string) || "other"]
                           }`}
                           title={`${displayTitle(event)} — ${timeStr}`}
                         >
                           <span className="opacity-70">{timeStr}</span>{" "}{displayTitle(event)}
-                        </div>
+                        </button>
                         );
                       })}
                     </div>
@@ -885,6 +966,9 @@ export default function EventsPage() {
       {/* List View */}
       {view === "list" && (
         <div className="space-y-3">
+          {selectedEventId && (
+            <Button variant="outline" size="sm" onClick={() => setSelectedEventId(null)}>{t("showAllEvents")}</Button>
+          )}
           {filteredEvents.length === 0 ? (
             searchQuery.trim() ? (
               <EmptyState
@@ -904,7 +988,7 @@ export default function EventsPage() {
                 }
                 action={
                   hasPermission("events.manage") ? (
-                    <Button onClick={() => setShowCreateDialog(true)}>
+                    <Button onClick={openCreateEvent}>
                       <Plus className="mr-2 h-4 w-4" />
                       {t("createEvent")}
                     </Button>
@@ -968,6 +1052,11 @@ export default function EventsPage() {
                             {formatEventDateTime(startsAt, locale)}
                             {endsAt && ` – ${formatTime(endsAt, locale)}`}
                           </p>
+                          {hasPermission("attendance.manage") && (event.status as string) !== "cancelled" && (
+                            <Button render={<Link href={`/${locale}/dashboard/attendance?group=${groupId}&event=${event.id}`} />} variant="outline" size="sm" className="mt-2">
+                              {t("takeAttendance")}
+                            </Button>
+                          )}
                           {event.description ? (
                             <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
                               {String(event.description)}
@@ -1148,7 +1237,7 @@ export default function EventsPage() {
       </Dialog>
 
       {/* Create/Edit Event Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={(open) => { setShowCreateDialog(open); if (!open) { resetForm(); setEditEventId(null); } }}>
+      <Dialog open={showCreateDialog} onOpenChange={(open) => { if (!open && (creating || editSaving)) return; setShowCreateDialog(open); if (!open) { resetForm(); setEditEventId(null); } }}>
         <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editEventId ? t("editEvent") : t("createEvent")}</DialogTitle>
@@ -1223,8 +1312,10 @@ export default function EventsPage() {
                 />
               </div>
             </div>
+            {deviceTimeZone && <p className="text-xs text-muted-foreground">{t("deviceTimeZone", { zone: deviceTimeZone })}</p>}
+            <p className="text-xs text-muted-foreground">{t("completedMeetingHint")}</p>
 
-            {/* Reminder transparency — reminders are fully automatic */}
+            {/* Reminder eligibility depends on schedule, member preferences and safeguards. */}
             <div className="flex items-start gap-2 rounded-md bg-muted/50 px-3 py-2">
               <BellRing className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <p className="text-xs text-muted-foreground">{t("reminderHint")}</p>
@@ -1290,8 +1381,13 @@ export default function EventsPage() {
             {/* Attendance is tracked for all events by default — no per-event toggle */}
             {/* RSVP is enabled by default for all upcoming events — no per-event control */}
           </div>
+          {formError && (
+            <div role="alert" className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />{formError}
+            </div>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowCreateDialog(false); resetForm(); setEditEventId(null); }}>
+            <Button variant="outline" disabled={creating || editSaving} onClick={() => { setShowCreateDialog(false); resetForm(); setEditEventId(null); }}>
               {tc("cancel")}
             </Button>
             {editEventId ? (

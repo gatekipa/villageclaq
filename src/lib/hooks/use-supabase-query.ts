@@ -679,7 +679,7 @@ export function useEvents() {
         .select("*")
         .eq("group_id", groupId)
         .order("starts_at", { ascending: false });
-      if (error) { console.warn("[Query] failed:", error.message); return []; }
+      if (error) { console.warn("[Events] load failed:", error.message); throw error; }
       return data || [];
     },
     enabled: !!groupId,

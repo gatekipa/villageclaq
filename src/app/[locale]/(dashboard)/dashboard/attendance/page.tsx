@@ -120,6 +120,8 @@ export default function AttendancePage() {
     refetch: refetchEvents,
   } = useEvents();
   const { data: members, isLoading: membersLoading } = useMembers();
+  const activeMembers = useMemo(() => ((members || []) as Record<string, unknown>[])
+    .filter((member) => member.membership_status === "active"), [members]);
   const recordAttendance = useRecordAttendance(groupId || "");
   
   // Tenant Reset
@@ -276,7 +278,7 @@ export default function AttendancePage() {
     setRollCallSearch("");
     const statuses: Record<string, AttendanceStatus> = {};
     if (members) {
-      for (const m of members as Record<string, unknown>[]) {
+      for (const m of activeMembers) {
         statuses[m.id as string] = "absent";
       }
     }
@@ -294,16 +296,35 @@ export default function AttendancePage() {
       .eq("event_id", eventId);
 
     const statuses: Record<string, AttendanceStatus> = {};
-    for (const m of members as Record<string, unknown>[]) {
+    for (const m of activeMembers) {
       statuses[m.id as string] = "absent";
     }
     if (existing) {
       for (const record of existing) {
-        statuses[record.membership_id] = record.status as AttendanceStatus;
+        if (record.membership_id in statuses) statuses[record.membership_id] = record.status as AttendanceStatus;
       }
     }
     setMemberStatuses(statuses);
-  }, [members]);
+  }, [members, activeMembers]);
+
+  // The Events handoff names a single same-group event. The picker still
+  // requires current attendance.manage authority and the normal server checks.
+  const handoffOpened = useRef<string | null>(null);
+  useEffect(() => {
+    if (!groupId || !events || !members || !hasPermission("attendance.manage")) return;
+    const params = new URLSearchParams(window.location.search);
+    const eventId = params.get("event");
+    if (!eventId || params.get("group") !== groupId || handoffOpened.current === eventId) return;
+    const event = (events as Record<string, unknown>[]).find((item) => item.id === eventId);
+    if (!event || event.status === "cancelled") return;
+    handoffOpened.current = eventId;
+    setDialogError("");
+    setSuccessMessage("");
+    setDialogTab("rollcall");
+    setDialogEventId(eventId);
+    setShowDialog(true);
+    void loadExistingAttendance(eventId);
+  }, [groupId, events, members, hasPermission, loadExistingAttendance]);
 
   // Auto-refresh checked-in count while QR tab is active
   const refreshCheckedInCount = useCallback(async () => {
@@ -336,7 +357,7 @@ export default function AttendancePage() {
   const handleMarkAllPresent = () => {
     if (!members) return;
     const statuses: Record<string, AttendanceStatus> = {};
-    for (const m of members as Record<string, unknown>[]) {
+    for (const m of activeMembers) {
       statuses[m.id as string] = "present";
     }
     setMemberStatuses(statuses);
@@ -345,7 +366,7 @@ export default function AttendancePage() {
   const handleResetAll = () => {
     if (!members) return;
     const statuses: Record<string, AttendanceStatus> = {};
-    for (const m of members as Record<string, unknown>[]) {
+    for (const m of activeMembers) {
       statuses[m.id as string] = "absent";
     }
     setMemberStatuses(statuses);
@@ -450,7 +471,7 @@ export default function AttendancePage() {
     );
   }
 
-  const allEvents = (events || []) as Record<string, unknown>[];
+  const allEvents = ((events || []) as Record<string, unknown>[]).filter((event) => event.status !== "cancelled");
 
   return (
     <PermissionGate permission="attendance.manage">
@@ -767,7 +788,7 @@ export default function AttendancePage() {
                   {/* Member List */}
                   <div className="space-y-2">
                     {members &&
-                      (members as Record<string, unknown>[])
+                      activeMembers
                       .filter((member) => {
                         if (!rollCallSearch.trim()) return true;
                         const name = getMemberName(member).toLowerCase();

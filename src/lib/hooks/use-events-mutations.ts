@@ -10,14 +10,19 @@ export interface ManageEventInput {
   eventId?: string;
   payload: {
     title: string;
+    title_fr?: string;
     description?: string;
     location?: string;
+    meeting_link?: string;
     event_type: "meeting" | "social" | "fundraiser" | "agm" | "emergency" | "other";
     starts_at: string;
     ends_at?: string;
     capacity?: number;
+    is_recurring?: boolean;
+    recurrence_rule?: "weekly" | "biweekly" | "monthly";
+    creation_id?: string;
     status?: "upcoming" | "in_progress" | "completed" | "cancelled";
-  };
+  } | { status: "cancelled" };
 }
 
 export interface DeleteEventInput {
@@ -104,11 +109,10 @@ export function useManageEvent(currentGroupId: string) {
         p_event_id: input.eventId || null,
       });
       if (error) throw new Error(parseEventRpcError(error));
+      if (!data || data.ok !== true || !data.event_id) throw new Error("EVENT_SAVE_UNCONFIRMED");
       return data as EventMutationResponse;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["events", currentGroupId] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["events", currentGroupId] }),
   });
 }
 

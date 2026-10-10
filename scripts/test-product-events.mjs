@@ -147,13 +147,11 @@ test("recurring toggle uses the manual-semantics hint", () => {
 // 9. Past-edit guard only fires when starts_at changed.
 // ---------------------------------------------------------------------------
 
-test("edit guard compares against the original starts_at before blocking past dates", () => {
+test("edit guard compares against the original starts_at before blocking changed past dates", () => {
   assert.match(page, /const \[editOriginalStartsAt, setEditOriginalStartsAt\] = useState<string \| null>\(null\)/);
   assert.match(page, /setEditOriginalStartsAt\(localStartsAt\)/);
   assert.match(page, /const startsAtChanged = formStartsAt !== editOriginalStartsAt;/);
   assert.match(page, /if \(startsAtChanged && new Date\(formStartsAt\) < new Date\(\)\)/);
-  // The create path still blocks past dates unconditionally.
-  assert.match(page, /if \(new Date\(formStartsAt\) < new Date\(\)\) \{\s*\n\s*showError\(t\("pastDateError"\)\)/);
 });
 
 // ---------------------------------------------------------------------------

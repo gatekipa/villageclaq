@@ -48,7 +48,7 @@ export default function CheckInPage() {
       // Fetch event with group name
       const { data: evt, error: evtErr } = await supabase
         .from("events")
-        .select("id, title, starts_at, ends_at, location, event_type, group_id, groups!inner(name)")
+        .select("id, title, status, starts_at, ends_at, location, event_type, group_id, groups!inner(name)")
         .eq("id", eventId)
         .maybeSingle();
 
@@ -134,15 +134,18 @@ export default function CheckInPage() {
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.from("event_attendances").upsert({
+      const { error } = await supabase.from("event_attendances").insert({
         event_id: eventId,
         membership_id: membershipId,
         status: "present",
         checked_in_via: "qr",
-        checked_in_at: new Date().toISOString(),
         marked_by: user?.id,
-      }, { onConflict: "event_id,membership_id" });
+      });
 
+      if (error?.code === "23505") {
+        setState("already_checked_in");
+        return;
+      }
       if (error) throw error;
       setState("checked_in");
     } catch {

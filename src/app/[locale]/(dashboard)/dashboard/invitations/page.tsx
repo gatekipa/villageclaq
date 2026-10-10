@@ -820,7 +820,7 @@ export default function InvitationsPage() {
                           `invitations.${effectiveStatus}` as "invitations.pending"
                         )}
                       </Badge>
-                      {status === "pending" && canInvite && (
+                      {status === "pending" && canInvite && (isOwner || !["admin", "moderator"].includes(String(invite.role ?? "member"))) && (
                         <DropdownMenu>
                           <DropdownMenuTrigger className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent focus:outline-none">
                             <MoreVertical className="h-4 w-4" />

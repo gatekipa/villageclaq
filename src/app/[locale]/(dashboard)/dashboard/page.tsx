@@ -78,7 +78,7 @@ export default function DashboardPage() {
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
 
   const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useDashboardStats();
-  const { data: sharedObservation, isLoading: sharedLoading, error: sharedError } = useQuery<{ memberCount: number | null; financial: { outstanding: number; overdue: number; collectionRate: number } | null }>({
+  const { data: sharedObservationData, isLoading: sharedLoading, error: sharedError } = useQuery<{ memberCount: number | null; financial: { outstanding: number; overdue: number; collectionRate: number } | null }>({
     queryKey: ["dashboard-shared-observation", groupId], enabled: !!groupId, staleTime: 0,
     refetchInterval: 15_000, refetchOnWindowFocus: true, retry: false,
     queryFn: async () => {
@@ -87,6 +87,8 @@ export default function DashboardPage() {
       return res.json();
     },
   });
+  // A failed background refetch must not keep displaying cached group figures after revocation.
+  const sharedObservation = sharedError ? null : sharedObservationData;
   const { data: payments, isLoading: paymentsLoading } = usePayments(5);
   const { data: nextEvent, isLoading: eventsLoading } = useNextEvent();
   const { data: latestMinutes, isLoading: minutesLoading } = useLatestMinutes();

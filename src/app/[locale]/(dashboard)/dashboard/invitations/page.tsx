@@ -92,9 +92,9 @@ function maskPhone(phone: string): string {
 export default function InvitationsPage() {
   const t = useTranslations();
   const locale = useLocale();
-  const { groupId, user, isAdmin, currentGroup, loading: groupLoading } = useGroup();
+  const { groupId, user, currentGroup, loading: groupLoading } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isOwner } = usePermissions();
   const canInvite = hasPermission("members.invite");
   const createInvitationMutation = useCreateGroupInvitation();
   const queryClient = useQueryClient();
@@ -236,6 +236,7 @@ export default function InvitationsPage() {
   }
 
   async function regenerateCode() {
+    if (!canInvite) return;
     if (!groupId || !user) return;
     setRegenerating(true);
     const supabase = createClient();
@@ -359,6 +360,7 @@ export default function InvitationsPage() {
   };
 
   const handleResendInvitation = async (inviteEmail: string, inviteId: string) => {
+    if (!canInvite) return;
     setResendingId(inviteId);
     setResendFeedback(null);
     try {
@@ -380,6 +382,7 @@ export default function InvitationsPage() {
 
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const handleRevoke = async (invitationId: string, maskedContact: string) => {
+    if (!canInvite) return;
     // Revoking is one-way for the recipient — confirm before acting, and
     // name the target (masked) so the admin can verify which invitation
     // they are revoking among similar-looking rows.
@@ -394,10 +397,9 @@ export default function InvitationsPage() {
     setRevokingId(invitationId);
     try {
       const supabase = createClient();
-      const { error } = await supabase
-        .from("invitations")
-        .update({ status: "revoked" })
-        .eq("id", invitationId);
+      const { error } = await supabase.rpc("revoke_group_invitation", {
+        p_invitation_id: invitationId,
+      });
       if (error) console.warn("[Invitations] revoke failed:", error.message);
       queryClient.invalidateQueries({ queryKey: ["invitations", groupId] });
     } finally {
@@ -467,8 +469,10 @@ export default function InvitationsPage() {
         <p className="text-muted-foreground">{t("invitations.subtitle")}</p>
       </div>
 
+      {!canInvite && <p className="text-sm text-muted-foreground">{t("invitations.joinCodeRestricted")}</p>}
+
       {/* Join Code + Shareable Link */}
-      {activeCode && (() => {
+      {canInvite && activeCode && (() => {
         const code = (activeCode as Record<string, unknown>).code as string;
         const joinLink = getJoinLink(code);
         return (
@@ -566,7 +570,7 @@ export default function InvitationsPage() {
       })()}
 
       {/* No active join code — offer a way out instead of a dead end */}
-      {!activeCode && (
+      {canInvite && !activeCode && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -597,7 +601,7 @@ export default function InvitationsPage() {
       {/* Pre-send review notice — honest summary of what creating an
           invitation actually does, read before the first send. Purely
           informational; no behavior change. */}
-      <SendReviewNotice context="invitations" variant="full" />
+      {canInvite && <SendReviewNotice context="invitations" variant="full" />}
 
       {/* Invite by Email */}
       <Card>
@@ -627,7 +631,7 @@ export default function InvitationsPage() {
                   <SelectItem value="member">
                     {t("invitations.roleMember")}
                   </SelectItem>
-                  {isAdmin && (
+                  {isOwner && (
                     <SelectItem value="admin">
                       {t("invitations.roleAdmin")}
                     </SelectItem>
@@ -816,7 +820,7 @@ export default function InvitationsPage() {
                           `invitations.${effectiveStatus}` as "invitations.pending"
                         )}
                       </Badge>
-                      {status === "pending" && (
+                      {status === "pending" && canInvite && (
                         <DropdownMenu>
                           <DropdownMenuTrigger className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent focus:outline-none">
                             <MoreVertical className="h-4 w-4" />

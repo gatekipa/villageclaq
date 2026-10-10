@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { formatAmount } from "@/lib/currencies";
 import { useTranslations, useLocale } from "next-intl";
-import { formatDateWithGroupFormat, formatEventDateTime, formatTime } from "@/lib/format";
+import { formatDateWithGroupFormat, formatEventDateTime } from "@/lib/format";
 import { Link, useRouter } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,6 +78,15 @@ export default function DashboardPage() {
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
 
   const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useDashboardStats();
+  const { data: sharedObservation, isLoading: sharedLoading, error: sharedError } = useQuery<{ memberCount: number | null; financial: { outstanding: number; overdue: number; collectionRate: number } | null }>({
+    queryKey: ["dashboard-shared-observation", groupId], enabled: !!groupId, staleTime: 0,
+    refetchInterval: 15_000, refetchOnWindowFocus: true, retry: false,
+    queryFn: async () => {
+      const res = await fetch(`/api/dashboard/shared-totals?groupId=${encodeURIComponent(groupId!)}`, { cache: "no-store" });
+      if (!res.ok) throw new Error("Group observation unavailable");
+      return res.json();
+    },
+  });
   const { data: payments, isLoading: paymentsLoading } = usePayments(5);
   const { data: nextEvent, isLoading: eventsLoading } = useNextEvent();
   const { data: latestMinutes, isLoading: minutesLoading } = useLatestMinutes();
@@ -150,7 +159,7 @@ export default function DashboardPage() {
     staleTime: 60_000,
   });
 
-  const isLoading = statsLoading || paymentsLoading || eventsLoading || minutesLoading || memberCountsLoading || launchCountsLoading;
+  const isLoading = statsLoading || sharedLoading || paymentsLoading || eventsLoading || minutesLoading || memberCountsLoading || launchCountsLoading;
 
   // Extract primitives before using them in memo deps (rule 9: no raw
   // objects in dependency arrays).
@@ -208,30 +217,32 @@ export default function DashboardPage() {
 
   // ─── Invite CTA: dismissible card for small groups (admin only) ─────
   const [inviteDismissed, setInviteDismissed] = useState(false);
+  const currentGroupId = currentGroup?.id;
   useEffect(() => {
-    if (currentGroup?.id) {
-      const key = `vc_invite_cta_dismissed_${currentGroup.id}`;
-      if (localStorage.getItem(key) === "1") setInviteDismissed(true);
-    }
-  }, [currentGroup?.id]);
+    const timer = window.setTimeout(() => {
+      const key = currentGroupId ? `vc_invite_cta_dismissed_${currentGroupId}` : null;
+      setInviteDismissed(key ? localStorage.getItem(key) === "1" : false);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [currentGroupId]);
   const dismissInviteCta = useCallback(() => {
-    if (currentGroup?.id) {
-      localStorage.setItem(`vc_invite_cta_dismissed_${currentGroup.id}`, "1");
+    if (currentGroupId) {
+      localStorage.setItem(`vc_invite_cta_dismissed_${currentGroupId}`, "1");
     }
     setInviteDismissed(true);
-  }, [currentGroup?.id]);
+  }, [currentGroupId]);
   const showInviteCta = isAdmin && !inviteDismissed && (rosterCount ?? stats?.totalMembers ?? 0) < 5;
 
   // ─── Milestone detection ──────────────────────────────────────────────
   const [milestone, setMilestone] = useState<{ key: string; title: string; desc: string } | null>(null);
   useEffect(() => {
-    if (!stats || !currentGroup) return;
+    if (!sharedObservation || !currentGroup) return;
     const groupId = currentGroup.id;
     const shownKey = `vc_milestones_shown_${groupId}`;
     const shown = readShownMilestones(shownKey);
 
-    const memberCount = stats.totalMembers ?? 0;
-    const collectionRate = stats.collectionRate ?? 0;
+    const memberCount = sharedObservation.memberCount ?? 0;
+    const collectionRate = sharedObservation.financial?.collectionRate;
     const groupName = currentGroup.name;
 
     // Check milestones in priority order (highest first)
@@ -239,12 +250,12 @@ export default function DashboardPage() {
     for (const threshold of memberMilestones) {
       const mk = `members_${threshold}`;
       if (memberCount >= threshold && !shown.includes(mk)) {
-        setMilestone({
+        const timer = window.setTimeout(() => setMilestone({
           key: mk,
           title: t("dashboard.milestoneMemberCount", { count: threshold }),
           desc: t("dashboard.milestoneMemberDesc", { group: groupName, count: threshold }),
-        });
-        return;
+        }), 0);
+        return () => window.clearTimeout(timer);
       }
     }
 
@@ -252,15 +263,15 @@ export default function DashboardPage() {
     if (collectionRate === 100 && memberCount > 1) {
       const monthKey = `collection_100_${new Date().toISOString().slice(0, 7)}`;
       if (!shown.includes(monthKey)) {
-        setMilestone({
+        const timer = window.setTimeout(() => setMilestone({
           key: monthKey,
           title: t("dashboard.milestoneCollectionRate"),
           desc: t("dashboard.milestoneCollectionDesc", { group: groupName }),
-        });
-        return;
+        }), 0);
+        return () => window.clearTimeout(timer);
       }
     }
-  }, [stats, currentGroup, t]);
+  }, [sharedObservation, currentGroup, t]);
 
   const dismissMilestone = useCallback(() => {
     if (!milestone || !currentGroup) return;
@@ -284,6 +295,7 @@ export default function DashboardPage() {
 
   // Show error state — never surface raw query/Postgres text in the UI;
   // ErrorState falls back to the localized common.errorDesc copy.
+  if (sharedError) console.warn("[Dashboard] shared observation failed:", sharedError);
   if (statsError) {
     console.warn("[Dashboard] stats query failed:", statsError);
     return <ErrorState onRetry={() => refetchStats()} />;
@@ -297,9 +309,10 @@ export default function DashboardPage() {
     stats.collectionRate === 0 &&
     (!payments || payments.length === 0);
 
-  const outstanding = stats?.outstanding ?? 0;
-  // FQ-11: only obligations past their due date (group calendar) are overdue.
-  const overdue = stats?.overdue ?? 0;
+  const sharedFinancial = sharedObservation?.financial;
+  const outstanding = sharedFinancial?.outstanding ?? stats?.outstanding ?? 0;
+  // FQ-11: group aggregate only when the current server authorization allows it.
+  const overdue = sharedFinancial?.overdue ?? stats?.overdue ?? 0;
 
   return (
     <div className="space-y-8">
@@ -427,12 +440,12 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               {/* Roster-aligned: excludes members still awaiting approval */}
-              <div className="text-4xl font-bold">{rosterCount ?? stats?.totalMembers ?? 0}</div>
+              <div className="text-4xl font-bold">{sharedObservation?.memberCount ?? t("dashboard.notShared")}</div>
             </CardContent>
           </Card>
         </Link>
 
-        <Link href="/dashboard/contributions" aria-label={t("dashboard.viewCollectionCard")}>
+        <Link href={sharedFinancial ? "/dashboard/contributions" : "/dashboard/financial-summary"} aria-label={t("dashboard.viewCollectionCard")}>
           <Card className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-base font-medium text-muted-foreground">
@@ -441,14 +454,14 @@ export default function DashboardPage() {
               <HandCoins className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold">{stats?.collectionRate ?? 0}%</div>
+              <div className={sharedFinancial ? "text-4xl font-bold" : "text-2xl font-semibold"}>{sharedFinancial ? `${sharedFinancial.collectionRate}%` : t("dashboard.notShared")}</div>
               <p className="mt-1 text-sm text-muted-foreground">
-                {t("dashboard.collectionRateLabel")}
+                {sharedFinancial ? t("dashboard.collectionRateLabel") : t("dashboard.groupFiguresRestricted")}
               </p>
-              <div className="mt-2 h-2 rounded-full bg-muted">
+              <div className={sharedFinancial ? "mt-2 h-2 rounded-full bg-muted" : "hidden"}>
                 <div
                   className="h-2 rounded-full bg-primary transition-all"
-                  style={{ width: `${stats?.collectionRate ?? 0}%` }}
+                  style={{ width: `${sharedFinancial?.collectionRate ?? 0}%` }}
                 />
               </div>
             </CardContent>
@@ -472,10 +485,7 @@ export default function DashboardPage() {
           </Card>
         </Link>
 
-        {/* Outstanding balance is a GROUP-WIDE collection figure. For
-            non-admins the admin unpaid view is off-limits and the number is
-            not personal, so members are sent to their own balance page and
-            the card is clearly labelled as group-wide. */}
+        {/* The server aggregate is group-wide; the RLS-filtered fallback is personal. */}
         <Link
           href={isAdmin ? "/dashboard/contributions/unpaid" : "/dashboard/my-payments"}
           aria-label={isAdmin ? t("dashboard.viewOutstandingCard") : t("dashboard.viewMyPaymentsCard")}
@@ -483,7 +493,7 @@ export default function DashboardPage() {
           <Card className={cn("cursor-pointer transition-all hover:shadow-md hover:border-primary/30", overdue > 0 && "border border-destructive/30 bg-red-50/50 dark:bg-red-950/20 hover:border-destructive/50")}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-base font-medium text-muted-foreground">
-                {isAdmin ? t("dashboard.outstandingBalance") : t("dashboard.groupOutstandingBalance")}
+                {sharedFinancial ? t("dashboard.groupOutstandingBalance") : t("dashboard.myOutstandingBalance")}
               </CardTitle>
               {overdue > 0 ? (
                 <AlertCircle className="h-5 w-5 text-destructive" />
@@ -498,7 +508,9 @@ export default function DashboardPage() {
                 {formatCurrency(outstanding)}
               </div>
               <p className={cn("mt-1 text-sm", overdue > 0 && isAdmin ? "font-medium text-destructive" : "text-muted-foreground")}>
-                {!isAdmin
+                {!sharedFinancial
+                  ? t("dashboard.myOutstandingViewPayments")
+                  : !isAdmin
                   ? t("dashboard.groupWideViewMine")
                   : overdue > 0
                   ? t("dashboard.overdueAmount", { amount: formatCurrency(overdue) })
@@ -693,6 +705,8 @@ export default function DashboardPage() {
           {payments && payments.length > 0 ? (
             <div className="divide-y divide-border">
               {payments.map((payment: Record<string, unknown>) => {
+                const settlement = payment.settlement_status as string | null;
+                const reversed = settlement === "reversed" || settlement === "refunded";
                 const fullName = getMemberName(payment);
                 const contribType = payment.contribution_type as Record<string, unknown> | null;
                 const typeName = (locale === "fr" && contribType?.name_fr ? contribType.name_fr as string : contribType?.name as string) || "";
@@ -704,7 +718,7 @@ export default function DashboardPage() {
                   .substring(0, 2);
 
                 return (
-                  <div key={payment.id as string} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                  <div key={payment.id as string} className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 py-3 first:pt-0 last:pb-0 sm:flex sm:items-center">
                     <Avatar className="h-9 w-9">
                       <AvatarFallback className="bg-primary/10 text-primary text-xs">
                         {initials}
@@ -714,10 +728,11 @@ export default function DashboardPage() {
                       <p className="truncate text-base font-medium">{fullName}</p>
                       <p className="text-sm text-muted-foreground">{typeName}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-base font-semibold text-primary">
-                        +{formatCurrency(payment.amount as number)}
+                    <div className="col-start-2 min-w-0 text-left sm:ml-auto sm:text-right">
+                      <p className={cn("text-base font-semibold", reversed ? "text-muted-foreground" : "text-primary")}>
+                        {reversed ? "" : "+"}{formatCurrency(payment.amount as number)}
                       </p>
+                      {reversed && <p className="text-xs font-medium leading-snug text-amber-700 dark:text-amber-400">{t(settlement === "refunded" ? "dashboard.paymentRefunded" : "dashboard.paymentReversed")}</p>}
                       <p className="text-sm text-muted-foreground">
                         {formatDateWithGroupFormat(payment.recorded_at as string, groupDateFormat, locale)}
                       </p>
@@ -770,15 +785,7 @@ export default function DashboardPage() {
                   const actorProfile = entry.actor_profile as { full_name?: string | null } | null;
                   const actorName = actorProfile?.full_name || t("dashboard.system");
 
-                  // Relative time
-                  const diffMs = Date.now() - new Date(entry.created_at as string).getTime();
-                  const diffMins = Math.floor(diffMs / 60000);
-                  const diffHours = Math.floor(diffMins / 60);
-                  const diffDays = Math.floor(diffHours / 24);
-                  const timeLabel = diffMins < 1 ? t("dashboard.justNow")
-                    : diffMins < 60 ? `${diffMins}m`
-                    : diffHours < 24 ? `${diffHours}h`
-                    : `${diffDays}d`;
+                  const timeLabel = formatEventDateTime(entry.created_at as string, locale);
 
                   return (
                     <div key={entry.id as string} className="flex items-start gap-3">

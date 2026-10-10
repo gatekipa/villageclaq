@@ -314,6 +314,7 @@ export default function MembersPage() {
   const { data: positions } = useGroupPositions();
   const { hasPermission, isOwner } = usePermissions();
   const canManageMembers = hasPermission("members.manage");
+  const canExportMembers = canManageMembers && hasPermission("reports.export");
   const { isAtLimit } = useSubscription();
   const memberLimit = isAtLimit("members");
   const [search, setSearch] = useState("");
@@ -403,6 +404,7 @@ export default function MembersPage() {
 
   // Export state
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // Transfer ownership state
   const [ownershipDialogOpen, setOwnershipDialogOpen] = useState(false);
@@ -547,23 +549,26 @@ export default function MembersPage() {
 
   // ─── BUG 5 FIX: Export Members CSV ───────────────────────────────────────
   async function handleExportMembers() {
-    if (!members || members.length === 0 || exporting) return;
+    if (!groupId || !canExportMembers || exporting) return;
     setExporting(true);
+    setExportError(null);
     try {
-      const rows = members.map((m: Record<string, unknown>) => {
-        const name = getMemberName(m);
-        // Phone sourced from the admin-authorised roster RPC for real members;
-        // proxies read privacy_settings.proxy_phone which remains client-side.
-        const phone = m.is_proxy
-          ? ((m.privacy_settings as Record<string, string>)?.proxy_phone || "")
-          : (adminPhoneByMembership.get(m.id as string) || "");
-        const role = (m.role as string) || "member";
-        const standing = (m.standing as string) || "good";
-        const joinedAt = m.joined_at ? (m.joined_at as string).slice(0, 10) : "";
-        const isProxy = m.is_proxy ? "Yes" : "No";
-        return { Name: name, Phone: phone, Role: role, Standing: standing, "Joined Date (ISO)": joinedAt, "Proxy Member": isProxy };
-      });
+      // This is a separate server-authorized bulk endpoint. Directory access
+      // alone never authorizes a roster/contact export.
+      const { data, error } = await createClient().rpc("get_roster_with_contacts", { p_group_id: groupId });
+      if (error) throw error;
+      const rows = (data || []).map((m: Record<string, unknown>) => ({
+        Name: (m.display_name as string) || (m.full_name as string) || "",
+        Phone: (m.phone as string) || "",
+        Role: (m.role as string) || "member",
+        Standing: (m.standing as string) || "good",
+        "Joined Date (ISO)": m.joined_at ? String(m.joined_at).slice(0, 10) : "",
+        "Proxy Member": m.is_proxy ? "Yes" : "No",
+      }));
       exportCSV(rows, `${currentGroup?.name || "group"}-members`);
+    } catch (error) {
+      console.warn("[Members] roster export denied or failed:", error);
+      setExportError(t("exportFailed"));
     } finally {
       setExporting(false);
     }
@@ -1019,7 +1024,7 @@ export default function MembersPage() {
     setEditError(null);
     try {
       // 1. Role update if changed
-      if (editRole !== editOriginalRole && editOriginalRole !== "owner") {
+      if (editRole !== editOriginalRole && editOriginalRole !== "owner" && isOwner) {
         await updateRoleMutation.mutateAsync({
           groupId,
           membershipId: editMemberId,
@@ -1550,11 +1555,13 @@ export default function MembersPage() {
               <LayoutGrid className="h-4 w-4" />
             </Button>
           </div>
-          {/* Export — available to all members */}
-          <Button variant="outline" size="sm" onClick={handleExportMembers} disabled={exporting || !members?.length}>
+          {/* Bulk export has a distinct permission from reading the directory. */}
+          <Button variant="outline" size="sm" onClick={handleExportMembers} disabled={exporting || !canExportMembers} title={!canExportMembers ? t("exportPermissionRequired") : undefined}>
             {exporting ? <Loader2 className="h-4 w-4 animate-spin sm:mr-2" /> : <FileDown className="h-4 w-4 sm:mr-2" />}
             <span className="hidden sm:inline">{t("exportMembers")}</span>
           </Button>
+          {exportError && <span role="alert" className="text-xs text-destructive">{exportError}</span>}
+          {!canExportMembers && <span className="text-xs text-muted-foreground">{t("exportPermissionRequired")}</span>}
           {canManageMembers && (
             <>
               <Button variant="outline" size="sm" onClick={handleRecalculateAll} disabled={recalcAllLoading}>
@@ -2250,7 +2257,7 @@ export default function MembersPage() {
               <select
                 value={editRole}
                 onChange={(e) => setEditRole(e.target.value)}
-                disabled={editOriginalRole === "owner"}
+                disabled={!isOwner || editOriginalRole === "owner"}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {/* Invariant: Owner role cannot be assigned directly. Prompt ownership transfer. */}
@@ -2262,7 +2269,7 @@ export default function MembersPage() {
                 <p className="text-xs text-muted-foreground">{t("cannotDemoteOwner")}</p>
               ) : isOwner ? (
                 <p className="text-xs text-muted-foreground">{t("transferPrompt")}</p>
-              ) : null}
+              ) : <p className="text-xs text-muted-foreground">{t("onlyOwnerMayChangeRole")}</p>}
             </div>
             <div className="space-y-2">
               <Label>{t("standing")}</Label>

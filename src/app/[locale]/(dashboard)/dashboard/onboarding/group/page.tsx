@@ -615,33 +615,11 @@ export default function GroupOnboardingPage() {
         is_default: true,
       },
     ];
-    const { data: positions } = await supabase
-      .from("group_positions")
-      .insert(positionRows.map((p) => ({ ...p, group_id: group.id })))
-      .select();
+    await supabase.from("group_positions")
+      .insert(positionRows.map((p) => ({ ...p, group_id: group.id })));
 
-    // Step 5: Create permissions for positions (non-fatal)
-    if (positions && positions.length > 0) {
-      setSetupProgress(t("progressPermissions"));
-      const modules = [
-        "members.view",
-        "members.manage",
-        "contributions.view",
-        "contributions.manage",
-        "events.view",
-        "events.manage",
-        "finances.view",
-        "finances.manage",
-        "settings.view",
-        "settings.manage",
-      ];
-      const permsToInsert = positions.flatMap((pos) =>
-        modules
-          .filter((perm) => pos.is_executive || perm.endsWith(".view"))
-          .map((perm) => ({ position_id: pos.id, permission: perm }))
-      );
-      await supabase.from("position_permissions").insert(permsToInsert);
-    }
+    // Position titles are templates. Only an explicit owner action in Roles
+    // grants permissions; the Executive label itself grants no authority.
 
     // Step 6: Create join code (non-fatal)
     setSetupProgress(t("progressJoinCode"));

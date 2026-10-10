@@ -894,7 +894,7 @@ export function useMeetingMinutes() {
         .select("*, event:events(id, title, title_fr, starts_at)")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
-      if (error) { console.warn("[Query] failed:", error.message); return []; }
+      if (error) { console.warn("[Minutes] query failed:", error.message); throw error; }
       return data || [];
     },
     enabled: !!groupId,

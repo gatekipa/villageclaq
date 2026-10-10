@@ -414,7 +414,7 @@ function MemberDetailContent() {
   const [overrideReason, setOverrideReason] = useState("");
   const [selectedPositionId, setSelectedPositionId] = useState("");
   const [actionSaving, setActionSaving] = useState(false);
-  const [unassignTarget, setUnassignTarget] = useState<{ assignmentId: string; positionTitle: string } | null>(null);
+  const [unassignTarget, setUnassignTarget] = useState<{ positionId: string; positionTitle: string } | null>(null);
   const [unassigningSaving, setUnassigningSaving] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
 
@@ -529,7 +529,7 @@ function MemberDetailContent() {
       const isProxy = member.is_proxy as boolean;
 
       // 1. Role update if changed
-      if (editRole !== editOriginalRole && editOriginalRole !== "owner") {
+      if (editRole !== editOriginalRole && editOriginalRole !== "owner" && isOwner) {
         await updateRoleMutation.mutateAsync({
           groupId,
           membershipId,
@@ -594,14 +594,14 @@ function MemberDetailContent() {
   }
 
   async function handleUnassignPosition() {
-    if (!unassignTarget) return;
+    if (!unassignTarget || !isOwner) return;
     setUnassigningSaving(true);
     try {
-      const { error } = await supabase
-        .from("position_assignments")
-        .update({ ended_at: new Date().toISOString() })
-        .eq("id", unassignTarget.assignmentId)
-        .is("ended_at", null);
+      const { error } = await supabase.rpc("set_position_assignment", {
+        p_position_id: unassignTarget.positionId,
+        p_membership_id: membershipId,
+        p_assign: false,
+      });
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["member-positions", membershipId] });
       await queryClient.invalidateQueries({ queryKey: ["group-positions", groupId] });
@@ -899,7 +899,7 @@ function MemberDetailContent() {
                 <DropdownMenuItem className="flex items-center gap-2" onClick={() => openEditDialog()}>
                   <Pencil className="h-4 w-4" /> {t("members.editMember")}
                 </DropdownMenuItem>
-                {(member?.role as string) !== "owner" && (
+                {isOwner && (member?.role as string) !== "owner" && (
                   <DropdownMenuItem className="flex items-center gap-2" onClick={() => { setNewRole(member.role as string); setShowRoleDialog(true); }}>
                     <Edit className="h-4 w-4" /> {t("members.editRole")}
                   </DropdownMenuItem>
@@ -907,9 +907,9 @@ function MemberDetailContent() {
                 <DropdownMenuItem className="flex items-center gap-2" onClick={() => { setNewStanding(member.standing as string || "good"); setOverrideReason(""); setShowStandingDialog(true); }}>
                   <Shield className="h-4 w-4" /> {ts("changeStandingOverride")}
                 </DropdownMenuItem>
-                <DropdownMenuItem className="flex items-center gap-2" onClick={() => setShowPositionDialog(true)}>
+                {isOwner && <DropdownMenuItem className="flex items-center gap-2" onClick={() => setShowPositionDialog(true)}>
                   <Shield className="h-4 w-4" /> {t("members.assignPosition")}
-                </DropdownMenuItem>
+                </DropdownMenuItem>}
 
                 {/* Explicit Lifecycle Actions */}
                 {(member?.role as string) !== "owner" && (
@@ -1043,11 +1043,11 @@ function MemberDetailContent() {
                     return (
                       <Badge key={p.id as string} variant="default" className="text-xs flex items-center gap-1 pr-1">
                         {posTitle}
-                        {hasPermission("roles.manage") && (
+                        {isOwner && (
                           <button
                             type="button"
                             className="ml-0.5 rounded-full p-0.5 hover:bg-background/20 transition-colors"
-                            onClick={() => setUnassignTarget({ assignmentId: p.id as string, positionTitle: posTitle })}
+                            onClick={() => setUnassignTarget({ positionId: p.position_id as string, positionTitle: posTitle })}
                             aria-label={t("roles.unassign")}
                           >
                             <X className="h-3 w-3" />
@@ -1695,7 +1695,7 @@ function MemberDetailContent() {
               <select
                 value={editRole}
                 onChange={(e) => setEditRole(e.target.value)}
-                disabled={editOriginalRole === "owner"}
+                disabled={!isOwner || editOriginalRole === "owner"}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <option value="admin">{t("roles.admin")}</option>
@@ -1706,7 +1706,7 @@ function MemberDetailContent() {
                 <p className="text-xs text-muted-foreground">{t("members.cannotDemoteOwner")}</p>
               ) : isOwner ? (
                 <p className="text-xs text-muted-foreground">{t("members.transferPrompt")}</p>
-              ) : null}
+              ) : <p className="text-xs text-muted-foreground">{t("members.onlyOwnerMayChangeRole")}</p>}
             </div>
             {editError && <p className="text-sm text-destructive">{editError}</p>}
           </div>
@@ -1825,6 +1825,7 @@ function MemberDetailContent() {
           <DialogHeader>
             <DialogTitle>{t("members.assignPosition")}</DialogTitle>
           </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t("roles.assignmentAuthority")}</p>
           <PositionSelector
             groupId={groupId}
             selectedPositionId={selectedPositionId}
@@ -1834,14 +1835,15 @@ function MemberDetailContent() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPositionDialog(false)}>{t("common.cancel")}</Button>
             <Button
-              disabled={actionSaving || !selectedPositionId}
+              disabled={actionSaving || !selectedPositionId || !isOwner}
               onClick={async () => {
+                if (!isOwner) return;
                 setActionSaving(true);
                 try {
-                  const { error } = await supabase.from("position_assignments").insert({
-                    position_id: selectedPositionId,
-                    membership_id: membershipId,
-                    assigned_by: user?.id,
+                  const { error } = await supabase.rpc("set_position_assignment", {
+                    p_position_id: selectedPositionId,
+                    p_membership_id: membershipId,
+                    p_assign: true,
                   });
                   if (error) throw error;
                   await queryClient.invalidateQueries({ queryKey: ["member-positions", membershipId] });
@@ -1855,7 +1857,7 @@ function MemberDetailContent() {
               }}
             >
               {actionSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t("common.save")}
+              {t("members.assignPosition")}
             </Button>
           </DialogFooter>
         </DialogContent>

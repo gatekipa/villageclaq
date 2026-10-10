@@ -18,8 +18,6 @@ import {
   Settings2,
   Loader2,
   Save,
-  Plus,
-  UserPlus,
   Camera,
   Share2,
   LogOut,
@@ -45,6 +43,7 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { useRouter, Link } from "@/i18n/routing";
+import { useSearchParam } from "@/lib/hooks/use-stable-search-params";
 import { useGroupSettings, useGroupPositions, useMembers } from "@/lib/hooks/use-supabase-query";
 import { CURRENCIES } from "@/lib/currencies";
 import { useGroup } from "@/lib/group-context";
@@ -115,6 +114,7 @@ const COUNTRY_CURRENCY_MAP: Record<string, string> = {
 
 export default function GroupSettingsPage() {
   const router = useRouter();
+  const initialTab = useSearchParam("tab");
   const t = useTranslations("settings");
   const tCountries = useTranslations("countries");
   const locale = useLocale();
@@ -145,17 +145,13 @@ export default function GroupSettingsPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [assignPositionId, setAssignPositionId] = useState<string | null>(null);
-  const [assigningPosition, setAssigningPosition] = useState(false);
-  const [newPositionTitle, setNewPositionTitle] = useState("");
-  const [addingPosition, setAddingPosition] = useState(false);
   const { data: members } = useMembers();
 
   // Data sharing controls state
   const sharingDefaults: Record<string, boolean> = {
     member_count: true,
     member_roster: false,
-    financial_summary: true,
+    financial_summary: false,
     detailed_transactions: false,
     attendance: true,
     events: true,
@@ -419,46 +415,6 @@ export default function GroupSettingsPage() {
     }
   }
 
-  async function handleAssignPosition(positionId: string, membershipId: string) {
-    if (assigningPosition) return;
-    setAssigningPosition(true);
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.from("position_assignments").insert({
-        position_id: positionId,
-        membership_id: membershipId,
-      });
-      if (error) {
-        setSaveError(error.message);
-      } else {
-        setAssignPositionId(null);
-        await queryClient.invalidateQueries({ queryKey: ["group-positions", groupId] });
-      }
-    } finally {
-      setAssigningPosition(false);
-    }
-  }
-
-  async function handleAddPosition() {
-    if (!groupId || !newPositionTitle.trim()) return;
-    setAddingPosition(true);
-    const supabase = createClient();
-    const { error } = await supabase.from("group_positions").insert({
-      group_id: groupId,
-      title: newPositionTitle.trim(),
-      is_executive: false,
-      is_default: false,
-      sort_order: positionsData.length + 1,
-    });
-    if (error) {
-      setSaveError(error.message);
-    } else {
-      setNewPositionTitle("");
-      await queryClient.invalidateQueries({ queryKey: ["group-positions", groupId] });
-    }
-    setAddingPosition(false);
-  }
-
   if (isLoading) {
     return <RequirePermission permission="settings.manage"><ListSkeleton rows={5} /></RequirePermission>;
   }
@@ -496,7 +452,7 @@ export default function GroupSettingsPage() {
         <p className="text-muted-foreground">{t("subtitle")}</p>
       </div>
 
-      <Tabs defaultValue="info">
+      <Tabs defaultValue={initialTab === "data-sharing" ? "data-sharing" : "info"}>
         <TabsList className="h-10 w-full justify-start gap-1 overflow-x-auto bg-muted/60 p-1 dark:bg-muted/40">
           <TabsTrigger value="info" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("profileTab")}</TabsTrigger>
           <TabsTrigger value="localization" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("localizationTab")}</TabsTrigger>
@@ -835,6 +791,7 @@ export default function GroupSettingsPage() {
                 <Shield className="h-4 w-4" />
                 {t("positions")}
               </CardTitle>
+              {currentMembership?.role === "owner" && <Link className="text-sm text-primary underline" href="/dashboard/roles">{t("manageRoles")}</Link>}
             </CardHeader>
             <CardContent>
               {positionsData.length === 0 ? (
@@ -869,28 +826,6 @@ export default function GroupSettingsPage() {
                           {activeHolders.length === 0 ? (
                             <div className="flex items-center gap-2">
                               <Badge variant="secondary">{t("vacant")}</Badge>
-                              {canManageSettings && (
-                                assignPositionId === posId ? (
-                                  <div className="flex flex-wrap gap-1">
-                                    {(members || []).slice(0, 10).map((m: Record<string, unknown>) => {
-                                      const mp = m.profile as { full_name?: string } | undefined;
-                                      return (
-                                        <Button key={m.id as string} variant="outline" size="sm" className="h-7 text-xs"
-                                          disabled={assigningPosition}
-                                          onClick={() => handleAssignPosition(posId, m.id as string)}>
-                                          {getMemberName(m) || "—"}
-                                        </Button>
-                                      );
-                                    })}
-                                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setAssignPositionId(null)}>✕</Button>
-                                  </div>
-                                ) : (
-                                  <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => setAssignPositionId(posId)}>
-                                    <UserPlus className="h-3 w-3" />
-                                    {t("assign")}
-                                  </Button>
-                                )
-                              )}
                             </div>
                           ) : (
                             <div className="flex flex-wrap gap-2">
@@ -924,20 +859,6 @@ export default function GroupSettingsPage() {
                   })}
                 </div>
               )}
-              {canManageSettings && (
-                <div className="mt-4 flex gap-2">
-                  <Input
-                    placeholder={t("positionNamePlaceholder") || "New position name..."}
-                    value={newPositionTitle}
-                    onChange={(e) => setNewPositionTitle(e.target.value)}
-                    className="max-w-xs"
-                    onKeyDown={(e) => e.key === "Enter" && handleAddPosition()}
-                  />
-                  <Button onClick={handleAddPosition} disabled={addingPosition || !newPositionTitle.trim()} size="sm">
-                    {addingPosition ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                  </Button>
-                </div>
-              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -953,6 +874,7 @@ export default function GroupSettingsPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-6">{t("dataSharingDescription")}</p>
+                <p className="text-xs text-muted-foreground mb-4">{t("dataSharingAudienceNote")}</p>
                 <div className="space-y-4">
                   {(["member_count", "member_roster", "financial_summary", "detailed_transactions", "attendance", "events", "minutes", "relief"] as const).map((key) => (
                     <div key={key} className="flex items-center justify-between rounded-lg border p-3">

@@ -293,6 +293,13 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   // when initialLoadDone changes (SIGNED_OUT → false → re-subscribe).
   }, [fetchData, initialLoadDone]);
 
+  // Recheck current membership and group settings when an already-open tab regains focus.
+  useEffect(() => {
+    const onFocus = () => { void fetchData(true); };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [fetchData]);
+
   // Persist current group selection
   useEffect(() => {
     if (currentGroupId && typeof window !== "undefined") {

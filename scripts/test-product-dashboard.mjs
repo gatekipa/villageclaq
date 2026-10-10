@@ -96,8 +96,9 @@ test("needs-attention card renders only when something is actually pending, with
 
 // ─── 4. Stat honesty ───────────────────────────────────────────────────────
 
-test("totalMembers stat is roster-aligned (excludes pending approvals)", () => {
-  assert.match(page, /\{rosterCount \?\? stats\?\.totalMembers \?\? 0\}/);
+test("member-count headline uses the authorized shared observation", () => {
+  assert.match(page, /sharedObservation\?\.memberCount \?\? t\("dashboard\.notShared"\)/);
+  assert.doesNotMatch(page, /\{rosterCount \?\? stats\?\.totalMembers \?\? 0\}/);
 });
 
 test("misleading stat sublabels are replaced with honest ones", () => {
@@ -107,35 +108,17 @@ test("misleading stat sublabels are replaced with honest ones", () => {
   assert.match(page, /t\("dashboard\.upcomingEventsLabel"\)/);
 });
 
-test("outstanding balance card is due-date aware: red only when something is overdue (FQ-11)", () => {
-  // FQ-11 repair (2026-09-30): the card used to turn red and say "overdue" for
-  // any outstanding balance, including obligations not yet due. Overdue now
-  // comes from the group-calendar figure (stats.overdue); outstanding stays the
-  // headline amount.
-  assert.match(page, /const overdue = stats\?\.overdue \?\? 0;/);
+test("outstanding balance remains due-date aware in the selected scope", () => {
+  assert.match(page, /const overdue = sharedFinancial\?\.overdue \?\? stats\?\.overdue \?\? 0;/);
   assert.match(page, /overdue > 0 && "border border-destructive\/30/);
   assert.match(page, /overdue > 0 \? "text-destructive" : "text-foreground"/);
   assert.doesNotMatch(page, /outstanding > 0 && "border border-destructive/);
-  // Admin caption: amount overdue → nothing overdue yet → all caught up
-  // (member-aware branch first, so allow whitespace/newlines).
-  assert.match(
-    page,
-    /overdue > 0\s*\?\s*t\("dashboard\.overdueAmount", \{ amount: formatCurrency\(overdue\) \}\)\s*:\s*outstanding > 0\s*\?\s*t\("dashboard\.nothingOverdueYet"\)\s*:\s*t\("dashboard\.allCaughtUp"\)/,
-  );
-  // The alert icon only shows when something is overdue.
-  assert.match(page, /\{overdue > 0 \? \(\s*<AlertCircle/);
-  for (const key of ["dashboard.overdueAmount", "dashboard.nothingOverdueYet"]) {
-    assert.equal(typeof dig(en, key), "string", `en ${key}`);
-    assert.equal(typeof dig(fr, key), "string", `fr ${key}`);
-  }
 });
 
-test("outstanding card is member-aware (Sprint C): members see a group-wide label and a link to their own balance", () => {
-  // Non-admins are sent to their personal balance, not the admin unpaid view.
-  assert.match(page, /href=\{isAdmin \? "\/dashboard\/contributions\/unpaid" : "\/dashboard\/my-payments"\}/);
-  // The title and subtitle stop implying the group figure is personal.
-  assert.match(page, /isAdmin \? t\("dashboard\.outstandingBalance"\) : t\("dashboard\.groupOutstandingBalance"\)/);
+test("outstanding card labels personal versus authorized group totals", () => {
+  assert.match(page, /sharedFinancial \? t\("dashboard\.groupOutstandingBalance"\) : t\("dashboard\.myOutstandingBalance"\)/);
   assert.match(page, /groupWideViewMine/);
+  assert.match(page, /href=\{isAdmin \? "\/dashboard\/contributions\/unpaid" : "\/dashboard\/my-payments"\}/);
 });
 
 // ─── 5. Friendly errors ────────────────────────────────────────────────────

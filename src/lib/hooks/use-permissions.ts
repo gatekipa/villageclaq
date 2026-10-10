@@ -82,7 +82,9 @@ export function usePermissions() {
       };
     },
     enabled: !!groupId && !!membershipId && isMemberActive && !isOwner,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: 15_000,
   });
 
   const positionPermissions = permissionsData.permissions;

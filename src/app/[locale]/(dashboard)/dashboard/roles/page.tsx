@@ -4,7 +4,6 @@ import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -45,7 +44,6 @@ import {
   Users,
   Loader2,
   Search,
-  Check,
   X,
   UserPlus,
   Calendar,
@@ -62,7 +60,6 @@ import { RequirePermission } from "@/components/ui/permission-gate";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { getMemberName } from "@/lib/get-member-name";
 import { usePermissions } from "@/lib/hooks/use-permissions";
-import { cn } from "@/lib/utils";
 
 // ─── Permission Modules Definition ───────────────────────────────────────────
 
@@ -147,6 +144,8 @@ const PERMISSION_MODULES: PermissionCategory[] = [
 ];
 
 // 1:1 mapping — UI key IS the DB key. No lossy collapsing.
+const VISIBLE_PERMISSION_KEYS = new Set(PERMISSION_MODULES.flatMap((category) => category.permissions.map((permission) => permission.key)));
+
 function dbPermsToUiKeys(dbPerms: string[]): Set<string> {
   return new Set(dbPerms);
 }
@@ -171,8 +170,8 @@ export default function RolesPage() {
   const tc = useTranslations("common");
   const { groupId, currentGroup } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
-  const { hasPermission, isOwner } = usePermissions();
-  const canManageRoles = hasPermission("roles.manage") || isOwner;
+  const { isOwner } = usePermissions();
+  const canManageRoles = isOwner; // The active owner alone can change authority.
   const queryClient = useQueryClient();
   const { data: positions, isLoading, isError, error, refetch } = useGroupPositions();
   const { data: members } = useMembers();
@@ -197,6 +196,10 @@ export default function RolesPage() {
   // Permissions state
   const [enabledPerms, setEnabledPerms] = useState<Set<string>>(new Set());
   const [permsSaving, setPermsSaving] = useState(false);
+  const [permissionsReadOnly, setPermissionsReadOnly] = useState(true);
+  const [roleFeedback, setRoleFeedback] = useState<string | null>(null);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [assignTarget, setAssignTarget] = useState<{ membershipId: string; name: string } | null>(null);
 
   // Assign members state
   const [assignSearch, setAssignSearch] = useState("");
@@ -230,7 +233,9 @@ export default function RolesPage() {
     setEditPosition(pos);
   }
 
-  function openPermissions(pos: Record<string, unknown>) {
+  function openPermissions(pos: Record<string, unknown>, readOnly = true) {
+    setFormError(null);
+    setPermissionsReadOnly(readOnly);
     const perms = (pos.position_permissions as Array<{ permission: string }>) || [];
     const dbPerms = perms.map((p) => p.permission);
     setEnabledPerms(dbPermsToUiKeys(dbPerms));
@@ -301,8 +306,6 @@ export default function RolesPage() {
     setDeleting(true);
     try {
       const supabase = createClient();
-      // Delete permissions first, then position
-      await supabase.from("position_permissions").delete().eq("position_id", deletePosition.id as string);
       const { error: err } = await supabase.from("group_positions").delete().eq("id", deletePosition.id as string);
       if (err) throw new Error(err.message);
       await queryClient.invalidateQueries({ queryKey: ["group-positions", groupId] });
@@ -316,25 +319,21 @@ export default function RolesPage() {
   }
 
   async function handleSavePermissions() {
-    if (!permissionsPosition) return;
+    if (!permissionsPosition || !canManageRoles) return;
     setPermsSaving(true);
     try {
       const supabase = createClient();
       const posId = permissionsPosition.id as string;
 
-      // Delete all existing permissions for this position
-      await supabase.from("position_permissions").delete().eq("position_id", posId);
-
-      // Insert new permissions
       const dbPerms = uiKeysToDbPerms(enabledPerms);
-      if (dbPerms.length > 0) {
-        const rows = dbPerms.map((perm) => ({ position_id: posId, permission: perm }));
-        const { error: err } = await supabase.from("position_permissions").insert(rows);
-        if (err) throw new Error(err.message);
-      }
-
+      const { error } = await supabase.rpc("replace_position_permissions", {
+        p_position_id: posId,
+        p_permissions: dbPerms,
+      });
+      if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["group-positions", groupId] });
       setPermissionsPosition(null);
+      setRoleFeedback(t("permissionsUpdated"));
     } catch (err) {
       setFormError((err as Error).message);
     } finally {
@@ -359,17 +358,21 @@ export default function RolesPage() {
     setUnassignError(null);
     try {
       const supabase = createClient();
-      const { error } = await supabase
-        .from("position_assignments")
-        .update({ ended_at: new Date().toISOString() })
-        .eq("position_id", unassignTarget.positionId)
-        .eq("membership_id", unassignTarget.membershipId)
-        .is("ended_at", null);
+      const { error } = await supabase.rpc("set_position_assignment", {
+        p_position_id: unassignTarget.positionId,
+        p_membership_id: unassignTarget.membershipId,
+        p_assign: false,
+      });
       if (error) {
         setUnassignError(error.message);
         return;
       }
       await queryClient.invalidateQueries({ queryKey: ["group-positions", groupId] });
+      const { data: refreshed } = await supabase.from("group_positions")
+        .select("*, position_assignments(*, membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))), position_permissions(*)")
+        .eq("id", unassignTarget.positionId).single();
+      if (refreshed) setAssignPosition(refreshed);
+      setRoleFeedback(t("memberUnassigned"));
       setUnassignTarget(null);
     } catch (err) {
       setUnassignError((err as Error).message || t("unassignError"));
@@ -403,39 +406,29 @@ export default function RolesPage() {
     });
   }, [members, assignSearch]);
 
-  async function handleToggleAssignment(membershipId: string, isAssigned: boolean) {
-    if (!assignPosition || !canManageRoles) return;
-    setAssignSaving(membershipId);
+  async function handleAssignConfirmed() {
+    if (!assignPosition || !assignTarget || !canManageRoles) return;
+    const posId = assignPosition.id as string;
+    setAssignSaving(assignTarget.membershipId);
+    setAssignError(null);
     try {
       const supabase = createClient();
-      const posId = assignPosition.id as string;
-
-      if (isAssigned) {
-        // Unassign: set ended_at instead of deleting to keep history
-        await supabase
-          .from("position_assignments")
-          .update({ ended_at: new Date().toISOString() })
-          .eq("position_id", posId)
-          .eq("membership_id", membershipId)
-          .is("ended_at", null);
-      } else {
-        // Assign
-        await supabase.from("position_assignments").insert({
-          position_id: posId,
-          membership_id: membershipId,
-        });
-      }
-
+      const { error } = await supabase.rpc("set_position_assignment", {
+        p_position_id: posId,
+        p_membership_id: assignTarget.membershipId,
+        p_assign: true,
+      });
+      if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["group-positions", groupId] });
-      // Refresh local state by re-fetching
-      const { data: refreshed } = await createClient()
-        .from("group_positions")
+      const { data: refreshed, error: reloadError } = await supabase.from("group_positions")
         .select("*, position_assignments(*, membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))), position_permissions(*)")
-        .eq("id", posId)
-        .single();
+        .eq("id", posId).single();
+      if (reloadError) throw reloadError;
       if (refreshed) setAssignPosition(refreshed);
-    } catch {
-      // silently fail
+      setRoleFeedback(t("memberAssigned"));
+      setAssignTarget(null);
+    } catch (error) {
+      setAssignError((error as Error).message || t("assignmentFailed"));
     } finally {
       setAssignSaving(null);
     }
@@ -454,12 +447,15 @@ export default function RolesPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
             <p className="text-muted-foreground">{t("description")}</p>
+            <p className="text-sm text-muted-foreground">{t("authorityExplanation")}</p>
           </div>
-          <Button onClick={() => { resetForm(); setShowCreateDialog(true); }}>
+          {canManageRoles && <Button onClick={() => { resetForm(); setShowCreateDialog(true); }}>
             <Plus className="mr-2 h-4 w-4" />
             {t("addRole")}
-          </Button>
+          </Button>}
         </div>
+
+        {roleFeedback && <p role="status" className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">{roleFeedback}</p>}
 
         {/* Roles Table */}
         {positionsList.length === 0 ? (
@@ -486,7 +482,9 @@ export default function RolesPage() {
                   const assignments = ((pos.position_assignments as Array<Record<string, unknown>>) || []).filter(
                     (a) => !a.ended_at
                   );
-                  const perms = (pos.position_permissions as unknown[]) || [];
+                  const perms = (pos.position_permissions as Array<{ permission: string }>) || [];
+                  const visiblePermCount = perms.filter((entry) => VISIBLE_PERMISSION_KEYS.has(entry.permission)).length;
+                  const additionalPermCount = perms.length - visiblePermCount;
                   const isExec = pos.is_executive as boolean;
                   const createdAt = pos.created_at as string;
 
@@ -516,7 +514,7 @@ export default function RolesPage() {
                               return (
                                 <Badge key={a.membership?.id} variant="secondary" className="text-xs flex items-center gap-1 pr-1">
                                   <span className="max-w-[100px] truncate">{name}</span>
-                                  <button
+                                  {canManageRoles && <button
                                     type="button"
                                     className="ml-0.5 rounded-full p-0.5 hover:bg-destructive/20 hover:text-destructive transition-colors"
                                     onClick={(e) => {
@@ -526,7 +524,7 @@ export default function RolesPage() {
                                     aria-label={t("unassign")}
                                   >
                                     <X className="h-3 w-3" />
-                                  </button>
+                                  </button>}
                                 </Badge>
                               );
                             })}
@@ -534,9 +532,14 @@ export default function RolesPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-xs">
-                          {t("permissionsCount", { count: perms.length })}
-                        </Badge>
+                        <div className="flex flex-wrap items-center gap-1">
+                          <Badge variant="outline" className="text-xs">
+                            {t("permissionsCount", { count: visiblePermCount })}
+                          </Badge>
+                          {additionalPermCount > 0 && <Badge variant="secondary" className="text-xs">
+                            {t("additionalCount", { count: additionalPermCount })}
+                          </Badge>}
+                        </div>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <span className="text-sm text-muted-foreground">
@@ -554,19 +557,22 @@ export default function RolesPage() {
                             <MoreVertical className="h-4 w-4" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem className="flex items-center gap-2" onClick={() => openPermissions(pos)}>
+                            <DropdownMenuItem className="flex items-center gap-2" onClick={() => openPermissions(pos, true)}>
                               <Eye className="h-4 w-4" /> {t("viewPermissions")}
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="flex items-center gap-2" onClick={() => openEdit(pos)}>
+                            {canManageRoles && <DropdownMenuItem className="flex items-center gap-2" onClick={() => openPermissions(pos, false)}>
+                              <Edit className="h-4 w-4" /> {t("editPermissions")}
+                            </DropdownMenuItem>}
+                            {canManageRoles && <DropdownMenuItem className="flex items-center gap-2" onClick={() => openEdit(pos)}>
                               <Edit className="h-4 w-4" /> {t("editRole")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="flex items-center gap-2" onClick={() => { setAssignSearch(""); setAssignPosition(pos); }}>
+                            </DropdownMenuItem>}
+                            {canManageRoles && <DropdownMenuItem className="flex items-center gap-2" onClick={() => { setAssignSearch(""); setRoleFeedback(null); setAssignPosition(pos); }}>
                               <UserPlus className="h-4 w-4" /> {t("assignMembers")}
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="flex items-center gap-2 text-destructive" onClick={() => { setFormError(null); setDeletePosition(pos); }}>
+                            </DropdownMenuItem>}
+                            {canManageRoles && <DropdownMenuSeparator />}
+                            {canManageRoles && <DropdownMenuItem className="flex items-center gap-2 text-destructive" onClick={() => { setFormError(null); setDeletePosition(pos); }}>
                               <Trash2 className="h-4 w-4" /> {t("deleteRole")}
-                            </DropdownMenuItem>
+                            </DropdownMenuItem>}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -681,10 +687,12 @@ export default function RolesPage() {
                 {t("permissions")} — {(permissionsPosition?.title as string) || ""}
               </DialogTitle>
               <div className="mt-1">
-                <Badge variant="secondary">{t("permissionsCount", { count: enabledPerms.size })}</Badge>
+                <Badge variant="secondary">{t("permissionsCount", { count: [...enabledPerms].filter((key) => VISIBLE_PERMISSION_KEYS.has(key)).length })}</Badge>
               </div>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+              <p className="text-sm text-muted-foreground">{t("authorityExplanation")}</p>
+              {[...enabledPerms].some((key) => !VISIBLE_PERMISSION_KEYS.has(key)) && <div className="rounded-md border p-3 text-sm"><p className="font-medium">{t("legacyPermissions")}</p><p className="text-muted-foreground">{[...enabledPerms].filter((key) => !VISIBLE_PERMISSION_KEYS.has(key)).join(", ")}</p></div>}
               {PERMISSION_MODULES.map((category) => {
                 const CategoryIcon = category.icon;
                 return (
@@ -705,6 +713,7 @@ export default function RolesPage() {
                           </div>
                           <Switch
                             checked={enabledPerms.has(perm.key)}
+                            disabled={permissionsReadOnly || !canManageRoles}
                             onCheckedChange={() => togglePerm(perm.key)}
                           />
                         </div>
@@ -714,12 +723,13 @@ export default function RolesPage() {
                 );
               })}
             </div>
-            <DialogFooter className="border-t pt-4">
+            {!permissionsReadOnly && formError && <p role="alert" className="text-sm text-destructive">{formError}</p>}
+            {!permissionsReadOnly && <DialogFooter className="border-t pt-4">
               <Button onClick={handleSavePermissions} disabled={permsSaving}>
                 {permsSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {t("updatePermissions")}
               </Button>
-            </DialogFooter>
+            </DialogFooter>}
           </DialogContent>
         </Dialog>
 
@@ -732,6 +742,8 @@ export default function RolesPage() {
                 {t("assignMembers")} — {(assignPosition?.title as string) || ""}
               </DialogTitle>
             </DialogHeader>
+            <p className="text-sm text-muted-foreground">{t("assignmentAuthority")}</p>
+            {roleFeedback && <p role="status" className="text-sm text-primary">{roleFeedback}</p>}
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -750,14 +762,7 @@ export default function RolesPage() {
                 const isSaving = assignSaving === mId;
 
                 return (
-                  <div
-                    key={mId}
-                    className={cn(
-                      "flex items-center justify-between rounded-lg border p-2",
-                      canManageRoles ? "hover:bg-muted/50 cursor-pointer" : "opacity-60 cursor-not-allowed"
-                    )}
-                    onClick={() => !isSaving && canManageRoles && handleToggleAssignment(mId, isAssigned)}
-                  >
+                  <div key={mId} className="flex items-center justify-between gap-3 rounded-lg border p-2">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={profile?.avatar_url || undefined} />
@@ -767,23 +772,30 @@ export default function RolesPage() {
                       </Avatar>
                       <span className="text-sm font-medium">{displayName}</span>
                     </div>
-                    <div className="flex items-center">
-                      {isSaving ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      ) : isAssigned ? (
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                          <Check className="h-3 w-3" />
-                        </div>
-                      ) : (
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full border border-muted-foreground/30">
-                          <Plus className="h-3 w-3 text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
+                    <Button type="button" size="sm" variant={isAssigned ? "outline" : "default"}
+                      disabled={isSaving || !canManageRoles}
+                      onClick={() => isAssigned
+                        ? setUnassignTarget({ positionId: assignPosition!.id as string, positionTitle: assignPosition!.title as string, membershipId: mId, memberName: displayName })
+                        : setAssignTarget({ membershipId: mId, name: displayName })}>
+                      {isSaving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                      {isAssigned ? t("removeAssignment") : t("assignNow")}
+                    </Button>
                   </div>
                 );
               })}
             </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!assignTarget} onOpenChange={(open) => { if (!open) { setAssignTarget(null); setAssignError(null); } }}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>{t("confirmAssignmentTitle")}</DialogTitle></DialogHeader>
+            <p className="text-sm">{t("confirmAssignment", { name: assignTarget?.name || "", position: (assignPosition?.title as string) || "" })}</p>
+            {assignError && <p role="alert" className="text-sm text-destructive">{assignError}</p>}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAssignTarget(null)}>{tc("cancel")}</Button>
+              <Button onClick={handleAssignConfirmed} disabled={!!assignSaving}>{t("assignNow")}</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 

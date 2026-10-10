@@ -927,6 +927,7 @@ export default function MinutesPage() {
 
           {/* Sort controls */}
           <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">{t("sortBy")}</span>
             <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
             <Button
               variant={sortField === "date" ? "default" : "outline"}
@@ -1027,9 +1028,9 @@ export default function MinutesPage() {
               <p className="py-8 text-center text-sm text-muted-foreground">
                 {searchQuery.trim()
                   ? tc("noResults")
-                  : events.length === 0
-                    ? tc("noResults")
-                    : t("noCompletedEvents")}
+                  : canManageMinutes
+                    ? t("noCompletedEvents")
+                    : t("noSharedMinutes")}
               </p>
             ) : (
               filteredEvents.map((event) => (
@@ -1077,7 +1078,7 @@ export default function MinutesPage() {
             <Card className="flex min-h-[400px] items-center justify-center">
               <div className="text-center">
                 <FileText className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
-                <p className="text-muted-foreground">{t("selectEvent")}</p>
+                <p className="text-muted-foreground">{t(canManageMinutes ? "selectEvent" : "selectEventReadOnly")}</p>
               </div>
             </Card>
           ) : editMode && canManageMinutes ? (

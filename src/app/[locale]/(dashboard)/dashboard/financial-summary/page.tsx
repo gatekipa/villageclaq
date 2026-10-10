@@ -6,6 +6,8 @@ import { formatAmount } from "@/lib/currencies";
 import { RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
+import { usePermissions } from "@/lib/hooks/use-permissions";
+import { Link } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,6 +31,8 @@ export default function MemberFinancialSummaryPage() {
   const t = useTranslations("memberFinancialSummary");
   const locale = useLocale();
   const { groupId } = useGroup();
+  const { hasPermission } = usePermissions();
+  const canManageSharing = hasPermission("settings.manage");
   const summary = useQuery({
     queryKey: ["member-financial-summary", groupId], enabled: !!groupId, staleTime: 0,
     refetchOnWindowFocus: true, refetchInterval: 15_000, retry: false,
@@ -39,12 +43,13 @@ export default function MemberFinancialSummaryPage() {
       return data as MemberSummary;
     },
   });
+  const sharingLink = canManageSharing ? <Link className="text-sm text-primary underline" href="/dashboard/settings?tab=data-sharing">{t("manageSharing")}</Link> : null;
   if (summary.isLoading) return <div className="space-y-4"><Skeleton className="h-9 w-72" /><Skeleton className="h-48 w-full" /></div>;
-  if (summary.error) return <div className="space-y-4"><h1 className="text-2xl font-bold">{t("title")}</h1><div className="rounded-lg border p-4 text-sm text-muted-foreground">{t("notAvailable")}</div></div>;
+  if (summary.error) return <div className="space-y-4"><h1 className="text-2xl font-bold">{t("title")}</h1><div className="rounded-lg border p-4 text-sm text-muted-foreground">{t("notAvailable")}</div>{sharingLink}</div>;
   const data = summary.data!;
   return <div className="space-y-6">
     <div className="flex items-start justify-between gap-4">
-      <div><h1 className="text-2xl font-bold">{t("title")}</h1><p className="text-sm text-muted-foreground">{t("readOnly")}</p></div>
+      <div><h1 className="text-2xl font-bold">{t("title")}</h1><p className="text-sm text-muted-foreground">{t("readOnly")}</p>{sharingLink}</div>
       <Button variant="outline" onClick={() => summary.refetch()} disabled={summary.isFetching}><RefreshCw className={`mr-2 h-4 w-4 ${summary.isFetching ? "animate-spin" : ""}`} />{t("refresh")}</Button>
     </div>
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{data.currency_buckets.map((bucket) => <Card key={bucket.currency}>

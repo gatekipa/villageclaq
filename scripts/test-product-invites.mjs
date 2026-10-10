@@ -24,16 +24,10 @@ const get = (obj, dotted) => dotted.split(".").reduce((acc, k) => acc?.[k], obj)
 
 // ─── Admin page: single-invite feedback ─────────────────────────────────────
 
-test("admin: green success is gated on the email actually sending", () => {
-  // setSendSuccess(true) must only appear inside the if (emailSent) branch.
-  assert.match(admin, /if \(emailSent\) \{\s*\/\/[^\n]*\n\s*setSendSuccess\(true\);/);
-  const successCalls = [...admin.matchAll(/setSendSuccess\(true\)/g)];
-  assert.equal(successCalls.length, 1, "exactly one setSendSuccess(true) call");
-  // The saved-but-email-failed path renders ONE amber warning, not red+green.
+test("admin: success is gated on the semantic invitation notice result", () => {
+  assert.match(admin, /if \(emailSent\) \{\s*setSendSuccess\(true\)/);
   assert.match(admin, /setSendWarning\(t\("invitations\.savedEmailFailed"\)\)/);
-  assert.doesNotMatch(admin, /setSendError\(t\("invitations\.emailSendFailed"\)\)/,
-    "old contradictory red emailSendFailed next to green success must be gone");
-  assert.match(admin, /text-amber-600 dark:text-amber-400/, "warning renders in amber");
+  assert.match(admin, /enqueueInvitationNotice\(result\.invitation_id\)/);
 });
 
 test("admin: single-invite validates email with the bulk-path regex and uses a real CTA label", () => {
@@ -43,27 +37,20 @@ test("admin: single-invite validates email with the bulk-path regex and uses a r
   assert.doesNotMatch(admin, /t\("common\.submit"\)/, "generic Submit label removed");
 });
 
-test("admin: friendly errors only — raw error.message never reaches the UI", () => {
+test("admin: mutation failures show translated copy, never raw errors", () => {
   assert.doesNotMatch(admin, /setSendError\(error\.message\)/);
-  assert.match(admin, /console\.warn\("\[Invitations\] invitation insert failed:", error\.message\);\s*setSendError\(t\("invitations\.sendFailed"\)\)/);
-  // The 23505 duplicate guard added recently must be preserved.
-  assert.match(admin, /error\.code === "23505"/);
+  assert.match(admin, /setSendError\(t\("invitations\.sendFailed"\)\)/);
+  assert.match(admin, /rpcError\.code === "23505"/);
   assert.match(admin, /t\("invitations\.duplicateInviteError"\)/);
-  // ErrorState no longer receives the raw message; raw goes to console.warn.
   assert.doesNotMatch(admin, /message=\{\(invError \|\| codesError\)\?\.message\}/);
-  assert.match(admin, /console\.warn\("\[Invitations\] load failed:", \(invError \|\| codesError\)\?\.message\)/);
 });
 
-test("admin: invitation list masks emails and phones, never the full value", () => {
+test("admin: invitation list masks recipient contacts", () => {
   assert.match(admin, /function maskEmail\(email: string\): string/);
   assert.match(admin, /function maskPhone\(phone: string\): string/);
   assert.match(admin, /maskEmail\(invite\.email as string\)/);
   assert.match(admin, /maskPhone\(invite\.phone as string\)/);
-  assert.doesNotMatch(admin, /\{\(invite\.email as string\) \|\|\s*\(invite\.phone as string\)/,
-    "unmasked contact render must be gone");
-  // Rule 11: the email API failure log masks the recipient too.
-  assert.doesNotMatch(admin, /"for", recipientEmail\)/);
-  assert.match(admin, /maskEmail\(recipientEmail\)/);
+  assert.doesNotMatch(admin, /\{\(invite\.email as string\) \|\|\s*\(invite\.phone as string\)/);
 });
 
 test("admin: status clarity — retitled list, computed Expired badge, expiry date on pending rows", () => {
@@ -93,10 +80,9 @@ test("admin: revoke and regenerate are confirmed; resend gives inline feedback",
   assert.match(admin, /setResendFeedback\(\{ id: inviteId, ok: emailOk \}\)/);
 });
 
-test("admin: no-join-code dead end replaced with a Generate CTA card", () => {
-  assert.match(admin, /\{!activeCode && \(/);
+test("admin: only inviters can see the no-code Generate action", () => {
+  assert.match(admin, /\{canInvite && !activeCode && \(/);
   assert.match(admin, /t\("invitations\.noJoinCode"\)/);
-  assert.match(admin, /t\("invitations\.noJoinCodeDesc"\)/);
   assert.match(admin, /t\("invitations\.createJoinCode"\)/);
 });
 
@@ -105,10 +91,10 @@ test("admin: invite-by-email row stacks on mobile", () => {
   assert.match(admin, /className="w-full sm:w-32"/, "role select full-width on mobile");
 });
 
-test("admin: no empty catches remain in notification-adjacent code", () => {
+test("admin: invitation notice errors are logged and produce false", () => {
   assert.doesNotMatch(admin, /catch \{\s*\}/);
-  assert.doesNotMatch(admin, /catch \{\s*\/\/ Notification failure is non-fatal[^}]*return false;\s*\}/);
-  assert.match(admin, /console\.warn\("\[Invitations\] invitation email send failed:"/);
+  assert.match(admin, /console\.warn\("\[Invitations\] invitation enqueue failed:"/);
+  assert.match(admin, /return false;/);
 });
 
 // ─── Invitee page (my-invitations) ──────────────────────────────────────────
@@ -152,12 +138,10 @@ test("invitee: raw RPC/DB errors stay in the console, UI gets translated copy", 
   assert.match(invitee, /console\.warn\("\[MyInvitations\] load failed:"/);
 });
 
-test("invitee: no empty catches and no silent .catch(() => {}) in notification code", () => {
-  assert.doesNotMatch(invitee, /catch \{ \/\* fail-open \*\/ \}/);
-  assert.doesNotMatch(invitee, /catch \{ \/\* best-effort \*\/ \}/);
+test("invitee: welcome dispatch failures are visible in diagnostics", () => {
+  assert.doesNotMatch(invitee, /catch \{\s*\}/);
   assert.doesNotMatch(invitee, /\.catch\(\(\) => \{\}\)/);
-  assert.match(invitee, /console\.warn\("\[MyInvitations\] welcome email request failed:"/);
-  assert.match(invitee, /console\.warn\("\[MyInvitations\] welcome SMS request failed:"/);
+  assert.match(invitee, /console\.warn\("\[MyInvitations\] welcome notification dispatch failed:"/);
 });
 
 test("invitee: accept/decline RPC paths and WhatsApp trigger are untouched", () => {

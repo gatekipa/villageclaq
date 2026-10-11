@@ -700,7 +700,7 @@ export default function AttendancePage() {
 
         {/* Record Attendance Dialog */}
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
-          <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogContent className="grid-cols-[minmax(0,1fr)] max-h-[90vh] max-w-lg overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t("recordAttendance")}</DialogTitle>
             </DialogHeader>
@@ -717,7 +717,7 @@ export default function AttendancePage() {
                   if (val) loadExistingAttendance(val);
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full min-w-0">
                   <span className="min-w-0 flex-1 truncate text-left">
                     {selectedDialogEvent
                       ? `${locale === "fr" && selectedDialogEvent.title_fr ? selectedDialogEvent.title_fr : selectedDialogEvent.title} — ${new Date(selectedDialogEvent.starts_at as string).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "short", day: "numeric" })}`

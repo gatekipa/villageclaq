@@ -762,7 +762,7 @@ export default function AttendancePage() {
                     <p className="text-sm text-muted-foreground">
                       {t("markedPresent", { count: presentCount, total: totalMembers })}
                     </p>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button variant="outline" size="sm" onClick={handleMarkAllPresent}>
                         <UserCheck className="mr-1.5 h-3.5 w-3.5" />
                         {t("markAllPresent")}

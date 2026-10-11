@@ -50,6 +50,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { PermissionGate } from "@/components/ui/permission-gate";
 import { getMemberName } from "@/lib/get-member-name";
+import { attendanceRate as calculateAttendanceRate } from "@/lib/attendance-rate";
 import { formatDateWithGroupFormat } from "@/lib/format";
 import { exportCSV } from "@/lib/export";
 import { QRCodeSVG } from "qrcode.react";
@@ -76,7 +77,7 @@ interface EventWithAttendance {
   late: number;
   excused: number;
   total: number;
-  rate: number;
+  rate: number | null;
 }
 
 const statusConfig: Record<AttendanceStatus, { color: string; activeColor: string; icon: typeof CheckCircle2 }> = {
@@ -184,25 +185,19 @@ export default function AttendancePage() {
     const totalEvents = (events || []).length;
     const totalRecords = allAttendance.length;
 
-    const presentOrLate = allAttendance.filter(
-      (r) => r.status === "present" || r.status === "late"
-    ).length;
-    const averageRate = totalRecords > 0 ? Math.round((presentOrLate / totalRecords) * 100) : 0;
+    const averageRate = calculateAttendanceRate(allAttendance);
 
     // Last event attendance
-    let lastEventRate = 0;
+    let lastEventRate: number | null = null;
     if (events && events.length > 0) {
-      const sorted = [...(events as Record<string, unknown>[])].sort(
+      const sorted = [...(events as Record<string, unknown>[])].filter(
+        (event) => event.status !== "cancelled" && new Date(event.starts_at as string).getTime() <= Date.now(),
+      ).sort(
         (a, b) => (b.starts_at as string).localeCompare(a.starts_at as string)
       );
       const lastEventId = sorted[0]?.id as string;
       const lastRecords = allAttendance.filter((r) => r.event_id === lastEventId);
-      if (lastRecords.length > 0) {
-        const lastPresent = lastRecords.filter(
-          (r) => r.status === "present" || r.status === "late"
-        ).length;
-        lastEventRate = Math.round((lastPresent / lastRecords.length) * 100);
-      }
+      lastEventRate = calculateAttendanceRate(lastRecords);
     }
 
     return { totalEvents, averageRate, lastEventRate, totalRecords };
@@ -233,7 +228,7 @@ export default function AttendancePage() {
       const late = records.filter((r) => r.status === "late").length;
       const excused = records.filter((r) => r.status === "excused").length;
       const total = records.length;
-      const rate = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
+      const rate = calculateAttendanceRate(records);
 
       result.push({
         event_id: eventId,
@@ -533,7 +528,7 @@ export default function AttendancePage() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">{t("averageRate")}</p>
-                  <p className="text-2xl font-bold">{stats.averageRate}%</p>
+                  <p className="text-2xl font-bold">{stats.averageRate === null ? "—" : `${stats.averageRate}%`}</p>
                 </div>
               </div>
             </CardContent>
@@ -546,7 +541,7 @@ export default function AttendancePage() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">{t("lastEvent")}</p>
-                  <p className="text-2xl font-bold">{stats.lastEventRate}%</p>
+                  <p className="text-2xl font-bold">{stats.lastEventRate === null ? "—" : `${stats.lastEventRate}%`}</p>
                 </div>
               </div>
             </CardContent>
@@ -634,8 +629,8 @@ export default function AttendancePage() {
                             </>
                           )}
                         </div>
-                        <Badge className={rateBadgeColor(record.rate)} variant="secondary">
-                          {record.rate}%
+                        <Badge className={record.rate === null ? undefined : rateBadgeColor(record.rate)} variant="secondary">
+                          {record.rate === null ? "—" : `${record.rate}%`}
                         </Badge>
                         {expandedEventId === record.event_id ? (
                           <ChevronUp className="h-4 w-4 text-muted-foreground" />

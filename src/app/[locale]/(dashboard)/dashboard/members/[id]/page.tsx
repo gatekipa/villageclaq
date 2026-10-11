@@ -10,6 +10,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
 import { getMemberName } from "@/lib/get-member-name";
+import { attendanceRate as calculateAttendanceRate } from "@/lib/attendance-rate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -712,7 +713,7 @@ function MemberDetailContent() {
   const presentCount = attendances.filter((a: Record<string, unknown>) => a.status === "present" || a.status === "late").length;
   const absentCount = attendances.filter((a: Record<string, unknown>) => a.status === "absent").length;
   const excusedCount = attendances.filter((a: Record<string, unknown>) => a.status === "excused").length;
-  const attendanceRate = totalAttendances > 0 ? Math.round((presentCount / totalAttendances) * 100) : 0;
+  const attendanceRate = calculateAttendanceRate(attendances);
 
   // Current streak
   let currentStreak = 0;
@@ -1344,9 +1345,9 @@ function MemberDetailContent() {
           <div className="mb-3">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-muted-foreground">{ts("attendanceRate")}</span>
-              <span className="text-sm font-bold">{totalAttendances > 0 ? `${attendanceRate}%` : "—"}</span>
+              <span className="text-sm font-bold">{attendanceRate !== null ? `${attendanceRate}%` : "—"}</span>
             </div>
-            {totalAttendances > 0 ? <Progress value={attendanceRate} className="h-2" /> : (
+            {attendanceRate !== null ? <Progress value={attendanceRate} className="h-2" /> : (
               <p className="text-xs text-muted-foreground">{ts("noAttendanceRecorded")}</p>
             )}
           </div>

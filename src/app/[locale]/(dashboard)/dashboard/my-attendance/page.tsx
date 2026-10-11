@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
+import { attendanceRate as calculateAttendanceRate } from "@/lib/attendance-rate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -74,20 +75,28 @@ export default function MyAttendancePage() {
   const membershipId = currentMembership?.id || null;
 
   const { data: records = [], isLoading, error, refetch } = useMyAttendanceRecords(membershipId);
+  const [historySelection, setHistorySelection] = useState<{ membershipId: string | null; year: string }>({ membershipId, year: "all" });
+  const availableYears = useMemo(() => [...new Set(records.map((record: Record<string, unknown>) => {
+    const event = record.event as Record<string, unknown> | null;
+    return event?.starts_at ? new Date(event.starts_at as string).getFullYear() : null;
+  }).filter((value): value is number => value !== null))].sort((a, b) => b - a), [records]);
+  const historyYear = historySelection.membershipId === membershipId
+    && (historySelection.year === "all" || availableYears.includes(Number(historySelection.year)))
+    ? historySelection.year : "all";
+  const visibleRecords = useMemo(() => historyYear === "all" ? records : records.filter((record: Record<string, unknown>) => {
+    const event = record.event as Record<string, unknown> | null;
+    return event?.starts_at && new Date(event.starts_at as string).getFullYear() === Number(historyYear);
+  }), [records, historyYear]);
 
   // Compute stats — exclude excused from denominator to match standing calculation
-  const totalEvents = records.length;
-  const presentCount = records.filter((r: Record<string, unknown>) => r.status === "present" || r.status === "late").length;
-  const absentCount = records.filter((r: Record<string, unknown>) => r.status === "absent").length;
-  const excusedCount = records.filter((r: Record<string, unknown>) => r.status === "excused").length;
-  const lateCount = records.filter((r: Record<string, unknown>) => r.status === "late").length;
-  const nonExcusedCount = totalEvents - excusedCount;
-  const attendanceRate = nonExcusedCount > 0 ? Math.round((presentCount / nonExcusedCount) * 100) : 0;
+  const totalEvents = visibleRecords.length;
+  const presentCount = visibleRecords.filter((r: Record<string, unknown>) => r.status === "present" || r.status === "late").length;
+  const attendanceRate = calculateAttendanceRate(visibleRecords);
 
   // Current streak (consecutive present/late from most recent)
   const currentStreak = useMemo(() => {
     let streak = 0;
-    for (const r of records as Record<string, unknown>[]) {
+    for (const r of visibleRecords as Record<string, unknown>[]) {
       if (r.status === "present" || r.status === "late") {
         streak++;
       } else {
@@ -95,18 +104,18 @@ export default function MyAttendancePage() {
       }
     }
     return streak;
-  }, [records]);
+  }, [visibleRecords]);
 
   // Build calendar data for current month
   const now = new Date();
-  const year = now.getFullYear();
+  const year = historyYear === "all" ? now.getFullYear() : Number(historyYear);
   const month = now.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDay = new Date(year, month, 1).getDay();
 
-  const dayStatus = useMemo(() => {
+  const dayStatus = (() => {
     const map: Record<number, AttendanceStatus> = {};
-    records.forEach((r: Record<string, unknown>) => {
+    visibleRecords.forEach((r: Record<string, unknown>) => {
       const event = r.event as Record<string, unknown> | null;
       if (!event?.starts_at) return;
       const d = new Date(event.starts_at as string);
@@ -115,7 +124,7 @@ export default function MyAttendancePage() {
       }
     });
     return map;
-  }, [records, year, month]);
+  })();
 
   const summaryStats = [
     {
@@ -132,7 +141,7 @@ export default function MyAttendancePage() {
     },
     {
       label: t("myAttendance.attendanceRate"),
-      value: `${attendanceRate}%`,
+      value: attendanceRate === null ? "—" : `${attendanceRate}%`,
       icon: TrendingUp,
       iconColor: "text-blue-500",
     },
@@ -215,7 +224,7 @@ export default function MyAttendancePage() {
       </div>
 
       {/* Trend Indicator */}
-      {attendanceRate > 0 && (
+      {attendanceRate !== null && attendanceRate > 0 && (
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
@@ -232,7 +241,7 @@ export default function MyAttendancePage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            {t("myAttendance.calendarTitle")}
+            {t("myAttendance.calendarTitle")} — {new Date(year, month).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "long", year: "numeric" })}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -286,20 +295,32 @@ export default function MyAttendancePage() {
 
       {/* Attendance Records */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
           <CardTitle className="text-base">
             {t("myAttendance.recordsTitle")}
           </CardTitle>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground" htmlFor="attendance-history-year">
+            {t("myAttendance.yearFilter")}
+            <select
+              id="attendance-history-year"
+              className="rounded-md border bg-background px-2 py-1 text-foreground"
+              value={historyYear}
+              onChange={(event) => setHistorySelection({ membershipId, year: event.target.value })}
+            >
+              <option value="all">{t("myAttendance.allYears")}</option>
+              {availableYears.map((availableYear) => <option key={availableYear} value={availableYear}>{availableYear}</option>)}
+            </select>
+          </label>
         </CardHeader>
         <CardContent>
-          {records.length === 0 ? (
+          {visibleRecords.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Calendar className="h-10 w-10 text-muted-foreground/50" />
-              <p className="mt-4 text-sm text-muted-foreground">{t("myAttendance.subtitle")}</p>
+              <p className="mt-4 text-sm text-muted-foreground">{records.length === 0 ? t("myAttendance.subtitle") : t("myAttendance.noRecordsForYear")}</p>
             </div>
           ) : (
             <div className="space-y-2">
-              {records.map((record: Record<string, unknown>) => {
+              {visibleRecords.map((record: Record<string, unknown>) => {
                 const status = (record.status as AttendanceStatus) || "present";
                 const config = statusConfig[status] || statusConfig.present;
                 const StatusIcon = config.icon;

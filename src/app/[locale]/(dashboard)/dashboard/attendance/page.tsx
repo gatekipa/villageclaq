@@ -914,7 +914,7 @@ export default function AttendancePage() {
               </div>
             )}
 
-            <DialogFooter>
+            <DialogFooter className="mx-0 mb-0 min-w-0">
               <Button variant="outline" onClick={() => setShowDialog(false)}>
                 {tc("cancel")}
               </Button>

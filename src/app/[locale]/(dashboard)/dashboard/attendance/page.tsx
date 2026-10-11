@@ -384,14 +384,28 @@ export default function AttendancePage() {
     try {
       const supabase = createClient();
       const now = new Date().toISOString();
-      const records = Object.entries(memberStatuses).map(([membershipId, status]) => ({
-        event_id: dialogEventId,
-        membership_id: membershipId,
-        status,
-        checked_in_via: "manual" as const,
-        checked_in_at: status === "present" || status === "late" ? now : null,
-        marked_by: user.id,
-      }));
+      // A response-lost retry must retain the first stored check-in timestamp
+      // and marker. Fetch immediately before saving; a failed read is not an
+      // empty roster and must never be treated as permission to rewrite it.
+      const { data: stored, error: storedError } = await supabase
+        .from("event_attendances")
+        .select("membership_id, status, checked_in_via, checked_in_at, marked_by, notes")
+        .eq("event_id", dialogEventId);
+      if (storedError) throw storedError;
+      const storedByMember = new Map((stored || []).map((row) => [row.membership_id, row]));
+      const records = Object.entries(memberStatuses).map(([membershipId, status]) => {
+        const previous = storedByMember.get(membershipId);
+        const replay = previous?.status === status && previous.checked_in_via === "manual";
+        return {
+          event_id: dialogEventId,
+          membership_id: membershipId,
+          status,
+          checked_in_via: "manual" as const,
+          checked_in_at: replay ? previous.checked_in_at : status === "present" || status === "late" ? now : null,
+          marked_by: replay ? previous.marked_by : user.id,
+          notes: previous?.notes ?? null,
+        };
+      });
 
       const { error } = await supabase
         .from("event_attendances")
@@ -417,19 +431,6 @@ export default function AttendancePage() {
         .select("id, event_id, membership_id, status, checked_in_via, checked_in_at, marked_by")
         .in("event_id", eventIds);
       setAllAttendance((refreshed || []) as AttendanceRecord[]);
-
-      // Audit log
-      try {
-        const { logActivity } = await import("@/lib/audit-log");
-        await logActivity(supabase, {
-          groupId: groupId!,
-          action: "event.attendance_recorded",
-          entityType: "event",
-          entityId: dialogEventId,
-          description: `Attendance recorded for ${records.length} members`,
-          metadata: { memberCount: records.length, eventId: dialogEventId },
-        });
-      } catch { /* best-effort */ }
 
       setSuccessMessage(t("attendanceSavedDesc", { count: records.length }));
       setTimeout(() => {

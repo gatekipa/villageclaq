@@ -1,9 +1,66 @@
 -- PREPARED ONLY. This migration is not covered by the approval for 20261010233459.
 -- Do not apply without separate approval for this exact file and hash.
 -- Existing attendance and audit rows are left intact. Installation performs
--- function/trigger/policy DDL only; later writes create server-authored evidence in
--- the same transaction as each attendance insert or material update.
+-- function/trigger/policy/trigger-function-ACL DDL only. Later writes create
+-- server-authored evidence in the same transaction as each attendance insert or
+-- material update. Exact replays preserve the first check-in timestamp/marker.
 BEGIN;
+
+-- The existing public RPC keeps its signature, authorization and EXECUTE ACL.
+-- A repeated identical status/method is not a new check-in or correction.
+CREATE OR REPLACE FUNCTION public.record_event_attendance(
+  p_event_id uuid,
+  p_membership_id uuid,
+  p_group_id uuid,
+  p_status public.attendance_status,
+  p_checkin_method public.checkin_method DEFAULT 'manual'
+) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
+AS $$
+DECLARE
+  v_caller uuid := auth.uid();
+  v_event public.events%ROWTYPE;
+  v_member public.memberships%ROWTYPE;
+  v_can_manage boolean;
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtext('m9_event_' || p_event_id::text));
+  SELECT * INTO v_event FROM public.events
+    WHERE id = p_event_id AND group_id = p_group_id;
+  SELECT * INTO v_member FROM public.memberships
+    WHERE id = p_membership_id AND group_id = p_group_id
+      AND membership_status = 'active';
+  IF v_event.id IS NULL OR v_member.id IS NULL THEN
+    RAISE EXCEPTION 'EVENT_MEMBER_SCOPE' USING ERRCODE = '42501';
+  END IF;
+  IF v_event.status = 'cancelled'::public.event_status THEN
+    RAISE EXCEPTION 'EVENT_CANCELLED' USING ERRCODE = '42501';
+  END IF;
+
+  v_can_manage := public.has_group_permission(p_group_id, 'attendance.manage', v_caller);
+  IF NOT v_can_manage THEN
+    IF v_member.user_id IS DISTINCT FROM v_caller
+      OR p_status <> 'present'::public.attendance_status
+      OR p_checkin_method <> 'qr'::public.checkin_method
+      OR now() NOT BETWEEN v_event.starts_at - interval '30 minutes'
+        AND COALESCE(v_event.ends_at, v_event.starts_at + interval '3 hours') + interval '30 minutes' THEN
+      RAISE EXCEPTION 'UNAUTHORIZED' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(hashtext('m9_attendance_' || p_event_id::text || '_' || p_membership_id::text));
+  INSERT INTO public.event_attendances (event_id, membership_id, status, checked_in_via, checked_in_at, marked_by)
+  VALUES (p_event_id, p_membership_id, p_status, p_checkin_method, now(), v_caller)
+  ON CONFLICT (event_id, membership_id) DO UPDATE
+  SET status = EXCLUDED.status,
+      checked_in_via = EXCLUDED.checked_in_via,
+      checked_in_at = EXCLUDED.checked_in_at,
+      marked_by = EXCLUDED.marked_by,
+      updated_at = now()
+  WHERE public.event_attendances.status IS DISTINCT FROM EXCLUDED.status
+     OR public.event_attendances.checked_in_via IS DISTINCT FROM EXCLUDED.checked_in_via;
+  RETURN jsonb_build_object('ok', true);
+END;
+$$;
 
 CREATE OR REPLACE FUNCTION public.guard_event_attendance_identity()
 RETURNS trigger
@@ -14,9 +71,21 @@ BEGIN
     OR NEW.membership_id IS DISTINCT FROM OLD.membership_id THEN
     RAISE EXCEPTION 'ATTENDANCE_IDENTITY_IMMUTABLE' USING ERRCODE = '23514';
   END IF;
+  -- The officer form reuses persisted check-in fields on retry. Suppress an
+  -- exact no-op before updated_at/standing/audit triggers can create noise.
+  IF (NEW.status, NEW.checked_in_via, NEW.checked_in_at, NEW.marked_by, NEW.notes)
+     IS NOT DISTINCT FROM
+     (OLD.status, OLD.checked_in_via, OLD.checked_in_at, OLD.marked_by, OLD.notes) THEN
+    RETURN NULL;
+  END IF;
   RETURN NEW;
 END;
 $$;
+
+-- New public-schema SECURITY DEFINER trigger functions otherwise inherit
+-- PostgreSQL's default PUBLIC EXECUTE privilege. Triggers are installed by
+-- the owner, and ordinary clients do not need direct function invocation.
+REVOKE ALL ON FUNCTION public.guard_event_attendance_identity() FROM PUBLIC;
 
 CREATE TRIGGER guard_event_attendance_identity
 BEFORE UPDATE ON public.event_attendances
@@ -91,6 +160,8 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+REVOKE ALL ON FUNCTION public.audit_event_attendance_change() FROM PUBLIC;
 
 CREATE TRIGGER record_event_attendance_audit
 AFTER INSERT OR UPDATE ON public.event_attendances

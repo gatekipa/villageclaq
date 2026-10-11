@@ -3392,7 +3392,7 @@
     "attendanceRate": "Taux de Présence",
     "currentStreak": "Série Actuelle",
     "streakEvents": "{count} événements",
-    "trendUp": "Votre présence est en hausse de {percent}% par rapport au trimestre dernier",
+    "rateExplanation": "Les présences et retards comptent dans ce taux; les absences excusées sont exclues.",
     "calendarTitle": "Calendrier de présence",
     "yearFilter": "Année",
     "allYears": "Toutes les années",

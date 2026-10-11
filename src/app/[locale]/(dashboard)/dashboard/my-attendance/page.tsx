@@ -83,10 +83,21 @@ export default function MyAttendancePage() {
   const historyYear = historySelection.membershipId === membershipId
     && (historySelection.year === "all" || availableYears.includes(Number(historySelection.year)))
     ? historySelection.year : "all";
-  const visibleRecords = useMemo(() => historyYear === "all" ? records : records.filter((record: Record<string, unknown>) => {
-    const event = record.event as Record<string, unknown> | null;
-    return event?.starts_at && new Date(event.starts_at as string).getFullYear() === Number(historyYear);
-  }), [records, historyYear]);
+  const visibleRecords = useMemo(() => {
+    const selected = historyYear === "all" ? [...records] : records.filter((record: Record<string, unknown>) => {
+      const event = record.event as Record<string, unknown> | null;
+      return event?.starts_at && new Date(event.starts_at as string).getFullYear() === Number(historyYear);
+    });
+    // A later correction changes checked_in_at; history and streak follow the
+    // meeting date, not the time an officer last corrected its attendance.
+    return selected.sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+      const aEvent = a.event as Record<string, unknown> | null;
+      const bEvent = b.event as Record<string, unknown> | null;
+      const aTime = Date.parse((aEvent?.starts_at || a.checked_in_at || "") as string) || 0;
+      const bTime = Date.parse((bEvent?.starts_at || b.checked_in_at || "") as string) || 0;
+      return bTime - aTime;
+    });
+  }, [records, historyYear]);
 
   // Compute stats — exclude excused from denominator to match standing calculation
   const totalEvents = visibleRecords.length;
@@ -223,14 +234,14 @@ export default function MyAttendancePage() {
         })}
       </div>
 
-      {/* Trend Indicator */}
-      {attendanceRate !== null && attendanceRate > 0 && (
+      {/* Explain the actual denominator; no prior-quarter comparison is available. */}
+      {attendanceRate !== null && (
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
-              <TrendingUp className={`h-5 w-5 ${attendanceRate >= 75 ? "text-emerald-500" : "text-amber-500"}`} />
-              <p className={`text-sm font-medium ${attendanceRate >= 75 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
-                {t("myAttendance.trendUp", { percent: attendanceRate })}
+              <AlertCircle className="h-5 w-5 shrink-0 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                {t("myAttendance.rateExplanation")}
               </p>
             </div>
           </CardContent>

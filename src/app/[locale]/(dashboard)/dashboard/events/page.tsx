@@ -899,7 +899,7 @@ export default function EventsPage() {
 
       {/* Calendar View */}
       {view === "calendar" && (
-        <Card>
+        <Card className="mb-24 sm:mb-0">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <Button variant="ghost" size="icon" onClick={() => setCalendarDate(new Date(year, month - 1))}>
               <ChevronLeft className="h-4 w-4" />
@@ -1282,7 +1282,7 @@ export default function EventsPage() {
               <Label>{t("eventType")}</Label>
               <Select value={formEventType} onValueChange={(v) => setFormEventType(v as EventType)}>
                 <SelectTrigger>
-                  <SelectValue placeholder={t("selectType")} />
+                  <span className="min-w-0 flex-1 truncate text-left">{t(`eventTypes.${formEventType}`)}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {EVENT_TYPES.map((type) => (

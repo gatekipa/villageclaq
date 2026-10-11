@@ -718,8 +718,12 @@ function MemberDetailContent() {
   // Current streak
   let currentStreak = 0;
   const sortedAttendances = [...attendances].sort(
-    (a: Record<string, unknown>, b: Record<string, unknown>) =>
-      new Date(b.checked_in_at as string).getTime() - new Date(a.checked_in_at as string).getTime()
+    (a: Record<string, unknown>, b: Record<string, unknown>) => {
+      const aEvent = a.event as Record<string, unknown> | null;
+      const bEvent = b.event as Record<string, unknown> | null;
+      return (Date.parse((bEvent?.starts_at || b.checked_in_at || "") as string) || 0)
+        - (Date.parse((aEvent?.starts_at || a.checked_in_at || "") as string) || 0);
+    }
   );
   for (const a of sortedAttendances) {
     const att = a as Record<string, unknown>;
@@ -1586,8 +1590,8 @@ function MemberDetailContent() {
               const ev = a.event as Record<string, unknown> | null;
               timeline.push({
                 type: "attendance",
-                date: new Date(a.checked_in_at as string || (ev?.starts_at as string)),
-                label: (ev?.title as string) || "",
+                date: new Date((ev?.starts_at || a.checked_in_at) as string),
+                label: (locale === "fr" && ev?.title_fr ? ev.title_fr : ev?.title) as string || "",
                 detail: (a.status as string) || "",
               });
             }
@@ -1647,7 +1651,11 @@ function MemberDetailContent() {
                         </>
                       ) : (
                         <Badge variant={item.detail === "present" || item.detail === "late" ? "secondary" : "destructive"} className="text-[10px]">
-                          {item.detail}
+                          {item.detail === "present" ? t("attendance.markPresent")
+                            : item.detail === "absent" ? t("attendance.markAbsent")
+                            : item.detail === "late" ? t("attendance.markLate")
+                            : item.detail === "excused" ? t("attendance.markExcused")
+                            : item.detail}
                         </Badge>
                       )}
                     </span>

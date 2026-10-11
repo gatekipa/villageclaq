@@ -120,6 +120,8 @@ export default function MyEventsPage() {
   const { groupId, currentMembership, currentGroup } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const membershipId = currentMembership?.id || null;
+  const eventTitle = (event: Record<string, unknown>) =>
+    (locale === "fr" && event.title_fr ? event.title_fr : event.title) as string;
 
   const { data: events = [], isLoading: eventsLoading, error: eventsError, refetch: refetchEvents } = useEvents();
   const { data: myRsvps = [] } = useMyRsvps(groupId, membershipId);
@@ -224,14 +226,10 @@ export default function MyEventsPage() {
   const firstDay = getFirstDayOfMonth(year, month);
   const monthName = calendarDate.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "long", year: "numeric" });
 
-  const eventsInMonth = useMemo(
-    () =>
-      events.filter((e: Record<string, unknown>) => {
-        const d = new Date(e.starts_at as string);
-        return d.getFullYear() === year && d.getMonth() === month;
-      }),
-    [events, year, month]
-  );
+  const eventsInMonth = events.filter((e: Record<string, unknown>) => {
+    const d = new Date(e.starts_at as string);
+    return d.getFullYear() === year && d.getMonth() === month;
+  });
 
   const getEventsForDay = (day: number) => {
     return eventsInMonth.filter((e: Record<string, unknown>) => new Date(e.starts_at as string).getDate() === day);
@@ -451,7 +449,7 @@ export default function MyEventsPage() {
                       {/* Event Info */}
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-semibold">{event.title as string}</h3>
+                          <h3 className="font-semibold">{eventTitle(event)}</h3>
                           <Badge className={eventTypeColors[eventType]} variant="secondary">
                             {t(`events.eventTypes.${eventType}`)}
                           </Badge>
@@ -588,7 +586,7 @@ export default function MyEventsPage() {
                           </span>
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-semibold truncate">{event.title as string}</h3>
+                          <h3 className="font-semibold truncate">{eventTitle(event)}</h3>
                           <p className="text-xs text-muted-foreground">
                             {formatFullDate(startsAt)}
                           </p>

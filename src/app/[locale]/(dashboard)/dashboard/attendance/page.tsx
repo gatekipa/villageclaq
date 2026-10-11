@@ -11,7 +11,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import {
   Dialog,
@@ -232,7 +231,7 @@ export default function AttendancePage() {
 
       result.push({
         event_id: eventId,
-        event_title: event.title as string,
+        event_title: (locale === "fr" && event.title_fr ? event.title_fr : event.title) as string,
         event_date: event.starts_at as string,
         records,
         present,
@@ -245,7 +244,7 @@ export default function AttendancePage() {
     }
 
     return result.sort((a, b) => b.event_date.localeCompare(a.event_date));
-  }, [events, allAttendance]);
+  }, [events, allAttendance, locale]);
 
   // Members map for expanded view
   const membersMap = useMemo(() => {
@@ -468,6 +467,7 @@ export default function AttendancePage() {
   }
 
   const allEvents = ((events || []) as Record<string, unknown>[]).filter((event) => event.status !== "cancelled");
+  const selectedDialogEvent = allEvents.find((event) => event.id === dialogEventId);
 
   return (
     <PermissionGate permission="attendance.manage">
@@ -718,7 +718,11 @@ export default function AttendancePage() {
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={t("selectEvent")} />
+                  <span className="min-w-0 flex-1 truncate text-left">
+                    {selectedDialogEvent
+                      ? `${locale === "fr" && selectedDialogEvent.title_fr ? selectedDialogEvent.title_fr : selectedDialogEvent.title} — ${new Date(selectedDialogEvent.starts_at as string).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "short", day: "numeric" })}`
+                      : t("selectEvent")}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {allEvents.length === 0 ? (
@@ -728,7 +732,7 @@ export default function AttendancePage() {
                   ) : (
                     allEvents.map((event) => (
                       <SelectItem key={event.id as string} value={event.id as string}>
-                        {event.title as string} &mdash;{" "}
+                        {(locale === "fr" && event.title_fr ? event.title_fr : event.title) as string} &mdash;{" "}
                         {new Date(event.starts_at as string).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "short", day: "numeric" })}
                       </SelectItem>
                     ))

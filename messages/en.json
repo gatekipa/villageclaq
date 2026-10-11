@@ -3350,7 +3350,7 @@
     "attendanceRate": "Attendance Rate",
     "currentStreak": "Current Streak",
     "streakEvents": "{count} events",
-    "trendUp": "Your attendance is up {percent}% vs last quarter",
+    "rateExplanation": "Present and late records count toward this rate; excused records are excluded.",
     "calendarTitle": "Attendance calendar",
     "yearFilter": "Year",
     "allYears": "All years",
